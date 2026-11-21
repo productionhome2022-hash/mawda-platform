@@ -1,0 +1,1116 @@
+# Existing historical audit evidence
+Collection: 2026-11-21T21:40:42+03:00
+
+## Existing audit directories in this repository
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_featured-ads-secure-lifecycle-20261118/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_featured-ads-secure-lifecycle-20261118/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_featured-ads-secure-lifecycle-20261118/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_featured-ads-secure-lifecycle-20261118/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_featured-ads-secure-lifecycle-20261118/source-only-commits.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-test-account-system/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-test-account-system/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-test-account-system/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-test-account-system/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-test-account-system/source-only-commits.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-only-commits.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20/source-only-commits.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-scanner-error-callback-test-2026-11-20/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-scanner-error-callback-test-2026-11-20/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-scanner-error-callback-test-2026-11-20/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-scanner-error-callback-test-2026-11-20/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_phase1-scanner-error-callback-test-2026-11-20/source-only-commits.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_production-readiness-tests/changed-files.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_production-readiness-tests/comparison.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_production-readiness-tests/merge-tree.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_production-readiness-tests/source-file-inventory.txt
+docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_production-readiness-tests/source-only-commits.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/FINAL-RESULT.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/README.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_biometric-final-owner-policy-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_biometric-final-policy-drift-closure-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_biometric-manual-review-gate-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_biometric-server-lifecycle-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_biometric-video-duration-validation-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_canonical-role-terminology-owner-confirmation-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase-completion-2026-11-18.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase-controlled-integration-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase1-closeout-2026-11-18.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-official-port-2026-11-18.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-recovery-2026-11-18.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_featured-ads-secure-lifecycle-20261118.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_featured-ads-serving-foundation.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_governance-biometric-integration-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawda-phase2-hardening.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawda-unified-constitution-vision-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-audit-archive-full.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-audit-archive.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-biometric-owner-review-policy-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-biometric-proof-gate-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-deep-audit-profile-store.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-deep-governance-audit-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-economy-selective-port-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-final-archive-v2.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-group-call-capacity-2026-11-20-r2.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-group-call-capacity-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-independent-verification-cycles-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-independent-verification-cycles-dev-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-member-inbox-rebased.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-member-inbox.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-mfa-signin.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-native-platform-scaffold.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-phase1-phase2-hardening.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-phase1-unified-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-pr3-port.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-premium-effects.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-premium-features.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-retention-approval-ci-repair-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-role-callable-deny-regressions-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-role-capacity-after-retention-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-role-capacity-consolidation-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-role-capacity-final-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-room-audio-duration-enforcement.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-room-events.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-safety-ui.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-step1-role-reconcile-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-store-entitlement-coverage.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-store-entitlement-hardening-v2.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-store-entitlement-hardening.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-store-wallet-entitlement-closure.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-super-owner-biometric-state-machine-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-test-account-system.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-final-v2.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-final-v3.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-final.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-release.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-test-2026-11-18.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-advertising-callable-auth-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-branch-governance-audit-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-ci-coverage-role-store-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-ci-evidence-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-direct-call-transaction-revalidation-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-featured-ad-geography-all-arab-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-group-call-remainder-to-initiator-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-integration-batch-01-inventory-2026-11-19.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-media-direct-delivery-denials-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-media-hold-delete-race-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-media-scanner-replay-regression-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-media-scanner-verdict-tests-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-rented-room-call-gate-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-scanner-error-callback-test-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-specialist-callable-auth-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-specialized-callable-auth-inventory-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-store-gift-concurrency-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-store-gift-permanent-entitlement-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_phase1-store-gifting-catalog-version-regressions-2026-11-20.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_production-readiness-tests.txt
+docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_structural-governance-biometric-roles-2026-11-19.txt
+
+## Existing references to requested dates in tracked audit documents
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:352:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/changed-files.txt	24a976d72a126060c5c63725570ef12bfdc4c991	1910
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:353:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/comparison.txt	d543b1c38f529811b762902f99af2e35838f7362	18524
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:354:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/merge-tree.txt	8e0a27ef277e2324f87514573ca828eaa38a0613	6406
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:355:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/source-file-inventory.txt	a775b719200b798c27c6df772bda3822ad13cc47	16542
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:356:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/source-only-commits.txt	4801e0f49a77fa81084e645fce79e9485adce3e3	26554
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:362:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/changed-files.txt	4b7e93dcabbfe1dc2cab711318f00ef4450110b6	1444
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:363:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/comparison.txt	0a86702a691549456a67001b1a72d49524402ed0	13384
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:364:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/merge-tree.txt	09b10dc1f18df765d30ff1eeaa59353d53c62983	5784
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:365:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/source-file-inventory.txt	81bd0693e31d46ea0ca720f376b3e21be0072408	16095
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:366:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/source-only-commits.txt	8fa8816cdc5918026e0607a54243c5931ca9653b	17409
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:367:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/changed-files.txt	7cfec66ffccef2a1b6d69410209fba5775c894f0	451
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:368:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/comparison.txt	7cbe2ae405bb17491d987bb7b7ec49b781eca5e0	3430
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:369:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/merge-tree.txt	5e2ecd8b788f46488f8d6a12a0192afc39e6b84e	3044
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:370:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/source-file-inventory.txt	0e1eab9f3344858599639792197f4a367f64b085	15666
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:371:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/source-only-commits.txt	4684fd16c1ab805547700faebf255725bb111f0c	3247
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:372:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/changed-files.txt	b4c25aeb4631948df0d0c97b513d210c9a0d4a09	4506
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:373:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/comparison.txt	7a6a52fc911e368f3af074b4d3b3863b5becfb22	56355
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:374:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/merge-tree.txt	67afa7881531da84856a96ae01f7d0c0515a6339	18083
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:375:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/source-file-inventory.txt	efa71c1299f4ba68a78fac6a43a6a5a687b3f33a	17100
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:376:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/source-only-commits.txt	86f5fdda22411ede66399599a6d5a4cddf782965	90132
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:602:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/changed-files.txt	f8f68c3b4eded095e42de374123f86e248945a78	3211
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:603:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/comparison.txt	4a6e377788df6fdae932f753c608846c17bf8fe6	31937
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:604:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/merge-tree.txt	134abb86f9a34ed9a11eaaff108baae2b31bd85d	12713
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:605:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-file-inventory.txt	49fc85ea9c4a204175ae595e67dfa1f08104607c	16713
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:606:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-only-commits.txt	38a08b63b845265117ef860916ae81178527709e	46035
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:730:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase-completion-2026-11-18.txt	9aebbec2c807b97c82e2e6a84695033d95d5af7b	18242
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:732:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase1-closeout-2026-11-18.txt	025744bd347f4235512a2aef17c600e992d38227	12175
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:733:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-official-port-2026-11-18.txt	856380d67809a1bd06849ffeb7007c6a23ae0096	3148
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:734:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-recovery-2026-11-18.txt	6884794845668501ed2a2d2849c5641c5497ca1c	55778
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:780:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-test-2026-11-18.txt	a35bfc33b2818845f60ba8add5498b3e37c2cd3a	31406
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:849:docs/CI_REGRESSION_REMEDIATION_2026-11-16.md	05c3ae00abae02b5f867bef167f955dc159fa951	5131
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:858:docs/EXECUTION_BASELINE_2026-11-16.md	9e12b1a722bb7554adaa798aa65d0f4cc245cbb0	45595
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:898:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economic-phase-completion-2026-11-18.txt	856c2a9460ff51ce30091fad7a60226577434be7	4966
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:900:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economic-phase1-closeout-2026-11-18.txt	b744014fcc86f6928fd1938c2f315e476e4df255	3827
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:901:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economy-official-port-2026-11-18.txt	9a1203c62272743867fd06c35429dfdd9ef0ba96	1269
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:902:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economy-recovery-2026-11-18.txt	4275ebb6a57bc584fc359ffec418840e06b1260e	11270
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:948:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_mawdda-unified-test-2026-11-18.txt	1696e9c160edc3f7a0e01063557cf9358ea82aee	8275
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:980:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economic-phase-completion-2026-11-18.txt	f26571c670b8c55369bc1603c972f301281e4eda	16643
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:982:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economic-phase1-closeout-2026-11-18.txt	749e2d070a11dc0c82fb968078172d8b8154d560	16195
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:983:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economy-official-port-2026-11-18.txt	1d3f751a78119b651ffdd4e82fa4374c74542014	15763
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:984:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economy-recovery-2026-11-18.txt	4efa0c6ca5a50fe1799e719744e8d18acb3ceaa8	17192
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY.tsv:1031:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_mawdda-unified-test-2026-11-18.txt	b92c815a97def35e5a82cda0426cb86477b1a4b4	16808
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:354:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/changed-files.txt	24a976d72a126060c5c63725570ef12bfdc4c991	1910
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:355:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/comparison.txt	d543b1c38f529811b762902f99af2e35838f7362	18524
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:356:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/merge-tree.txt	8e0a27ef277e2324f87514573ca828eaa38a0613	6406
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:357:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/source-file-inventory.txt	a775b719200b798c27c6df772bda3822ad13cc47	16542
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:358:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase-completion-2026-11-18/source-only-commits.txt	4801e0f49a77fa81084e645fce79e9485adce3e3	26554
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:364:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/changed-files.txt	4b7e93dcabbfe1dc2cab711318f00ef4450110b6	1444
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:365:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/comparison.txt	0a86702a691549456a67001b1a72d49524402ed0	13384
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:366:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/merge-tree.txt	09b10dc1f18df765d30ff1eeaa59353d53c62983	5784
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:367:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/source-file-inventory.txt	81bd0693e31d46ea0ca720f376b3e21be0072408	16095
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:368:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economic-phase1-closeout-2026-11-18/source-only-commits.txt	8fa8816cdc5918026e0607a54243c5931ca9653b	17409
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:369:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/changed-files.txt	7cfec66ffccef2a1b6d69410209fba5775c894f0	451
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:370:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/comparison.txt	7cbe2ae405bb17491d987bb7b7ec49b781eca5e0	3430
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:371:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/merge-tree.txt	5e2ecd8b788f46488f8d6a12a0192afc39e6b84e	3044
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:372:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/source-file-inventory.txt	0e1eab9f3344858599639792197f4a367f64b085	15666
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:373:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-official-port-2026-11-18/source-only-commits.txt	4684fd16c1ab805547700faebf255725bb111f0c	3247
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:374:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/changed-files.txt	b4c25aeb4631948df0d0c97b513d210c9a0d4a09	4506
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:375:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/comparison.txt	7a6a52fc911e368f3af074b4d3b3863b5becfb22	56355
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:376:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/merge-tree.txt	67afa7881531da84856a96ae01f7d0c0515a6339	18083
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:377:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/source-file-inventory.txt	efa71c1299f4ba68a78fac6a43a6a5a687b3f33a	17100
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:378:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_economy-recovery-2026-11-18/source-only-commits.txt	86f5fdda22411ede66399599a6d5a4cddf782965	90132
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:604:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/changed-files.txt	f8f68c3b4eded095e42de374123f86e248945a78	3211
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:605:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/comparison.txt	4a6e377788df6fdae932f753c608846c17bf8fe6	31937
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:606:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/merge-tree.txt	134abb86f9a34ed9a11eaaff108baae2b31bd85d	12713
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:607:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-file-inventory.txt	49fc85ea9c4a204175ae595e67dfa1f08104607c	16713
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:608:docs/audit/termux/runs/20261121T043933Z-9c2727cc/branches/codex_mawdda-unified-test-2026-11-18/source-only-commits.txt	38a08b63b845265117ef860916ae81178527709e	46035
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:732:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase-completion-2026-11-18.txt	9aebbec2c807b97c82e2e6a84695033d95d5af7b	18242
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:734:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economic-phase1-closeout-2026-11-18.txt	025744bd347f4235512a2aef17c600e992d38227	12175
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:735:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-official-port-2026-11-18.txt	856380d67809a1bd06849ffeb7007c6a23ae0096	3148
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:736:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_economy-recovery-2026-11-18.txt	6884794845668501ed2a2d2849c5641c5497ca1c	55778
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:782:docs/audit/termux/runs/20261121T050919Z-b62fcbae-integration-review/branches/codex_mawdda-unified-test-2026-11-18.txt	a35bfc33b2818845f60ba8add5498b3e37c2cd3a	31406
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:851:docs/CI_REGRESSION_REMEDIATION_2026-11-16.md	05c3ae00abae02b5f867bef167f955dc159fa951	5131
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:860:docs/EXECUTION_BASELINE_2026-11-16.md	9e12b1a722bb7554adaa798aa65d0f4cc245cbb0	45595
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:900:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economic-phase-completion-2026-11-18.txt	856c2a9460ff51ce30091fad7a60226577434be7	4966
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:902:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economic-phase1-closeout-2026-11-18.txt	b744014fcc86f6928fd1938c2f315e476e4df255	3827
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:903:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economy-official-port-2026-11-18.txt	9a1203c62272743867fd06c35429dfdd9ef0ba96	1269
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:904:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_economy-recovery-2026-11-18.txt	4275ebb6a57bc584fc359ffec418840e06b1260e	11270
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:950:docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_mawdda-unified-test-2026-11-18.txt	1696e9c160edc3f7a0e01063557cf9358ea82aee	8275
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:982:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economic-phase-completion-2026-11-18.txt	f26571c670b8c55369bc1603c972f301281e4eda	16643
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:984:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economic-phase1-closeout-2026-11-18.txt	749e2d070a11dc0c82fb968078172d8b8154d560	16195
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:985:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economy-official-port-2026-11-18.txt	1d3f751a78119b651ffdd4e82fa4374c74542014	15763
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:986:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_economy-recovery-2026-11-18.txt	4efa0c6ca5a50fe1799e719744e8d18acb3ceaa8	17192
+HEAD:docs/audit/2026-11-11_to_2026-11-21/DOCUMENT_INVENTORY_CURRENT.tsv:1033:docs/mawdda-comprehensive-audit-20261121T042744Z/manifest-codex_mawdda-unified-test-2026-11-18.txt	b92c815a97def35e5a82cda0426cb86477b1a4b4	16808
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:29:- `docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:30:- `docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:32:- `docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:33:- `docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:34:- `docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:35:- `docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:42:- `docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md`
+HEAD:docs/audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md:47:- `docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:41:BRANCH=codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:42:REF=refs/remotes/origin/codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:51:BRANCH=codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:52:REF=refs/remotes/origin/codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:56:BRANCH=codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:57:REF=refs/remotes/origin/codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:61:BRANCH=codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:62:REF=refs/remotes/origin/codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:291:BRANCH=codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/01-BRANCH-INVENTORY.txt:292:REF=refs/remotes/origin/codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:96:### codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:302:### codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:428:### codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:450:### codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:1689:a2e0288599e074c6eccdbf734524d31697a2de8e docs/test: port economic audit evidence docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/02-UNIQUE-COMMITS.txt:2111:### codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:45:### codex/economic-phase-completion-2026-11-18 (0914885232ff8bcfb64536c6655e7bff01b78361)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:48:A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:102:### codex/economic-phase1-closeout-2026-11-18 (10564784494310761bb4249d703d646020209e35)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:103:A	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:104:A	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:105:A	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:138:### codex/economy-official-port-2026-11-18 (d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:149:### codex/economy-recovery-2026-11-18 (67adbaeccc02128f5e5a86ea01b0c4f63c09106f)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:154:A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:155:A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:160:A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:261:A	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:418:A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:741:### codex/mawdda-unified-test-2026-11-18 (b62fcbae7ea3cd0c2b473f730cb625b35335de67)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:743:A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:744:A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/03-CHANGED-FILES.txt:748:A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/04-BRANCH-SUMMARY.txt:9:codex/economic-phase-completion-2026-11-18 | 0914885232ff8bcfb64536c6655e7bff01b78361 | 655237 bytes | a7e06836f4333b0b.patch
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/04-BRANCH-SUMMARY.txt:11:codex/economic-phase1-closeout-2026-11-18 | 10564784494310761bb4249d703d646020209e35 | 587124 bytes | e688734419c9e515.patch
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/04-BRANCH-SUMMARY.txt:12:codex/economy-official-port-2026-11-18 | d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c | 177574 bytes | f96504a400a216d0.patch
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/04-BRANCH-SUMMARY.txt:13:codex/economy-recovery-2026-11-18 | 67adbaeccc02128f5e5a86ea01b0c4f63c09106f | 1849460 bytes | d0ab40c911417826.patch
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/04-BRANCH-SUMMARY.txt:59:codex/mawdda-unified-test-2026-11-18 | b62fcbae7ea3cd0c2b473f730cb625b35335de67 | 1351859 bytes | abec293f610fc2cf.patch
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:4:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:5:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:41:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:44:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:46:docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:47:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:48:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:50:docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:51:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:54:docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:55:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:56:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:59:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:61:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:64:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:69:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:70:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:77:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:82:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:83:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:91:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:136:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:137:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:156:docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:157:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:158:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:165:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:168:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:171:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:174:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:177:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:178:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:184:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:193:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:202:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:238:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:242:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:244:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:247:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:248:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:249:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:250:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:251:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:254:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:255:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:257:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:260:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:261:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:264:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:265:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:266:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:269:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:274:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:275:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:279:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:280:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:282:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:285:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:287:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:290:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:292:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:296:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:297:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:298:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:300:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:305:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:306:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:307:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:308:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:331:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:339:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:341:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:349:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:353:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:357:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:359:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:363:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:369:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:384:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:385:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:386:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:390:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:395:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:396:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:400:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:402:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:405:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:407:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:410:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:411:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:414:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:417:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:418:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:419:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:422:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:425:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:433:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:434:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:459:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:477:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:481:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:483:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:486:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:487:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:488:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:489:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:490:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:493:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:494:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:497:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:498:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:499:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:502:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:507:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:508:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:512:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:513:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:515:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:518:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:520:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:523:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:525:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:529:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:532:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:535:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:536:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:537:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:539:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:549:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:550:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:551:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:557:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:565:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:572:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:575:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:578:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:586:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:591:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:598:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:600:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:603:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:604:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:619:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:620:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:633:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:641:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:642:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:643:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:653:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:657:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:659:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:667:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:671:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:676:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:678:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:702:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:703:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:704:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:708:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:722:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:724:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:727:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:728:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:729:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:732:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:735:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:736:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:737:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:740:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:743:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:751:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:752:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:763:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:765:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:768:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:769:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:773:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:776:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:777:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:778:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:779:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:786:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:789:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:792:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:793:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:794:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:795:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:798:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:799:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:802:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:805:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:806:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:815:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:816:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:818:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:821:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:823:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:826:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:827:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:830:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:832:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:835:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:838:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:850:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:851:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:852:  - codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:853:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:855:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:858:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:860:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:863:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:865:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:868:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:869:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:874:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:877:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:879:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:882:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:883:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:884:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:887:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:888:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:889:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:895:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:898:  - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:899:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:900:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:904:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:908:  - codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:909:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:910:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:914:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:917:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:920:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:924:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:926:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:929:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:931:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:934:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:939:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:942:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:946:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:949:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:952:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:955:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:958:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:961:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:969:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:972:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:980:  - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/05-FILE-OVERLAP.txt:983:  - codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/13d69b0f649768c2.txt:116:a2e0288599e074c6eccdbf734524d31697a2de8e docs/test: port economic audit evidence docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/13d69b0f649768c2.txt:191:+ a2e0288599e074c6eccdbf734524d31697a2de8e docs/test: port economic audit evidence docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/13d69b0f649768c2.txt:301:A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/13d69b0f649768c2.txt:367:58	0	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/38d47d2153dc2bc3.txt:417:A	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/38d47d2153dc2bc3.txt:477:142	0	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/a7e06836f4333b0b.txt:1:BRANCH: codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/a7e06836f4333b0b.txt:379:A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/a7e06836f4333b0b.txt:426:58	0	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:1:BRANCH: codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:637:A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:638:A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:642:A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:716:56	0	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:717:68	0	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:721:520	0	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/abec293f610fc2cf.txt:794:docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md:520: new blank line at EOF.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1:BRANCH: codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1254:A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1255:A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1260:A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1361:56	0	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1362:310	0	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1367:520	0	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/d0ab40c911417826.txt:1464:docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md:520: new blank line at EOF.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:1:BRANCH: codex/economic-phase1-closeout-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:263:A	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:264:A	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:265:A	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:299:208	0	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:300:196	0	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:301:223	0	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:335:docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:3: trailing whitespace.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:337:docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:4: trailing whitespace.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:339:docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:5: trailing whitespace.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:340:+فرع العمل: `codex/economic-phase1-closeout-2026-11-18`  
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:341:docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:6: trailing whitespace.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:343:docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:32: trailing whitespace.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/e688734419c9e515.txt:345:docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md:223: new blank line at EOF.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/branches/f96504a400a216d0.txt:1:BRANCH: codex/economy-official-port-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:327:diff --git a/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md b/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:331:+++ b/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:334:+Date: 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:336:+Working branch: `codex/economic-phase-completion-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:348:+| #22 | `codex/economic-phase1-closeout-2026-11-18` | `codex/mawdda-unified-test-2026-11-18` | 124 commits ahead of official development; 34 changed files | Do not merge wholesale. Select compatible, independently reviewed files/hunks only. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:349:+| #28 | `codex/economy-recovery-2026-11-18` | `codex/mawdda-unified-test-2026-11-18` | 618 commits ahead of official development; 53 changed files | Do not merge wholesale. It contains broad overlapping changes to Functions, Flutter, scanner, dependencies and workflow files; requires selective port and conflict review. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:350:+| #30 | `codex/economy-official-port-2026-11-18` | `codex/mawda-full-platform-implementation` | 20 commits ahead of official development; 9 changed files | Correctly targets the official development line. Keep as a separate reviewed draft until its wallet/payment changes are integrated in a controlled sequence. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:401:+This audit applies only to development branch `codex/economic-phase-completion-2026-11-18`. It does not authorize merge to `main`, deployment, production Firebase changes, paid infrastructure, billing activation, or any production data mutation.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:988:-- `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:990:+- `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit فريداً على فرع التطوير الرسمي ومتأخر عنه بـ92 commit وقت المقارنة؛ لا يدمج wholesale، وبعض ملفاته أقدم من النسخ الموجودة في الخط الأساسي.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:991:+- `codex/economic-phase-completion-2026-11-18`: متقدم بـ181 commit فريداً ومتأخر بـ92 commit؛ يحتوي وحدات سياسات واختبارات وبعض الفروقات غير المتوافقة التي لا تنقل wholesale.\n- `codex/governance-biometric-integration-2026-11-19`: متقدم بـ89 commit فريداً ومتأخر بـ89 commit؛ الفروقات تشمل تدفق المراجعة اليدوية، المسميات والأدوار، قواعد Firestore/Storage والواجهات. يبقى تعارض REWARD-002 مفتوحاً.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:1630:+- المصدر: `codex/economy-official-port-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/13d69b0f649768c2.patch:1637:+- المصدر: `codex/economic-phase-completion-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:418: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:428: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:435:-| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:436:+| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 60/40 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:453: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:469: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:478: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:486: ## 2026-11-16 — App Check client integration blocker (Issue #19)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:495: ## 2026-11-16 — Room rental idempotency and lifecycle integrity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:504: ## 2026-11-16 — Reject invitations to inactive rooms
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:512: ## 2026-11-16 — Store purchase idempotency binds confirmed price
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:522: ## 2026-11-16 — WebRTC call lifecycle and media implementation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:541: ## 2026-11-18 — Responsive room-card actions
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:551: ## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:562: ## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:574: ## 2026-11-18 — Reward-center campaign discovery parity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:585: ## 2026-11-18 — exact-head CI and priority-gap reconciliation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:622:+## 2026-11-18 — AD-001 featured-ad discovery serving foundation (draft PR #21)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:635:+## 2026-11-18 — AD-001 serving/reward implementation update
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/2da76f550ea32720.patch:656:+## 2026-11-18 — AD-001 hardening and owner workflow completion pass
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:210:+## Follow-up implementation work — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:226:+## Owner campaign concurrency hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:235:+## Featured Ads lifecycle implementation — 2026-11-18 (development branch)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:389:+## Featured Ads and financial review implementation note — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:392:diff --git a/docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md b/docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:396:+++ b/docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:398:+# Media owner exemption and capacity console — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:422:+## Owner-recipient quota-abuse hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:489:+## Follow-up emulator regression — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:514:+## Finalize and expired-intent cleanup regression — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:531:+## Capacity telemetry follow-up — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:10039:+    dailyWindow: "2026-11-18",
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/38d47d2153dc2bc3.patch:10063:+    dailyWindow: "2026-11-18",
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:277: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:287: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:294: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:311: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:327: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:336: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/54970500c9920f1e.patch:619: - `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:43:+| PR #30 | `codex/economy-official-port-2026-11-18` | +20 / -92، 9 ملفات | مراجعة انتقائية لدورة طلب شراء الكوينز اليدوية، إثباتات المالك، replay، الغرف والمتجر |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:44:+| PR #31 | `codex/economic-phase-completion-2026-11-18` | +181 / -92، 45 ملفاً | مصدر مرشح لسياسة الاقتصاد، التسعير، الهدايا، المصالحة، featured-ad finance، group calls؛ ممنوع الدمج الشامل |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:45:+| PR #22 | `codex/economic-phase1-closeout-2026-11-18` | +124 / -92، 34 ملفاً | مراجعة تقارير الإغلاق والقرارات واختبارات المكالمات والمكافآت؛ تحقق من تكرار/تعارض PR #31 |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:46:+| PR #28 | `codex/economy-recovery-2026-11-18` | +618 / -92، 105 ملفات | فرع تجميعي شديد الاتساع؛ لا دمج شامل. استخراج فقط التغييرات الفريدة الموثقة بعد تحليل الاعتماديات |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:373:+A fresh source comparison between PR #30 (`codex/economy-official-port-2026-11-18`, head `d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c`) and its current official-development base identified a contract mismatch in `functions/src/coin-purchase-requests.ts`:
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/76f72b81008f114a.patch:911: - `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:277: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:287: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:294: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:311: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:327: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:336: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/85914d84940eb21d.patch:602: - `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:12:+      - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:73:+      - codex/economic-phase-completion-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:122:diff --git a/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md b/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:126:+++ b/docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:129:+Date: 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:131:+Working branch: `codex/economic-phase-completion-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:143:+| #22 | `codex/economic-phase1-closeout-2026-11-18` | `codex/mawdda-unified-test-2026-11-18` | 124 commits ahead of official development; 34 changed files | Do not merge wholesale. Select compatible, independently reviewed files/hunks only. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:144:+| #28 | `codex/economy-recovery-2026-11-18` | `codex/mawdda-unified-test-2026-11-18` | 618 commits ahead of official development; 53 changed files | Do not merge wholesale. It contains broad overlapping changes to Functions, Flutter, scanner, dependencies and workflow files; requires selective port and conflict review. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:145:+| #30 | `codex/economy-official-port-2026-11-18` | `codex/mawda-full-platform-implementation` | 20 commits ahead of official development; 9 changed files | Correctly targets the official development line. Keep as a separate reviewed draft until its wallet/payment changes are integrated in a controlled sequence. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/a7e06836f4333b0b.patch:196:+This audit applies only to development branch `codex/economic-phase-completion-2026-11-18`. It does not authorize merge to `main`, deployment, production Firebase changes, paid infrastructure, billing activation, or any production data mutation.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:228:diff --git a/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md b/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:232:+++ b/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:235:+Date: 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:236:+Target integration branch: `codex/mawdda-unified-test-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:252:+| `codex/economic-phase1-closeout-2026-11-18` | 124 | Wallet, gifting, call economy, profile privacy, audit docs, tests | PR #22 retargeted to unified branch; currently conflicts after PR #21 integration; do not merge until reconciled |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:290:diff --git a/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md b/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:294:+++ b/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:296:+# Economic phase verification register — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:298:+Target branch: `codex/mawdda-unified-test-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:352:+## Follow-up source recheck — 2026-11-18 15:53 (+03:00)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:554: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:564: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:571:-| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:572:+| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 60/40 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:589: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:605: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:614: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:622: ## 2026-11-16 — App Check client integration blocker (Issue #19)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:631: ## 2026-11-16 — Room rental idempotency and lifecycle integrity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:640: ## 2026-11-16 — Reject invitations to inactive rooms
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:648: ## 2026-11-16 — Store purchase idempotency binds confirmed price
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:658: ## 2026-11-16 — WebRTC call lifecycle and media implementation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:677: ## 2026-11-18 — Responsive room-card actions
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:687: ## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:698: ## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:710: ## 2026-11-18 — Reward-center campaign discovery parity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:721: ## 2026-11-18 — exact-head CI and priority-gap reconciliation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:758:+## 2026-11-18 — AD-001 featured-ad discovery serving foundation (draft PR #21)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:771:+## 2026-11-18 — AD-001 serving/reward implementation update
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:792:+## 2026-11-18 — AD-001 hardening and owner workflow completion pass
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1058:diff --git a/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md b/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1062:+++ b/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1064:+# سجل توحيد الفروع — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1068:+- فرع التجميع الوحيد: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1132:+## تدقيق شامل إضافي للملفات المتداخلة — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1235:+## مراجعة تقنية تكميلية وترتيب التنفيذ — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1274:+## تنفيذ مسار الملصقات الآمن — تحديث 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1382:+### Financial policy boundary hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1392:+## Reconciliation checkpoint — 2026-11-18 14:50 (+03:00)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1396:+- Unified test branch: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1426:+## Selective integration audit — PR #26, #27, #25 and #24 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1463:+## متابعة تنفيذية انتقائية — PR #22 و#24 و#25 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1466:+- فرع التجميع: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/abec293f610fc2cf.patch:1504:+## متابعة الرؤية الاقتصادية الشاملة — دفعة التنفيذ التالية (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:277: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:287: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:294: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:311: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:327: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:336: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/c9502e9debcee1c8.patch:609: - `codex/economy-official-port-2026-11-18`: متقدم بـ20 commit على فرع التطوير الرسمي ومتأخر عنه بـ88 commit وقت المقارنة؛ الفروقات تشمل طلبات شراء الكوينز اليدوية وواجهات المالك والعضو واختبارات المنح/الغرف/المتجر. لم يُدمج هذا الفرع.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:12:+      - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:19:+      - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:104:+      - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:113:+      - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:164:+      - codex/economy-recovery-2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:445:diff --git a/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md b/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:449:+++ b/docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:452:+Date: 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:453:+Target integration branch: `codex/mawdda-unified-test-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:469:+| `codex/economic-phase1-closeout-2026-11-18` | 124 | Wallet, gifting, call economy, profile privacy, audit docs, tests | PR #22 retargeted to unified branch; currently conflicts after PR #21 integration; do not merge until reconciled |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:507:diff --git a/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md b/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:511:+++ b/docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:513:+# Economic phase verification register — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:515:+Target branch: `codex/economy-recovery-2026-11-18` (PR #28; base `codex/mawdda-unified-test-2026-11-18`).
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:569:+## Follow-up source recheck — 2026-11-18 15:53 (+03:00)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:580:+## Follow-up implementation — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:589:+- GitHub writes completed on branch `codex/economy-recovery-2026-11-18`. The integration test and TypeScript build have **not** been executed in this session because the GitHub connector provides repository operations but no checked-out Node/Firebase Emulator runtime.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:592:+## Current internal implementation additions — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:628:+## Room-rental financial replay hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:638:+## Owner clarification — call-economy prices are experimental, never final — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:646:+## Economic-only execution boundary reaffirmed — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:650:+## Owner clarification — one total bilateral call tariff, automatically split 50/50 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:659:+## Platform-wide economic authority — experimental values are test fixtures only — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:697:+## Owner rule — bilateral prices must split into whole coins — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:709:+## Owner-controlled economy hardening — implementation follow-up (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:720:+## Follow-up: policy snapshots, owner room controls and audit atomicity (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:732:+## Featured-ad reward policy owner controls (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:740:+## Store catalog concurrency and complete featured-reward administration (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:749:+## Email verification reward moved under owner economic policy (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:758:+## Coin transfer commission policy concurrency (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:765:+## Wallet ledger reconciliation added (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:773:+## Reconciliation ordering precision note (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:789:+## Owner-selected currencies and exact minor-unit precision (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:806:+## GitHub verification evidence — economic and Flutter regression pass (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1013: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1023: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1030:-| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1031:+| ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 60/40 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1048: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1064: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1073: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1081: ## 2026-11-16 — App Check client integration blocker (Issue #19)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1090: ## 2026-11-16 — Room rental idempotency and lifecycle integrity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1099: ## 2026-11-16 — Reject invitations to inactive rooms
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1107: ## 2026-11-16 — Store purchase idempotency binds confirmed price
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1117: ## 2026-11-16 — WebRTC call lifecycle and media implementation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1136: ## 2026-11-18 — Responsive room-card actions
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1146: ## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1157: ## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1169: ## 2026-11-18 — Reward-center campaign discovery parity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1180: ## 2026-11-18 — exact-head CI and priority-gap reconciliation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1217:+## 2026-11-18 — AD-001 featured-ad discovery serving foundation (draft PR #21)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1230:+## 2026-11-18 — AD-001 serving/reward implementation update
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1251:+## 2026-11-18 — AD-001 hardening and owner workflow completion pass
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1575:+**Owner decision (2026-11-18):** Mawdda must support two distinct payment modes, controlled by the canonical platform owner from the Super Admin console. This is the target product architecture for every economic area that requires payment, not a permanent manual-only restriction.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1648:+## Owner clarification — one total bilateral call tariff, automatically split 50/50 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1657:+## Platform-wide economic authority — experimental values are test fixtures only — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1695:+## Owner rule — bilateral prices must split into whole coins — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1707:+## 5. Service-scoped manual payment policy (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1723:diff --git a/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md b/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1727:+++ b/docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1729:+# سجل توحيد الفروع — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1733:+- فرع التجميع الوحيد: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1797:+## تدقيق شامل إضافي للملفات المتداخلة — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1900:+## مراجعة تقنية تكميلية وترتيب التنفيذ — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:1939:+## تنفيذ مسار الملصقات الآمن — تحديث 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2047:+### Financial policy boundary hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2057:+## Reconciliation checkpoint — 2026-11-18 14:50 (+03:00)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2061:+- Unified test branch: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2091:+## Selective integration audit — PR #26, #27, #25 and #24 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2128:+## متابعة تنفيذية انتقائية — PR #22 و#24 و#25 — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2131:+- فرع التجميع: `codex/mawdda-unified-test-2026-11-18`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/d0ab40c911417826.patch:2169:+## متابعة الرؤية الاقتصادية الشاملة — دفعة التنفيذ التالية (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e0bf7c699769daa5.patch:1957: ## خطة التسريع التنفيذية — نافذة 48 ساعة (اعتماد توجيه المالك 2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e0bf7c699769daa5.patch:2023: ## ملحق توجيه المالك — جودة تجربة المستخدم والبنية السحابية ضمن هدف 48 ساعة (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e0bf7c699769daa5.patch:2079: ## توجيه المالك الأحدث — إعادة تنظيم التنفيذ إلى ثلاث مراحل رئيسية (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1:diff --git a/docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md b/docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:5:+++ b/docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:7:+# تدقيق تنفيذي وخطة معالجة دورة المكالمات — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:11:+فرع العمل: `codex/economic-phase1-closeout-2026-11-18`  
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:129:+## مراجعة متابعة على رأس فرع الإغلاق الاقتصادي — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:141:+## Re-audit evidence — 2026-11-18 13:23 (+03:00)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:158:+## Owner clarification — group audio capacity (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:167:+## Economic integration verification — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:185:+## Partial code remediation — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:189:+Implemented on `codex/economic-phase1-closeout-2026-11-18`:
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:215:diff --git a/docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md b/docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:219:+++ b/docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:221:+# المرحلة الاقتصادية الشاملة — تدقيق وإغلاق 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:322:+## Source audit findings — call economy and Media Saver (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:336:+## Daily rewarded-ad cap testability hardening — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:349:+## Owner clarification: recurring store entitlements and gifting — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:362:+## Member-to-member gifting backend implementation — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:371:+## Recipient-profile-only feature gifting UX — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:380:+## BetaCoins gifting choices on recipient profile — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:390:+## Owner-approved group-call pricing and capacity amendment — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:401:+### Owner clarification — integer group-call billing and initiator remainder (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:409:+## Room-call security gate implementation update — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:417:diff --git a/docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md b/docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:421:+++ b/docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:424:+تاريخ المراجعة: 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:425:+الفرع: `codex/economic-phase1-closeout-2026-11-18`
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:552:+## متابعة تنفيذ موثقة — مراجعة HEAD بتاريخ 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:571:+## توضيح معتمد من المالك — انضمام الصوت والفيديو الجماعي — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:587:+## توضيح معتمد من المالك — هندسة عرض الفيديو الجماعي — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:605:+## توضيح معتمد من المالك — استخدام الخانة الرابعة في تخطيط الفيديو الثلاثي — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:622:+## متابعة تنفيذ — تدقيق تقني لدورة المكالمات وإصلاح fixture — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:629:+- أضيف تدقيق تقني مفصل وخطة معالجة وترتيب بوابات القبول في: `docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md`.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:635:+## توجيه المالك التنفيذي — ترتيب التنفيذ ونطاق الاختبارات — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:641:+- مراجعة GitHub الحالية: PR #22 ما زال Draft ومفتوحاً وغير مدمج؛ فرعه `codex/economic-phase1-closeout-2026-11-18` ورأسه الذي أعادته قائمة الفروع `24fb901684d851108d47c476b7030695cd01194c`. قاعدة PR هي فرع التطوير `codex/mawda-full-platform-implementation`، وليس `main`. لا تُجرى عملية دمج أو نشر.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:732:+### Owner-approved economic naming and UI corrections — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:752: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:762: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:769: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:786: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:802: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:811: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:819: ## 2026-11-16 — App Check client integration blocker (Issue #19)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:826: ## 2026-11-16 — WebRTC call lifecycle and media implementation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:845: ## 2026-11-18 — Responsive room-card actions
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:855: ## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:866: ## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:878: ## 2026-11-18 — Reward-center campaign discovery parity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:889: ## 2026-11-18 — exact-head CI and priority-gap reconciliation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:952:+## Owner amendment — comprehensive economic phase (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1159:+## ECON-007 — Store entitlement renewal and member-to-member gifting (owner clarification, 2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1169:+Implementation status update (2026-11-18): the development branch now contains a callable member-gifting backend (giftStoreItem) with verified Firebase Auth provider checks for the recipient, server-side member/guest-record checks for both parties, catalog/price revalidation, atomic sender debit + wallet ledger + gift receipt + recipient entitlement + gift history + in-app notification, request replay binding, and timed-entitlement stacking. Pure domain regression tests were added for eligibility, replay binding, expiry stacking and permanent-entitlement preservation. These tests have not yet been executed. The Flutter store now exposes an eligible-recipient username lookup, explicit gift confirmation and the gift callable; the member history screen displays received gifts alongside separate owner grants. Live Functions/Emulator transaction tests and cross-platform acceptance remain open; this is not a claim that gifting is fully shipped. Existing owner-only grant functions remain a separate workflow.
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1172:+### Owner clarification — gift initiation must be recipient-profile scoped (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1178:+### Owner clarification — two BetaCoins gift methods (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1184:+### Owner amendment — group calls in rented private rooms (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/e688734419c9e515.patch:1194:+### Owner clarification — integer group-call billing and initiator remainder (2026-11-18)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:273: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:283: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:290: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:307: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:323: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f293bdffcc2ee1f7.patch:332: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f96504a400a216d0.patch:104:+## 8. Official development branch follow-up — 2026-11-18
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/f96504a400a216d0.patch:106:+The separate port branch `codex/economy-official-port-2026-11-18` is based on `codex/mawda-full-platform-implementation`, not the unified test branch. The following source changes have been ported independently against that branch's current code:
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:476: ## Engineering progress note — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1039: ## Owner-directed three-stage execution order — 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1050: ## Advertising, Media Workspace and member collaboration — owner approval 2026-11-16
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1057: | ADS-FEATURED-ENTRY-001 | Prominent homepage Featured Ads + Rewards entry opens featured discovery directly; sixth Media Workspace route provides featured reward guidance/history; distinct featured reward ledger source | No reward on tap/open/preview/category/card; only server-validated full selected-ad completion; existing 2-coin / 10 views / 20 coins UTC daily / 24h per-campaign baseline; no duplicate credit; member-only history; 75/25 split only in full player; advertiser payment separated from reward budget | Owner-approved 2026-11-16 and documented in `ADVERTISING_MEDIA_WORKSPACE_SPEC.md` section 15.5. Homepage button, discovery UI skeleton, sixth Media Workspace guidance/history route and widget-test source added; discovery currently shows a truthful empty state. Current timed-ad reward center is not a featured-ad serving path. Backend serving, distinct ledger classification, Owner controls, real history and exact-head test evidence remain open. |
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1075: ## تحديث تنفيذ — بوابة صُنّاع مودة وقرار الويب الحصري (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1092: ## 2026-11-16 — Production application review audit atomicity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1101: ## 2026-11-16 — Voluntary creative-trial consent
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1109: ## 2026-11-16 — App Check client integration blocker (Issue #19)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1118: ## 2026-11-16 — Room rental idempotency and lifecycle integrity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1127: ## 2026-11-16 — Reject invitations to inactive rooms
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1135: ## 2026-11-16 — Store purchase idempotency binds confirmed price
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1144: ## 2026-11-16 — Media processor boundary tests and documentation alignment
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1152: ## 2026-11-16 — Advertising intake audit retry safety
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1160: ## 2026-11-16 — Atomic advertising intake review and audit
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1165: ## 2026-11-18 — Call deadline re-entry hardening and CI coverage
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1176: ## 2026-11-18 — Timed reward-ad discovery and exact-head regression
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1188: ## 2026-11-18 — Reward-center campaign discovery parity
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:1199: ## 2026-11-18 — exact-head CI and priority-gap reconciliation
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:2850: ## خطة التسريع التنفيذية — نافذة 48 ساعة (اعتماد توجيه المالك 2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:2916: ## ملحق توجيه المالك — جودة تجربة المستخدم والبنية السحابية ضمن هدف 48 ساعة (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fb0954b60e7130a3.patch:2972: ## توجيه المالك الأحدث — إعادة تنظيم التنفيذ إلى ثلاث مراحل رئيسية (2026-11-16)
+HEAD:docs/audit/termux/full-evidence/20261121T052054Z-b62fcbae/patches/fd2865a0baad81f2.patch:37: - `functions/src/call-usage-policy.ts` and `functions/src/group-call-economy.ts` from `codex/economic-phase-completion-2026-11-18` are already present in the unified branch with matching source content.
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/BRANCH-RESULTS.tsv:10:codex/economic-phase-completion-2026-11-18	0914885232ff8bcfb64536c6655e7bff01b78361	491	181	CONFLICTS	PASS	0
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/BRANCH-RESULTS.tsv:12:codex/economic-phase1-closeout-2026-11-18	10564784494310761bb4249d703d646020209e35	491	124	CONFLICTS	ISSUES	0
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/BRANCH-RESULTS.tsv:13:codex/economy-official-port-2026-11-18	d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c	491	20	CONFLICTS	PASS	0
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/BRANCH-RESULTS.tsv:14:codex/economy-recovery-2026-11-18	67adbaeccc02128f5e5a86ea01b0c4f63c09106f	491	618	CONFLICTS	ISSUES	0
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/BRANCH-RESULTS.tsv:61:codex/mawdda-unified-test-2026-11-18	b62fcbae7ea3cd0c2b473f730cb625b35335de67	491	311	CONFLICTS	ISSUES	0
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:29:codex/economic-phase-completion-2026-11-18	.github/workflows/economic-phase-verification.yml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:30:codex/economic-phase-completion-2026-11-18	.github/workflows/flutter-ci.yml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:31:codex/economic-phase-completion-2026-11-18	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:32:codex/economic-phase-completion-2026-11-18	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:33:codex/economic-phase-completion-2026-11-18	firestore.indexes.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:34:codex/economic-phase-completion-2026-11-18	functions/src/call-usage-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:35:codex/economic-phase-completion-2026-11-18	functions/src/coin-purchase-requests.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:36:codex/economic-phase-completion-2026-11-18	functions/src/default-store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:37:codex/economic-phase-completion-2026-11-18	functions/src/economy-payment-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:38:codex/economic-phase-completion-2026-11-18	functions/src/economy-pricing.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:39:codex/economic-phase-completion-2026-11-18	functions/src/engagement-rewards.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:40:codex/economic-phase-completion-2026-11-18	functions/src/featured-ad-finance.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:41:codex/economic-phase-completion-2026-11-18	functions/src/group-call-economy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:42:codex/economic-phase-completion-2026-11-18	functions/src/index.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:43:codex/economic-phase-completion-2026-11-18	functions/src/room-call-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:44:codex/economic-phase-completion-2026-11-18	functions/src/room-rental.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:45:codex/economic-phase-completion-2026-11-18	functions/src/store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:46:codex/economic-phase-completion-2026-11-18	functions/src/store-gifting.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:47:codex/economic-phase-completion-2026-11-18	functions/src/store-purchase.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:48:codex/economic-phase-completion-2026-11-18	functions/src/wallet-reconciliation.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:49:codex/economic-phase-completion-2026-11-18	functions/test/call-usage-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:50:codex/economic-phase-completion-2026-11-18	functions/test/coin-purchase-requests.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:51:codex/economic-phase-completion-2026-11-18	functions/test/economy-payment-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:52:codex/economic-phase-completion-2026-11-18	functions/test/economy-pricing.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:53:codex/economic-phase-completion-2026-11-18	functions/test/engagement-rewards.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:54:codex/economic-phase-completion-2026-11-18	functions/test/featured-ad-finance.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:55:codex/economic-phase-completion-2026-11-18	functions/test/group-call-economy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:56:codex/economic-phase-completion-2026-11-18	functions/test/integration/call-signaling.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:57:codex/economic-phase-completion-2026-11-18	functions/test/integration/featured-ad-finance.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:58:codex/economic-phase-completion-2026-11-18	functions/test/integration/store-gifting.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:59:codex/economic-phase-completion-2026-11-18	functions/test/integration/wallet-store.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:60:codex/economic-phase-completion-2026-11-18	functions/test/room-call-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:61:codex/economic-phase-completion-2026-11-18	functions/test/store-catalog.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:62:codex/economic-phase-completion-2026-11-18	functions/test/store-gifting.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:63:codex/economic-phase-completion-2026-11-18	functions/test/store-purchase.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:64:codex/economic-phase-completion-2026-11-18	functions/test/wallet-reconciliation.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:65:codex/economic-phase-completion-2026-11-18	lib/screens/call_usage_policy_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:66:codex/economic-phase-completion-2026-11-18	lib/screens/chat_room_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:67:codex/economic-phase-completion-2026-11-18	lib/screens/coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:68:codex/economic-phase-completion-2026-11-18	lib/screens/economy_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:69:codex/economic-phase-completion-2026-11-18	lib/screens/mawdda_call_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:70:codex/economic-phase-completion-2026-11-18	lib/screens/owner_coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:71:codex/economic-phase-completion-2026-11-18	lib/screens/room_rental_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:72:codex/economic-phase-completion-2026-11-18	lib/screens/shop_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:73:codex/economic-phase-completion-2026-11-18	lib/screens/super_admin_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:82:codex/economic-phase1-closeout-2026-11-18	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:83:codex/economic-phase1-closeout-2026-11-18	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:84:codex/economic-phase1-closeout-2026-11-18	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:85:codex/economic-phase1-closeout-2026-11-18	docs/IMPLEMENTATION_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:86:codex/economic-phase1-closeout-2026-11-18	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:87:codex/economic-phase1-closeout-2026-11-18	functions/src/call-signaling.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:88:codex/economic-phase1-closeout-2026-11-18	functions/src/coin-purchase-requests.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:89:codex/economic-phase1-closeout-2026-11-18	functions/src/engagement-rewards.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:90:codex/economic-phase1-closeout-2026-11-18	functions/src/group-call-economy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:91:codex/economic-phase1-closeout-2026-11-18	functions/src/index.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:92:codex/economic-phase1-closeout-2026-11-18	functions/src/member-profile-view.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:93:codex/economic-phase1-closeout-2026-11-18	functions/src/room-call-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:94:codex/economic-phase1-closeout-2026-11-18	functions/src/store-gifting.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:95:codex/economic-phase1-closeout-2026-11-18	functions/test/call-signaling-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:96:codex/economic-phase1-closeout-2026-11-18	functions/test/coin-purchase-requests.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:97:codex/economic-phase1-closeout-2026-11-18	functions/test/engagement-rewards.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:98:codex/economic-phase1-closeout-2026-11-18	functions/test/group-call-economy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:99:codex/economic-phase1-closeout-2026-11-18	functions/test/integration/call-signaling.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:100:codex/economic-phase1-closeout-2026-11-18	functions/test/member-profile-view.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:101:codex/economic-phase1-closeout-2026-11-18	functions/test/room-call-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:102:codex/economic-phase1-closeout-2026-11-18	functions/test/store-catalog.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:103:codex/economic-phase1-closeout-2026-11-18	functions/test/store-gifting.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:104:codex/economic-phase1-closeout-2026-11-18	lib/screens/coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:105:codex/economic-phase1-closeout-2026-11-18	lib/screens/economy_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:106:codex/economic-phase1-closeout-2026-11-18	lib/screens/featured_ads_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:107:codex/economic-phase1-closeout-2026-11-18	lib/screens/member_entitlement_history_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:108:codex/economic-phase1-closeout-2026-11-18	lib/screens/owner_coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:109:codex/economic-phase1-closeout-2026-11-18	lib/screens/owner_entitlement_grants_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:110:codex/economic-phase1-closeout-2026-11-18	lib/screens/profile_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:111:codex/economic-phase1-closeout-2026-11-18	lib/screens/room_rental_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:112:codex/economic-phase1-closeout-2026-11-18	lib/screens/rooms_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:113:codex/economic-phase1-closeout-2026-11-18	lib/screens/shop_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:114:codex/economic-phase1-closeout-2026-11-18	lib/screens/super_admin_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:115:codex/economic-phase1-closeout-2026-11-18	lib/screens/wallet_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:116:codex/economy-official-port-2026-11-18	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:117:codex/economy-official-port-2026-11-18	functions/src/coin-purchase-requests.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:118:codex/economy-official-port-2026-11-18	functions/src/index.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:119:codex/economy-official-port-2026-11-18	functions/test/coin-purchase-requests.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:120:codex/economy-official-port-2026-11-18	functions/test/integration/owner-entitlement-grants.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:121:codex/economy-official-port-2026-11-18	functions/test/integration/room-rental.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:122:codex/economy-official-port-2026-11-18	functions/test/integration/wallet-store.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:123:codex/economy-official-port-2026-11-18	lib/screens/coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:124:codex/economy-official-port-2026-11-18	lib/screens/owner_coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:125:codex/economy-recovery-2026-11-18	.github/workflows/economy-regression.yml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:126:codex/economy-recovery-2026-11-18	.github/workflows/flutter-ci.yml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:127:codex/economy-recovery-2026-11-18	.github/workflows/resolve-flutter-lock.yml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:128:codex/economy-recovery-2026-11-18	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:129:codex/economy-recovery-2026-11-18	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:130:codex/economy-recovery-2026-11-18	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:131:codex/economy-recovery-2026-11-18	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:132:codex/economy-recovery-2026-11-18	docs/IMPLEMENTATION_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:133:codex/economy-recovery-2026-11-18	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:134:codex/economy-recovery-2026-11-18	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:135:codex/economy-recovery-2026-11-18	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:136:codex/economy-recovery-2026-11-18	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:137:codex/economy-recovery-2026-11-18	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:138:codex/economy-recovery-2026-11-18	firestore.indexes.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:139:codex/economy-recovery-2026-11-18	functions/package.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:140:codex/economy-recovery-2026-11-18	functions/src/advertising-intake.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:141:codex/economy-recovery-2026-11-18	functions/src/capacity-media-management.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:142:codex/economy-recovery-2026-11-18	functions/src/coin-purchase-requests.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:143:codex/economy-recovery-2026-11-18	functions/src/creator-proposals.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:144:codex/economy-recovery-2026-11-18	functions/src/default-store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:145:codex/economy-recovery-2026-11-18	functions/src/economy-payment-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:146:codex/economy-recovery-2026-11-18	functions/src/economy-pricing.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:147:codex/economy-recovery-2026-11-18	functions/src/email-verification-cycle.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:148:codex/economy-recovery-2026-11-18	functions/src/featured-ad-finance.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:149:codex/economy-recovery-2026-11-18	functions/src/featured-ad-rewards.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:150:codex/economy-recovery-2026-11-18	functions/src/featured-advertising.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:151:codex/economy-recovery-2026-11-18	functions/src/group-call-economy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:152:codex/economy-recovery-2026-11-18	functions/src/index.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:153:codex/economy-recovery-2026-11-18	functions/src/media-derivative-contract.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:154:codex/economy-recovery-2026-11-18	functions/src/media-scanner.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:155:codex/economy-recovery-2026-11-18	functions/src/media-security.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:156:codex/economy-recovery-2026-11-18	functions/src/media.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:157:codex/economy-recovery-2026-11-18	functions/src/room-call-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:158:codex/economy-recovery-2026-11-18	functions/src/room-rental.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:159:codex/economy-recovery-2026-11-18	functions/src/sticker-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:160:codex/economy-recovery-2026-11-18	functions/src/sticker-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:161:codex/economy-recovery-2026-11-18	functions/src/store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:162:codex/economy-recovery-2026-11-18	functions/src/store-gifting.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:163:codex/economy-recovery-2026-11-18	functions/src/wallet-reconciliation.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:164:codex/economy-recovery-2026-11-18	functions/test/advertising-intake.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:165:codex/economy-recovery-2026-11-18	functions/test/biometric-reward-security.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:166:codex/economy-recovery-2026-11-18	functions/test/capacity-media-management.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:167:codex/economy-recovery-2026-11-18	functions/test/coin-purchase-requests.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:168:codex/economy-recovery-2026-11-18	functions/test/creator-proposals.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:169:codex/economy-recovery-2026-11-18	functions/test/economy-payment-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:170:codex/economy-recovery-2026-11-18	functions/test/economy-pricing.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:171:codex/economy-recovery-2026-11-18	functions/test/email-verification-cycle.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:172:codex/economy-recovery-2026-11-18	functions/test/featured-ad-finance.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:173:codex/economy-recovery-2026-11-18	functions/test/featured-ad-rewards.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:174:codex/economy-recovery-2026-11-18	functions/test/featured-advertising.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:175:codex/economy-recovery-2026-11-18	functions/test/fixtures/feature-coverage-matrix.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:176:codex/economy-recovery-2026-11-18	functions/test/group-call-economy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:177:codex/economy-recovery-2026-11-18	functions/test/integration/call-signaling.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:178:codex/economy-recovery-2026-11-18	functions/test/integration/email-verification-renewal.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:179:codex/economy-recovery-2026-11-18	functions/test/integration/engagement-rewards.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:180:codex/economy-recovery-2026-11-18	functions/test/integration/featured-ad-reward-policy.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:181:codex/economy-recovery-2026-11-18	functions/test/integration/media-callables.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:182:codex/economy-recovery-2026-11-18	functions/test/integration/member-profile-media.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:183:codex/economy-recovery-2026-11-18	functions/test/integration/owner-entitlement-grants.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:184:codex/economy-recovery-2026-11-18	functions/test/integration/room-rental.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:185:codex/economy-recovery-2026-11-18	functions/test/integration/store-catalog.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:186:codex/economy-recovery-2026-11-18	functions/test/integration/wallet-store.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:187:codex/economy-recovery-2026-11-18	functions/test/media-derivative-contract.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:188:codex/economy-recovery-2026-11-18	functions/test/media-scanner.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:189:codex/economy-recovery-2026-11-18	functions/test/media-security.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:190:codex/economy-recovery-2026-11-18	functions/test/room-call-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:191:codex/economy-recovery-2026-11-18	functions/test/room-rental-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:192:codex/economy-recovery-2026-11-18	functions/test/sticker-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:193:codex/economy-recovery-2026-11-18	functions/test/store-catalog.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:194:codex/economy-recovery-2026-11-18	functions/test/store-gifting.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:195:codex/economy-recovery-2026-11-18	functions/test/wallet-reconciliation.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:196:codex/economy-recovery-2026-11-18	lib/screens/capacity_media_management_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:197:codex/economy-recovery-2026-11-18	lib/screens/chat_room_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:198:codex/economy-recovery-2026-11-18	lib/screens/coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:199:codex/economy-recovery-2026-11-18	lib/screens/direct_chat_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:200:codex/economy-recovery-2026-11-18	lib/screens/economy_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:201:codex/economy-recovery-2026-11-18	lib/screens/featured_ads_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:202:codex/economy-recovery-2026-11-18	lib/screens/gift_coins_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:203:codex/economy-recovery-2026-11-18	lib/screens/mawdda_call_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:204:codex/economy-recovery-2026-11-18	lib/screens/media_workspace_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:205:codex/economy-recovery-2026-11-18	lib/screens/member_gift_history_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:206:codex/economy-recovery-2026-11-18	lib/screens/owner_advertising_intake_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:207:codex/economy-recovery-2026-11-18	lib/screens/owner_advertising_rewards_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:208:codex/economy-recovery-2026-11-18	lib/screens/owner_coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:209:codex/economy-recovery-2026-11-18	lib/screens/owner_featured_ads_dashboard_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:210:codex/economy-recovery-2026-11-18	lib/screens/owner_sticker_packs_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:211:codex/economy-recovery-2026-11-18	lib/screens/profile_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:212:codex/economy-recovery-2026-11-18	lib/screens/reward_center_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:213:codex/economy-recovery-2026-11-18	lib/screens/room_rental_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:214:codex/economy-recovery-2026-11-18	lib/screens/shop_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:215:codex/economy-recovery-2026-11-18	lib/screens/super_admin_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:216:codex/economy-recovery-2026-11-18	lib/screens/wallet_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:217:codex/economy-recovery-2026-11-18	lib/services/member_media_upload_service.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:218:codex/economy-recovery-2026-11-18	lib/services/super_admin_security_service.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:219:codex/economy-recovery-2026-11-18	lib/widgets/mawdda_sticker_widgets.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:220:codex/economy-recovery-2026-11-18	pubspec.lock
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:221:codex/economy-recovery-2026-11-18	pubspec.yaml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:222:codex/economy-recovery-2026-11-18	scanner/README.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:223:codex/economy-recovery-2026-11-18	scanner/processors.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:224:codex/economy-recovery-2026-11-18	scanner/security.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:225:codex/economy-recovery-2026-11-18	scanner/server.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:226:codex/economy-recovery-2026-11-18	scanner/test/processors.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:227:codex/economy-recovery-2026-11-18	scanner/test/security.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:228:codex/economy-recovery-2026-11-18	test/featured_ads_screen_test.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:229:codex/economy-recovery-2026-11-18	test/media_workspace_screen_test.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:234:codex/featured-ads-secure-lifecycle-20261118	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:383:codex/mawda-unified-constitution-vision-2026-11-19	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:625:codex/mawdda-unified-test-2026-11-18	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:626:codex/mawdda-unified-test-2026-11-18	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:627:codex/mawdda-unified-test-2026-11-18	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:628:codex/mawdda-unified-test-2026-11-18	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:629:codex/mawdda-unified-test-2026-11-18	docs/IMPLEMENTATION_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:630:codex/mawdda-unified-test-2026-11-18	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:631:codex/mawdda-unified-test-2026-11-18	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:632:codex/mawdda-unified-test-2026-11-18	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:633:codex/mawdda-unified-test-2026-11-18	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:634:codex/mawdda-unified-test-2026-11-18	firestore.indexes.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:635:codex/mawdda-unified-test-2026-11-18	functions/package.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:636:codex/mawdda-unified-test-2026-11-18	functions/src/capacity-media-management.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:637:codex/mawdda-unified-test-2026-11-18	functions/src/coin-purchase-requests.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:638:codex/mawdda-unified-test-2026-11-18	functions/src/default-store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:639:codex/mawdda-unified-test-2026-11-18	functions/src/economy-pricing.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:640:codex/mawdda-unified-test-2026-11-18	functions/src/featured-ad-finance.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:641:codex/mawdda-unified-test-2026-11-18	functions/src/featured-ad-rewards.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:642:codex/mawdda-unified-test-2026-11-18	functions/src/featured-advertising.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:643:codex/mawdda-unified-test-2026-11-18	functions/src/group-call-economy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:644:codex/mawdda-unified-test-2026-11-18	functions/src/index.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:645:codex/mawdda-unified-test-2026-11-18	functions/src/media-derivative-contract.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:646:codex/mawdda-unified-test-2026-11-18	functions/src/media-scanner.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:647:codex/mawdda-unified-test-2026-11-18	functions/src/media-security.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:648:codex/mawdda-unified-test-2026-11-18	functions/src/media.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:649:codex/mawdda-unified-test-2026-11-18	functions/src/room-call-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:650:codex/mawdda-unified-test-2026-11-18	functions/src/sticker-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:651:codex/mawdda-unified-test-2026-11-18	functions/src/sticker-policy.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:652:codex/mawdda-unified-test-2026-11-18	functions/src/store-catalog.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:653:codex/mawdda-unified-test-2026-11-18	functions/src/store-gifting.ts
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:654:codex/mawdda-unified-test-2026-11-18	functions/test/capacity-media-management.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:655:codex/mawdda-unified-test-2026-11-18	functions/test/coin-purchase-requests.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:656:codex/mawdda-unified-test-2026-11-18	functions/test/economy-pricing.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:657:codex/mawdda-unified-test-2026-11-18	functions/test/featured-ad-finance.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:658:codex/mawdda-unified-test-2026-11-18	functions/test/featured-ad-rewards.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:659:codex/mawdda-unified-test-2026-11-18	functions/test/featured-advertising.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:660:codex/mawdda-unified-test-2026-11-18	functions/test/fixtures/feature-coverage-matrix.json
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:661:codex/mawdda-unified-test-2026-11-18	functions/test/group-call-economy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:662:codex/mawdda-unified-test-2026-11-18	functions/test/integration/call-signaling.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:663:codex/mawdda-unified-test-2026-11-18	functions/test/integration/engagement-rewards.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:664:codex/mawdda-unified-test-2026-11-18	functions/test/integration/media-callables.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:665:codex/mawdda-unified-test-2026-11-18	functions/test/integration/member-profile-media.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:666:codex/mawdda-unified-test-2026-11-18	functions/test/integration/wallet-store.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:667:codex/mawdda-unified-test-2026-11-18	functions/test/media-derivative-contract.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:668:codex/mawdda-unified-test-2026-11-18	functions/test/media-scanner.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:669:codex/mawdda-unified-test-2026-11-18	functions/test/media-security.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:670:codex/mawdda-unified-test-2026-11-18	functions/test/room-call-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:671:codex/mawdda-unified-test-2026-11-18	functions/test/sticker-policy.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:672:codex/mawdda-unified-test-2026-11-18	functions/test/store-catalog.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:673:codex/mawdda-unified-test-2026-11-18	functions/test/store-gifting.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:674:codex/mawdda-unified-test-2026-11-18	lib/screens/capacity_media_management_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:675:codex/mawdda-unified-test-2026-11-18	lib/screens/chat_room_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:676:codex/mawdda-unified-test-2026-11-18	lib/screens/direct_chat_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:677:codex/mawdda-unified-test-2026-11-18	lib/screens/economy_pricing_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:678:codex/mawdda-unified-test-2026-11-18	lib/screens/featured_ads_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:679:codex/mawdda-unified-test-2026-11-18	lib/screens/gift_coins_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:680:codex/mawdda-unified-test-2026-11-18	lib/screens/mawdda_call_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:681:codex/mawdda-unified-test-2026-11-18	lib/screens/media_workspace_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:682:codex/mawdda-unified-test-2026-11-18	lib/screens/member_gift_history_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:683:codex/mawdda-unified-test-2026-11-18	lib/screens/owner_advertising_intake_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:684:codex/mawdda-unified-test-2026-11-18	lib/screens/owner_advertising_rewards_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:685:codex/mawdda-unified-test-2026-11-18	lib/screens/owner_coin_purchase_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:686:codex/mawdda-unified-test-2026-11-18	lib/screens/owner_featured_ads_dashboard_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:687:codex/mawdda-unified-test-2026-11-18	lib/screens/owner_sticker_packs_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:688:codex/mawdda-unified-test-2026-11-18	lib/screens/profile_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:689:codex/mawdda-unified-test-2026-11-18	lib/screens/reward_center_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:690:codex/mawdda-unified-test-2026-11-18	lib/screens/shop_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:691:codex/mawdda-unified-test-2026-11-18	lib/screens/super_admin_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:692:codex/mawdda-unified-test-2026-11-18	lib/screens/wallet_screen.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:693:codex/mawdda-unified-test-2026-11-18	lib/services/member_media_upload_service.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:694:codex/mawdda-unified-test-2026-11-18	lib/widgets/mawdda_sticker_widgets.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:695:codex/mawdda-unified-test-2026-11-18	pubspec.yaml
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:696:codex/mawdda-unified-test-2026-11-18	scanner/processors.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:697:codex/mawdda-unified-test-2026-11-18	scanner/security.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:698:codex/mawdda-unified-test-2026-11-18	scanner/server.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:699:codex/mawdda-unified-test-2026-11-18	scanner/test/processors.integration.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:700:codex/mawdda-unified-test-2026-11-18	scanner/test/security.test.js
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/CHANGED-FILES.tsv:701:codex/mawdda-unified-test-2026-11-18	test/featured_ads_screen_test.dart
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:3:functions/package.json	12	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/governance-biometric-integration-2026-11-19,codex/mawda-phase2-hardening,codex/mawda-unified-constitution-vision-2026-11-19,codex/mawdda-economy-selective-port-2026-11-19,codex/mawdda-step1-role-reconcile-2026-11-19,codex/mawdda-test-account-system,codex/mawdda-unified-final,codex/mawdda-unified-test-2026-11-18,codex/structural-governance-biometric-roles-2026-11-19
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:5:functions/src/index.ts	32	codex/biometric-server-lifecycle-2026-11-20,codex/economic-phase-completion-2026-11-18,codex/economic-phase1-closeout-2026-11-18,codex/economy-official-port-2026-11-18,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/featured-ads-serving-foundation,codex/governance-biometric-integration-2026-11-19,codex/mawda-phase2-hardening,codex/mawda-unified-constitution-vision-2026-11-19,codex/mawdda-audit-archive,codex/mawdda-biometric-proof-gate-2026-11-20,codex/mawdda-economy-selective-port-2026-11-19,codex/mawdda-group-call-capacity-2026-11-20,codex/mawdda-group-call-capacity-2026-11-20-r2,codex/mawdda-independent-verification-cycles-2026-11-20,codex/mawdda-independent-verification-cycles-dev-2026-11-20,codex/mawdda-member-inbox,codex/mawdda-member-inbox-rebased,codex/mawdda-retention-approval-ci-repair-2026-11-19,codex/mawdda-role-capacity-after-retention-2026-11-19,codex/mawdda-role-capacity-consolidation-2026-11-19,codex/mawdda-role-capacity-final-2026-11-19,codex/mawdda-room-events,codex/mawdda-step1-role-reconcile-2026-11-19,codex/mawdda-unified-final,codex/mawdda-unified-release,codex/mawdda-unified-test-2026-11-18,codex/phase1-direct-call-transaction-revalidation-2026-11-20,codex/phase1-media-hold-delete-race-2026-11-20,codex/phase1-rented-room-call-gate-2026-11-20,codex/structural-governance-biometric-roles-2026-11-19
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:6:functions/src/media-derivative-contract.ts	4	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:7:functions/src/media-scanner.ts	6	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawda-phase2-hardening,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:8:functions/src/media-security.ts	4	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:9:functions/src/media.ts	11	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/featured-ads-serving-foundation,codex/mawda-phase2-hardening,codex/mawdda-member-inbox-rebased,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18,codex/phase1-media-direct-delivery-denials-2026-11-20,codex/phase1-media-hold-delete-race-2026-11-20,codex/phase1-scanner-error-callback-test-2026-11-20
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:12:functions/test/integration/media-callables.integration.test.js	11	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/featured-ads-serving-foundation,codex/mawda-phase2-hardening,codex/mawdda-member-inbox-rebased,codex/mawdda-unified-test-2026-11-18,codex/phase1-media-direct-delivery-denials-2026-11-20,codex/phase1-media-hold-delete-race-2026-11-20,codex/phase1-media-scanner-replay-regression-2026-11-20,codex/phase1-scanner-error-callback-test-2026-11-20
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:13:functions/test/media-derivative-contract.test.js	4	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:14:functions/test/media-scanner.test.js	7	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawda-phase2-hardening,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18,codex/phase1-media-scanner-verdict-tests-2026-11-20
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:15:functions/test/media-security.test.js	4	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:16:lib/services/member_media_upload_service.dart	5	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/featured-ads-serving-foundation,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:17:scanner/processors.js	5	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:18:scanner/security.js	5	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18
+HEAD:docs/audit/termux/merge-rehearsal/20261121T054052Z-ac201c9a/OVERLAPPING-FILES.tsv:20:scanner/test/security.test.js	5	codex/biometric-server-lifecycle-2026-11-20,codex/economy-recovery-2026-11-18,codex/featured-ads-secure-lifecycle-20261118,codex/mawdda-room-audio-duration-enforcement,codex/mawdda-unified-test-2026-11-18
