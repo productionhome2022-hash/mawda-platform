@@ -3,7 +3,7 @@ name: Economic phase verification
 on:
   push:
     branches:
-      - codex/economic-phase-completion-2026-11-18
+      - codex/mawda-full-platform-implementation
   pull_request:
     branches:
       - codex/mawda-full-platform-implementation
