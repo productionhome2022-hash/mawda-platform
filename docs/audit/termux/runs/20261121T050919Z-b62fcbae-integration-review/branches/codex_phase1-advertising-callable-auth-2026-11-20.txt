@@ -1,0 +1,14 @@
+BRANCH: codex/phase1-advertising-callable-auth-2026-11-20
+REF: refs/remotes/origin/codex/phase1-advertising-callable-auth-2026-11-20
+SHA: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+MERGE BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE ===
+222	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

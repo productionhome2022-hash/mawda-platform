@@ -1,0 +1,27 @@
+BRANCH: codex/mawdda-deep-governance-audit-2026-11-19
+REF: refs/remotes/origin/codex/mawdda-deep-governance-audit-2026-11-19
+SHA: ae21101e7e76001b64b43b6bf515c85ea028f34e
+
+MERGE BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE ===
+397	10
+
+=== FILE STATUS ===
+A	docs/DEEP_GOVERNANCE_AND_IMPLEMENTATION_AUDIT_2026-11-19.md
+
+=== CHANGE SUMMARY ===
+ ...VERNANCE_AND_IMPLEMENTATION_AUDIT_2026-11-19.md | 306 +++++++++++++++++++++
+ 1 file changed, 306 insertions(+)
+
+=== UNIQUE COMMITS ===
+ae21101e docs: record latest exact-head CI and integration gate status
+f16bc899 docs: record role capacity emulator workflow correction
+59ca5575 docs: record stacked role-capacity integration and lab rerun
+91f563c4 docs: record critical store version defect and corrected validation
+7d3367f9 docs: record platform integration fixes and lab retry validation
+5716dd85 docs: record latest full 5000-persona lab failure evidence
+d9f29634 docs: add exact-head governance CI and reconciliation evidence
+ab554531 docs: record owner retention confirmation and CI diagnosis
+b50b47e6 docs: record governance branch divergence against current development head
+922eccc9 docs: record deep governance and implementation audit blockers

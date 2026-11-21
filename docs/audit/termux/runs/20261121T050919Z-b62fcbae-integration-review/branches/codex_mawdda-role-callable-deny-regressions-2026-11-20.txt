@@ -1,0 +1,18 @@
+BRANCH: codex/mawdda-role-callable-deny-regressions-2026-11-20
+REF: refs/remotes/origin/codex/mawdda-role-callable-deny-regressions-2026-11-20
+SHA: ce899717f77ad3c76d676903aa0c026ba7596490
+
+MERGE BASE: 7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d
+
+=== DIVERGENCE ===
+181	1
+
+=== FILE STATUS ===
+M	functions/test/integration/specialized-role-capacity.integration.test.js
+
+=== CHANGE SUMMARY ===
+ .../specialized-role-capacity.integration.test.js  | 43 ++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+=== UNIQUE COMMITS ===
+ce899717 test: prevent specialist grants from bypassing sovereign role guards

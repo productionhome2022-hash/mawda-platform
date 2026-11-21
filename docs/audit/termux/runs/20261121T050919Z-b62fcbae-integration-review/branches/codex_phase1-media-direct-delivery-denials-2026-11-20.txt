@@ -1,0 +1,22 @@
+BRANCH: codex/phase1-media-direct-delivery-denials-2026-11-20
+REF: refs/remotes/origin/codex/phase1-media-direct-delivery-denials-2026-11-20
+SHA: b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e
+
+MERGE BASE: 461a9f21f6bf7bd7e9829fd0c5585de563993572
+
+=== DIVERGENCE ===
+188	3
+
+=== FILE STATUS ===
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+=== CHANGE SUMMARY ===
+ functions/src/media.ts                             |  7 +---
+ .../media-callables.integration.test.js            | 49 ++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 5 deletions(-)
+
+=== UNIQUE COMMITS ===
+b72522af test(media): reject all non-good-standing direct participants
+6645cdb0 fix(media): use canonical account standing for direct delivery
+45b80fb4 test(media): cover unauthenticated and suspended direct delivery

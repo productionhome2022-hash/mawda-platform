@@ -1,0 +1,164 @@
+BRANCH: codex/structural-governance-biometric-roles-2026-11-19
+REF: refs/remotes/origin/codex/structural-governance-biometric-roles-2026-11-19
+SHA: e71f3eb559e7f86edecd97fb366ad9c69b5817c5
+
+MERGE BASE: 7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+=== DIVERGENCE ===
+489	79
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/platform-terminology-docs.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/screens/main_user_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   1 +
+ .github/workflows/validate.yml                     |   1 +
+ README.md                                          |   2 +
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  35 +-
+ docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md       |  35 +-
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        |  52 ++
+ docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md  |  39 +-
+ docs/MAWADDA_PRODUCT_CONSTITUTION.md               |  67 +-
+ docs/SEVEN_PHASE_EXECUTION_PLAN.md                 |  29 +-
+ ...RNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md | 149 ++++
+ firestore.rules                                    |   9 +
+ functions/package.json                             |   5 +-
+ functions/src/advertising-governance.ts            |  27 +
+ functions/src/biometric-media.ts                   |  97 +++
+ functions/src/biometric-review.ts                  | 148 ++++
+ functions/src/biometric-verification.ts            |   5 +-
+ functions/src/index.ts                             | 818 ++++++++++++++++++++-
+ functions/src/platform-role-identities.ts          |  76 ++
+ functions/test/advertising-governance.test.js      |  31 +
+ functions/test/biometric-media.test.js             |  61 ++
+ functions/test/biometric-review.test.js            |  94 +++
+ functions/test/biometric-reward-security.test.js   |   9 +-
+ functions/test/biometric-verification.test.js      |  40 +
+ .../biometric-verification.integration.test.js     | 120 ++-
+ .../specialized-role-capacity.integration.test.js  | 120 +++
+ functions/test/member-social-links-access.test.js  |   3 +
+ functions/test/member-social-links.test.js         |  11 +-
+ functions/test/platform-role-identities.test.js    |  41 ++
+ functions/test/platform-terminology-docs.test.js   |  39 +
+ functions/test/rules/firestore.rules.test.js       |  23 +
+ functions/test/rules/storage.rules.test.js         | 144 +++-
+ lib/screens/main_user_screen.dart                  |   2 +-
+ lib/screens/owner_chat_participation_screen.dart   |   2 +-
+ lib/screens/super_admin_screen.dart                |   4 +-
+ storage.rules                                      |  48 +-
+ 35 files changed, 2306 insertions(+), 81 deletions(-)
+
+=== UNIQUE COMMITS ===
+e71f3eb5 docs: establish Production Home Company ownership and brand usage
+5ddc20c6 docs: establish Production Home Company ownership and brand usage
+44b4b981 docs: establish Production Home Company ownership and brand usage
+a613ec2c docs: establish Production Home Company ownership and brand usage
+c77ef658 docs: establish Production Home Company ownership and brand usage
+0a08f1dc fix: correct biometric storage rule request lookup
+c5fc76ba test: guard canonical owner and supervisor documentation labels
+4d6bd082 docs: add canonical administrative terminology glossary
+67772868 docs: link canonical administrative terminology
+e49f6f8f docs: enforce canonical Super Owner and supervisor terminology
+4c03be46 docs: enforce canonical Super Owner and supervisor terminology
+60198ff8 docs: enforce canonical Super Owner and supervisor terminology
+2085db1b docs: enforce canonical Super Owner and supervisor terminology
+971684e1 docs: enforce canonical Super Owner and supervisor terminology
+76f32963 docs: enforce canonical Super Owner and supervisor terminology
+58e88f1c security: guard biometric Storage cross-service reads against missing request docs
+94269400 test: restrict biometric upload request reads to owning member
+24a3ddbf security: scope biometric upload request reads to its owner during upload
+08bc5325 ui: rename owner chat sender option to Super Owner
+12c50346 ui: replace legacy Super Admin sender label with Super Owner
+ddab1aa5 test: correct manual biometric proof assertions and fixtures
+8fb5cafc test: correct manual biometric proof assertions and fixtures
+6bdc8e0c ui: use canonical Super Owner label in owner console
+36db9311 ui: use canonical Super Owner label in owner console
+da5cc51d test: align active social-link lease fixture with manual review proof
+b648934c test: use Super Owner-reviewed biometric lease fixtures for social links
+31c2a01b test: align legacy biometric callable test with manual owner review
+6b27827c ci: run validation workflows for structural governance branch
+774d613e ci: run validation workflows for structural governance branch
+ab02b93d fix: protect wallet integrity and delete biometric media immediately after decision
+1d93211a test: reject fractional MP4 durations outside strict boundaries
+20f2a07e fix: validate exact MP4 duration without rounding at policy boundaries
+9f3c81a0 fix: preserve owner review access when new biometric submissions are paused
+53cbeb09 security: audit Super Owner access to temporary biometric evidence
+4a8e711b feat: add Super Owner controls for biometric verification policy
+69bd1815 test: cover biometric request submission and exactly-once owner reward
+12f04262 test: isolate Storage rule fixtures between cases
+42fecd9d test: cover biometric Storage upload isolation and expiry rules
+c9e2660e security: permit only owner-reviewed biometric evidence uploads
+d6567015 fix: fail closed on incomplete biometric request and deletion records
+54f3710e fix: harden biometric lifecycle retries and avoid unnecessary balance writes
+3f0e7cad feat: implement owner-reviewed biometric request and decision backend
+81c94f7e feat: wire biometric review and media validation modules into Functions
+ba607cfd test: validate biometric video duration from MP4 container
+9d87c47d feat: add server-side MP4 duration validation for biometric video
+e5e11c69 docs: specify serialized role seat counters and revocation reconciliation
+562146db test: clean up transactional supervisor seat counters
+00975240 fix: reconcile supervisor seat counters on revocation
+ba89d8da fix: use imported Firestore document reference type
+3a998f32 fix: serialize concurrent supervisor seat claims with transactional counters
+d9ef0723 test: reject malformed biometric counters and renewal dates
+a79265f4 security: reject malformed biometric attempt and renewal state
+c9c98012 security: count malformed active role grants conservatively
+9f749a16 docs: clarify existing and proposed role identifiers
+c5406f64 docs: record transactional role capacity and permission boundaries
+4a8569ec build: include supervisor capacity emulator tests
+7a9aac31 test: align production supervisor fixtures with role boundaries
+f2085c2d test: use production-only permissions for team supervisors
+1b9292c1 test: prevent permission crossover between media and production roles
+2b0e9940 security: isolate Admin Media and production supervisor permissions
+0d89a8fc test: cover transactional supervisor seat limits
+553f82c9 fix: enforce five-seat supervisor limits transactionally
+3c9cd24a test: cover role seat caps and open-ended teams
+7688d368 feat: add server-enforceable seat capacity guard for numbered roles
+7c39e09c test: cover UTC month boundaries and biometric attempt reset
+af10825d fix: make biometric renewal UTC-stable and reset attempts after lockout
+f269ab59 docs: define manual-review proof for biometric status
+e2becd8f test: enforce manual Super Owner biometric approval
+98c41d10 security: require Super Owner manual biometric approval
+28d426c1 test: cover monthly biometric renewal and acceptance reward
+623a47c0 feat: model monthly biometric verification renewal
+4736685b docs: clarify separate email and monthly biometric renewal cycles
+f1af79ef test: align role identity coverage with existing grant schema
+f4ad5327 fix: align role display mapping with existing grant identifiers
+46b07c72 test: cover separated role labels and capacities
+fab89367 test: cover biometric review lifecycle policy
+367a2c5e feat: define canonical platform role identities
+fdc3ae5a feat: add biometric review decision policy foundation
+355d9582 docs: record approved structural governance and biometric workflow

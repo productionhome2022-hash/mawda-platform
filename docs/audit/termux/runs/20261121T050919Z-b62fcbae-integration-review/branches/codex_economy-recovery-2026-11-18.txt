@@ -1,0 +1,843 @@
+BRANCH: codex/economy-recovery-2026-11-18
+REF: refs/remotes/origin/codex/economy-recovery-2026-11-18
+SHA: 67adbaeccc02128f5e5a86ea01b0c4f63c09106f
+
+MERGE BASE: 7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+=== DIVERGENCE ===
+489	618
+
+=== FILE STATUS ===
+A	.github/workflows/economy-regression.yml
+M	.github/workflows/flutter-ci.yml
+M	.github/workflows/resolve-flutter-lock.yml
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/src/advertising-intake.ts
+A	functions/src/capacity-media-management.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/creator-proposals.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/email-verification-cycle.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+A	functions/src/wallet-reconciliation.ts
+M	functions/test/advertising-intake.test.js
+M	functions/test/biometric-reward-security.test.js
+A	functions/test/capacity-media-management.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/creator-proposals.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/email-verification-cycle.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+A	functions/test/integration/featured-ad-reward-policy.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+A	functions/test/integration/store-catalog.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-policy.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+A	lib/screens/gift_coins_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+A	lib/screens/member_gift_history_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	lib/services/super_admin_security_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	pubspec.lock
+M	pubspec.yaml
+M	scanner/README.md
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+M	test/media_workspace_screen_test.dart
+
+=== CHANGE SUMMARY ===
+ .github/workflows/economy-regression.yml           |   87 +
+ .github/workflows/flutter-ci.yml                   |   18 +
+ .github/workflows/resolve-flutter-lock.yml         |    7 +
+ docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md           |   20 +-
+ docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md     |   56 +
+ ...NOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md |  310 +++
+ docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md          |  116 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |   56 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |    9 +-
+ docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md |  123 +-
+ ...IFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md |  520 ++++
+ docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md         |   59 +
+ docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md         |   84 +
+ firestore.indexes.json                             |  116 +
+ functions/package.json                             |   10 +-
+ functions/src/advertising-intake.ts                |   13 +-
+ functions/src/capacity-media-management.ts         |   67 +
+ functions/src/coin-purchase-requests.ts            |   31 +-
+ functions/src/creator-proposals.ts                 |   13 +-
+ functions/src/default-store-catalog.ts             |    3 +-
+ functions/src/economy-payment-policy.ts            |  115 +
+ functions/src/economy-pricing.ts                   |  120 +-
+ functions/src/email-verification-cycle.ts          |   19 +-
+ functions/src/featured-ad-finance.ts               |  200 ++
+ functions/src/featured-ad-rewards.ts               |   42 +-
+ functions/src/featured-advertising.ts              |   14 +-
+ functions/src/group-call-economy.ts                |   45 +
+ functions/src/index.ts                             | 2749 ++++++++++++++++++--
+ functions/src/media-derivative-contract.ts         |    2 +-
+ functions/src/media-scanner.ts                     |   40 +-
+ functions/src/media-security.ts                    |   13 +-
+ functions/src/media.ts                             |  563 +++-
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/sticker-catalog.ts                   |   72 +
+ functions/src/sticker-policy.ts                    |  197 ++
+ functions/src/store-catalog.ts                     |   10 +-
+ functions/src/store-gifting.ts                     |   72 +
+ functions/src/wallet-reconciliation.ts             |  108 +
+ functions/test/advertising-intake.test.js          |   36 +-
+ functions/test/biometric-reward-security.test.js   |    4 +-
+ functions/test/capacity-media-management.test.js   |   58 +
+ functions/test/coin-purchase-requests.test.js      |   52 +-
+ functions/test/creator-proposals.test.js           |   21 +
+ functions/test/economy-payment-policy.test.js      |   84 +
+ functions/test/economy-pricing.test.js             |  123 +-
+ functions/test/email-verification-cycle.test.js    |   26 +-
+ functions/test/featured-ad-finance.test.js         |  120 +
+ functions/test/featured-ad-rewards.test.js         |   41 +-
+ functions/test/featured-advertising.test.js        |   31 +
+ .../test/fixtures/feature-coverage-matrix.json     |    5 +-
+ functions/test/group-call-economy.test.js          |   48 +
+ .../integration/call-signaling.integration.test.js |  352 ++-
+ .../email-verification-renewal.integration.test.js |   84 +-
+ .../engagement-rewards.integration.test.js         |  421 ++-
+ .../featured-ad-reward-policy.integration.test.js  |   70 +
+ .../media-callables.integration.test.js            |  135 +-
+ .../member-profile-media.integration.test.js       |  114 +-
+ .../owner-entitlement-grants.integration.test.js   |   39 +-
+ .../integration/room-rental.integration.test.js    |   63 +-
+ .../integration/store-catalog.integration.test.js  |   55 +
+ .../integration/wallet-store.integration.test.js   |  798 +++++-
+ functions/test/media-derivative-contract.test.js   |   11 +-
+ functions/test/media-scanner.test.js               |   83 +-
+ functions/test/media-security.test.js              |   17 +
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/room-rental-policy.test.js          |   27 +
+ functions/test/sticker-policy.test.js              |  200 ++
+ functions/test/store-catalog.test.js               |   55 +-
+ functions/test/store-gifting.test.js               |   76 +
+ functions/test/wallet-reconciliation.test.js       |   60 +
+ lib/screens/capacity_media_management_screen.dart  |  274 ++
+ lib/screens/chat_room_screen.dart                  |  132 +-
+ lib/screens/coin_purchase_screen.dart              |   53 +-
+ lib/screens/direct_chat_screen.dart                |  133 +-
+ lib/screens/economy_pricing_screen.dart            |  392 ++-
+ lib/screens/featured_ads_screen.dart               |  571 +++-
+ lib/screens/gift_coins_screen.dart                 |  246 ++
+ lib/screens/mawdda_call_screen.dart                |  171 +-
+ lib/screens/media_workspace_screen.dart            |   20 +-
+ lib/screens/member_gift_history_screen.dart        |  158 ++
+ lib/screens/owner_advertising_intake_screen.dart   |   12 +-
+ lib/screens/owner_advertising_rewards_screen.dart  |   20 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  141 +-
+ .../owner_featured_ads_dashboard_screen.dart       |  621 +++++
+ lib/screens/owner_sticker_packs_screen.dart        |  216 ++
+ lib/screens/profile_screen.dart                    |  382 ++-
+ lib/screens/reward_center_screen.dart              |   12 +-
+ lib/screens/room_rental_pricing_screen.dart        |   17 +-
+ lib/screens/shop_screen.dart                       |   26 +-
+ lib/screens/super_admin_screen.dart                |   92 +-
+ lib/screens/wallet_screen.dart                     |   20 +-
+ lib/services/member_media_upload_service.dart      |  260 +-
+ lib/services/super_admin_security_service.dart     |   11 +
+ lib/widgets/mawdda_sticker_widgets.dart            |  249 ++
+ pubspec.lock                                       |   68 +-
+ pubspec.yaml                                       |    2 +
+ scanner/README.md                                  |    2 +-
+ scanner/processors.js                              |   61 +-
+ scanner/security.js                                |   13 +-
+ scanner/server.js                                  |   38 +-
+ scanner/test/processors.integration.test.js        |   42 +-
+ scanner/test/security.test.js                      |    5 +
+ test/featured_ads_screen_test.dart                 |   15 +-
+ test/media_workspace_screen_test.dart              |    7 +-
+ 105 files changed, 13229 insertions(+), 766 deletions(-)
+
+=== UNIQUE COMMITS ===
+67adbaec Record latest 371-test economic CI verification
+28b5c4c1 Narrow validated proposed currency types
+4193c154 Narrow validated proposed currency types
+5dce043c Correct currency amount regex escaping
+8539eee1 Remove unused advertising validation test import
+43c6a3e9 Test creator proposal currency precision validation
+ec385195 Test advertising proposal currency precision validation
+b740e86e Test currency precision for external service proposals
+b97537e7 Validate creator proposal budgets against ISO minor units
+ac48ecf2 Validate advertising proposal budgets against ISO minor units
+493eb30a Add shared currency precision validation for proposed amounts
+cb26d4e4 Record latest full economic and security regression pass
+95c5fbff Record latest successful Flutter CI run
+6266e3b7 Record successful Firestore and Storage rules regression
+6dba47eb Clarify canonical payment policy migration precedence
+d3ff34ff Normalize shop wallet terminology to BetaCoins
+9b651005 Record verified CI evidence and remaining economic closure gates
+f23adf91 Add Firebase security rules to economy regression gate
+c36b7289 Batch store gift transaction reads atomically
+621cbeaf Assert the current featured rewards page route title
+8d06fdec Exercise featured ad payment attestation and versioned review lifecycle
+b817ee2c Run Flutter CI for widget and unit test changes
+28cbf7d6 Make media workspace widget test scroll to disabled admin entry
+a13e31e2 Make featured ads widget test scroll to privacy disclosure
+2dd38103 Fix Dart interpolation in economy pricing editor
+b31c8e86 Align featured campaign security assertions with callable validation
+a6f86ac3 build(deps): resolve Flutter WebRTC lockfile
+cde562c2 Resolve Flutter lock and validate economy development branch
+321987ab Expand economic emulator coverage across rentals calls rewards and audit
+867262bf Run Flutter checks on economic development branch
+ae48feb1 Correct featured reward invalid-cap integration fixture
+bb5b4110 Align catalog integration assertions with owner publication gate
+8f54c7a1 Verify featured finance replay against original event version
+2499ce54 Build Functions before emulator regression suites
+ded82e8c Fix store catalog validator test imports
+3957f509 Stabilize biometric callable boundary regression
+9a6f9e09 Derive exact ISO minor-unit precision for ad prices
+58d4a348 docs(economy): record payment quote audit and UI cleanup
+c27f99a9 fix(economy): retain before-after payment quote audit history
+721d29e1 docs(economy): record owner-selected currencies and quote snapshots
+bbff82fe Align derivative type with measured media metadata
+9d171f63 Fix Functions build typing and duplicate exports
+eebd741d fix(economy): refresh canonical pricing values after save
+c58f5c3a test(economy): exercise three-decimal currency through coin gift approval
+77ac9a2a refactor(economy): simplify currency field change callback
+66ef604e fix(economy): refresh currency precision when owner changes currency
+e3385ad5 fix(economy): validate negotiated amount before coin credit
+369356ff refactor(economy): rebuild manual coin purchase owner screen cleanly
+81456b80 Align payment policy tests with fail-closed service readiness
+8ec46fd7 fix(economy): remove EUR defaults from manual coin payment and approval
+216e74fb refactor(economy): rebuild owner pricing screen with clean currency controls
+dc929dfd Test canonical economy payment policy enforcement
+0ebc094e Use canonical payment policy in economy reads
+d3952b33 Cover canonical policy precedence over legacy flags
+f4cc7538 Honor canonical payment policy in purchase snapshots
+a937f4d8 Remove unused payment policy view state
+6c744a9b test(economy): update currency validation expectations
+be50f6a8 Remove obsolete disabled payment switch state
+68bdea65 Disable incomplete manual payment controls
+562f9c8a Test fail-closed manual payment service gates
+1ca76855 test(economy): cover currency precision in manual payment quotes
+fb8a5ee4 Fail closed unsupported economic payment services
+6fd70e1c fix(economy): display package and quote prices in selected currencies
+ab6accef Fail closed unsupported economic payment services
+46c3e307 fix(economy): persist explicit agreed currency fields
+dd99382c fix(economy): repair manual quote currency validation
+68224b8a feat(economy): let owner select currency for manual coin quotes
+d46ad7f1 fix(economy): persist currency precision in payment instructions and audit
+0e095493 fix(economy): snapshot selected currency for manual coin purchase quotes
+d73ee2ef fix(economy): allow owner-selected currency for manual coin quotes
+d34f7579 feat(economy): validate ISO currency minor-unit precision
+8d3afe89 test(economy): cover owner-selected ISO currency validation
+03a83fe7 feat(economy): let owner choose currency per price catalog entry
+a66c7e65 fix(economy): allow owner-selected ISO currencies in pricing catalogs
+cb1c4909 ci(economy): add branch-scoped economic regression workflows
+2819d69e test(economy): assert seeded store price fixtures stay unpublished
+4ac20231 docs(economy): document service-scoped payment policy
+d16fce8c fix(economy): keep legacy payment switches consistent with service policy
+3c6acd5f test(economy): clean store catalog audit fixtures after emulator test
+4397abfa test(economy): restore featured reward policy emulator state
+252e3942 feat(economy): expose independent manual payment switches per service
+7f5a49b7 feat(economy): persist per-service manual payment policy
+40c24b59 test(economy): align store integration with versioned owner writes
+7839ab99 test(economy): cover service payment policy and fail-closed automation
+9ecf281c feat(economy): add service-scoped fail-closed payment policy
+dd418382 docs(economy): record consolidated featured reward policy editor
+735c59a1 fix(economy): allow disabled featured rewards to retain draft caps
+bb2b159b refactor(economy): remove duplicate featured reward input helper
+b022bd7c refactor(economy): centralize featured reward controls in ads dashboard
+1109d91f feat(economy): complete featured ad reward policy controls
+938e68b5 docs(economy): record legacy ledger reconciliation behavior
+fc193db3 test(economy): cover legacy ledger gaps between snapshots
+2979e30b fix(economy): avoid false wallet anomalies across legacy rows
+4b28a445 docs(economy): record precise wallet reconciliation ordering
+851076fc fix(economy): sort wallet ledger snapshots with safe timestamp precision
+7793a56b docs(economy): record owner wallet reconciliation capability
+020cd936 test(economy): cover owner wallet reconciliation outcomes
+103e3b6f feat(economy): add owner wallet reconciliation control
+10e993a1 feat(economy): add owner wallet reconciliation client
+5c45d52a fix(economy): flag incomplete wallet history during reconciliation
+1e6cb3e5 feat(economy): expose owner read-only wallet reconciliation
+baf59e9b test(economy): cover wallet ledger reconciliation anomalies
+ee0b9479 feat(economy): add deterministic wallet ledger reconciliation
+6a60d626 fix(economy): retain full before-after policy audit snapshots
+d31abb2d docs(economy): record transfer commission version guard
+e2c0a887 test(economy): cover versioned coin transfer commission policy
+b706a44a feat(economy): guard transfer commission edits against stale versions
+89db6168 feat(economy): send expected coin transfer policy version
+da5719c6 fix(economy): version and audit coin transfer commission updates
+aace690e fix(economy): require owner to enter campaign commercial values
+39a8ef91 fix(economy): remove prefilled experimental store prices
+e5e98b0b docs(economy): record owner email reward policy and snapshots
+3a154ae3 test(economy): verify owner-configured email rewards and disabled path
+b02500b0 test(economy): cover owner email verification reward policy
+4d4d2962 docs(economy): remove stale fixed email reward descriptions
+9843943e fix(economy): include full tariff and reward snapshots in audit
+33d6fa3f feat(economy): expose owner email verification reward settings
+2687bc5a refactor(economy): remove fixed email reward constants
+1071bb65 test(economy): fix configurable email cycle fixtures
+a715e98b fix(economy): apply immutable owner email reward snapshots
+d8436a4d fix(economy): snapshot owner email reward policy per renewal cycle
+bde26a27 fix(economy): stop hard-coded email verification coin grants
+088a92c7 feat(economy): add owner-configurable email reward policy
+44b429c2 test(economy): cover owner-configurable email verification cycle
+5a4e4fd4 refactor(economy): make email reward cycle duration configurable
+94ffb0f6 feat(economy): model owner-controlled email verification rewards
+07f483f2 docs(economy): record store versioning and ad reward controls
+678f6322 test(economy): include store catalog emulator suite
+1c39e267 test(economy): cover versioned store catalog owner edits
+b75f0c83 feat(economy): guard store catalog edits against stale versions
+cdd2bfbe feat(economy): send expected store item version
+784515b5 fix(economy): version and audit store catalog changes
+69c13f87 fix(economy): clarify featured reward policy field units
+c165e644 docs(economy): record owner featured reward controls
+ed58e919 test(economy): include featured reward policy emulator suite
+44d5cdcc test(economy): cover owner featured ad reward policy controls
+91ba40c0 feat(economy): expose owner controls for featured ad rewards
+021aac8d feat(economy): add owner-managed featured ad reward policy
+07b12977 docs(economy): record call snapshots and owner policy controls
+9d08d399 refactor(economy): remove hard-coded active rental price presets
+36ddfcbd test(economy): verify call tariff snapshots stay non-collectible
+f90947c9 feat(economy): snapshot call tariff policy at session creation
+c8ba0f4a test(economy): verify owner rental catalog and full disable path
+93df014e feat(economy): version and fully manage room rental plans
+791eaf26 feat(economy): add owner-only complete room rental catalog view
+3ee54c0f test(economy): cover stale room rental policy updates
+d0240b73 fix(economy): guard room rental policy with expected version
+d20515b0 fix(economy): atomically audit attendance reward policy updates
+e46dc304 docs(economy): record owner policy hardening and deferred checks
+bf71d49b test(economy): align store duration tests with owner policy
+a1894bea fix(economy): remove fixed store duration presets
+6b88e6bb fix(economy): keep seeded store offers unpublished until owner approval
+219d4ff1 test(economy): cover flexible store entitlement durations
+b2f25759 fix(economy): support owner-defined store entitlement durations
+b02d5167 feat(economy): expose owner bilateral call tariffs
+8af27060 test(economy): cover owner-configurable room rental periods
+62b33f75 fix(economy): block room rentals until owner configures plans
+4da043f4 fix(economy): allow unconfigured room rental catalog
+a83d03b9 feat(economy): persist versioned owner call tariffs
+b0183b6f test(economy): cover even bilateral call tariff validation
+ae4e3cb2 feat(economy): validate owner-configured bilateral call tariffs
+88140228 docs: require even whole-coin bilateral tariffs
+ec0921b7 docs: require even whole-coin bilateral tariffs
+28702d3c docs: establish platform-wide owner economic control policy
+ed16cd6d docs: establish platform-wide owner economic control policy
+8bce6b9b docs: specify bilateral call tariff split policy
+8773acae docs: specify bilateral call tariff split policy
+39f281b5 docs: clarify experimental owner-configurable call tariffs
+c875167c docs: clarify experimental owner-configurable call tariffs
+5b237656 Document strict finance audit row and hash-chain outbox verification
+5f1ce27e Test recovery of pending finance audit outbox after chain append
+a178d33a Fail closed if an appended finance audit-chain event is later missing
+54e7640a Verify deterministic owner audit-chain record before completing finance outbox
+4d9db0ec Test featured-ad finance replay fails closed when original audit evidence is missing
+54ffc265 docs: refine room rental replay verification record
+47712ea8 test: isolate room rental ledger corruption cases
+1bfbcf4f Require original immutable finance audit row on idempotent replay
+051ad282 Document stable external-reference identity for featured-ad finance retries
+4c1fc418 Test finance replay after client retry key changes
+de8dd902 Make featured-ad finance replay stable across client retry keys
+e4ab72cc docs: record room rental ledger replay hardening
+4dfc39d8 test: cover room rental ledger replay integrity
+02dd33bd fix: verify room rental ledger evidence on replay
+2610853d Test coin request replay after payment policy changes
+2aa405d3 Preserve coin purchase request snapshots across policy changes
+4d7c5d74 Clarify immutable negotiated coin payment terms
+37b43c3b Expect immutable payment instruction terms after initial send
+1b70f7e0 Hide instruction edit action after first payment terms are issued
+c95aa08b Freeze negotiated payment terms after first instruction issuance
+5e170b83 Document conservative withdrawal lock for manual payment requests
+ad3c3152 Test member cannot withdraw after manual payment instructions are issued
+8172ccab Hide member withdrawal after owner issues external payment instructions
+750f3e1d Lock member withdrawal once external payment instructions are issued
+f8af6d3b Document full owner coin approval ledger reconciliation
+037f3e6d Assert full manual coin credit ledger and owner attribution
+25e2b602 Reconcile coin approval replay against full immutable ledger and owner audit fields
+874254a3 Assert payment report is claim-only and creates no wallet credit
+0b4cef93 Require active completed membership for payment report status changes
+3f66df85 Document manual payment report withdrawal and instruction locks
+891380e4 Test withdrawal lock after member payment report
+1b957f7b Prevent member withdrawal after reporting external payment initiation
+7adf309b Lock payment instruction edits after member reports payment
+10a4c80c Enforce manual payment snapshots at report and owner credit boundaries
+8253af4b Use stable information icon for disabled service categories
+c54a5937 Keep unsupported cash-paid service categories visibly fail-closed in owner settings
+08a30e1a Document claim-only member payment report and owner verification lifecycle
+55501f23 Cover member payment report as non-authoritative workflow signal
+11913d98 Add member-side external payment report signal to coin purchase requests
+5eab577f Add member payment-report signal without granting payment authority
+91a0628c Document owner entitlement replay hardening
+170b704a Clean up paid purchase fixtures in owner grant replay integration test
+634d697e Cover owner grant replay after expiry and subsequent paid entitlement purchase
+d0c8951c Make owner grant replay independent of later entitlement expiry or superseding purchases
+d410d7f9 Document immutable featured-ad finance events and owner dashboard route
+5111eeac Make featured-ad financial dialog validation type-safe and reactive
+016cf771 Use supported payments icon for featured-ad finance entry
+6f2373a8 Expose featured-ad finance dashboard from Super Admin
+ec3a010e Audit prior and new owner manual payment mode settings
+7ff77a04 Show payment status and immutable payment mode snapshot on campaign cards
+e3d361a0 Refresh featured-ad finance dialog validation as owner enters values
+4e89f75f Expose featured-ad finance actions in owner campaign menu
+3016a0fc Repair and complete featured-ad financial event dialog implementation
+4e5ccbba Preserve immutable shared owner audit-chain entry in finance integration cleanup
+272e1562 Clarify automated checkout is deferred, not permanently unavailable
+48e242ba Assert transfer receipt carries both wallet balance snapshots
+994dca2b Verify transaction receipt balance snapshots against immutable wallet ledger
+10e41b83 Assert immutable finance events and audit outbox completion
+475d0493 Keep featured-ad financial events immutable with a separate audit outbox
+f0b6b5b6 Update economic register with current payment and wallet hardening work
+2f976417 Clarify internal reference field for featured-ad financial reviews
+f8a46278 Test independent featured-ad manual mode without requiring coin or ad prices
+388ed289 Display campaign payment policy snapshot in owner dashboard
+8cac2ce6 Test featured-ad payment policy snapshot enforcement
+70eede54 Update economy settings integration coverage for separate featured-ad manual mode
+e951677c Fail closed featured-ad manual finance when campaign payment snapshot disables it
+8376bac4 Cover empty owner price catalogs as an unconfigured state
+ce7f6f83 Allow saving payment policy without requiring invented price entries
+c55c6188 Allow empty owner price catalogs without inventing launch prices
+1af0aa1b Snapshot featured-ad payment modes when a campaign is created
+1bcc6158 Expose independent manual featured-ad payment toggle in owner economy settings
+ac83db76 Add independent owner-controlled manual payment policy for featured ads
+9b07fd03 Assert immutable balance snapshots on store gifts
+7ca35716 Normalize store gift balance before persisting immutable snapshots
+895b0d58 Reconcile store gift balance ledger on idempotent replay
+2f83f786 Assert wallet balance snapshots for store purchases and transfers
+23b7b608 Add store purchase balance reconciliation to immutable replay checks
+9c8c5663 Strengthen coin transfer replay reconciliation and persist balance snapshots
+38c58283 Test fail-closed coin approval replay when immutable audit record is missing
+e6896bab Require immutable wallet ledger and approval audit integrity on coin purchase replay
+c8567231 Allow validated expected version in owner payment instructions
+ee1c781b Add owner UI for manual featured-ad financial lifecycle
+6193a145 Display awaiting manual payment verification status to members
+b2587958 Keep manual coin requests available when automated checkout is separately enabled
+5e8bee6d Cover payment policy snapshots and stale owner instruction writes
+191552ac Test required version for owner coin payment instructions
+952fd7ab Send instruction version from owner coin request dashboard
+0108d813 Preserve legacy pending manual requests during policy snapshot migration
+c0ca0823 Snapshot manual payment policy and guard owner instruction races
+01d25b5f Require versioned owner payment instruction updates
+29b51357 
+380d2667 Record concurrent replay and stale-version coverage in economic register
+8e3cfb17 Cover concurrent replay and stale-version rejection for ad finance
+bdd7ac58 Make featured-ad finance audit-chain append retryable
+ffee0e01 Update economic verification register after ad finance callable wiring
+84d99930 Add emulator coverage for featured ad manual finance lifecycle
+f44708b1 Wire owner-only featured ad financial attestation lifecycle
+04e80a6b docs: define owner-controlled dual payment modes
+915971f4 docs: standardize all external payments as owner-manual
+70ab0fe4 fix(economy): allow valid replay across owner grantors
+b7c5b930 test(economy): verify repeatable grants after entitlement extension
+7ab18124 fix(economy): preserve grant replay after later owner grants
+87f01eb3 docs(scanner): document measured gif and video callback contract
+e8d2c8e7 chore(scanner): remove unused source duration binding
+ee4fcfd5 fix(ads): persist campaign status version increments
+075a39b2 fix(ads): require measured safe creative duration and frames
+0d7aa11d test(scanner): assert persisted gif and video measurements
+553e46ce fix(scanner): route every gif through animation sanitizer
+771df1cf fix(scanner): attach measured gif and video metadata
+7c1f00b5 test(media): cover gif frames and video duration limits
+b6258f11 fix(media): verify measured derivative metadata against storage
+2c790a6d fix(media): enforce gif and safe video measured limits
+42dc7c32 fix(ads): send expected campaign versions from owner console
+d8287e1d fix(ads): enforce campaign version and payment evidence gates
+bc7119ac test(economy): preserve grant ledger history fixture
+d92e5d54 test(economy): reject incomplete owner grant replay
+54f23434 fix(economy): verify owner grant ledger and audit on replay
+480f0a3b test(economy): detect incomplete transfer ledger replay
+c1b30ab4 fix(economy): verify all transfer ledgers on replay
+259f8563 fix(economy): fail closed on incomplete store purchase replay
+9571d285 fix(economy): load purchase ledger in replay transaction
+a377e117 test(economy): detect missing manual credit ledger on replay
+b5b7eb84 fix(economy): verify manual credit ledger on approval replay
+cb225329 test(economy): reject store purchase replay without ledger
+64167008 fix(economy): verify wallet ledger on store purchase replay
+6bd7b4d4 test(ads): cover stale timed campaign edits
+a022062f fix(ads): send current campaign version when editing
+5b626ce9 test(ads): send campaign versions in integration fixtures
+268af24a fix(ads): reject stale timed campaign edits
+77bf5247 test(economy): reject unapproved store durations
+5f8e60e0 fix(economy): enforce approved store entitlement durations
+dde43c82 fix(economy): send attendance policy expected version
+209ba291 test(economy): cover attendance policy version conflicts
+a05519f0 fix(economy): reject stale attendance policy updates
+764b3215 fix(media): align owner ad upload limits with server policy
+b008a545 fix(economy): reconstruct owner pricing editor safely
+d84bce67 fix(ads): restore featured ad reward contracts
+49cdb410 fix(economy): restore owner advertising rewards contracts
+b62fcbae test: seed server-attested featured ad evidence
+af746792 test: use UUIDs for featured ad viewing sessions
+46fffb60 test: seed direct chat for call connection ceiling
+94973f23 test: use UUID for featured ad viewing session fixture
+b4cb0e15 fix(media): safely narrow callable auth token
+0cc045b3 fix(ads): avoid duplicate creative type in session response
+3fa816a4 test(store): align ready catalog fixtures with privacy fail-closed policy
+d895f349 fix(store): keep hide-coins purchase disabled until fulfillment ships
+6da0a48c test(media): import safe derivative policy helper
+6b8de8fd test(calls): align remainder test with five-person cap
+ad866255 fix(media): close delivery URL helper correctly
+11398a5f docs: record economic phase source recheck and blockers
+71cff419 docs(economy): record verified state and remaining release gates
+685b8100 docs: close out current economic execution record
+3685cd7d fix(economy): allow owner to remove ad price rows
+d3edc82b docs: record local validation environment blocker
+906c427b docs: record economic execution follow-up and remaining gates
+beab3dd2 test(economy): validate owner-authored prices without production defaults
+a1ee7062 refactor(economy): remove unapproved hardcoded package and ad prices
+2a679301 test(economy): verify empty owner pricing and versioned explicit activation
+aa4733f7 feat(economy): add owner-authored pricing rows without defaults
+0f05d6c4 fix(economy): remove unapproved starter prices and version owner updates
+899ee104 test(wallet): verify coin gift history and recipient notification
+e79860fd fix(wallet): label coin transfers as gifts in wallet history
+7c7e00ff feat(wallet): display balance-based coin gifts in member history
+1f2718ee feat(wallet): record coin gifts in recipient history and notifications
+070a1568 test(wallet): reject transfers to guest-profile recipients
+af031c27 fix(wallet): reject guest profiles from coin transfer endpoints
+3424cc9d fix(ads): disclose reward settlement safety gate in owner console
+0c247997 test(ads): prevent rewards from client-forged playback telemetry
+57befb79 fix(ads): fail closed on client-reported reward evidence
+0688a535 test(ads): cover shared all-Arab geography eligibility
+82a99cac fix(ads): use shared geographic eligibility across session and settlement
+5eac94cd refactor(ads): centralize geographic targeting policy
+55e806bb fix(ads): preserve all-Arab targeting in atomic session recheck
+ba3d442b fix(calls): revalidate room rental and participant membership at connection
+2cff69bc test(calls): cover block and membership changes before acceptance
+f9e7d548 fix(calls): revalidate account safety and chat membership on acceptance
+dfcae6ce fix(calls): revalidate participants and direct-chat membership atomically
+b8ede5c9 test(economy): assert package offers fail closed without owner pricing
+fa8c914e fix(economy): require owner-configured coin package catalogue
+d2ff554a fix(wallet): bind retry keys to exact gift intent
+8bac2102 fix(wallet): align owner coin purchase fields with server contract
+f2712e87 feat(wallet): expose coin gifting from wallet screen
+6e45deda feat(wallet): add package and balance-based coin gifting screen
+29c89cdb test(media): cover owner capacity policy versioning and partial telemetry
+452d7f69 test(media): verify atomic finalized upload metering and replay safety
+9bda6379 fix(media): label partial upload metering accurately in owner console
+d84ab8a4 feat(media): meter finalized upload bytes atomically without member identifiers
+37825420 feat(media): add owner-authenticated observe-only capacity policy callables
+a78c03e6 feat(media): link owner capacity and media policy screen
+2e300f31 feat(media): add owner observe-only capacity management screen
+ff74e239 test(media): cover owner capacity policy validation
+a83f81b3 feat(media): add observe-only owner capacity policy model
+df94af4b test(ads): cover campaign reward ceiling and remaining budget
+e0172893 refactor(ads): use tested owner reward policy and campaign budget guards
+175ed14d refactor(ads): centralize campaign reward ceiling and budget checks
+74b6a645 test(media): reject scanner signature age overrides above 36 hours
+74d8ffd1 fix(media): reject scanner configurations looser than 36-hour signature freshness
+4cd946c6 fix(media): hard-cap scanner signature freshness at 36 hours
+aa7e20a6 test(ads): cover all-Arab campaign regional targeting
+d0f39bfa fix(ads): enforce consistent geographic eligibility through reward claim
+7e589dbb fix(ads): include all-Arab campaigns in regional showcases
+c4df4c89 fix(ads): send expected reward policy version from owner dashboard
+984c8fc3 fix(ads): version-check owner reward policy updates
+75afa3e5 fix(ads): remove hidden campaign reward defaults and clarify owner caps
+e81f859e test(ads): assert fail-closed owner-configured featured ad rewards
+5db18877 fix(ads): honor owner campaign reward amount within global reward ceiling
+c7129ecb fix(ads): remove unapproved reward and campaign budget presets from owner UI
+284f9ae1 fix(ads): disable featured-ad rewards until owner configures amounts and quotas
+89582a41 test(calls): terminate room call when rental expires
+61d1a2ac fix(calls): terminate room calls when the private rental expires
+a3612979 fix(calls): recheck room membership and rental at call admission
+2e1d0a1d test(calls): verify room participant entitlement admission and rejection
+62a124e6 fix(calls): validate entitlements for admitted call participants only
+885ec85e test(calls): cover private rental gate and four-person video cap
+3b83ef24 test(calls): align room call integration fixture with rented private room policy
+03d10432 fix(calls): require active private room rental and enforce video capacity
+4dd0f4b0 test(economy): fail closed on inconsistent gift ledger replay
+d4db6188 feat(economy): link gift history from member wallet
+8b9c87df feat(economy): add member gift history screen
+c5a3c090 fix(economy): verify immutable gift ledgers before idempotent replay
+08d3de55 test(economy): reject malformed active gift entitlement expiry
+6b0b3bde fix(economy): fail closed on malformed active gift expiry
+f108044d fix(economy): correct control-character validation for gift recipient IDs
+eac8d3d0 fix(economy): reject unsafe path characters in gift recipient IDs
+3c1e905c feat(economy): add coin package, wallet balance and store gifting UI
+397aa37e test(economy): enable auth emulator for wallet gift integration
+4c5dec93 test(economy): cover atomic store and coin package gifting in emulators
+9b38da2f fix(economy): reject self gift before recipient auth lookup
+f996a1f2 feat(economy): add server-verified gifted coin packages and gift history
+b2f28786 test(economy): cover gifted coin package request validation
+cb8cc464 feat(economy): validate recipient for gifted coin packages
+17a2c32c docs: record selective PR 22 24 25 audit and local test blocker
+5587546f docs: record selective integration audit for open PRs
+2bc3b218 docs: record unified branch reconciliation checkpoint
+37e0b27d Document financial transition boundary hardening
+875d42dd Test forged financial events and corrupt snapshots
+b8cc837a Harden featured ad financial transition boundary
+80e5ade4 docs: record isolated featured ad finance policy integration
+1a9dc1ec test: add isolated featured ad finance policy coverage
+64677c63 feat: add isolated featured ad finance policy
+76742b3c docs: record sticker UI integration and final review
+9f4aa52f fix(stickers): protect chat participant binding and message summary
+a761d70d docs: update sticker client integration status
+08230028 feat(stickers): integrate sticker picker and message rendering in room chats
+8c665200 feat(stickers): integrate sticker picker and message rendering in direct chats
+2d91f7ba feat(stickers): add owner sticker pack management entry
+41eeaba7 feat(stickers): add owner pack editor and sticker picker widgets
+7a88ebf2 feat(stickers): add owner pack editor and sticker picker widgets
+5cdea71e feat(stickers): add client methods for upload, catalog and send
+2ab8982e docs: record sticker send authorization hardening
+7efd056a fix(stickers): align room membership checks with canonical room messaging
+8f2d0863 fix(stickers): enforce active member account eligibility
+0cb9f36a docs: record sticker backend implementation and remaining gates
+c3b48f9c fix(stickers): bind send retries to pack and sticker identity
+0b8b00a1 test(stickers): verify full idempotency identity
+a43a8db9 fix(stickers): bind replay detection to full message identity
+e9e3cb6e fix(stickers): consolidate media policy imports
+5e9f4d15 feat(stickers): expose secure sticker catalog and media callables
+63695d81 feat(stickers): add secure owner pack, send and asset delivery callables
+8c541981 test(stickers): cover owner-only sticker derivative routing
+e1e390ad feat(stickers): allow owner-only sticker derivatives
+92b50c4c feat(stickers): bind upload to scanner-measured safe metadata
+d40e18fb test(stickers): cover owner-only upload limits
+17941d27 feat(stickers): enforce owner-only bounded sticker upload policy
+45e362a5 test(stickers): cover scanner sticker verdict validation
+adfa4612 feat(stickers): validate scanner-measured sticker metadata
+fefa499f feat(stickers): add scanner-side sticker inspection and safe derivatives
+1243a14f feat(stickers): add scanner-side sticker inspection and safe derivatives
+03f5f360 feat(stickers): add scanner-side sticker inspection and safe derivatives
+e62ececc feat(stickers): add scanner-side sticker inspection and safe derivatives
+7b6d4f9d feat(stickers): add scanner-side sticker inspection and safe derivatives
+479a1d59 revert(media): restore standard quota cleanup state
+e7a9c219 revert(media): defer unapproved quota exemption policy
+854adeb1 revert(test): defer unapproved quota exemption policy
+5e5cda9e revert(media): defer unapproved quota exemption policy
+c847c90a fix(media): make cleanup quota release exemption-aware
+98165641 fix(media): release only existing quota reservations
+a1b63721 fix(media): bind owner transfer exemption to verified recipient
+6c82cd83 feat(media): apply server-verified transfer quota exemptions
+d5db3268 test(media): cover owner transfer quota exemptions
+816a6ae6 feat(media): add verified transfer quota exemptions
+f05bbcfc docs: record media quota exemption security review
+0eceae16 docs: record media integration findings and execution order
+33aeb4a9 Document safe test seeder syntax-check integration
+efb80d13 Add emulator seeder syntax check to local Functions test command
+230c9b73 Record review of remaining divergent branches and reject policy conflicts
+fcde3f8a Document comprehensive integration conflict audit and safe index union
+effe4ac8 Preserve additive featured-ad and media indexes in unified test branch
+b5dd1668 docs: refresh unified branch integration evidence
+5e04013f docs: record selective policy module integration and remaining wiring
+56541eb7 chore: remove duplicate call entitlement helper pending unified integration
+075418ec chore: remove duplicate call entitlement helper pending unified integration
+cf0e239f test: cover integer group call allocation and five-person ceiling
+44fcfb21 fix: enforce five-person group call allocation ceiling
+388f4c83 feat: add isolated store-gifting.test.js policy and tests
+8cde2958 feat: add isolated room-call-policy.test.js policy and tests
+513ca3b0 feat: add isolated store-gifting.ts policy and tests
+f010ad25 feat: add isolated room-call-policy.ts policy and tests
+1cf3049c feat: add isolated group-call-economy.ts policy and tests
+7d0ed439 test: add isolated call entitlement policy unit coverage
+af4d92ea test: add sticker policy and catalog unit coverage
+05c4708c feat: add isolated call-entitlements policy module
+8ba9e478 feat: add isolated sticker-catalog policy module
+28182105 feat: add isolated sticker-policy policy module
+9f833e9e docs(testing): add emulator test center operator runbook
+aa1e02de docs: correct unified integration register references
+47a32f95 docs: record safe unified branch integration status
+fb9cfce8 docs(testing): add isolated test account system specification
+adbdf8e7 docs: record unified branch inventory and integration controls
+9423fbae Merge pull request #21 from productionhome2022-hash/codex/featured-ads-serving-foundation
+0fe15db6 docs(economy): record gifting and Media Saver fulfillment closure work
+0c465318 test(economy): cover member gifting and full call/media store catalog
+a74172d9 feat(economy): add atomic member-to-member store entitlement gifting
+ee718fb0 fix(economy): mark Media Saver fulfillment as server-ready
+b68e08c6 ui(economy): finish visible Beta Coins terminology cleanup
+980e7880 ui(economy): finish visible Beta Coins terminology cleanup
+09c8c227 fix(economy): restore store catalog technical field and clean Beta Coins labels
+03953580 docs(economy): authorize development test pricing and durations
+741edbf2 docs(economy): define comprehensive economy phase scope and release gates
+436ab59b docs(economy): record Beta Coins terminology and phase-wide closeout gates
+b2bdafc8 ui(economy): standardize Beta Coins terminology across economy surfaces
+a3a22646 ui(economy): standardize Beta Coins terminology across economy surfaces
+d3b8d305 ui(economy): standardize Beta Coins terminology across economy surfaces
+163b20fa ui(economy): standardize Beta Coins terminology across economy surfaces
+6bd69696 ui(economy): standardize Beta Coins terminology across economy surfaces
+be49fc64 docs(economy): record Beta Coins product naming decision
+f62296a4 ui(economy): finish Beta Coins visible terminology
+5b8c084d ui(economy): finish Beta Coins visible terminology
+9ea8a238 fix(economy): restore technical coin service identifiers
+0556c0b0 fix(economy): restore technical identifiers after terminology pass
+72e9cc38 docs(economy): standardize Beta Coins terminology
+c4a99443 docs(economy): standardize Beta Coins terminology
+1327a251 ui(economy): adopt Beta Coins product terminology
+d2b437b2 ui(economy): adopt Beta Coins product terminology
+8750f963 test(economy): include Hide Coins in fulfilled privacy SKU contract
+722b1c6c docs(economy): record approved Hide Coins visibility semantics
+b52f9fa3 docs(economy): close Hide Coins gap and record Media Saver UI completion
+cdc5c167 test(economy): extend feature coverage matrix for privacy and Media Saver
+4a25d7cb ui(media): add Media Saver actions to room attachments
+695c1bed ui(media): add Media Saver action to direct audio attachments
+8f129883 ui(media): add Media Saver save action to direct chat attachments
+6ca6a21e feat(media): implement server-authorized Media Saver local save flow
+302d8298 feat(media): add cross-platform local file saver dependency
+4c7e17ea test(economy): verify Hide Coins access matrix for members and platform owner
+a7e7c455 ui(economy): show locked or visible coin balance in profile
+b5ba0956 feat(economy): enable Hide Coins fulfillment contract
+46426d71 feat(economy): enforce Hide Coins profile visibility at server projection
+b1b42524 docs(economy): refresh phase closeout head after latest hardening
+51839edc test(economy): include ghost mode in fulfilled store SKU contract
+cba39486 fix(economy): register ghost mode as a fulfilled privacy SKU
+987e1328 docs(media): update Media Saver traceability with server gate evidence
+b3e9fa36 test(economy): track Media Saver as catalog SKU pending local-save fulfillment
+8ef8931b feat(media): expose server-checked Media Saver capability to client service
+56eef48a security(media): restrict Media Saver to approved local-save media types
+a2777770 fix(media): use explicit callable request shape for Media Saver delivery helper
+baca84e7 ui(media): expose Media Saver catalog category without enabling unfinished purchase
+abb57a53 feat(media): register Media Saver SKU category in central catalog
+df688072 feat(media): add Media Saver as a central catalog SKU gated until local saver ships
+9585431a test(media): verify Media Saver entitlement gate fails closed
+148f0878 feat(media): add server-checked Media Saver delivery capability
+a96a9048 docs(economy): refresh traceability for central store and owner grants
+4e099eb0 docs(economy): add phase 1 execution closeout and remaining gates
+127ecac6 fix(economy): remove hardcoded call pricing and quotas from store UI
+6f0e5ca0 test(economy): verify ghost entitlement hides and restores discovery visibility
+51c8348a feat(economy): expose active ghost entitlement in profile projection
+2cf74ae1 feat(economy): expose purchased ghost mode controls in profile
+ba78464c feat(economy): activate server-enforced ghost-mode entitlement
+a8b97142 test(economy): prove call plans purchase and authorize paid call flow
+9fd5ac31 test(economy): verify call store SKUs are purchase-ready after entitlement integration
+dde22814 feat(economy): connect voice and video call SKUs to central entitlement fulfillment
+03c73755 test(calls): verify mode-specific entitlement and recheck at acceptance
+f2c18cff fix(calls): reject incoming calls when entitlement or device setup fails
+4ee483a0 test(calls): verify missing peer entitlement blocks direct call setup
+210b3ccf test(calls): declare call mode in server duration fixture
+76fb019d test(calls): seed active store entitlements in call lifecycle fixtures
+929d6242 feat(calls): enforce active audio and video store entitlements for all participants
+301dda1a fix(calls): retain room signals until accepted peers are synchronized
+4885a5e2 feat(calls): synchronize accepted room participants and build deterministic WebRTC mesh
+762db71a fix(calls): keep countdown value typed and remove unused deadline state
+21ef10c6 fix(calls): synchronize both clients on server call deadline and show countdown
+551ac9df security(ads): revoke sessions for inactive members and validate wallet balance
+ae0510be docs(ads): align experimental per-campaign reward cap to three per rolling day
+b02338f6 docs(ads): trace AD-001 owner review, media upload and player hardening
+933d2299 fix(ads): keep campaign reward amount aligned with central owner policy
+4379a089 feat(ads): add owner campaign start and end schedule controls
+7bce0475 test(ads): cover owner-only creative rejection and approval workflow
+4b0cc594 feat(ads): add separate owner creative approval and rejection controls
+03a2dbc0 test(ads): require independent creative review before campaign approval
+9f8e819b feat(ads): separate owner creative approval from campaign payment approval
+079e022d test(media): cover owner-only secure advertisement upload intake
+2e5f98cc fix(ads): place featured reward history as sixth media workspace route
+5671257a fix(ads): stop playback immediately when server revokes viewing session
+f3cf5c1e fix(ads): repair owner dashboard copy and campaign status interpolation
+ed743820 fix(ads): remove obsolete duplicate reward screen implementation
+7c430662 test(ads): assert member history exposes active reward policy limits
+b701f649 fix(ads): evaluate campaign schedule at final session creation time
+a5575279 security(ads): revalidate campaign atomically before session creation
+2b8b5761 fix(ads): display live server reward policy in member history screen
+85cff42f feat(ads): return active experimental reward limits with member history
+2191ea24 fix(ads): validate enabled reward policy limits before owner save
+8f0c56d6 test(ads): verify pause resume and irreversible campaign withdrawal
+8512a537 security(ads): enforce terminal withdrawal and valid campaign state transitions
+9b38c4eb fix(ads): require latest server foreground evidence before completion
+b29aa6c8 fix(ads): return server foreground evidence with viewing heartbeat
+2876ff07 test(ads): separate idempotent close from withdrawal revocation fixture
+a20867f6 test(ads): cover campaign withdrawal heartbeat revocation and session close
+d5844435 fix(ads): safely end abandoned sessions without async type mismatch
+1e899d02 fix(ads): close abandoned viewing sessions when player exits
+cf279455 fix(ads): revoke active sessions on campaign withdrawal and add session close
+1a4b6e40 fix(ads): gate completion UI on server progress and foreground visibility
+f6aaa328 feat(ads): return server-authoritative viewing thresholds at session start
+6797f84c test(ads): cover invalid secure derivative and prevent orphan viewing sessions
+6c7b1dce test(ads): clean up all featured viewing session fixtures
+40f2bf47 fix(ads): make selected player occupy responsive 60/40 app viewport
+ae0bdd17 test(ads): provide safe derivative evidence for campaign approval fixture
+301d4ebe security(ads): require verified safe derivative metadata before campaign approval
+7b176311 security(ads): audit denied owner campaign and reward policy access
+3f77debd feat(ads): add owner secure media upload and reward policy controls
+f312e1a6 feat(media): add secure owner advertisement creative upload flow
+044c0925 test(ads): fix fixture lifecycle references and cleanup
+110f65ea test(ads): exercise owner payment approval without fixture bypass and restore policy
+0ed0f03f fix(ads): create viewing sessions only after secure media validation
+7dcb9071 fix(ads): allow explicit owner payment confirmation during approval
+6519459c docs(ads): record current AD-001 implementation head and test status
+ac43615f feat(ads): expose security-approved media selection in owner dashboard
+608242f1 test(ads): avoid network-dependent reward history assertion
+8a82a34f test(ads): align featured UI tests with server-backed discovery and history
+4f0bb92f chore(ads): index featured reward history wallet query
+f4c5a8ea feat(ads): link owner intake to featured campaign dashboard
+b4862784 feat(ads): add video playback dependency for selected ad player
+62bfa2f5 docs(ads): record AD-001 serving reward and 60/40 layout implementation
+b93c3bc5 docs(ads): correct selected-ad player layout to approved 60/40 split
+1db93b59 feat(ads): add owner featured ads campaign dashboard
+d7fa28c5 feat(ads): add responsive 60/40 selected-ad player and reward history
+e18467b4 fix(test): seed approved creative before owner campaign creation
+bdcdf023 test(ads): cover owner lifecycle reward replay concurrency and withdrawal
+ea7f1fb3 fix(ads): require approved secure creative before featured publication
+5f716c3f fix(ads): track continuous foreground visibility for image rewards
+4347a2f9 fix(ads): enforce rolling campaign reward window atomically
+7f4f303f feat(ads): implement owner campaigns secure sessions heartbeats and atomic rewards
+57c4ad84 feat(media): expose secure media bucket accessor for featured ads
+6a0fcbcc refactor(ads): reuse canonical advertising geography taxonomy
+b6b3caee docs(ads): record featured discovery foundation and remaining AD-001 gates
+0e13f698 chore(ads): index active featured campaign discovery query
+800aacbb fix(ads): render sponsor and campaign copy on separate lines
+b4ec13ec feat(ads): connect member featured-ad discovery screen to callable feed
+8827363f test(ads): cover featured campaign discovery authorization and filtering
+3de3f0bb fix(ads): narrow validated featured placement type
+9921ac7e feat(ads): add authenticated featured campaign discovery feed

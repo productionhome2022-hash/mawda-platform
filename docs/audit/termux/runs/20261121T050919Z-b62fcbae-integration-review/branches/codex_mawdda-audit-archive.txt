@@ -1,0 +1,41 @@
+BRANCH: codex/mawdda-audit-archive
+REF: refs/remotes/origin/codex/mawdda-audit-archive
+SHA: 6a94a078695bd8d70884a843efb7cf9d3bfc740a
+
+MERGE BASE: 874e31f1e6b30a0256f017332b23073b64973842
+
+=== DIVERGENCE ===
+1605	14
+
+=== FILE STATUS ===
+A	functions/src/audit-archive.ts
+M	functions/src/index.ts
+A	functions/test/audit-archive.test.js
+A	infra/audit-archive/README.md
+A	infra/audit-archive/main.tf
+A	infra/audit-archive/variables.tf
+
+=== CHANGE SUMMARY ===
+ functions/src/audit-archive.ts       | 147 ++++++++++++++++++++
+ functions/src/index.ts               | 257 ++++++++++++++++++++++++++++++++++-
+ functions/test/audit-archive.test.js |  74 ++++++++++
+ infra/audit-archive/README.md        |  60 ++++++++
+ infra/audit-archive/main.tf          |  60 ++++++++
+ infra/audit-archive/variables.tf     |  30 ++++
+ 6 files changed, 627 insertions(+), 1 deletion(-)
+
+=== UNIQUE COMMITS ===
+6a94a078 Anchor audit archive cursor to immutable GCS object metadata
+1603e497 Require a conservative 731-day audit retention floor
+54ce1f6b Require a conservative 731-day audit retention floor
+4f48f769 Require a conservative 731-day audit retention floor
+14a40ebd Require a conservative 731-day audit retention floor
+53e9c7b5 Tighten audit archive types and timestamp validation
+b4ae3626 Document audit archive lock and deployment gates
+ba827d3c Add explicit audit archive configuration variables
+b9cd5e12 Add Terraform bucket for immutable audit archive
+295069b6 Add scheduled locked 24-month owner audit archive
+575f2745 Test five-minute audit archive safety buffer
+6d7a09ef Reduce audit archive exposure window to five minutes
+bc3cc814 Test locked audit archive retention and chain verification
+87022551 Add immutable audit archive policy and chain verification helpers

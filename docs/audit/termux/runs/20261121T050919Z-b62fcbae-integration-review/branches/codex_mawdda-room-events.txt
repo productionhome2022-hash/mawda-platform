@@ -1,0 +1,28 @@
+BRANCH: codex/mawdda-room-events
+REF: refs/remotes/origin/codex/mawdda-room-events
+SHA: b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615
+
+MERGE BASE: 25080d7d471db47be37dc0ee71dc8f719b97eac3
+
+=== DIVERGENCE ===
+1569	5
+
+=== FILE STATUS ===
+M	functions/src/audit-archive.ts
+M	functions/src/index.ts
+M	functions/test/audit-archive.test.js
+M	infra/audit-archive/README.md
+
+=== CHANGE SUMMARY ===
+ functions/src/audit-archive.ts       |  75 +++++++++++++++
+ functions/src/index.ts               | 179 +++++++++++++++++++++++++++++++++++
+ functions/test/audit-archive.test.js |  23 +++++
+ infra/audit-archive/README.md        |   9 +-
+ 4 files changed, 283 insertions(+), 3 deletions(-)
+
+=== UNIQUE COMMITS ===
+b0b5214a Document full approved audit collection archive coverage
+dc1127ca Archive verification privacy media profile deletion and room audit collections
+63d1816d Correct newline assertion for audit collection archive payload
+9e82df8f Test immutable archive manifests for audit collections
+6f220fa1 Add archive manifest helpers for all audit collections

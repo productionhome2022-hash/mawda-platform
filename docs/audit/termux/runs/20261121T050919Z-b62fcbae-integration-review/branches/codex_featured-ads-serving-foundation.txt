@@ -1,0 +1,216 @@
+BRANCH: codex/featured-ads-serving-foundation
+REF: refs/remotes/origin/codex/featured-ads-serving-foundation
+SHA: 0fe15db693eb0a36a73c11a6e563e189069e74ba
+
+MERGE BASE: 7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+=== DIVERGENCE ===
+489	139
+
+=== FILE STATUS ===
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	firestore.indexes.json
+M	functions/src/default-store-catalog.ts
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/src/store-catalog.ts
+M	functions/test/fixtures/feature-coverage-matrix.json
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/store-catalog.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	pubspec.yaml
+M	test/featured_ads_screen_test.dart
+
+=== CHANGE SUMMARY ===
+ docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md           |  20 +-
+ docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md          | 116 +++
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  56 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |   9 +-
+ firestore.indexes.json                             |  32 +
+ functions/src/default-store-catalog.ts             |   3 +-
+ functions/src/index.ts                             | 819 ++++++++++++++++++++-
+ functions/src/media.ts                             |  54 +-
+ functions/src/store-catalog.ts                     |  11 +-
+ .../test/fixtures/feature-coverage-matrix.json     |   5 +-
+ .../integration/call-signaling.integration.test.js |  94 ++-
+ .../engagement-rewards.integration.test.js         | 292 ++++++++
+ .../media-callables.integration.test.js            |  63 +-
+ .../member-profile-media.integration.test.js       | 114 ++-
+ .../integration/wallet-store.integration.test.js   | 119 ++-
+ functions/test/store-catalog.test.js               |  14 +-
+ lib/screens/chat_room_screen.dart                  |  96 ++-
+ lib/screens/direct_chat_screen.dart                |  99 ++-
+ lib/screens/featured_ads_screen.dart               | 573 +++++++++++---
+ lib/screens/mawdda_call_screen.dart                | 171 ++++-
+ lib/screens/media_workspace_screen.dart            |  20 +-
+ lib/screens/owner_advertising_intake_screen.dart   |  12 +-
+ lib/screens/owner_advertising_rewards_screen.dart  |  38 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  16 +-
+ .../owner_featured_ads_dashboard_screen.dart       | 461 ++++++++++++
+ lib/screens/profile_screen.dart                    |  70 +-
+ lib/screens/reward_center_screen.dart              |  12 +-
+ lib/screens/shop_screen.dart                       |  24 +-
+ lib/services/member_media_upload_service.dart      | 113 ++-
+ pubspec.yaml                                       |   2 +
+ test/featured_ads_screen_test.dart                 |  18 +-
+ 31 files changed, 3271 insertions(+), 275 deletions(-)
+
+=== UNIQUE COMMITS ===
+0fe15db6 docs(economy): record gifting and Media Saver fulfillment closure work
+0c465318 test(economy): cover member gifting and full call/media store catalog
+a74172d9 feat(economy): add atomic member-to-member store entitlement gifting
+ee718fb0 fix(economy): mark Media Saver fulfillment as server-ready
+b68e08c6 ui(economy): finish visible Beta Coins terminology cleanup
+980e7880 ui(economy): finish visible Beta Coins terminology cleanup
+09c8c227 fix(economy): restore store catalog technical field and clean Beta Coins labels
+03953580 docs(economy): authorize development test pricing and durations
+741edbf2 docs(economy): define comprehensive economy phase scope and release gates
+436ab59b docs(economy): record Beta Coins terminology and phase-wide closeout gates
+b2bdafc8 ui(economy): standardize Beta Coins terminology across economy surfaces
+a3a22646 ui(economy): standardize Beta Coins terminology across economy surfaces
+d3b8d305 ui(economy): standardize Beta Coins terminology across economy surfaces
+163b20fa ui(economy): standardize Beta Coins terminology across economy surfaces
+6bd69696 ui(economy): standardize Beta Coins terminology across economy surfaces
+be49fc64 docs(economy): record Beta Coins product naming decision
+f62296a4 ui(economy): finish Beta Coins visible terminology
+5b8c084d ui(economy): finish Beta Coins visible terminology
+9ea8a238 fix(economy): restore technical coin service identifiers
+0556c0b0 fix(economy): restore technical identifiers after terminology pass
+72e9cc38 docs(economy): standardize Beta Coins terminology
+c4a99443 docs(economy): standardize Beta Coins terminology
+1327a251 ui(economy): adopt Beta Coins product terminology
+d2b437b2 ui(economy): adopt Beta Coins product terminology
+8750f963 test(economy): include Hide Coins in fulfilled privacy SKU contract
+722b1c6c docs(economy): record approved Hide Coins visibility semantics
+b52f9fa3 docs(economy): close Hide Coins gap and record Media Saver UI completion
+cdc5c167 test(economy): extend feature coverage matrix for privacy and Media Saver
+4a25d7cb ui(media): add Media Saver actions to room attachments
+695c1bed ui(media): add Media Saver action to direct audio attachments
+8f129883 ui(media): add Media Saver save action to direct chat attachments
+6ca6a21e feat(media): implement server-authorized Media Saver local save flow
+302d8298 feat(media): add cross-platform local file saver dependency
+4c7e17ea test(economy): verify Hide Coins access matrix for members and platform owner
+a7e7c455 ui(economy): show locked or visible coin balance in profile
+b5ba0956 feat(economy): enable Hide Coins fulfillment contract
+46426d71 feat(economy): enforce Hide Coins profile visibility at server projection
+b1b42524 docs(economy): refresh phase closeout head after latest hardening
+51839edc test(economy): include ghost mode in fulfilled store SKU contract
+cba39486 fix(economy): register ghost mode as a fulfilled privacy SKU
+987e1328 docs(media): update Media Saver traceability with server gate evidence
+b3e9fa36 test(economy): track Media Saver as catalog SKU pending local-save fulfillment
+8ef8931b feat(media): expose server-checked Media Saver capability to client service
+56eef48a security(media): restrict Media Saver to approved local-save media types
+a2777770 fix(media): use explicit callable request shape for Media Saver delivery helper
+baca84e7 ui(media): expose Media Saver catalog category without enabling unfinished purchase
+abb57a53 feat(media): register Media Saver SKU category in central catalog
+df688072 feat(media): add Media Saver as a central catalog SKU gated until local saver ships
+9585431a test(media): verify Media Saver entitlement gate fails closed
+148f0878 feat(media): add server-checked Media Saver delivery capability
+a96a9048 docs(economy): refresh traceability for central store and owner grants
+4e099eb0 docs(economy): add phase 1 execution closeout and remaining gates
+127ecac6 fix(economy): remove hardcoded call pricing and quotas from store UI
+6f0e5ca0 test(economy): verify ghost entitlement hides and restores discovery visibility
+51c8348a feat(economy): expose active ghost entitlement in profile projection
+2cf74ae1 feat(economy): expose purchased ghost mode controls in profile
+ba78464c feat(economy): activate server-enforced ghost-mode entitlement
+a8b97142 test(economy): prove call plans purchase and authorize paid call flow
+9fd5ac31 test(economy): verify call store SKUs are purchase-ready after entitlement integration
+dde22814 feat(economy): connect voice and video call SKUs to central entitlement fulfillment
+03c73755 test(calls): verify mode-specific entitlement and recheck at acceptance
+f2c18cff fix(calls): reject incoming calls when entitlement or device setup fails
+4ee483a0 test(calls): verify missing peer entitlement blocks direct call setup
+210b3ccf test(calls): declare call mode in server duration fixture
+76fb019d test(calls): seed active store entitlements in call lifecycle fixtures
+929d6242 feat(calls): enforce active audio and video store entitlements for all participants
+301dda1a fix(calls): retain room signals until accepted peers are synchronized
+4885a5e2 feat(calls): synchronize accepted room participants and build deterministic WebRTC mesh
+762db71a fix(calls): keep countdown value typed and remove unused deadline state
+21ef10c6 fix(calls): synchronize both clients on server call deadline and show countdown
+551ac9df security(ads): revoke sessions for inactive members and validate wallet balance
+ae0510be docs(ads): align experimental per-campaign reward cap to three per rolling day
+b02338f6 docs(ads): trace AD-001 owner review, media upload and player hardening
+933d2299 fix(ads): keep campaign reward amount aligned with central owner policy
+4379a089 feat(ads): add owner campaign start and end schedule controls
+7bce0475 test(ads): cover owner-only creative rejection and approval workflow
+4b0cc594 feat(ads): add separate owner creative approval and rejection controls
+03a2dbc0 test(ads): require independent creative review before campaign approval
+9f8e819b feat(ads): separate owner creative approval from campaign payment approval
+079e022d test(media): cover owner-only secure advertisement upload intake
+2e5f98cc fix(ads): place featured reward history as sixth media workspace route
+5671257a fix(ads): stop playback immediately when server revokes viewing session
+f3cf5c1e fix(ads): repair owner dashboard copy and campaign status interpolation
+ed743820 fix(ads): remove obsolete duplicate reward screen implementation
+7c430662 test(ads): assert member history exposes active reward policy limits
+b701f649 fix(ads): evaluate campaign schedule at final session creation time
+a5575279 security(ads): revalidate campaign atomically before session creation
+2b8b5761 fix(ads): display live server reward policy in member history screen
+85cff42f feat(ads): return active experimental reward limits with member history
+2191ea24 fix(ads): validate enabled reward policy limits before owner save
+8f0c56d6 test(ads): verify pause resume and irreversible campaign withdrawal
+8512a537 security(ads): enforce terminal withdrawal and valid campaign state transitions
+9b38c4eb fix(ads): require latest server foreground evidence before completion
+b29aa6c8 fix(ads): return server foreground evidence with viewing heartbeat
+2876ff07 test(ads): separate idempotent close from withdrawal revocation fixture
+a20867f6 test(ads): cover campaign withdrawal heartbeat revocation and session close
+d5844435 fix(ads): safely end abandoned sessions without async type mismatch
+1e899d02 fix(ads): close abandoned viewing sessions when player exits
+cf279455 fix(ads): revoke active sessions on campaign withdrawal and add session close
+1a4b6e40 fix(ads): gate completion UI on server progress and foreground visibility
+f6aaa328 feat(ads): return server-authoritative viewing thresholds at session start
+6797f84c test(ads): cover invalid secure derivative and prevent orphan viewing sessions
+6c7b1dce test(ads): clean up all featured viewing session fixtures
+40f2bf47 fix(ads): make selected player occupy responsive 60/40 app viewport
+ae0bdd17 test(ads): provide safe derivative evidence for campaign approval fixture
+301d4ebe security(ads): require verified safe derivative metadata before campaign approval
+7b176311 security(ads): audit denied owner campaign and reward policy access
+3f77debd feat(ads): add owner secure media upload and reward policy controls
+f312e1a6 feat(media): add secure owner advertisement creative upload flow
+044c0925 test(ads): fix fixture lifecycle references and cleanup
+110f65ea test(ads): exercise owner payment approval without fixture bypass and restore policy
+0ed0f03f fix(ads): create viewing sessions only after secure media validation
+7dcb9071 fix(ads): allow explicit owner payment confirmation during approval
+6519459c docs(ads): record current AD-001 implementation head and test status
+ac43615f feat(ads): expose security-approved media selection in owner dashboard
+608242f1 test(ads): avoid network-dependent reward history assertion
+8a82a34f test(ads): align featured UI tests with server-backed discovery and history
+4f0bb92f chore(ads): index featured reward history wallet query
+f4c5a8ea feat(ads): link owner intake to featured campaign dashboard
+b4862784 feat(ads): add video playback dependency for selected ad player
+62bfa2f5 docs(ads): record AD-001 serving reward and 60/40 layout implementation
+b93c3bc5 docs(ads): correct selected-ad player layout to approved 60/40 split
+1db93b59 feat(ads): add owner featured ads campaign dashboard
+d7fa28c5 feat(ads): add responsive 60/40 selected-ad player and reward history
+e18467b4 fix(test): seed approved creative before owner campaign creation
+bdcdf023 test(ads): cover owner lifecycle reward replay concurrency and withdrawal
+ea7f1fb3 fix(ads): require approved secure creative before featured publication
+5f716c3f fix(ads): track continuous foreground visibility for image rewards
+4347a2f9 fix(ads): enforce rolling campaign reward window atomically
+7f4f303f feat(ads): implement owner campaigns secure sessions heartbeats and atomic rewards
+57c4ad84 feat(media): expose secure media bucket accessor for featured ads
+6a0fcbcc refactor(ads): reuse canonical advertising geography taxonomy
+b6b3caee docs(ads): record featured discovery foundation and remaining AD-001 gates
+0e13f698 chore(ads): index active featured campaign discovery query
+800aacbb fix(ads): render sponsor and campaign copy on separate lines
+b4ec13ec feat(ads): connect member featured-ad discovery screen to callable feed
+8827363f test(ads): cover featured campaign discovery authorization and filtering
+3de3f0bb fix(ads): narrow validated featured placement type
+9921ac7e feat(ads): add authenticated featured campaign discovery feed

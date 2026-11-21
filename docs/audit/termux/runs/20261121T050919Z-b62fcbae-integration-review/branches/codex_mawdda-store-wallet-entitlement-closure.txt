@@ -1,0 +1,25 @@
+BRANCH: codex/mawdda-store-wallet-entitlement-closure
+REF: refs/remotes/origin/codex/mawdda-store-wallet-entitlement-closure
+SHA: 201f5bfc8d73a982e9edab9be6858b085c2b2eb8
+
+MERGE BASE: df4d2ff0f66297a27573b99c20034253f0aa0b54
+
+=== DIVERGENCE ===
+1521	4
+
+=== FILE STATUS ===
+M	functions/test/integration/premium-profile.integration.test.js
+M	lib/screens/shop_screen.dart
+M	lib/screens/user_profile_screen.dart
+
+=== CHANGE SUMMARY ===
+ .../premium-profile.integration.test.js            | 146 +++++++++++++++++++++
+ lib/screens/shop_screen.dart                       |  11 +-
+ lib/screens/user_profile_screen.dart               |  25 ++--
+ 3 files changed, 169 insertions(+), 13 deletions(-)
+
+=== UNIQUE COMMITS ===
+201f5bfc test: fix premium entitlement category assertion
+7118cdb8 fix: remove hardcoded VIP status from legacy profile
+f1d3f892 fix: show verified store purchase receipt
+c9bb1998 test: verify store purchase profile fulfillment and concurrency

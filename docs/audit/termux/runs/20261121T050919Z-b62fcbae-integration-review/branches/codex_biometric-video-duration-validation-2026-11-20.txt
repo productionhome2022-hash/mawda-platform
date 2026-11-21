@@ -1,0 +1,14 @@
+BRANCH: codex/biometric-video-duration-validation-2026-11-20
+REF: refs/remotes/origin/codex/biometric-video-duration-validation-2026-11-20
+SHA: be9b8109c8ae4b62a0b17e9b70a851307a3294f6
+
+MERGE BASE: be9b8109c8ae4b62a0b17e9b70a851307a3294f6
+
+=== DIVERGENCE ===
+145	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

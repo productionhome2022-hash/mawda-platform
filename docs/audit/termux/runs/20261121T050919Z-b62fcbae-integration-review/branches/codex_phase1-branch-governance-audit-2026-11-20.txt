@@ -1,0 +1,18 @@
+BRANCH: codex/phase1-branch-governance-audit-2026-11-20
+REF: refs/remotes/origin/codex/phase1-branch-governance-audit-2026-11-20
+SHA: a48e93aa04d024f27c8877df42555050b95f9f71
+
+MERGE BASE: 0c2f874b0e6d490a93f033616dd40ed8df9436f8
+
+=== DIVERGENCE ===
+198	1
+
+=== FILE STATUS ===
+A	docs/phase1/GITHUB_BRANCH_GOVERNANCE_AUDIT_2026-11-20.md
+
+=== CHANGE SUMMARY ===
+ .../GITHUB_BRANCH_GOVERNANCE_AUDIT_2026-11-20.md   | 47 ++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)
+
+=== UNIQUE COMMITS ===
+a48e93aa docs(governance): audit GitHub branch protections and CI workflow gaps

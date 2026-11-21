@@ -1,0 +1,19 @@
+BRANCH: codex/phase1-store-gift-permanent-entitlement-2026-11-20
+REF: refs/remotes/origin/codex/phase1-store-gift-permanent-entitlement-2026-11-20
+SHA: b4546e69543b70a08b4e50c678316ac848c70c06
+
+MERGE BASE: b691d13dc5d74ab185f46e76bedd9c42d52cfa74
+
+=== DIVERGENCE ===
+194	2
+
+=== FILE STATUS ===
+M	functions/test/integration/store-gifting.integration.test.js
+
+=== CHANGE SUMMARY ===
+ .../integration/store-gifting.integration.test.js  | 98 ++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)
+
+=== UNIQUE COMMITS ===
+b4546e69 test(economy): exercise permanent duration on approved VIP SKU
+fde49a45 test(economy): verify permanent gift entitlement and recipient eligibility
