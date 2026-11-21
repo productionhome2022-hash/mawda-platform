@@ -1,3 +1,7 @@
+> **حالة المصدر بعد التنقيح — 21 نوفمبر 2026:** هذه هي الوثيقة الدستورية الأصلية المحفوظة لإثبات النصوص والقرارات السابقة. المرجع الموحد الجاري مراجعته هو [دستور مودة الموحد الشامل — الإصدار 2.0](MAWADDA_UNIFIED_CONSTITUTION_2026.md)، وسجل الدمج والتعديلات في [سجل توحيد الدستور والرؤية](MAWADDA_CONSTITUTION_VISION_CHANGE_REGISTER_2026.md). لا تُحذف هذه النسخة ولا تُعامل كوثيقة منافسة مستقلة بعد اعتماد الإصدار الموحد؛ وحتى اعتماد المالك النهائي تظل جميع أحكامها وملاحقها مصدراً تاريخياً للمصالحة.
+
+---
+
 # دستور مودة | MAWADDA Product Constitution
 
 **Unified reference (19 Nov 2026):** [Unified Constitution](MAWADDA_UNIFIED_CONSTITUTION_2026.md) · [Unified Platform Vision](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md) · [Documentation Master Index](MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md). The original source documents remain preserved; the unified files are consolidation drafts pending explicit Owner review and do not supersede signed agreements or unresolved decisions.
