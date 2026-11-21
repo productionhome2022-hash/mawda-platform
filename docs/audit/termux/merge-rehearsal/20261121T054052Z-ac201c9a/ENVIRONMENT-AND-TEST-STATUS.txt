@@ -1,0 +1,23 @@
+Mawdda merge rehearsal v2
+Run: 20261121T054052Z-ac201c9a
+Target branch: codex/mawda-full-platform-implementation
+Target base SHA: 58eef7f66d686fb3939276dd89950fdfff326b0c
+
+This run performs independent merge simulations against the same target base.
+It does not simulate cumulative sequential integration.
+
+Not executed:
+- Flutter analyze
+- Flutter unit/widget/integration tests
+- Node/Cloud Functions tests
+- Firestore Emulator tests
+- Security Rules tests
+- Android/iOS builds or signing
+- Real-device acceptance
+- 5000-person simulation
+- CodeQL or comprehensive secret scanning
+
+The selected secret-pattern scan is limited and is not a security clearance.
+A clean merge simulation is not proof of semantic correctness or policy compliance.
+No source branch was merged, transferred, deleted, or modified.
+No production or Firebase resource was accessed for modification.

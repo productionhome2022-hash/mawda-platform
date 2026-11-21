@@ -1,0 +1,14 @@
+eb1cf2588eee54b6d4c74d50ed0101ab7f45a4df
+100644 f4896bda1f7403baec554474d45b6f929b846f0e 2	functions/src/verification-calendar.ts
+100644 bd26b5d333e8c282cc58a85e99771efd274256a2 3	functions/src/verification-calendar.ts
+100644 a80d9623efa04034dcda4af32978b90c35b9b22f 2	functions/test/verification-calendar.test.js
+100644 0efd78d32cb1b0d59d25bac271e5928687c30714 3	functions/test/verification-calendar.test.js
+
+Auto-merging .github/workflows/validate.yml
+Auto-merging functions/src/index.ts
+Auto-merging functions/src/verification-calendar.ts
+CONFLICT (add/add): Merge conflict in functions/src/verification-calendar.ts
+Auto-merging functions/test/biometric-reward-security.test.js
+Auto-merging functions/test/integration/email-verification-renewal.integration.test.js
+Auto-merging functions/test/verification-calendar.test.js
+CONFLICT (add/add): Merge conflict in functions/test/verification-calendar.test.js

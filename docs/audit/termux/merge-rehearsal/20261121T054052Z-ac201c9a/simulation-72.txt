@@ -1,0 +1,7 @@
+17764b4c3ea49b4c0cd9f4233275263da44f4fb8
+100644 a2d3769bc9276b8f4fb7b04f16fc67a5b212c7e0 1	functions/test/media-scanner.test.js
+100644 728db4118f272fa295f6a100f2eecfca153ee206 2	functions/test/media-scanner.test.js
+100644 e133a9cfaf60173894444a717f0e359311167abb 3	functions/test/media-scanner.test.js
+
+Auto-merging functions/test/media-scanner.test.js
+CONFLICT (content): Merge conflict in functions/test/media-scanner.test.js

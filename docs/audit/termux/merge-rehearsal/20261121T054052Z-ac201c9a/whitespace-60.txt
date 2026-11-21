@@ -1,0 +1,3 @@
+docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md:520: new blank line at EOF.
+functions/test/featured-advertising.test.js:129: trailing whitespace.
++ 

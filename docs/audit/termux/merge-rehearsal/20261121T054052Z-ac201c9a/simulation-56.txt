@@ -1,0 +1,26 @@
+024cf18ce6a6f4ee12577f9fd45d7ec95f6b06b9
+100644 9fa6ff35dec4f97007f08af0e3defe9e86c8f480 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 80fee7327fde44c116762878ee10e3739b1e0516 3	.github/workflows/validate.yml
+100644 7d208daae02986d7bf7576f6cb498e417eb5c255 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 2f73a551487496e0ce3f1504021295042a079bab 3	functions/package.json
+100644 86c797581de4403902f88ea5f72fe5cdb150cc2f 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 722701150e5c32b67f24c7f0760a30b63802f8fb 3	functions/src/index.ts
+100644 6b905e354448262f9228210bc3e11e8352e00490 2	functions/test/integration/email-verification-renewal.integration.test.js
+100644 4f477f038e5b85c9a75e89c03f68c9d8f6e00bc3 3	functions/test/integration/email-verification-renewal.integration.test.js
+100644 bd69bfc192a5e2feb14d36862569da8adb51da5f 1	lib/screens/profile_screen.dart
+100644 fbdc825999508db072db8174b93814cdbe3555c1 2	lib/screens/profile_screen.dart
+100644 f9394501eb0993c98cf14a3db886e8792f0c0a45 3	lib/screens/profile_screen.dart
+
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/integration/email-verification-renewal.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/email-verification-renewal.integration.test.js
+Auto-merging lib/screens/profile_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/profile_screen.dart

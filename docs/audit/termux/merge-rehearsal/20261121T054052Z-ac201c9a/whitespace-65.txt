@@ -1,0 +1,6 @@
+functions/src/room-call-policy.ts:59: trailing whitespace.
++ 
+functions/test/room-call-policy.test.js:55: trailing whitespace.
++ 
+functions/test/room-call-policy.test.js:84: trailing whitespace.
++ 

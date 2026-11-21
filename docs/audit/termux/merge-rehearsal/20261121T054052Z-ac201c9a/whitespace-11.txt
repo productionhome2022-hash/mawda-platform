@@ -1,0 +1,11 @@
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:3: trailing whitespace.
++الحالة: **تدقيق مصدر موثق؛ إصلاح اختباري محدود؛ التنفيذ الوظيفي غير مكتمل**  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:4: trailing whitespace.
++المستودع: `productionhome2022-hash/mawda-platform`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:5: trailing whitespace.
++فرع العمل: `codex/economic-phase1-closeout-2026-11-18`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:6: trailing whitespace.
++مرجع التدقيق: HEAD السابق `e75c15e913aec676930c279fbcbedf4f53016513`  
+docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md:32: trailing whitespace.
++الملف: `functions/test/integration/call-signaling.integration.test.js`  
+docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md:223: new blank line at EOF.

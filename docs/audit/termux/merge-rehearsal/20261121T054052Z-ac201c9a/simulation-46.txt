@@ -1,0 +1,50 @@
+0cb7d21b03b05b23aa1a696c23b3df40ec18fff5
+100644 285c48a91f80ebee0600a7e94363c5f031166d7b 1	functions/src/media-scanner.ts
+100644 a49e0ed64892a8fa4b8bb7bdf5858a356ae86fc0 2	functions/src/media-scanner.ts
+100644 47b153dcbbd112d8ea19d92c54e34d13fddac565 3	functions/src/media-scanner.ts
+100644 4032d9e78ef29d431c05b2e2ae580cdf89164a2b 1	functions/src/media.ts
+100644 c99a99856d2c266d82873b7895daee49e6b68964 2	functions/src/media.ts
+100644 39bceb3cf4b144c6f6156d2c7d1da88bb0266fc9 3	functions/src/media.ts
+100644 6107991c73a4771913997eb8072ffb92684a142e 1	functions/test/media-scanner.test.js
+100644 728db4118f272fa295f6a100f2eecfca153ee206 2	functions/test/media-scanner.test.js
+100644 9bea83314580dbf2eaa884b31cae9ee4cfb4e87d 3	functions/test/media-scanner.test.js
+100644 5daf8d15696dab7cfbf92dbf7da38e4974a10139 1	lib/screens/chat_room_screen.dart
+100644 565c395e060ff851e96b46eb627cb6bb3205477f 2	lib/screens/chat_room_screen.dart
+100644 0916b627ae0e07a49374c75d454c3fa6c08850f9 3	lib/screens/chat_room_screen.dart
+100644 5909af4e6e03e9bba5a5c266aab0724bc219599b 1	lib/screens/guest_room_chat_screen.dart
+100644 2d604cdbf1132e3f747d7e186af22f9d5bdb703a 2	lib/screens/guest_room_chat_screen.dart
+100644 1e3d64a1d5f412cf345ae393b504c854fb0e406a 3	lib/screens/guest_room_chat_screen.dart
+100644 14e692a6943a59bb62b06550b4cab1bbe76c0d73 1	scanner/processors.js
+100644 9157cd2df9bc40c65fd263347a06ea3f019beaa9 2	scanner/processors.js
+100644 ef75a16208e290e88acd22c7226d316391a9ae27 3	scanner/processors.js
+100644 af828e58a6f41a349f865503eaf3470a630b5e45 1	scanner/security.js
+100644 acb3cc3a277665142ada675056596f70def4cef7 2	scanner/security.js
+100644 89c761a24a4de2568f0f341d2de946a78457d507 3	scanner/security.js
+100644 6c0f47bd47787a2cc33529757777b9786b5b144a 1	scanner/test/processors.test.js
+100644 a973734140d41fab1d36d8ce61d47766e330fb28 2	scanner/test/processors.test.js
+100644 9f3c683c41bb73521aa296709f8dcb150cd0d7f2 3	scanner/test/processors.test.js
+100644 1099fa8e0638ce5b8db9ed0dc963ffb964cecda9 1	scanner/test/security.test.js
+100644 f0650d6d4912fbf0b8c10afefaffc4522a59dec7 2	scanner/test/security.test.js
+100644 9b03cdd70180131d94b26f8554b1a533907e3877 3	scanner/test/security.test.js
+
+Auto-merging functions/src/media-scanner.ts
+CONFLICT (content): Merge conflict in functions/src/media-scanner.ts
+Auto-merging functions/src/media.ts
+CONFLICT (content): Merge conflict in functions/src/media.ts
+Auto-merging functions/test/media-scanner.test.js
+CONFLICT (content): Merge conflict in functions/test/media-scanner.test.js
+Auto-merging lib/screens/chat_room_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/chat_room_screen.dart
+Auto-merging lib/screens/guest_room_chat_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/guest_room_chat_screen.dart
+Auto-merging lib/widgets/chat_audio_controls.dart
+Auto-merging scanner/processors.js
+CONFLICT (content): Merge conflict in scanner/processors.js
+Auto-merging scanner/security.js
+CONFLICT (content): Merge conflict in scanner/security.js
+Auto-merging scanner/server.js
+Auto-merging scanner/test/processors.integration.test.js
+Auto-merging scanner/test/processors.test.js
+CONFLICT (content): Merge conflict in scanner/test/processors.test.js
+Auto-merging scanner/test/security.test.js
+CONFLICT (content): Merge conflict in scanner/test/security.test.js

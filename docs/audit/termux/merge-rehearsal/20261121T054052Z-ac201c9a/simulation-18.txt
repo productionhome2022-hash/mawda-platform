@@ -1,0 +1,71 @@
+b79baa39ddd99e6fdb360884326279704dd2df4d
+100644 21256aeddf1745e7cf03bd4e27d50786bfe9a23b 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 e89d63ea2ebaae3df967d54fcdf29259d6b39337 3	.github/workflows/validate.yml
+100644 de2613e1e913f99ebe72281c023289ac292d2365 1	docs/SECURE_MEDIA_INTAKE.md
+100644 39b4daa8ec8eba591fb6c7a67b682d8f43c5efc7 2	docs/SECURE_MEDIA_INTAKE.md
+100644 0041d35711cee0a5339cf6e08d70265b591867e7 3	docs/SECURE_MEDIA_INTAKE.md
+100644 be5d3c73683723385ff3d6a00c0451989844fa3d 1	firestore.indexes.json
+100644 55049d211ca65f2169eb528b52243d523431a790 2	firestore.indexes.json
+100644 9f32ecac9fcff497bbf21ba57876b6e4f109f133 3	firestore.indexes.json
+100644 7764baf74fb25730da9f581f1df51bd9cb12d7b3 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 8bd23c9e338f0400ae93273e0a0ca22d97e37819 3	functions/package.json
+100644 cf165d255910de534eb33fcc2d224e31a657a66c 1	functions/scripts/test-signed-urls-http.cjs
+100644 1de63230bbb15062f6040d48ffc627369f363e30 2	functions/scripts/test-signed-urls-http.cjs
+100644 c3413dc6aee1dfecef6399cfbc0d756d906bc1b7 3	functions/scripts/test-signed-urls-http.cjs
+100644 0bfd9edd2ed2062b3f561f649084ccc3f9dc303f 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 805250a563435cd79e7f1145023e0db88d7d0c1d 3	functions/src/index.ts
+100644 c443ba3d132010caaadce60e306b6e1bc17b4839 1	functions/src/media-controls.ts
+100644 836373d249f64083ddeeed974ea3fe853ad77041 3	functions/src/media-controls.ts
+100644 4a84b32a7144f1af628efd6cd56d3ca1172c0f6b 1	functions/src/media.ts
+100644 c99a99856d2c266d82873b7895daee49e6b68964 2	functions/src/media.ts
+100644 1ff282f066f267b6861b1b87e5d5f9d5d1f506ce 3	functions/src/media.ts
+100644 3bb2f92185d1c1f0ffc271f8cae5c1a120c3ce8e 1	functions/test/integration/media-callables.integration.test.js
+100644 e9c54466cda57daba2fe3d58804a9dfbf7e9b542 2	functions/test/integration/media-callables.integration.test.js
+100644 ddc979e07afc756e265e099803eeccb8dc7154ff 3	functions/test/integration/media-callables.integration.test.js
+100644 cc54dea06d2732777110c111693f0a5ff9e2cc63 1	functions/test/media-controls.test.js
+100644 3f66093ab6712142a9dd37a9067bb6da53db3ab8 3	functions/test/media-controls.test.js
+100644 67d8f91d206d80aad2fde4e1bbf2231d2a202079 1	functions/test/media-quota.test.js
+100644 36e71c48a8aa7cbe58b6f003cd2a7a7b1c5b4d5f 2	functions/test/media-quota.test.js
+100644 401f79f97ec26cace05a524def5e836b0a9667b4 3	functions/test/media-quota.test.js
+100644 21dd771349fec5c31e519c9d7413813f998526b2 1	functions/test/media-scanner.test.js
+100644 728db4118f272fa295f6a100f2eecfca153ee206 2	functions/test/media-scanner.test.js
+100644 ae26c1f45c488342ee87120568ac65264341ab92 3	functions/test/media-scanner.test.js
+100644 106259f7922b8b0feda747737bc4c39bd2a37c18 2	scanner/Dockerfile
+100644 932f27eeafb168db0cccbffc270b4ad6a99fcae9 3	scanner/Dockerfile
+100644 d077bc49a13ce4712bde316509822646555c886d 2	scanner/README.md
+100644 d2875c4f3574548ebdd8e4bfb973a6c45f4cb5eb 3	scanner/README.md
+100644 110754e102246dcefb8cbfef3b2eb28d6d09690d 2	scanner/package.json
+100644 446edbf13086ac358d038781ac2899302b05a332 3	scanner/package.json
+
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging docs/SECURE_MEDIA_INTAKE.md
+CONFLICT (content): Merge conflict in docs/SECURE_MEDIA_INTAKE.md
+Auto-merging firestore.indexes.json
+CONFLICT (content): Merge conflict in firestore.indexes.json
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/scripts/test-signed-urls-http.cjs
+CONFLICT (content): Merge conflict in functions/scripts/test-signed-urls-http.cjs
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+CONFLICT (modify/delete): functions/src/media-controls.ts deleted in 58eef7f66d686fb3939276dd89950fdfff326b0c and modified in f8abd722ececc988c555f0400cc7b558e762ae5a.  Version f8abd722ececc988c555f0400cc7b558e762ae5a of functions/src/media-controls.ts left in tree.
+Auto-merging functions/src/media-scanner.ts
+Auto-merging functions/src/media.ts
+CONFLICT (content): Merge conflict in functions/src/media.ts
+Auto-merging functions/test/integration/media-callables.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/media-callables.integration.test.js
+CONFLICT (modify/delete): functions/test/media-controls.test.js deleted in 58eef7f66d686fb3939276dd89950fdfff326b0c and modified in f8abd722ececc988c555f0400cc7b558e762ae5a.  Version f8abd722ececc988c555f0400cc7b558e762ae5a of functions/test/media-controls.test.js left in tree.
+Auto-merging functions/test/media-quota.test.js
+CONFLICT (content): Merge conflict in functions/test/media-quota.test.js
+Auto-merging functions/test/media-scanner.test.js
+CONFLICT (content): Merge conflict in functions/test/media-scanner.test.js
+Auto-merging scanner/Dockerfile
+CONFLICT (add/add): Merge conflict in scanner/Dockerfile
+Auto-merging scanner/README.md
+CONFLICT (add/add): Merge conflict in scanner/README.md
+Auto-merging scanner/package.json
+CONFLICT (add/add): Merge conflict in scanner/package.json

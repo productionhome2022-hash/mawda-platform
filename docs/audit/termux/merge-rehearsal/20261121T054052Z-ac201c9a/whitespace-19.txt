@@ -1,0 +1,14 @@
+docs/MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md:9: trailing whitespace.
++**فرع التجميع:** `codex/mawda-unified-constitution-vision-2026-11-19`  
+docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md:3: trailing whitespace.
++**تاريخ اللقطة:** 19 نوفمبر 2026  
+docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md:4: trailing whitespace.
++**الفترة المطلوب حصرها:** 16–19 نوفمبر 2026  
+docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md:5: trailing whitespace.
++**فرع التجميع:** `codex/mawda-unified-constitution-vision-2026-11-19`  
+docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md:6: trailing whitespace.
++**الفرع الأم الذي بُنيت عليه اللقطة:** `codex/mawda-full-platform-implementation`  
+docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md:7: trailing whitespace.
++**SHA الأساس عند إنشاء فرع التجميع:** `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e`  
+docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md:3: trailing whitespace.
++**Decision date:** 2026-11-19  
