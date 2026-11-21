@@ -197,6 +197,7 @@ class MemberMediaUploadService {
   Future<void> waitForSafeApproval(
     String mediaId, {
     Duration timeout = const Duration(seconds: 90),
+    bool requireAnySafeDerivative = false,
   }) async {
     final deadline = DateTime.now().add(timeout);
     var pollCount = 0;
@@ -205,7 +206,10 @@ class MemberMediaUploadService {
           .httpsCallable('getMyMediaUploadStatus')
           .call({'mediaId': mediaId});
       final status = Map<String, dynamic>.from(response.data as Map);
-      if (status['safePreviewReady'] == true) return;
+      final safeReady = requireAnySafeDerivative
+          ? status['safePreviewReady'] == true || status['safeDerivativeReady'] == true
+          : status['safePreviewReady'] == true;
+      if (safeReady) return;
       if (status['status'] == 'rejected') {
         throw StateError('رفض نظام الفحص الصورة: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
       }
