@@ -121,3 +121,15 @@ This follow-up integrates owner-controlled test prices into call-session metadat
 - The integration test is registered but has not been executed in this environment.
 - No Functions TypeScript build, Node test suite, Firestore Emulator test, Flutter analyze/test, CI run, or device acceptance is claimed.
 - No production Firebase resources, real wallet balances, payment settings, `main`, or deployment targets were changed.
+
+
+5. Gift-history query/index alignment
+   - Sent and received gift queries are bounded to the newest 50 records per direction and ordered by server-created time.
+   - Added the two matching `storeGifts` composite indexes to `firestore.indexes.json`.
+   - The member history projection remains restricted to the authenticated sender or recipient and whitelisted display fields.
+
+## Exact branch verification after follow-up
+- Official branch: `codex/mawda-full-platform-implementation`
+- Verified HEAD: `831adb42de982df6e489df9746b583e99adfa4f9`
+- GitHub compare of branch against this commit: `identical`, ahead 0, behind 0.
+- Combined commit status and PR-associated workflow lookup returned no checks/runs for this commit; this is not a test pass.
