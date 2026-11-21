@@ -189,6 +189,7 @@ Backfill in bounded batches:
 | 2026-11-21 | Established mandatory engineering history, task dossier, source review and merge evidence protocol | This document; initial adoption checkpoint |
 | 2026-11-21 | Reorganized the central documentation entry into the owner's three-section structure; added a dated 14–21 November timeline and explicitly separated evidenced timestamps from unknown hours | DOC-CENTRAL-2026-11-21-001; commit `66caa5698dc08dde486f483c2061ac2f92e9169c`; task record `docs/engineering/work-history/2026-11-21-001-central-documentation-three-section-reorganization.md` |
 | 2026-11-21 | Compared the first, current-period and central source-index path sets: 1,092 shared files with no blob changes; two additions between period snapshots; five additions in the central index over the current-period inventory; no path removals | DOC-CENTRAL-2026-11-21-001; inventory SHAs `437633359adb4fe292091f8c1a887ca90c7c00c7`, `73e34e4236c466ebfab4af01143dd04bbc25d850`, `aab249a77c7b43957067a9b7abca813e09a10b86` |
+| 2026-11-21 | Reconciled the first two individual source reviews: SRC-0007 (14 Nov Phase 1/2 audit) and SRC-0010 (19 Nov economic integration audit); preserved both as historical sources and recorded supersession/current-status boundaries | DOC-CENTRAL-2026-11-21-001; commits `038853ed09e483550c567d1b8775697854cd0cc8`, `25badfa31c74805bba717a142913d5861cb88d3b`, `9453a9366bb2455bbef86bb6f173f659a8fd920b`; 2/1,099 reviewed, 1,097 open |
 
 ## 11. Operational templates and initial Git evidence
 
