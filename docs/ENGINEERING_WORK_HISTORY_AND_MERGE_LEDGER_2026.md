@@ -118,7 +118,7 @@ Every branch integration batch must have a separate dossier recording:
 
 Do not resolve semantic conflicts by blindly choosing the newest file or by overwriting historical signed/legal source documents. Preserve provenance and request owner decision when authority is ambiguous.
 
-## 5. Source-by-source semantic review of the 1,106-source inventory (initial snapshot: 1,099)
+## 5. Source-by-source semantic review of the 1,107-source inventory (initial snapshot: 1,099)
 
 The inventory and reconciliation TSVs are discovery indexes, not review evidence. For each source ID, record:
 - exact path, source SHA, title/date and document type;
@@ -169,7 +169,7 @@ Backfill in bounded batches:
 1. establish branch/commit chronology and integration batches;
 2. map existing work logs and audit reports to commits;
 3. create task dossiers for material changes and decisions;
-4. reconcile each of the 1,106 source IDs individually;
+4. reconcile each of the 1,107 source IDs individually;
 5. cross-link records to implementation and test evidence;
 6. publish a gap report for history that cannot be reconstructed.
 
@@ -177,7 +177,7 @@ Backfill in bounded batches:
 
 - Existing `docs/IMPLEMENTATION_TRACEABILITY.md` already contains substantial phase-level status, risks, owner-approved clarifications, implementation notes and validation caveats. Preserve it and cross-link it; do not rewrite away its history.
 - The initial source snapshot contained 1,099 paths; subsequent reconciliation added seven central records, bringing the current inventory to 1,106. The README explicitly distinguishes indexing from individual semantic review.
-- Current reconciliation snapshot: 1,106 sources; 8 RECONCILED, 3 IN_REVIEW, and 1,095 awaiting individual semantic review. This does not mean all 1,106 have been read.
+- Current reconciliation snapshot: 1,107 sources; 9 RECONCILED, 3 IN_REVIEW, and 1,095 awaiting individual semantic review. This does not mean all 1,106 have been read.
 - The owner-role/nomenclature/dashboard audit is a partial audit, not full application coverage.
 - The exact current development branch head must be read from GitHub before each write/integration. The historical commits cited in prior reports are not substitutes for a fresh branch-head check.
 - This checkpoint records the control and observed baseline only. It does not claim historical backfill, full source review, full code audit, test execution, release readiness, or merge to `main`.
@@ -213,3 +213,5 @@ Backfill in bounded batches:
 
 
 
+
+| 2026-11-21 08:04:18Z–08:05:07Z | Added the aggregate file manifest for the 79-commit delta (24 paths: 15 added, 9 modified, 0 removed), indexed as SRC-1107; refreshed the central source count to 1,107 and reconciliation status to 9/3/1,095 | DOC-CENTRAL-2026-11-21-001; manifest blob SHA pending read-back; inventory `80a5c933c6a2b9ec42b82629eda910300d3996e8`; reconciliation `57572ec73dfeab39a0d66cad21d5071c01740b9b`; compare base `90b6e45432d068455ee846dcf2ca0f1d13c85dd7`, head snapshot `8fc50a647eaef4f359c801f4bba1fb7b0e7646d2` |
