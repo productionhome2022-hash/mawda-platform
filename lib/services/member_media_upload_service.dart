@@ -444,5 +444,169 @@ class MemberMediaUploadService {
     return url;
   }
 
+  /// Uploads a sticker through the owner-only quarantine/scanner pipeline.
+  /// The scanner must return verified dimensions and animation metadata before
+  /// this method considers the asset ready.
+  Future<String> uploadStickerAsset({
+    required XFile file,
+    required String kind,
+  }) async {
+    if (kind != 'static' && kind != 'animated') {
+      throw ArgumentError.value(kind, 'kind');
+    }
+    final contentType = _imageContentType(file);
+    if ((kind == 'static' && !{'image/png', 'image/webp'}.contains(contentType)) ||
+        (kind == 'animated' && contentType != 'image/gif')) {
+      throw const FormatException('صيغة الملف لا تطابق نوع الملصق.');
+    }
+    final bytes = await file.readAsBytes();
+    final maximum = kind == 'animated' ? 512 * 1024 : 256 * 1024;
+    if (bytes.isEmpty || bytes.length > maximum) {
+      throw const FormatException('حجم الملصق يتجاوز الحد المسموح.');
+    }
+    final response = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'sticker',
+    });
+    final intent = Map<String, dynamic>.from(response.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة رفع الملصق غير مكتملة.');
+    }
+    final uploadResponse = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (uploadResponse.statusCode != 200) {
+      throw StateError('فشل رفع الملصق الآمن (HTTP ${uploadResponse.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+
+    final deadline = DateTime.now().add(const Duration(minutes: 3));
+    var pollCount = 0;
+    while (DateTime.now().isBefore(deadline)) {
+      final statusResponse = await _functions.httpsCallable('getMyMediaUploadStatus')
+          .call({'mediaId': mediaId});
+      final status = Map<String, dynamic>.from(statusResponse.data as Map);
+      final expectedReady = kind == 'animated'
+          ? status['safeDerivativeReady'] == true &&
+              status['processingStatus'] == 'safe_animation_derivative_ready'
+          : status['safePreviewReady'] == true &&
+              status['processingStatus'] == 'safe_raster_derivative_ready';
+      if (expectedReady) return mediaId;
+      if (status['status'] == 'rejected') {
+        throw StateError('رفض نظام الفحص الملصق: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
+      }
+      if (['expired', 'manually_deleted', 'self_destructed'].contains(status['status'])) {
+        throw StateError('انتهت صلاحية رفع الملصق قبل اكتمال الفحص.');
+      }
+      final delay = mediaStatusPollDelay(pollCount++);
+      final remaining = deadline.difference(DateTime.now());
+      await Future<void>.delayed(delay < remaining ? delay : remaining);
+    }
+    throw TimeoutException('لم تكتمل معالجة الملصق الآمنة؛ بقي غير قابل للنشر.', const Duration(minutes: 3));
+  }
+
+  Future<Map<String, dynamic>> getStickerAssetMetadata(String mediaId) async {
+    final response = await _functions.httpsCallable('getMyMediaUploadStatus')
+        .call({'mediaId': mediaId});
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final metadata = data['stickerMetadata'];
+    if (data['purpose'] != 'sticker' || data['status'] != 'security_approved' ||
+        metadata is! Map) {
+      throw StateError('لم تكتمل بيانات الملصق المفحوص بعد.');
+    }
+    return Map<String, dynamic>.from(metadata);
+  }
+
+  Future<Map<String, dynamic>> saveStickerPack({
+    required String packId,
+    required String title,
+    String description = '',
+    int sortOrder = 0,
+    required String status,
+    required List<Map<String, dynamic>> stickers,
+  }) async {
+    if (status != 'draft' && status != 'published') {
+      throw ArgumentError.value(status, 'status');
+    }
+    final response = await _functions.httpsCallable('saveStickerPack').call({
+      'packId': packId,
+      'title': title,
+      'description': description,
+      'sortOrder': sortOrder,
+      'status': status,
+      'stickers': stickers,
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getStickerCatalog() async {
+    final response = await _functions.httpsCallable('getStickerCatalog').call();
+    final data = Map<String, dynamic>.from(response.data as Map);
+    return (data['packs'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
+  }
+
+  Future<String> getStickerAssetUrl({
+    required String packId,
+    required String stickerId,
+  }) async {
+    final response = await _functions.httpsCallable('getStickerAssetUrl').call({
+      'packId': packId,
+      'stickerId': stickerId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'];
+    if (url is! String || url.isEmpty) {
+      throw StateError('لم يُرجع الخادم رابط الملصق الآمن.');
+    }
+    return url;
+  }
+
+  Future<String> uploadAdvertisementCreative({required XFile file}) async {
+    final contentType = _chatAttachmentContentType(file);
+    if (!contentType.startsWith('image/') && contentType != 'video/mp4') {
+      throw const FormatException('المادة الإعلانية يجب أن تكون صورة أو فيديو MP4.');
+    }
+    await _validateFileLength(file, contentType);
+    final bytes = await file.readAsBytes();
+    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'advertisement',
+    });
+    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
+    final uploadUrl = intent['uploadUrl'] as String?;
+    final mediaId = intent['mediaId'] as String?;
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة طلب رفع المادة الإعلانية غير مكتملة.');
+    }
+    final response = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
+    if (response.statusCode != 200) {
+      throw StateError('فشل رفع المادة الإعلانية إلى التخزين الآمن (HTTP ${response.statusCode}).');
+    }
+    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
+    await waitForSafeApproval(mediaId, requireAnySafeDerivative: true);
+    return mediaId;
+  }
+
   void close() => _client.close();
 }
