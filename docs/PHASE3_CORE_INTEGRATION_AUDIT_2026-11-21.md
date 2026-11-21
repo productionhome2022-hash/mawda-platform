@@ -149,6 +149,6 @@ This follow-up integrates owner-controlled test prices into call-session metadat
 
 
 ## Final follow-up verification point
-- The final code/documentation head for this follow-up is `de3a7ba6d257635282bb7687a64803d5e34bd041`.
+- The final code head before this documentation-only amendment was `de3a7ba6d257635282bb7687a64803d5e34bd041`.
 - The official branch compared against that exact commit is identical (0 ahead / 0 behind).
 - GitHub returned no commit status checks and no PR-associated workflow runs for the checked commit. Build, unit, emulator, and Flutter test success is therefore **not asserted**.
