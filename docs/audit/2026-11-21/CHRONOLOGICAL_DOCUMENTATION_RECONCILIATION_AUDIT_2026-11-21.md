@@ -111,3 +111,13 @@
 ملحق التسلسل الزمني محدث الآن ليضم commits ما بعد SHA 81a0 حتى اللقطة السابقة لهذا التحديث. التغييرات اللاحقة لتلك اللقطة تُثبت في GitHub commit history.
 
 **CI بعد التعديلات:** لا تُسجل هذه الجولة نجاحاً جديداً للاختبارات. التشغيلات التي بدأت على الدفعات الوسيطة أُلغيت أو كانت pending/in_progress وقت التوثيق؛ يلزم قراءة نتائج التشغيلات على exact SHA النهائي قبل اعتبار بوابة CI مغلقة.
+
+
+### 10.1 نتيجة التشغيل الوسيط وفشل workflow الاقتصاد
+
+- تشغيل `Mawdda economy regression #44893319009` على SHA `ac27e70bf8179b5befa5292428bb5ccce8c4dfa5` فشل في job التكامل الاقتصادي بعد نجاح تجميع Functions والاختبارات الوحدوية. السبب المباشر المثبت في السجل: `npm error Missing script: test:featured-ad-reward-policy-integration`.
+- أصلحنا تعريف `economy-regression.yml` على فرع التطوير باستخدام الأوامر المتاحة فعلاً في `functions/package.json`: `test:featured-ad-finance-integration` و`test:store-gifting-integration`. Commit الإصلاح: `2aa572e38924264792bcce1fd9a7936493fed1fa`.
+- التشغيل الجديد `Mawdda economy regression #44893384432` بدأ على SHA الإصلاح، وكان job التكامل لا يزال `in_progress` وقت آخر قراءة؛ لا يُسجل نجاحاً حتى يكتمل.
+- تشغيلات `Mawdda Test Center #44893422770` و`Economic phase verification #44893422772` كانت pending على SHA توثيق لاحق، و`Validate Mawda #44893384390` كان pending على SHA الإصلاح. لم تتوفر نتائج نهائية لهذه التشغيلات عند إعداد هذا التحديث.
+
+**الحالة الحالية للأدلة:** تم إصلاح التعريفات والنداءات غير الصحيحة، لكن CI على أحدث SHA لم يكتمل بعد؛ لذا تبقى بوابة الاختبارات مفتوحة.
