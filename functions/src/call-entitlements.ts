@@ -1,4 +1,4 @@
-import type { GroupCallPricingPolicy } from "./group-call-economy";
+import { validateGroupCallPricingPolicy, type GroupCallPricingPolicy } from "./group-call-economy";
 
 /**
  * Pricing configuration is available to the owner for development previews.
@@ -29,13 +29,16 @@ export function validateGroupCallEntitlementPolicy(value: unknown): GroupCallEnt
       !Number.isSafeInteger(input.updatedAtMs) || (input.updatedAtMs as number) < 1) {
     throw new Error("INVALID_GROUP_CALL_ENTITLEMENT_POLICY");
   }
-  return {
+  const pricing = validateGroupCallPricingPolicy({
     policyId: input.policyId,
-    version: input.version as number,
+    version: input.version,
     active: input.active,
-    audioCoinsPerMinute: input.audioCoinsPerMinute as number,
-    videoCoinsPerMinute: input.videoCoinsPerMinute as number,
-    updatedAtMs: input.updatedAtMs as number,
+    audioCoinsPerMinute: input.audioCoinsPerMinute,
+    videoCoinsPerMinute: input.videoCoinsPerMinute,
+    updatedAtMs: input.updatedAtMs,
+  });
+  return {
+    ...pricing,
     environment: "test_only",
     billingEnabled: false,
   };
