@@ -5,6 +5,8 @@ const {
   isGroupCallBillingCollectionEnabled,
   projectStoreGiftHistoryEntry,
   projectGroupCallTestPricingSnapshot,
+  hasActiveCallEntitlement,
+  evaluateCallParticipantEntitlements,
 } = require("../lib/call-entitlements.js");
 
 const policy = {
@@ -66,4 +68,27 @@ test("call session pricing snapshot freezes the test-only owner policy without c
   assert.equal(projectGroupCallTestPricingSnapshot({
     environment: "test_only", billingEnabled: true, policy,
   }, "audio"), null);
+});
+
+test("audio and video access requires a matching active, unexpired package for every participant", () => {
+  const now = 1800000000000;
+  const audio = [{ itemId: "voice_call_30d", data: {
+    itemId: "voice_call_30d", category: "voice_call", status: "active",
+    expiresAt: { toMillis: () => now + 1000 },
+  } }];
+  const video = [{ itemId: "video_call_7d", data: {
+    itemId: "video_call_7d", category: "video_call", status: "active",
+    expiresAt: { toMillis: () => now + 1000 },
+  } }];
+  assert.equal(hasActiveCallEntitlement(audio, "audio", now), true);
+  assert.equal(hasActiveCallEntitlement(audio, "video", now), false);
+  assert.equal(hasActiveCallEntitlement([{ ...audio[0], data: { ...audio[0].data, expiresAt: { toMillis: () => now } } }], "audio", now), false);
+  const allowed = evaluateCallParticipantEntitlements(
+    ["caller", "callee"], "audio", new Map([["caller", audio], ["callee", audio]]), now,
+  );
+  assert.deepEqual(allowed, { allowed: true, missingUids: [] });
+  const denied = evaluateCallParticipantEntitlements(
+    ["caller", "callee"], "audio", new Map([["caller", audio]]), now,
+  );
+  assert.deepEqual(denied, { allowed: false, missingUids: ["callee"] });
 });
