@@ -60,3 +60,11 @@
 - أضيف workflow مستقل `Biometric cross-platform smoke` لبناء Web/PWA وAndroid Debug وiOS بلا توقيع، مع فحوص عدم تخزين الأدلة الحساسة في service-worker cache.
 - حالة التشغيل وقت آخر تحديث: `Validate Mawda #44843265892` و`Biometric cross-platform smoke #44843265818` بانتظار الاكتمال. لا تعتبر بُنى Android Debug أو iOS no-codesign بديلاً عن قبول جهاز حقيقي أو Release موقّع.
 - تم اختبار commit السابق `8ee105ab` بنجاح شامل؛ تبقى نتائج commit `b7565fcb` بوابة مفتوحة حتى اكتمال التشغيلين أعلاه.
+
+
+## Android cross-platform build blocker and dependency correction — 2026-11-21
+
+- كشف workflow `Biometric cross-platform smoke #44843208803` أن بناء Android Debug فشل عند `:file_picker:checkDebugAarMetadata`: نسخة `file_picker 8.3.7` كانت تُبنى مقابل Android API 34 بينما `flutter_plugin_android_lifecycle 2.0.35` يتطلب compileSdk 36. إعداد التطبيق نفسه مضبوط مسبقاً على compileSdk 36؛ لذلك لم نرفع targetSdk أو minSdk ولم نغيّر هوية التطبيق أو التوقيع.
+- الإصلاح الأدنى: ترقية `file_picker` إلى `10.3.10` (غير مسحوبة)؛ هذا الإصدار يحتوي إصلاح compileSdk الذي يستخدم `flutter.compileSdkVersion` منذ 10.3.3، ويحافظ على واجهة `FilePicker.platform` و`withData` المستخدمة حالياً. كما يتضمن إصلاحات Android الأمنية لـTika في 10.3.10. لم ننتقل إلى 11+ لتجنب تغيير واجهة الاستدعاء ضمن هذه الدفعة.
+- تم تحديث قيد `pubspec.yaml` ومرجع SHA256/الإصدار في `pubspec.lock`. يجب أن تثبت إعادة `flutter pub get --enforce-lockfile` وبناء Android Debug صحة حل الاعتماديات على CI قبل اعتبار بوابة Android ناجحة.
+- مصدر سجل التغيير: https://pub.dev/packages/file_picker/changelog (10.3.3 و10.3.10)، ونسخة 10.3.10 هي آخر إصدار مستقر غير مسحوب ضمن سلسلة 10.x.
