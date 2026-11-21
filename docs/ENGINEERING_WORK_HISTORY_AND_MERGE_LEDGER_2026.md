@@ -202,6 +202,7 @@ Backfill in bounded batches:
 | 2026-11-21 08:09:44Z–08:11:04Z | Extended the full chronological commit ledger from 1,736 to 1,794 rows (58 later commits); generated the current 137-commit aggregate manifest (26 docs paths: 17 added, 9 modified, 0 removed); refreshed source index to 1,108 IDs and review status to 10/4/1,094 | DOC-CENTRAL-2026-11-21-001; chronology blob `c1472c266b31ff2a1d3e883db1c06a25af98afce`; manifest `df9931385d268cfffa876dcbb4d0f33e8862761d`; inventory `15e7bed541b9dac1402ca2898adbd0c3d5c813f8`; reconciliation `861a1da90467992fa9ee7430f2df66cc4cd30a57`; pinned head `8bc85c0c2974f0381c6cde72455130adefc6e199` |
 | 2026-11-21 08:14:39Z | Corrected the central README's final path-count reference and clarified that the 11 post-snapshot documentation commits are outside the pinned 1,794-commit TSV | DOC-CENTRAL-2026-11-21-001; README blob `e97f5e1e22e074d0788e2c122f5c36a8b10d148c`; no code or protected constitution/vision content changed |
 | 2026-11-21 08:15:40Z–08:15:50Z | Refreshed the current blob references for the change register, contracts register, and central reconciliation index; verified these are reference updates only, with no code or protected constitution/vision changes | DOC-CENTRAL-2026-11-21-001; change register `01e4c704540b9b28298e0b47f605e0a75cbe2024`; contracts register `fe3224be06ec0fe1372d7de34cc82a9b09f657ae`; reconciliation `8824d8207834056cdc67625ab5cefb38a533c4e1` |
+| 2026-11-21 08:16:56Z–08:17:18Z | Preserved the `hide-coins` token as a code-formatted technical slug rather than a user-facing currency name; refreshed SRC-0017 and central README blob references | DOC-CENTRAL-2026-11-21-001; implementation traceability `abb5a309dc3baf5310f37e07be7993b45b63dba3`; reconciliation `ee84f75f1bbbb74c91dd62ed344f0e93ee242f7c`; no API/ledger identifiers changed |
 
 ## 11. Operational templates and initial Git evidence
 
@@ -224,4 +225,3 @@ Backfill in bounded batches:
 
 
 
-| 2026-11-21 08:16:56Z–08:17:18Z | Preserved the `hide-coins` token as a code-formatted technical slug rather than a user-facing currency name; refreshed SRC-0017 and central README blob references | DOC-CENTRAL-2026-11-21-001; implementation traceability `abb5a309dc3baf5310f37e07be7993b45b63dba3`; reconciliation `ee84f75f1bbbb74c91dd62ed344f0e93ee242f7c`; no API/ledger identifiers changed |
