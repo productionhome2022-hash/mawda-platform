@@ -10725,6 +10725,40 @@ export const respondToCall = onCall(async (request) => {
     ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
+    if (response === "accept" && Array.isArray(call.participantUids) &&
+        (call.mode === "audio" || call.mode === "video") &&
+        typeof call.callerUid === "string") {
+      const acceptedUids = Array.isArray(call.acceptedUids)
+        ? call.acceptedUids.filter((memberUid): memberUid is string => typeof memberUid === "string")
+        : [];
+      const requiredUids = [...new Set([call.callerUid, ...acceptedUids, uid])];
+      const entitlementItemIds = call.mode === "audio"
+        ? ["voice_call_24h", "voice_call_7d", "voice_call_30d"]
+        : ["video_call_24h", "video_call_7d", "video_call_30d"];
+      const entitlementRefs = requiredUids.flatMap((memberUid) =>
+        entitlementItemIds.map((itemId) =>
+          db.collection("users").doc(memberUid).collection("entitlements").doc(itemId)));
+      const entitlementSnapshots = await Promise.all(
+        entitlementRefs.map((entitlementRef) => transaction.get(entitlementRef)),
+      );
+      const entitlementsByUid = new Map<string, Array<{ itemId: string; data: unknown }>>();
+      for (const entitlement of entitlementSnapshots) {
+        const memberUid = entitlement.ref.parent.parent?.id;
+        if (!memberUid || !entitlement.exists) continue;
+        const list = entitlementsByUid.get(memberUid) ?? [];
+        list.push({ itemId: entitlement.id, data: entitlement.data() });
+        entitlementsByUid.set(memberUid, list);
+      }
+      const entitlementCheck = evaluateCallParticipantEntitlements(
+        requiredUids, call.mode, entitlementsByUid, Date.now(),
+      );
+      if (!entitlementCheck.allowed) {
+        throw new HttpsError(
+          "failed-precondition",
+          "انتهى استحقاق المكالمة لأحد المشاركين؛ لا يمكن الانضمام قبل تجديد الاستحقاق.",
+        );
+      }
+    }
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         uid === call.callerUid ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
