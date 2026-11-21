@@ -16,13 +16,13 @@ The member submits:
 1. Full name.
 2. Username.
 3. Gender as already recorded in the member's canonical registration/profile data.
-4. A voice recording reading the pre-existing phrase/challenge displayed by the platform.
+4. A voice recording reading the pre-existing phrase/challenge displayed by the platform, with a maximum duration of **20 seconds** (inclusive) and a maximum file size of **5 MiB**.
 5. A video clip with a duration of **at least 3 seconds and at most 5 seconds**, inclusive.
 
 ### Voice phrase challenge
 
 - The platform must have a pre-established phrase or controlled phrase set before the member records audio.
-- The member must read the displayed phrase and submit that recording as the voice evidence.
+- The member must read the displayed phrase and submit that recording as the voice evidence. The biometric-evidence audio recording must not exceed **20 seconds** or **5 MiB**; enforce the duration from uploaded media bytes on the server, not client metadata.
 - The Super Owner listens to the recording and manually reviews it as part of the decision.
 - Do not invent or hard-code phrase wording from this policy document. The actual approved phrase text/set must be supplied and versioned as a separate owner-controlled product configuration before implementation is enabled.
 - No automated voiceprint score or device attestation may determine acceptance.
@@ -35,7 +35,7 @@ The member submits:
 
 ### Evidence validation and protection
 
-- Enforce the 3–5 second video duration on both client and server; client checks alone are insufficient.
+- Enforce the biometric audio maximum of 20 seconds and 5 MiB, and the 3–5 second video duration, on both client and server; derive media duration from uploaded bytes, not client metadata.
 - Store voice/video evidence in private storage with server-authorized access, least privilege, and auditable access/decision records.
 - Submission metadata and evidence must be bound to the authenticated member UID and the exact request/attempt.
 - Evidence handling must not expose private media through public URLs or trust client-provided ownership metadata.
@@ -78,7 +78,7 @@ This is the final approved policy, but policy approval is not evidence that the 
 - Super Owner server authorization and MFA enforcement.
 - Canonical member identity binding and immutable gender comparison.
 - Pre-established, owner-approved voice phrase configuration and phrase-version binding.
-- Server-side audio/video evidence validation, including the exact 3–5 second video bound.
+- Server-side audio/video evidence validation, including the 20-second maximum biometric audio duration and exact 3–5 second video bound.
 - Private evidence storage and protected review access.
 - Transactional three-attempt state transitions using calendar-month arithmetic.
 - Immediate, atomic, exactly-once 1,500 BetaCoins ledger grant on acceptance.
@@ -89,9 +89,17 @@ No production activation, production Firebase mutation, paid-service enablement,
 
 ## 7. Supersession
 
-Any older implementation that imposes a 3-month lockout after the third rejection, omits the pre-existing spoken phrase challenge, omits the 3–5 second video requirement, allows a member to choose or override gender during verification, or uses device/provider attestation as a prerequisite conflicts with this final policy and must be adapted rather than copied wholesale.
+Any older implementation that imposes a 3-month lockout after the third rejection, omits the pre-existing spoken phrase challenge, omits the 20-second maximum biometric audio duration or the 3–5 second video requirement, allows a member to choose or override gender during verification, or uses device/provider attestation as a prerequisite conflicts with this final policy and must be adapted rather than copied wholesale.
 
 
 ## Owner reaffirmation — BIO-002 (2026-11-20)
 
 The platform owner explicitly reaffirmed that the Super Owner's personal review of the submitted evidence and explicit approval are sufficient by themselves for biometric verification. No independent device cryptographic proof, Play Integrity, App Attest, provider/device attestation, automated face/voice matching score, or automated classification may be introduced as an approval prerequisite. On acceptance, the member receives 1,500 BetaCoins through the central economy ledger exactly once for the accepted lifecycle. This reaffirmation supersedes any contradictory older clause in other repository documents or source branches. Server-side Super Owner authorization, private evidence access, decision/audit records, atomic ledger credit, idempotency, renewal, revocation/deletion and tests remain mandatory safeguards; they do not reintroduce device attestation as a decision gate.
+
+
+## Owner-approved amendment — BIO-003 (2026-11-21): biometric voice-evidence duration
+
+- The voice recording submitted **only as biometric-verification evidence** has a strict maximum duration of **20 seconds**, inclusive, and a maximum file size of **5 MiB**.
+- The 20-second limit applies consistently to the member capture UI, upload validation, server-side inspection of the uploaded audio container/tracks, and tests. A recording longer than 20 seconds must be rejected server-side even if client metadata claims a shorter duration.
+- This amendment does **not** change the separate 60-second maximum for live voice recording in chats/rooms, nor does it change attached/recorded audio policies outside biometric verification.
+- The 3–5 second biometric video limit, 1,500 BetaCoins reward, manual Super Owner review, three-attempt lifecycle, and one-calendar-month renewal remain unchanged.
