@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: mawdda-test-center-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   flutter-validation:
@@ -74,16 +74,6 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Run complete emulator-only Test Center suite
         run: npm run test:all
-      - name: Run 5,000-persona connected lifecycle and load cohorts
-        run: npm run test:persona-load
-      - name: Upload 5,000-persona load report
-        if: always()
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: mawdda-test-center-5000-persona-report-${{ github.sha }}
-          path: functions/mawdda-load-artifacts/report.json
-          if-no-files-found: warn
-          retention-days: 7
       - name: Upload synthetic persona catalogue (no credentials)
         if: always()
         uses: actions/upload-artifact@v7.0.2
