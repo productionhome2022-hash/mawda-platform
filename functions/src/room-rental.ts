@@ -19,7 +19,7 @@ export const DEFAULT_ROOM_RENTAL_PLANS: RoomRentalPlan[] = [
 ];
 
 export function validateRoomRentalPlans(value: unknown): RoomRentalPlan[] {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 12) {
+  if (!Array.isArray(value) || value.length > 12) {
     throw new Error("INVALID_ROOM_RENTAL_PLANS");
   }
   const ids = new Set<string>();
