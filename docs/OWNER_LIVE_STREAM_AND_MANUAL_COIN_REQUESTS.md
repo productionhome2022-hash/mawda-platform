@@ -115,3 +115,8 @@ The separate port branch `codex/economy-official-port-2026-11-18` is based on `c
 - Owner pricing has no implicit commercial defaults. The owner must configure coin packages, advertising prices, supported currency codes and custom coin-request bounds. The server derives the currency minor-unit exponent; client input cannot choose it.
 - Coin purchase requests capture immutable pricing/payment-policy versions. Payment instructions are versioned and cannot be silently edited after issue. A member payment report is only a claim and never credits coins. The owner must verify the external payment and approve the request; approval atomically updates the wallet, ledger and audit records.
 - Featured-ad finance events record external receipts, refunds, settlement and review only. They do not activate or publish a campaign, and they do not represent movement of external funds by Mawdda.
+
+
+## NOM-001 terminology clarification — 21 November 2026
+
+All user-facing references in this historical requirements document to “coin/coins” or «كوينز» must be rendered as **بيتاكوينز / BetaCoins** in current Mawdda interfaces, notifications and user-facing copy. This does not rename technical identifiers, API fields, ledger keys or historical records. The owner-controlled pricing and manual verification rules remain unchanged; no price or package amount is inferred by this terminology correction.
