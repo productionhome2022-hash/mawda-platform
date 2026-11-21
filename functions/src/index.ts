@@ -5,6 +5,7 @@ import {
 import {
   validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
   projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot,
+  evaluateCallParticipantEntitlements,
 } from "./call-entitlements";
 import {
   assertPlatformRoleCapacity,
@@ -10530,15 +10531,23 @@ export const startCall = onCall(async (request) => {
   const roomMemberRefsForCall = roomRefForCall
     ? participantUids.map((memberUid) => roomRefForCall!.collection("members").doc(memberUid))
     : [];
+  const callEntitlementRefs = participantUids.flatMap((memberUid) => {
+    const itemIds = input.mode === "audio"
+      ? ["voice_call_24h", "voice_call_7d", "voice_call_30d"]
+      : ["video_call_24h", "video_call_7d", "video_call_30d"];
+    return itemIds.map((itemId) =>
+      db.collection("users").doc(memberUid).collection("entitlements").doc(itemId));
+  });
   const now = Date.now();
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, groupCallPricingSnapshot, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, groupCallPricingSnapshot, callEntitlementSnapshots, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       transaction.get(GROUP_CALL_PRICING_SETTINGS),
+      Promise.all(callEntitlementRefs.map((entitlementRef) => transaction.get(entitlementRef))),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
       Promise.all(roomMemberRefsForCall.map((memberRef) => transaction.get(memberRef))),
@@ -10560,6 +10569,23 @@ export const startCall = onCall(async (request) => {
     }
     if (input.scope === "room" && !areRoomCallParticipantsMembers(roomMemberSnapshots)) {
       throw new HttpsError("permission-denied", "تغيرت عضوية أحد المشاركين قبل إنشاء المكالمة؛ أعد المحاولة.");
+    }
+    const entitlementsByUid = new Map<string, Array<{ itemId: string; data: unknown }>>();
+    for (const snapshot of callEntitlementSnapshots) {
+      const memberUid = snapshot.ref.parent.parent?.id;
+      if (!memberUid || !snapshot.exists) continue;
+      const list = entitlementsByUid.get(memberUid) ?? [];
+      list.push({ itemId: snapshot.id, data: snapshot.data() });
+      entitlementsByUid.set(memberUid, list);
+    }
+    const entitlementCheck = evaluateCallParticipantEntitlements(
+      participantUids, input.mode, entitlementsByUid, now,
+    );
+    if (!entitlementCheck.allowed) {
+      throw new HttpsError(
+        "failed-precondition",
+        "يجب أن يمتلك كل مشارك استحقاق المكالمة الصوتية أو المرئية الساري قبل بدء المكالمة.",
+      );
     }
     if (input.scope === "direct" &&
         (!directChatSnapshot?.exists || !directPeerSnapshot?.exists ||
