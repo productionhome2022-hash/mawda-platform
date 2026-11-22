@@ -22,6 +22,12 @@ const {
 
 const db = getFirestore();
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+async function cleanupTimedCampaign(campaignId) {
+  const versions = await db.collection("timedAdCampaignVersions").doc(campaignId)
+    .collection("versions").get();
+  await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+  await cleanupTimedCampaign(campaignId);
+}
 const memberRequest = (uid, data = {}) => ({
   data,
   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
@@ -196,7 +202,7 @@ test("timed advertisements require foreground heartbeat duration and pay once", 
     }
     if (campaignId) {
       await Promise.all([
-        db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined),
+        cleanupTimedCampaign(campaignId),
         db.collection("timedAdMemberCounters").doc(`${uid}_${campaignId}`).delete().catch(() => undefined),
       ]);
     }
@@ -262,7 +268,7 @@ test("campaigns can bind only approved owner-uploaded advertisement media", asyn
   } finally {
     await Promise.all([
       mediaRef.delete(),
-      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete()] : []),
+      ...(campaignId ? [cleanupTimedCampaign(campaignId)] : []),
     ]);
   }
 });
@@ -328,7 +334,7 @@ test("timed-ad reward is withheld if its approved creative is revoked before com
     await Promise.all([
       mediaRef.delete().catch(() => undefined),
       userRef.delete().catch(() => undefined),
-      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(campaignId ? [cleanupTimedCampaign(campaignId)] : []),
       ...(sessionId ? [
         db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined),
         db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
@@ -401,7 +407,7 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
     await Promise.all([
       firstUser.delete().catch(() => undefined),
       secondUser.delete().catch(() => undefined),
-      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(campaignId ? [cleanupTimedCampaign(campaignId)] : []),
       ...(firstSessionId ? [
         db.collection("timedAdSessions").doc(firstSessionId).delete().catch(() => undefined),
         db.collection("activeTimedAdSessions").doc(firstUid).delete().catch(() => undefined),
@@ -463,7 +469,7 @@ test("concurrent members cannot reserve the same final ad reward budget", async 
     }
     await Promise.all([
       ...users.map((ref) => ref.delete().catch(() => undefined)),
-      ...(campaignId ? [db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined)] : []),
+      ...(campaignId ? [cleanupTimedCampaign(campaignId)] : []),
     ]);
   }
 });
