@@ -15,6 +15,9 @@ const {
   heartbeatTimedAdvertisement,
   completeTimedAdvertisement,
   runExpiredTimedAdSessionSweep,
+  cancelTimedAdvertisement,
+  getMyTimedAdRewardHistory,
+  getOwnerTimedAdCampaignReport,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -526,6 +529,160 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
       userRef.delete().catch(() => undefined),
       ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
       eligibleCampaign.delete().catch(() => undefined),
+    ]);
+  }
+});
+
+
+test("standard ads are geographically filtered and featured ads use the same atomic timed-ad ledger with a UTC daily cap", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const tag = suffix();
+  const ownerUid = `unified_ads_owner_${tag}`;
+  const syriaUid = `unified_ads_syria_${tag}`;
+  const egyptUid = `unified_ads_egypt_${tag}`;
+  const secondUid = `unified_ads_second_${tag}`;
+  const syriaUser = db.collection("users").doc(syriaUid);
+  const egyptUser = db.collection("users").doc(egyptUid);
+  const secondUser = db.collection("users").doc(secondUid);
+  let standardCampaignId;
+  let featuredCampaignId;
+  let firstSessionId;
+  let secondSessionId;
+  await Promise.all([
+    syriaUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
+    egyptUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "مصر", region: "شمال أفريقيا" }),
+    secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
+  ]);
+  try {
+    const standard = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Standard geographic campaign",
+      sponsorLabel: "Verified standard sponsor",
+      body: "This synthetic standard advertisement targets Syria only.",
+      placement: "reward_center",
+      adType: "standard",
+      geographicTargets: ["syria"],
+      durationSeconds: 15,
+      rewardCoins: 2,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 10,
+      rewardBudgetCoins: 100,
+    }));
+    standardCampaignId = standard.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId: standardCampaignId, status: "published",
+    }));
+    const [syriaAds, egyptAds] = await Promise.all([
+      getActiveTimedAdCampaigns.run(memberRequest(syriaUid, {
+        adType: "standard", geographicTarget: "syria",
+      })),
+      getActiveTimedAdCampaigns.run(memberRequest(egyptUid, {
+        adType: "standard", geographicTarget: "syria",
+      })),
+    ]);
+    assert.equal(syriaAds.campaigns.some((item) => item.campaignId === standardCampaignId), true);
+    assert.equal(egyptAds.campaigns.some((item) => item.campaignId === standardCampaignId), false);
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(egyptUid, {
+        campaignId: standardCampaignId, adType: "standard",
+      })),
+      (error) => error && error.code === "permission-denied",
+    );
+
+    const featured = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
+      title: "Featured non-geographic campaign",
+      sponsorLabel: "Verified featured sponsor",
+      body: "This synthetic featured advertisement is not geographically targeted.",
+      placement: "home",
+      adType: "featured",
+      geographicTargets: [],
+      featuredPlacement: "priority",
+      priorityOrder: 1,
+      maxDailyClaimsPerMember: 1,
+      durationSeconds: 15,
+      rewardCoins: 10,
+      startsAtMs: Date.now() - 1000,
+      endsAtMs: Date.now() + 3600000,
+      maxClaimsPerMember: 20,
+      rewardBudgetCoins: 30,
+    }));
+    featuredCampaignId = featured.campaignId;
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId, status: "published",
+    }));
+    const featuredAds = await getActiveTimedAdCampaigns.run(memberRequest(egyptUid, {
+      adType: "featured",
+    }));
+    assert.equal(featuredAds.campaigns.some((item) => item.campaignId === featuredCampaignId), true);
+    assert.equal(featuredAds.campaigns.find((item) => item.campaignId === featuredCampaignId).geographicTargets.length, 0);
+
+    const started = await startTimedAdvertisement.run(memberRequest(syriaUid, {
+      campaignId: featuredCampaignId, adType: "featured",
+    }));
+    firstSessionId = started.sessionId;
+    await db.collection("timedAdSessions").doc(firstSessionId).update({
+      eligibleMs: 15000, heartbeatSequence: 0, lastHeartbeatAtMs: Date.now() - 5000,
+    });
+    await heartbeatTimedAdvertisement.run(memberRequest(syriaUid, {
+      sessionId: firstSessionId, sequence: 1, foreground: true, visible: true,
+    }));
+    const completed = await completeTimedAdvertisement.run(memberRequest(syriaUid, {
+      sessionId: firstSessionId,
+    }));
+    assert.equal(completed.completed, true);
+    const counter = await db.collection("timedAdMemberCounters")
+      .where("uid", "==", syriaUid).where("campaignId", "==", featuredCampaignId).get();
+    assert.equal(counter.size, 1);
+    assert.equal(counter.docs[0].data().dailyClaimCount, 1);
+    assert.equal(counter.docs[0].data().utcDay, new Date().toISOString().slice(0, 10));
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
+        campaignId: featuredCampaignId, adType: "featured",
+      })),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    const secondStart = await startTimedAdvertisement.run(memberRequest(secondUid, {
+      campaignId: featuredCampaignId, adType: "featured",
+    }));
+    secondSessionId = secondStart.sessionId;
+    const cancelled = await cancelTimedAdvertisement.run(memberRequest(secondUid, {
+      sessionId: secondSessionId,
+    }));
+    assert.equal(cancelled.cancelled, true);
+    assert.equal((await db.collection("timedAdSessions").doc(secondSessionId).get()).data().status, "cancelled");
+    assert.equal((await db.collection("timedAdCampaigns").doc(featuredCampaignId).get()).data().reservedRewardCoins, 0);
+
+    const history = await getMyTimedAdRewardHistory.run(memberRequest(syriaUid));
+    assert.equal(history.claims.some((item) => item.sessionId === firstSessionId), true);
+    const report = await getOwnerTimedAdCampaignReport.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+    }));
+    assert.equal(report.sessionCounts.completed, 1);
+    assert.equal(report.sessionCounts.cancelled, 1);
+    assert.equal(report.totalRewardCoins, 10);
+  } finally {
+    const [sessions, claims, counters, versions, audits] = await Promise.all([
+      db.collection("timedAdSessions").where("campaignId", "in",
+        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
+      db.collection("timedAdRewardClaims").where("campaignId", "in",
+        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
+      db.collection("timedAdMemberCounters").where("campaignId", "in",
+        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
+      Promise.all([standardCampaignId, featuredCampaignId].filter(Boolean).map((id) =>
+        db.collection("timedAdCampaignVersions").doc(id).collection("versions").get())),
+      db.collection("adminAuditLogs").where("actorUid", "==", ownerUid).get(),
+    ]);
+    await Promise.all([
+      ...sessions.docs.map((doc) => doc.ref.delete()),
+      ...claims.docs.map((doc) => doc.ref.delete()),
+      ...counters.docs.map((doc) => doc.ref.delete()),
+      ...versions.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
+      ...audits.docs.map((doc) => doc.ref.delete()),
+      ...(standardCampaignId ? [db.collection("timedAdCampaigns").doc(standardCampaignId).delete()] : []),
+      ...(featuredCampaignId ? [db.collection("timedAdCampaigns").doc(featuredCampaignId).delete()] : []),
+      ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("users").doc(uid).delete()),
+      ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined)),
     ]);
   }
 });
