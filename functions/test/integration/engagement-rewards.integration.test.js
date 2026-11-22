@@ -740,22 +740,20 @@ test("standard ads are geographically filtered and featured ads use the same ato
     assert.equal(archivedReport.campaign.status, "archived");
     assert.ok(archivedReport.versionCount >= 4);
   } finally {
-    const [sessions, claims, counters, versions, audits] = await Promise.all([
-      db.collection("timedAdSessions").where("campaignId", "in",
-        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
-      db.collection("timedAdRewardClaims").where("campaignId", "in",
-        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
-      db.collection("timedAdMemberCounters").where("campaignId", "in",
-        [standardCampaignId, featuredCampaignId].filter(Boolean)).get(),
-      Promise.all([standardCampaignId, featuredCampaignId].filter(Boolean).map((id) =>
+    const campaignIds = [standardCampaignId, featuredCampaignId].filter(Boolean);
+    const [sessionsByCampaign, claimsByCampaign, countersByCampaign, versionsByCampaign, audits] = await Promise.all([
+      Promise.all(campaignIds.map((id) => db.collection("timedAdSessions").where("campaignId", "==", id).get())),
+      Promise.all(campaignIds.map((id) => db.collection("timedAdRewardClaims").where("campaignId", "==", id).get())),
+      Promise.all(campaignIds.map((id) => db.collection("timedAdMemberCounters").where("campaignId", "==", id).get())),
+      Promise.all(campaignIds.map((id) =>
         db.collection("timedAdCampaignVersions").doc(id).collection("versions").get())),
       db.collection("adminAuditLogs").where("actorUid", "==", ownerUid).get(),
     ]);
     await Promise.all([
-      ...sessions.docs.map((doc) => doc.ref.delete()),
-      ...claims.docs.map((doc) => doc.ref.delete()),
-      ...counters.docs.map((doc) => doc.ref.delete()),
-      ...versions.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
+      ...sessionsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
+      ...claimsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
+      ...countersByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
+      ...versionsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
       ...audits.docs.map((doc) => doc.ref.delete()),
       ...(standardCampaignId ? [db.collection("timedAdCampaigns").doc(standardCampaignId).delete()] : []),
       ...(featuredCampaignId ? [
