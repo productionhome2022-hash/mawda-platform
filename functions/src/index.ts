@@ -8627,8 +8627,14 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
     if (data.status === "archived" && status !== "archived") {
       throw new HttpsError("failed-precondition", "لا يمكن إعادة تنشيط حملة مؤرشفة.");
     }
-    if (status === "published" && data.placement === "home") {
+    if (status === "published" && data.placement === "home" && data.adType !== "featured") {
       throw new HttpsError("failed-precondition", "موضع الرئيسية غير منشور حتى اكتمال واجهة العرض واختبارات موضعها؛ استخدم مركز المكافآت حالياً.");
+    }
+    if (status === "published" && data.adType === "featured" &&
+        (!Array.isArray(data.geographicTargets) || data.geographicTargets.length !== 0 ||
+         !Number.isSafeInteger(data.maxDailyClaimsPerMember) || data.maxDailyClaimsPerMember < 1 ||
+         data.maxDailyClaimsPerMember > 10)) {
+      throw new HttpsError("failed-precondition", "الحملة المميزة تتطلب استهدافاً غير جغرافي وحداً يومياً بين 1 و10.");
     }
     if (status === "published" && data.creativeType === "video") {
       throw new HttpsError("failed-precondition", "نشر إعلانات الفيديو متوقف حتى اكتمال مشغل الفيديو واختبارات الأجهزة؛ لا نعرض إعلاناً لا يمكن تشغيله داخل التجربة المقفلة.");
@@ -8662,36 +8668,112 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
   return result;
 });
 
+function normalizeAdGeography(value: unknown): string {
+  return typeof value === "string"
+    ? value.trim().toLocaleLowerCase().replace(/[\\s_–-]+/g, " ")
+    : "";
+}
+
+const TIMED_AD_GEOGRAPHY_ALIASES: Record<string, string[]> = {
+  all_arab_countries: ["السعودية", "المملكة العربية السعودية", "الإمارات", "الامارات", "الكويت", "قطر", "البحرين", "عمان", "سلطنة عمان", "اليمن", "العراق", "الأردن", "الاردن", "فلسطين", "لبنان", "سوريا", "سورية", "مصر", "السودان", "ليبيا", "تونس", "الجزائر", "المغرب", "موريتانيا", "الصومال", "جيبوتي", "جزر القمر", "saudi arabia", "united arab emirates", "uae", "kuwait", "qatar", "bahrain", "oman", "yemen", "iraq", "jordan", "palestine", "lebanon", "syria", "egypt", "sudan", "libya", "tunisia", "algeria", "morocco", "mauritania", "somalia", "djibouti", "comoros"],
+  syria: ["سوريا", "سورية", "syria"],
+  lebanon_palestine: ["لبنان", "فلسطين", "lebanon", "palestine"],
+  iraq_jordan: ["العراق", "الأردن", "الاردن", "iraq", "jordan"],
+  gcc: ["السعودية", "المملكة العربية السعودية", "الإمارات", "الامارات", "الكويت", "قطر", "البحرين", "عمان", "سلطنة عمان", "saudi arabia", "united arab emirates", "uae", "kuwait", "qatar", "bahrain", "oman"],
+  egypt: ["مصر", "egypt"],
+  tunisia_libya_sudan: ["تونس", "ليبيا", "السودان", "tunisia", "libya", "sudan"],
+  algeria_morocco: ["الجزائر", "المغرب", "algeria", "morocco"],
+  europe_turkey: ["تركيا", "turkey", "europe", "أوروبا"],
+  asia_middle_east: ["آسيا", "الشرق الأوسط", "asia", "middle east"],
+};
+
+function memberMatchesTimedAdGeography(
+  user: Record<string, unknown>,
+  target: string,
+): boolean {
+  const country = normalizeAdGeography(user.country);
+  const region = normalizeAdGeography(user.region);
+  const aliases = TIMED_AD_GEOGRAPHY_ALIASES[target] ?? [target];
+  const normalizedAliases = aliases.map(normalizeAdGeography);
+  return normalizedAliases.includes(country) || normalizedAliases.includes(region);
+}
+
+function campaignMatchesTimedAdAudience(
+  campaign: Record<string, unknown>,
+  user: Record<string, unknown>,
+  selectedTarget?: string,
+): boolean {
+  if ((campaign.adType ?? "standard") === "featured") return true;
+  const targets = Array.isArray(campaign.geographicTargets)
+    ? campaign.geographicTargets.filter((value): value is string => typeof value === "string")
+    : [];
+  // Older reward-center campaigns predate the explicit audience field. Keep
+  // them readable only as legacy campaigns; every newly typed standard ad
+  // must carry an explicit target at validation time.
+  if (campaign.adType === undefined && targets.length === 0) return true;
+  if (targets.length === 0) return false;
+  const allowedByCampaign = selectedTarget
+    ? targets.includes(selectedTarget) || targets.includes("all_arab_countries")
+    : true;
+  if (!allowedByCampaign) return false;
+  if (!selectedTarget) return true;
+  return memberMatchesTimedAdGeography(user, selectedTarget);
+}
+
 export const getActiveTimedAdCampaigns = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
-  const user = await db.collection("users").doc(uid).get();
-  if (!user.exists || user.data()?.profileCompleted !== true ||
-      !isMemberAccountInGoodStanding(user.data())) {
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(userSnapshot.data())) {
     throw new HttpsError("permission-denied", "هذا القسم متاح للأعضاء النشطين فقط.");
+  }
+  const requestedType = request.data?.adType ?? "standard";
+  const selectedTarget = request.data?.geographicTarget;
+  if (requestedType !== "standard" && requestedType !== "featured") {
+    throw new HttpsError("invalid-argument", "نوع الإعلان المطلوب غير صالح.");
+  }
+  if (requestedType === "standard" && selectedTarget !== undefined &&
+      (typeof selectedTarget !== "string" ||
+       !Object.prototype.hasOwnProperty.call(TIMED_AD_GEOGRAPHY_ALIASES, selectedTarget))) {
+    throw new HttpsError("invalid-argument", "النطاق الجغرافي المطلوب غير صالح.");
   }
   const now = Date.now();
   const snapshot = await db.collection("timedAdCampaigns")
     .where("status", "==", "published")
-    .where("placement", "==", "reward_center")
-    .where("startsAtMs", "<=", now)
-    .where("endsAtMs", ">", now)
     .limit(100).get();
-  return {
-    campaigns: snapshot.docs
-      .filter((doc) => doc.data().placement === "reward_center" &&
-        doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
-        doc.data().spentRewardCoins + (doc.data().reservedRewardCoins ?? 0) + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
-      .map((doc) => {
-        const data = doc.data();
-        return {
-          campaignId: doc.id, title: data.title, sponsorLabel: data.sponsorLabel,
-          body: data.body, placement: data.placement,
-          durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
-          version: data.version,
-          mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
-        };
-      }),
-  };
+  const campaigns = snapshot.docs
+    .filter((doc) => {
+      const data = doc.data();
+      const type = data.adType ?? "standard";
+      const placementMatches = requestedType === "featured"
+        ? data.placement === "home"
+        : data.placement === "reward_center";
+      return type === requestedType && placementMatches &&
+        data.startsAtMs <= now && data.endsAtMs > now &&
+        data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins <= data.rewardBudgetCoins &&
+        campaignMatchesTimedAdAudience(data, userSnapshot.data() ?? {}, selectedTarget);
+    })
+    .map((doc) => {
+      const data = doc.data();
+      return {
+        campaignId: doc.id, title: data.title, sponsorLabel: data.sponsorLabel,
+        body: data.body, placement: data.placement, adType: data.adType ?? "standard",
+        featuredPlacement: data.featuredPlacement ?? "rotation",
+        priorityOrder: data.priorityOrder ?? 0,
+        maxDailyClaimsPerMember: data.maxDailyClaimsPerMember ?? null,
+        durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+        version: data.version, geographicTargets: data.geographicTargets ?? [],
+        mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
+      };
+    });
+  if (requestedType === "featured") {
+    campaigns.sort((left, right) =>
+      (left.featuredPlacement === "priority" ? 0 : 1) -
+      (right.featuredPlacement === "priority" ? 0 : 1) ||
+      left.priorityOrder - right.priorityOrder ||
+      left.campaignId.localeCompare(right.campaignId));
+  }
+  return { campaigns };
 });
 
 export const startTimedAdvertisement = onCall(async (request) => {
@@ -8754,6 +8836,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
+    const requestedAdType = request.data?.adType;
+    if (requestedAdType !== undefined && requestedAdType !== (data.adType ?? "standard")) {
+      throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
+    }
     const availableReservation = Math.max(0, (data.reservedRewardCoins ?? 0) - releasedFromCurrentCampaign);
     if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
         data.spentRewardCoins + availableReservation + data.rewardCoins > data.rewardBudgetCoins) {
@@ -8780,13 +8866,19 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const legacyClaims = legacyCounter.exists
       ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
     const claims = Math.max(currentClaims, legacyClaims);
-    if (claims >= data.maxClaimsPerMember) {
+    const utcDay = new Date(nowMs).toISOString().slice(0, 10);
+    const dailyClaims = counterData.utcDay === utcDay
+      ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
+    if (claims >= data.maxClaimsPerMember ||
+        ((data.adType ?? "standard") === "featured" &&
+         dailyClaims >= data.maxDailyClaimsPerMember)) {
       throw new HttpsError("failed-precondition", "تم بلوغ الحد المسموح لمشاهدة هذه الحملة.");
     }
     const expiresAtMs = Math.min(data.endsAtMs, nowMs + data.durationSeconds * 4000 + 60000);
     transaction.create(sessionRef, {
       sessionId, uid, campaignId, campaignVersion: data.version,
       durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+      adType: data.adType ?? "standard",
       eligibleMs: 0, heartbeatSequence: 0, lastHeartbeatAtMs: null,
       status: "active", startedAt: FieldValue.serverTimestamp(),
       startedAtMs: nowMs, expiresAtMs,
@@ -8798,7 +8890,8 @@ export const startTimedAdvertisement = onCall(async (request) => {
     transaction.set(activeRef, { sessionId, campaignId, expiresAtMs, updatedAt: FieldValue.serverTimestamp() });
     return {
       sessionId, campaignId, durationSeconds: data.durationSeconds,
-      rewardCoins: data.rewardCoins, expiresAtMs, heartbeatIntervalMs: 5000,
+      rewardCoins: data.rewardCoins, adType: data.adType ?? "standard",
+      expiresAtMs, heartbeatIntervalMs: 5000,
       title: data.title, sponsorLabel: data.sponsorLabel, body: data.body,
       mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
     };
@@ -8820,6 +8913,7 @@ export const getActiveTimedAdSession = onCall(async (request) => {
   return {
     active: true, sessionId, campaignId: data.campaignId,
     durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+    adType: data.adType ?? "standard",
     expiresAtMs: data.expiresAtMs, heartbeatSequence: data.heartbeatSequence,
     eligibleMs: data.eligibleMs, status: data.status,
     title: campaign.data()?.title ?? "إعلان",
@@ -8982,8 +9076,13 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const legacyClaims = legacyCounter.exists
       ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
     const claims = Math.max(currentClaims, legacyClaims);
+    const utcDay = new Date().toISOString().slice(0, 10);
+    const dailyClaims = counterData.utcDay === utcDay
+      ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
-        claims >= campaignData.maxClaimsPerMember) {
+        claims >= campaignData.maxClaimsPerMember ||
+        ((campaignData.adType ?? "standard") === "featured" &&
+         dailyClaims >= campaignData.maxDailyClaimsPerMember)) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
     }
     const balance = readSafeInteger(user.data()?.coins ?? 0, "coins");
@@ -9009,7 +9108,9 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     });
     transaction.set(counterRef, {
       uid, campaignId: data.campaignId,
-      claimCount: claims + 1, updatedAt: now,
+      claimCount: claims + 1,
+      utcDay, dailyClaimCount: dailyClaims + 1,
+      updatedAt: now,
     }, { merge: true });
     transaction.update(sessionRef, { status: "completed", completedAt: now });
     if (active.exists) transaction.delete(activeRef);
@@ -9096,6 +9197,89 @@ export const getOwnerAttendanceRewardPolicy = onCall(async (request) => {
 
 
 /** Releases reward-budget reservations for abandoned sessions after their server expiry. */
+export const cancelTimedAdvertisement = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = request.data?.sessionId;
+  if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "معرف جلسة الإعلان غير صالح.");
+  }
+  const sessionRef = db.collection("timedAdSessions").doc(sessionId);
+  return db.runTransaction(async (transaction) => {
+    const session = await transaction.get(sessionRef);
+    if (!session.exists || session.data()?.uid !== uid) {
+      throw new HttpsError("not-found", "جلسة الإعلان غير موجودة.");
+    }
+    const data = session.data()!;
+    if (data.status === "cancelled") return { cancelled: true, idempotentReplay: true };
+    if (!["active", "paused"].includes(String(data.status))) {
+      throw new HttpsError("failed-precondition", "لا يمكن إلغاء جلسة غير نشطة.");
+    }
+    const campaignRef = db.collection("timedAdCampaigns").doc(String(data.campaignId));
+    const activeRef = db.collection("activeTimedAdSessions").doc(uid);
+    const [campaign, active] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(activeRef),
+    ]);
+    if (campaign.exists) {
+      const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
+      const reward = readSafeInteger(data.rewardCoins, "rewardCoins");
+      if (reserved < reward) throw new HttpsError("data-loss", "حجز ميزانية الحملة غير متسق.");
+      transaction.update(campaignRef, {
+        reservedRewardCoins: reserved - reward,
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.update(sessionRef, {
+      status: "cancelled", lastHeartbeatAtMs: null,
+      cancelledAt: FieldValue.serverTimestamp(), cancellationReason: "member_cancelled",
+    });
+    if (active.data()?.sessionId === sessionId) transaction.delete(activeRef);
+    return { cancelled: true, idempotentReplay: false };
+  });
+});
+
+export const getMyTimedAdRewardHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const snapshot = await db.collection("timedAdRewardClaims")
+    .where("uid", "==", uid).orderBy("createdAt", "desc").limit(100).get();
+  return {
+    claims: snapshot.docs.map((doc) => ({
+      claimId: doc.id, ...doc.data(),
+    })),
+  };
+});
+
+export const getOwnerTimedAdCampaignReport = onCall(async (request) => {
+  requireOwner(request);
+  const campaignId = request.data?.campaignId;
+  if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId)) {
+    throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
+  }
+  const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
+  const [campaign, financial, claims, sessions, versions] = await Promise.all([
+    campaignRef.get(),
+    db.collection("featuredAdFinancials").doc(campaignId).get(),
+    db.collection("timedAdRewardClaims").where("campaignId", "==", campaignId).limit(500).get(),
+    db.collection("timedAdSessions").where("campaignId", "==", campaignId).limit(500).get(),
+    db.collection("timedAdCampaignVersions").doc(campaignId).collection("versions").limit(100).get(),
+  ]);
+  if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+  const sessionCounts = { active: 0, paused: 0, completed: 0, cancelled: 0, expired: 0 };
+  for (const doc of sessions.docs) {
+    const status = String(doc.data().status);
+    if (Object.prototype.hasOwnProperty.call(sessionCounts, status)) {
+      sessionCounts[status as keyof typeof sessionCounts] += 1;
+    }
+  }
+  return {
+    campaign: { campaignId, ...campaign.data() },
+    financialSnapshot: financial.exists ? financial.data() : null,
+    rewardClaims: claims.docs.map((doc) => ({ claimId: doc.id, ...doc.data() })),
+    sessionCounts,
+    totalRewardCoins: claims.docs.reduce((sum, doc) => sum + Number(doc.data().amountCoins ?? 0), 0),
+    versionCount: versions.size,
+  };
+});
+
 export const runExpiredTimedAdSessionSweep = async (nowMs = Date.now()) => {
   const candidates = await db.collection("timedAdSessions")
     .where("status", "in", ["active", "paused"])
