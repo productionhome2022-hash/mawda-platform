@@ -1146,9 +1146,23 @@ export const sendChatImageAttachment = onCall(async (request) => {
 });
 
 /** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
-export const getChatImageAttachmentUrl = onCall(async (request) => {
-  const viewerUid = requireUid(request.auth?.uid);
-  const data = request.data ?? {};
+async function issueChatMediaDeliveryUrl(
+  data: Record<string, unknown>,
+  authToken: Record<string, unknown>,
+  viewerUid: string,
+  mediaSaver: boolean,
+): Promise<Record<string, unknown>> {
+  if (mediaSaver) {
+    const entitlementIds = ["media_saver_24h", "media_saver_7d", "media_saver_30d"];
+    const entitlements = await Promise.all(entitlementIds.map((itemId) =>
+      mediaDb().collection("users").doc(viewerUid).collection("entitlements").doc(itemId).get(),
+    ));
+    if (!entitlements.some((snapshot) =>
+      snapshot.exists && isStoreEntitlementActive(snapshot.data()),
+    )) {
+      throw new HttpsError("failed-precondition", "استحقاق Mawdda Media Saver غير نشط.");
+    }
+  }
   const scope = data.scope;
   const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
   const messageId = typeof data.messageId === "string" ? data.messageId.trim() : "";
@@ -1180,9 +1194,9 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     conversationId = roomId;
     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
     const roomRef = mediaDb().collection("rooms").doc(roomId);
-    const ownerSession = request.auth?.token.platformOwner === true &&
-      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
-    const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
+    const ownerSession = authToken.platformOwner === true &&
+      hasPlatformOwnerSession(authToken, undefined, viewerUid);
+    const viewerType = mediaUploaderTypeFromToken(authToken);
     const [room, member, msg, viewer] = await Promise.all([
       roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
       roomRef.collection("messages").doc(messageId).get(),
@@ -1230,7 +1244,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     ]);
     const viewer = viewerSnapshot.data() ?? {};
     const peer = peerSnapshot.data() ?? {};
-    const viewerToken = (request.auth?.token ?? {}) as Record<string, unknown>;
+    const viewerToken = authToken;
     const viewerIsOwner = viewerToken.platformOwner === true &&
       hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
     const peerIsOwner = asset.uploaderRole === "platform_owner" &&
@@ -1248,7 +1262,7 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
   const artifact = resolveChatMediaDeliveryArtifact(
     asset as never, asset.uploaderRole === "platform_owner",
   );
-  if (mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>) === "guest" &&
+  if (mediaUploaderTypeFromToken(authToken) === "guest" &&
       (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
   }
@@ -1289,6 +1303,39 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
     objectGeneration: artifact.generation,
   });
   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
+}
+export const getChatImageAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  return issueChatMediaDeliveryUrl(
+    (request.data ?? {}) as Record<string, unknown>,
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    viewerUid,
+    false,
+  );
+});
+
+/**
+ * Issues a short-lived safe-derivative URL for a local Media Saver operation.
+ * Entitlement is revalidated on every request; the media retention deadline
+ * remains unchanged and the same conversation/message authorization applies.
+ */
+export const getMediaSaverAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const result = await issueChatMediaDeliveryUrl(
+    data,
+    (request.auth?.token ?? {}) as Record<string, unknown>,
+    viewerUid,
+    true,
+  );
+  await auditMediaAccess({
+    actorUid: viewerUid,
+    mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
+    action: "media_saver_save_capability_issued",
+    outcome: "success",
+    scope: data.scope ?? null,
+  });
+  return result;
 });
 
 export const createMediaUploadIntent = onCall(async (request) => {
