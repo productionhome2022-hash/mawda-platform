@@ -512,9 +512,13 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
   const uid = `ad_discovery_member_${tag}`;
   const userRef = db.collection("users").doc(uid);
   const now = Date.now();
+  // Sort expired/future documents before the eligible campaign so a query
+  // that applies its limit before server-side time filtering would hide it.
   const expiredCampaigns = Array.from({ length: 101 }, (_, index) =>
-    db.collection("timedAdCampaigns").doc(`expired_${tag}_${String(index).padStart(3, "0")}`));
-  const eligibleCampaign = db.collection("timedAdCampaigns").doc(`eligible_${tag}`);
+    db.collection("timedAdCampaigns").doc(`a_expired_${tag}_${String(index).padStart(3, "0")}`));
+  const futureCampaigns = Array.from({ length: 101 }, (_, index) =>
+    db.collection("timedAdCampaigns").doc(`b_future_${tag}_${String(index).padStart(3, "0")}`));
+  const eligibleCampaign = db.collection("timedAdCampaigns").doc(`z_eligible_${tag}`);
   const campaignData = {
     status: "published", placement: "reward_center",
     startsAtMs: now - 60_000, endsAtMs: now - 1_000,
@@ -525,6 +529,9 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
     await userRef.set({ coins: 0, profileCompleted: true, accountStatus: "active" });
     await Promise.all([
       ...expiredCampaigns.map((ref) => ref.set(campaignData)),
+      ...futureCampaigns.map((ref) => ref.set({
+        ...campaignData, startsAtMs: now + 60_000, endsAtMs: now + 120_000,
+      })),
       eligibleCampaign.set({ ...campaignData, startsAtMs: now - 1_000, endsAtMs: now + 60_000 }),
     ]);
     const result = await getActiveTimedAdCampaigns.run(memberRequest(uid));
@@ -535,6 +542,7 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
     await Promise.all([
       userRef.delete().catch(() => undefined),
       ...expiredCampaigns.map((ref) => ref.delete().catch(() => undefined)),
+      ...futureCampaigns.map((ref) => ref.delete().catch(() => undefined)),
       eligibleCampaign.delete().catch(() => undefined),
     ]);
   }
@@ -608,6 +616,20 @@ test("standard ads are geographically filtered and featured ads use the same ato
     assert.equal(syriaAds.campaigns.some((item) => item.campaignId === standardCampaignId), true);
     assert.equal(egyptAds.campaigns.some((item) => item.campaignId === standardCampaignId), false);
     await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
+        campaignId: standardCampaignId,
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "typed campaigns must not be started through an unclassified player",
+    );
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
+        campaignId: standardCampaignId, adType: "featured",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "the featured player must not start a standard campaign",
+    );
+    await assert.rejects(
       () => startTimedAdvertisement.run(memberRequest(egyptUid, {
         campaignId: standardCampaignId, adType: "standard",
       })),
@@ -669,6 +691,13 @@ test("standard ads are geographically filtered and featured ads use the same ato
     }));
     assert.equal(featuredAds.campaigns.some((item) => item.campaignId === featuredCampaignId), true);
     assert.equal(featuredAds.campaigns.find((item) => item.campaignId === featuredCampaignId).geographicTargets.length, 0);
+    await assert.rejects(
+      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
+        campaignId: featuredCampaignId,
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "featured campaigns must be started through the featured player",
+    );
 
     const started = await startTimedAdvertisement.run(memberRequest(syriaUid, {
       campaignId: featuredCampaignId, adType: "featured",
