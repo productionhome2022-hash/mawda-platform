@@ -227,7 +227,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'priorityOrder': _adType == 'featured' ? priorityOrder : 0,
         if (_adType == 'featured') 'maxDailyClaimsPerMember': maxDailyClaims,
         if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
-        if (_editingCampaignId != null) 'expectedVersion': _editingVersion,
+        if (_editingCampaignId != null && _editingVersion != null) 'expectedVersion': _editingVersion,
         'durationSeconds': duration,
         'rewardCoins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
