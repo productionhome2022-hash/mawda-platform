@@ -8716,8 +8716,8 @@ function campaignMatchesTimedAdAudience(
     ? targets.includes(selectedTarget) || targets.includes("all_arab_countries")
     : true;
   if (!allowedByCampaign) return false;
-  if (!selectedTarget) return true;
-  return memberMatchesTimedAdGeography(user, selectedTarget);
+  if (selectedTarget) return memberMatchesTimedAdGeography(user, selectedTarget);
+  return targets.some((target) => memberMatchesTimedAdGeography(user, target));
 }
 
 export const getActiveTimedAdCampaigns = onCall(async (request) => {
@@ -8839,6 +8839,13 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const requestedAdType = request.data?.adType;
     if (requestedAdType !== undefined && requestedAdType !== (data.adType ?? "standard")) {
       throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
+    }
+    if ((data.adType ?? "standard") === "standard" &&
+        data.adType !== undefined &&
+        (!Array.isArray(data.geographicTargets) || data.geographicTargets.length === 0 ||
+         !data.geographicTargets.some((target: string) =>
+           memberMatchesTimedAdGeography(user.data() ?? {}, target)))) {
+      throw new HttpsError("permission-denied", "هذه الحملة غير موجهة إلى النطاق الجغرافي المسجل في حسابك.");
     }
     const availableReservation = Math.max(0, (data.reservedRewardCoins ?? 0) - releasedFromCurrentCampaign);
     if (data.status !== "published" || data.startsAtMs > nowMs || data.endsAtMs <= nowMs ||
@@ -9167,6 +9174,7 @@ export const getRewardCenter = onCall(async (request) => {
     attendanceClaimed: claims,
     activeCampaigns: ads.docs.filter((doc) =>
       doc.data().placement === "reward_center" &&
+      doc.data().adType === undefined &&
       doc.data().startsAtMs <= now && doc.data().endsAtMs > now &&
       doc.data().spentRewardCoins + (doc.data().reservedRewardCoins ?? 0) + doc.data().rewardCoins <= doc.data().rewardBudgetCoins)
       .map((doc) => ({
@@ -9240,7 +9248,7 @@ export const cancelTimedAdvertisement = onCall(async (request) => {
 export const getMyTimedAdRewardHistory = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const snapshot = await db.collection("timedAdRewardClaims")
-    .where("uid", "==", uid).orderBy("createdAt", "desc").limit(100).get();
+    .where("uid", "==", uid).limit(100).get();
   return {
     claims: snapshot.docs.map((doc) => ({
       claimId: doc.id, ...doc.data(),
