@@ -10,11 +10,22 @@ export interface AttendanceRewardRule {
 
 export type AttendanceRewardPolicy = Record<AttendanceRewardType, AttendanceRewardRule>;
 
+export type TimedAdType = "standard" | "featured";
+export type TimedAdGeographicTarget =
+  | "all_arab_countries" | "syria" | "lebanon_palestine" | "iraq_jordan"
+  | "gcc" | "egypt" | "tunisia_libya_sudan" | "algeria_morocco"
+  | "europe_turkey" | "asia_middle_east";
+
 export interface TimedAdCampaignInput {
   title: string;
   sponsorLabel: string;
   body: string;
   placement: "reward_center" | "home";
+  adType: TimedAdType;
+  geographicTargets: TimedAdGeographicTarget[];
+  featuredPlacement: "rotation" | "priority";
+  priorityOrder: number;
+  maxDailyClaimsPerMember?: number;
   durationSeconds: number;
   rewardCoins: number;
   startsAtMs: number;
@@ -93,6 +104,20 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   const sponsorLabel = typeof input.sponsorLabel === "string" ? input.sponsorLabel.trim() : "";
   const body = typeof input.body === "string" ? input.body.trim() : "";
   const placement = input.placement;
+  const adTypeWasProvided = input.adType !== undefined;
+  const adType = input.adType ?? "standard";
+  const geographicTargetsInput = input.geographicTargets ?? [];
+  const allowedTargets: TimedAdGeographicTarget[] = [
+    "all_arab_countries", "syria", "lebanon_palestine", "iraq_jordan",
+    "gcc", "egypt", "tunisia_libya_sudan", "algeria_morocco",
+    "europe_turkey", "asia_middle_east",
+  ];
+  const geographicTargets = Array.isArray(geographicTargetsInput)
+    ? [...new Set(geographicTargetsInput)]
+    : [];
+  const featuredPlacement = input.featuredPlacement ?? "rotation";
+  const priorityOrder = input.priorityOrder ?? 0;
+  const maxDailyClaimsPerMember = input.maxDailyClaimsPerMember;
   const durationSeconds = input.durationSeconds;
   const rewardCoins = input.rewardCoins;
   const startsAtMs = input.startsAtMs;
@@ -104,6 +129,21 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       sponsorLabel.length < 2 || sponsorLabel.length > 60 ||
       body.length < 10 || body.length > 1200 ||
       (placement !== "reward_center" && placement !== "home") ||
+      (adType !== "standard" && adType !== "featured") ||
+      !Array.isArray(geographicTargetsInput) ||
+      geographicTargets.some((target) => !allowedTargets.includes(target as TimedAdGeographicTarget)) ||
+      (adTypeWasProvided && adType === "standard" && geographicTargets.length === 0) ||
+      (adType === "featured" && geographicTargets.length !== 0) ||
+      (adType === "featured" && placement !== "home") ||
+      (adType === "standard" && placement !== "reward_center") ||
+      (featuredPlacement !== "rotation" && featuredPlacement !== "priority") ||
+      typeof priorityOrder !== "number" || !Number.isSafeInteger(priorityOrder) || priorityOrder < 0 ||
+      (adType === "featured" &&
+        (typeof maxDailyClaimsPerMember !== "number" || !Number.isSafeInteger(maxDailyClaimsPerMember) ||
+         maxDailyClaimsPerMember < 1 || maxDailyClaimsPerMember > 10)) ||
+      (maxDailyClaimsPerMember !== undefined &&
+        (typeof maxDailyClaimsPerMember !== "number" || !Number.isSafeInteger(maxDailyClaimsPerMember) ||
+         maxDailyClaimsPerMember < 1 || maxDailyClaimsPerMember > 10)) ||
       typeof durationSeconds !== "number" || !Number.isSafeInteger(durationSeconds) ||
       durationSeconds < 15 || durationSeconds > MAX_AD_DURATION_SECONDS ||
       typeof rewardCoins !== "number" || !Number.isSafeInteger(rewardCoins) ||
@@ -118,7 +158,9 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   }
   return {
     title, sponsorLabel, body,
-    placement,
+    placement, adType, geographicTargets: geographicTargets as TimedAdGeographicTarget[],
+    featuredPlacement, priorityOrder,
+    ...(maxDailyClaimsPerMember === undefined ? {} : { maxDailyClaimsPerMember: maxDailyClaimsPerMember as number }),
     durationSeconds,
     rewardCoins,
     startsAtMs,
