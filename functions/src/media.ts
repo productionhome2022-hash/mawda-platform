@@ -16,6 +16,7 @@ import { isGuestSessionActive } from "./guest-sessions";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
+import { isStoreEntitlementActive } from "./store-purchase";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
   detectMediaSignature,
@@ -1262,6 +1263,9 @@ async function issueChatMediaDeliveryUrl(
   const artifact = resolveChatMediaDeliveryArtifact(
     asset as never, asset.uploaderRole === "platform_owner",
   );
+  if (mediaSaver && !["image", "gif", "video", "audio"].includes(String(artifact?.category))) {
+    throw new HttpsError("failed-precondition", "Mawdda Media Saver لا يدعم هذا النوع من الملفات.");
+  }
   if (mediaUploaderTypeFromToken(authToken) === "guest" &&
       (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
