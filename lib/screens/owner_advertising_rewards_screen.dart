@@ -199,13 +199,14 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     final duration = int.tryParse(_duration.text.trim());
     final reward = int.tryParse(_reward.text.trim());
     final budget = int.tryParse(_budget.text.trim());
-    final maxClaims = int.tryParse(_maxClaims.text.trim());
+    final maxClaims = _adType == 'featured' ? null : int.tryParse(_maxClaims.text.trim());
     final maxDailyClaims = int.tryParse(_maxDailyClaims.text.trim());
     final priorityOrder = int.tryParse(_priorityOrder.text.trim());
     if (_title.text.trim().length < 3 || _sponsor.text.trim().length < 2 ||
         _body.text.trim().length < 10 || duration == null || reward == null ||
         budget == null || duration < 15 || duration > 900 || reward < 0 ||
-        budget < reward || budget > 100000000 || maxClaims == null || maxClaims < 1 || maxClaims > 100 ||
+        budget < reward || budget > 100000000 ||
+        (_adType == 'standard' && (maxClaims == null || maxClaims < 1 || maxClaims > 100)) ||
         (_adType == 'featured' && (maxDailyClaims == null || maxDailyClaims < 1 || maxDailyClaims > 10)) ||
         (_adType == 'standard' && _geographicTarget.isEmpty) ||
         priorityOrder == null || priorityOrder < 0 ||
@@ -231,7 +232,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'rewardCoins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
         'endsAtMs': _endsAt.millisecondsSinceEpoch,
-        'maxClaimsPerMember': maxClaims,
+        if (_adType == 'standard') 'maxClaimsPerMember': maxClaims,
         'rewardBudgetCoins': budget,
         if (_selectedMediaId != null) 'mediaId': _selectedMediaId,
       });
@@ -270,7 +271,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _duration.text = (campaign['durationSeconds'] ?? 30).toString();
       _reward.text = (campaign['rewardCoins'] ?? 0).toString();
       _budget.text = (campaign['rewardBudgetCoins'] ?? 0).toString();
-      _maxClaims.text = (campaign['maxClaimsPerMember'] ?? 1).toString();
+      _maxClaims.text = _adType == 'featured' ? '' : (campaign['maxClaimsPerMember'] ?? 1).toString();
       _adType = campaign['adType'] == 'featured' ? 'featured' : 'standard';
       _priorityOrder.text = (campaign['priorityOrder'] ?? 0).toString();
       final targets = campaign['geographicTargets'];
@@ -582,8 +583,9 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             ],
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 8, children: [
-              SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
-                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات/عضو'))),
+              if (_adType == 'standard')
+                SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
+                  keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'الحد الإجمالي/عضو'))),
 
               SizedBox(width: 110, child: TextField(controller: _duration, enabled: !_saving,
                 keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المدة (ثانية)'))),
