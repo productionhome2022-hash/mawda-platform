@@ -20,6 +20,7 @@ import 'stories_screen.dart';
 import 'reward_center_screen.dart';
 import 'media_workspace_screen.dart';
 import 'featured_ads_screen.dart';
+import 'ad_viewing_screen.dart';
 import 'direct_chat_screen.dart';
 import 'chat_room_screen.dart';
 
@@ -157,6 +158,22 @@ class _MainUserScreenState extends State<MainUserScreen> {
                 : const Icon(Icons.logout),
           ),
         ],
+      ),
+      floatingActionButton: FutureBuilder<bool>(
+        future: _profileFuture,
+        builder: (context, snapshot) {
+          if (snapshot.data != true) return const SizedBox.shrink();
+          return FloatingActionButton.extended(
+            tooltip: 'الإعلانات التجارية المميزة',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const FeaturedAdsScreen(),
+              ),
+            ),
+            icon: const Icon(Icons.stars_rounded),
+            label: const Text('إعلانات مميزة'),
+          );
+        },
       ),
       body: FutureBuilder<bool>(
         future: _profileFuture,
@@ -508,12 +525,21 @@ class _CompletedProfilePanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    FilledButton.icon(
-                      icon: const Icon(Icons.stars_rounded),
-                      label: const Text('الإعلانات المميزة والمكافآت'),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.campaign_outlined),
+                      label: const Text('مشاهدة الإعلانات'),
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const FeaturedAdsScreen(),
+                          builder: (_) => const AdViewingScreen(),
+                        ),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.video_library_outlined),
+                      label: const Text('Media Workspace'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MediaWorkspaceScreen(),
                         ),
                       ),
                     ),
@@ -557,15 +583,7 @@ class _CompletedProfilePanel extends StatelessWidget {
                         );
                       },
                     ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.video_library_outlined),
-                      label: const Text('Media Workspace'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MediaWorkspaceScreen(),
-                        ),
-                      ),
-                    ),
+
                     OutlinedButton.icon(
                       icon: const Icon(Icons.storefront_outlined),
                       label: const Text('المتجر'),
