@@ -16,7 +16,7 @@ const base = {
   featuredPlacement: "rotation",
 };
 
-test("featured previews default to a one-second rotation and can never award coins", () => {
+test("featured selection defaults to non-rewarded preview mode", () => {
   const result = selectFeaturedAdShowcase({
     campaigns: [{ ...base, campaignId: "ad_one" }],
     nowMs: 500,
@@ -101,4 +101,14 @@ test("featured campaigns are selected independently of viewer geography", () => 
     nowMs: 500,
   });
   assert.deepEqual(result.campaignIds.sort(), ["all_market_campaign", "another_market_campaign"]);
+});
+
+test("unified timed-ad serving can explicitly mark selected featured campaigns as reward eligible", () => {
+  const result = selectFeaturedAdShowcase({
+    campaigns: [{ ...base, campaignId: "featured_rewarded_ad" }],
+    nowMs: 500,
+    rewardEligible: true,
+  });
+  assert.equal(result.campaignIds[0], "featured_rewarded_ad");
+  assert.equal(result.rewardEligible, true);
 });
