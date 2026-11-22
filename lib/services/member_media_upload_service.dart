@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:file_saver/file_saver.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -335,6 +336,59 @@ class MemberMediaUploadService {
       if (roomId != null) 'roomId': roomId,
     });
     return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  /// Downloads only the server-approved safe derivative. The callable re-checks
+  /// the member entitlement on every save and never changes server retention.
+  Future<String?> saveMediaWithMediaSaver({
+    required String mediaId,
+    required String messageId,
+    required String scope,
+    String? chatId,
+    String? roomId,
+    String? suggestedName,
+  }) async {
+    if (scope != 'direct' && scope != 'room') {
+      throw ArgumentError.value(scope, 'scope');
+    }
+    final response = await _functions.httpsCallable('getMediaSaverAttachmentUrl').call({
+      'mediaId': mediaId,
+      'messageId': messageId,
+      'scope': scope,
+      if (chatId != null) 'chatId': chatId,
+      if (roomId != null) 'roomId': roomId,
+    });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final url = data['url'] as String?;
+    final contentType = data['contentType'] as String?;
+    if (url == null || url.isEmpty || contentType == null || contentType.isEmpty) {
+      throw StateError('MEDIA_SAVER_CAPABILITY_INVALID');
+    }
+    final extension = _extensionForContentType(contentType);
+    final safeName = (suggestedName ?? 'mawdda_media')
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+    return FileSaver.instance.saveFile(
+      name: safeName.isEmpty ? 'mawdda_media' : safeName,
+      link: LinkDetails(link: url),
+      fileExtension: extension,
+      mimeType: MimeType.custom,
+      customMimeType: contentType,
+    );
+  }
+
+  String _extensionForContentType(String contentType) {
+    switch (contentType.toLowerCase()) {
+      case 'image/jpeg': return 'jpg';
+      case 'image/png': return 'png';
+      case 'image/webp': return 'webp';
+      case 'image/gif': return 'gif';
+      case 'video/mp4': return 'mp4';
+      case 'audio/mpeg': return 'mp3';
+      case 'audio/mp4': return 'm4a';
+      case 'audio/ogg': return 'ogg';
+      case 'audio/wav': return 'wav';
+      default: return 'bin';
+    }
   }
 
   Future<String> getChatMediaAttachmentUrl({
