@@ -8727,8 +8727,8 @@ const TIMED_AD_GEOGRAPHY_ALIASES: Record<string, string[]> = {
   egypt: ["مصر", "egypt"],
   tunisia_libya_sudan: ["تونس", "ليبيا", "السودان", "tunisia", "libya", "sudan"],
   algeria_morocco: ["الجزائر", "المغرب", "algeria", "morocco"],
-  europe_turkey: ["تركيا", "turkey", "europe", "أوروبا"],
-  asia_middle_east: ["آسيا", "الشرق الأوسط", "asia", "middle east"],
+  europe_turkey: ["تركيا", "turkey", "europe", "أوروبا", "ألمانيا", "germany", "فرنسا", "france", "بريطانيا", "المملكة المتحدة", "united kingdom", "uk", "italy", "إيطاليا", "spain", "إسبانيا", "netherlands", "هولندا", "belgium", "بلجيكا", "sweden", "السويد", "norway", "النرويج", "switzerland", "سويسرا", "austria", "النمسا", "greece", "اليونان", "poland", "بولندا", "romania", "رومانيا"],
+  asia_middle_east: ["آسيا", "الشرق الأوسط", "asia", "middle east", "india", "الهند", "pakistan", "باكستان", "bangladesh", "بنغلاديش", "indonesia", "إندونيسيا", "malaysia", "ماليزيا", "singapore", "سنغافورة", "china", "الصين", "japan", "اليابان", "south korea", "كوريا الجنوبية", "iran", "إيران", "afghanistan", "أفغانستان", "turkey", "تركيا"],
 };
 
 function memberMatchesTimedAdGeography(
@@ -8828,7 +8828,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
       nowMs: now,
       rewardEligible: true,
     });
-    const byId = new Map(campaigns.map((campaign) => [campaign.campaignId, campaign]));
+    const byId = new Map(campaigns.map((campaign) => [campaign.campaignId, campaign] as const));
     return {
       campaigns: selection.campaignIds
         .map((campaignId) => byId.get(campaignId))
