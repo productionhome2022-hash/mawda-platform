@@ -8606,9 +8606,14 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
 export const getOwnerTimedAdCampaigns = onCall(async (request) => {
   requireOwner(request);
   const snapshot = await db.collection("timedAdCampaigns").limit(100).get();
-  return {
-    campaigns: snapshot.docs.map((doc) => ({ ...doc.data(), campaignId: doc.id })),
-  };
+  const campaigns = await Promise.all(snapshot.docs.map(async (doc) => {
+    const financial = await db.collection("featuredAdFinancials").doc(doc.id).get();
+    return {
+      ...doc.data(), campaignId: doc.id,
+      financialSnapshot: financial.exists ? financial.data() : null,
+    };
+  }));
+  return { campaigns };
 });
 
 export const setTimedAdCampaignStatus = onCall(async (request) => {
@@ -8635,6 +8640,20 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
          !Number.isSafeInteger(data.maxDailyClaimsPerMember) || data.maxDailyClaimsPerMember < 1 ||
          data.maxDailyClaimsPerMember > 10)) {
       throw new HttpsError("failed-precondition", "الحملة المميزة تتطلب استهدافاً غير جغرافي وحداً يومياً بين 1 و10.");
+    }
+    if (status === "published" && data.adType === "featured") {
+      const financial = await transaction.get(
+        db.collection("featuredAdFinancials").doc(campaignId),
+      );
+      const financialData = financial.data();
+      if (!financial.exists || financialData?.paymentStatus !== "paid" ||
+          financialData?.reviewStatus !== "reconciled" ||
+          !Number.isSafeInteger(financialData?.receivedMinor) ||
+          !Number.isSafeInteger(financialData?.reconciledMinor) ||
+          financialData.reconciledMinor < financialData.receivedMinor -
+            Number(financialData.refundedMinor ?? 0)) {
+        throw new HttpsError("failed-precondition", "لا يمكن نشر الإعلان المميز قبل تسجيل القبض وتسوية المبلغ ومراجعة السجل المالي المركزي.");
+      }
     }
     if (status === "published" && data.creativeType === "video") {
       throw new HttpsError("failed-precondition", "نشر إعلانات الفيديو متوقف حتى اكتمال مشغل الفيديو واختبارات الأجهزة؛ لا نعرض إعلاناً لا يمكن تشغيله داخل التجربة المقفلة.");
@@ -9278,12 +9297,13 @@ export const getOwnerTimedAdCampaignReport = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
   }
   const campaignRef = db.collection("timedAdCampaigns").doc(campaignId);
-  const [campaign, financial, claims, sessions, versions] = await Promise.all([
+  const [campaign, financial, claims, sessions, versions, financialEvents] = await Promise.all([
     campaignRef.get(),
     db.collection("featuredAdFinancials").doc(campaignId).get(),
     db.collection("timedAdRewardClaims").where("campaignId", "==", campaignId).limit(500).get(),
     db.collection("timedAdSessions").where("campaignId", "==", campaignId).limit(500).get(),
     db.collection("timedAdCampaignVersions").doc(campaignId).collection("versions").limit(100).get(),
+    db.collection("featuredAdFinancials").doc(campaignId).collection("events").limit(100).get(),
   ]);
   if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
   const sessionCounts = { active: 0, paused: 0, completed: 0, cancelled: 0, expired: 0 };
@@ -9296,6 +9316,7 @@ export const getOwnerTimedAdCampaignReport = onCall(async (request) => {
   return {
     campaign: { campaignId, ...campaign.data() },
     financialSnapshot: financial.exists ? financial.data() : null,
+    financialEvents: financialEvents.docs.map((doc) => ({ eventId: doc.id, ...doc.data() })),
     rewardClaims: claims.docs.map((doc) => ({ claimId: doc.id, ...doc.data() })),
     sessionCounts,
     totalRewardCoins: claims.docs.reduce((sum, doc) => sum + Number(doc.data().amountCoins ?? 0), 0),
