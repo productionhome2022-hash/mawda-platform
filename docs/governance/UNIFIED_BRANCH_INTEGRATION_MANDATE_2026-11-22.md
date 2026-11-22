@@ -237,3 +237,45 @@ No local/Termux test, signed Android/iOS device acceptance, real-device playback
 - `main` is 3,363 commits behind E522. The branch-protection endpoint returned 403, so required protection rules could not be independently inspected.
 - Therefore PR #2 was not merged. The project constitution requires separate explicit authorization for a merge to `main`; the current PR base/diff is also not a safe merge surface. Recommendation: do not merge PR #2 as currently based. Establish a clean, reviewable merge path from the E522 baseline and obtain the required owner authorization first.
 - No X branches were deleted; X cleanup remains deferred as instructed. No deployment or production mutation occurred.
+
+
+## Parallel execution follow-up — 2026-11-22
+
+**Current development head at this review:** `e77a952642170127d2950bea828b1febe41725d0`  
+**Comparison to E522:** 107 commits ahead, 0 behind; 29 changed paths.  
+The following work was performed concurrently across advertising serving, economy, media delivery, owner catalog, member UI, tests, and branch inventory.
+
+### Additional defects found and corrected
+
+1. `getActiveTimedAdCampaigns` previously applied a 100-document cap before filtering campaign placement and active time. Expired/future campaigns with earlier document IDs could hide valid campaigns. The query now filters status, placement, `startsAtMs <= now`, and `endsAtMs > now` in Firestore before the cap. The integration fixture now puts 101 expired and 101 future campaigns lexically before the valid campaign.
+2. `startTimedAdvertisement` now requires an explicit player type for every typed campaign. Missing or mismatched `adType` is rejected; this prevents starting a featured campaign through the standard/unclassified player and vice versa.
+3. The featured browse CTA no longer opens the reward archive automatically. Archive access remains a separate action.
+4. Removed the dormant, unreferenced `featured-ad-rewards.ts` policy helper and its unit/orphan integration tests. It encoded a second fixed reward policy and was not exported by the Functions entry point. The live source of truth remains the unified timed-ad campaign, owner policy, and wallet ledger.
+
+### Approved Media Saver capability selectively ported
+
+The approved Media Saver work from `codex/featured-ads-serving-foundation` was reviewed and selectively ported; no old branch was merged wholesale.
+
+- Server callable `getMediaSaverAttachmentUrl` reuses the existing linked-message authorization and safe-derivative validation path.
+- Every save request re-checks an active entitlement for `media_saver_24h`, `media_saver_7d`, or `media_saver_30d`.
+- Only safe image/GIF/video/audio derivatives are eligible; signed capability lifetime remains two minutes.
+- The operation does not write or extend `retentionExpiresAt`; it records the media access audit event.
+- Flutter service and save actions are wired into direct-chat and room attachments.
+- Super Owner catalog supports the three exact durations and owner-entered prices. No default Media Saver price or purchasable SKU was seeded because no price was approved.
+- Added emulator integration coverage for missing/expired entitlements and for the rule that an active entitlement does not bypass conversation membership; added catalog duration tests.
+
+### Old-branch disposition evidence
+
+| Branch | Comparison to E522 | Unique work found | Disposition |
+|---|---:|---|---|
+| `codex/featured-ads-secure-lifecycle-20261118` | 199 ahead / 772 behind | Separate `featuredAdSessions` lifecycle, separate featured reward policy, sticker catalog, capacity-media owner controls | Separate featured sessions/policy not ported: they duplicate the unified `timedAdSessions`/wallet-ledger lifecycle. Sticker/capacity controls are outside this approved advertising/Media Saver scope and remain deferred for their own review. |
+| `codex/featured-ads-serving-foundation` | 139 ahead / 771 behind | Media Saver, separate featured lifecycle, `setMemberGhostMode`, legacy `giftStoreEntitlement` | Media Saver selectively ported above. `giftStoreEntitlement` is superseded by current `giftStoreItem`, which binds catalog version, price, idempotency, ledger and audit. Ghost Mode is not ported: the current catalog has no approved SKU or owner-approved privacy semantics for it. Separate featured endpoints/policy are duplicates and were not ported. |
+| `codex/phase1-advertising-callable-auth-2026-11-20` | 0 ahead / 504 behind | No source-only commits | No unique implementation to transfer. |
+| `codex/phase1-featured-ad-geography-all-arab-2026-11-20` | 2 ahead / 481 behind | Adds geographic targeting to featured selection | Intentionally not ported: this conflicts with the approved non-geographic featured-ad rule. |
+| `codex/phase1-store-gifting-catalog-version-regressions-2026-11-20` | 1 ahead / 478 behind | Missing/stale catalog-version gift regression coverage | Already represented in the current `store-gifting.integration.test.js`; no additional port required. |
+
+The legacy `OwnerFeaturedAdsDashboardScreen` in the baseline is not routed by the active Super Owner screen; it calls old featured-ad callables that are not exported by the current Functions entry point. The active route uses `OwnerAdvertisingRewardsScreen` and the unified campaign APIs.
+
+### Deferred boundaries
+
+As explicitly directed, no real Android/iOS device tests, no 5,000-person simulation, and no merge to `main` are part of this stage. They remain deferred to later build/merge phases. No production Firebase mutation, deployment, billing activation, or X-branch deletion was performed.
