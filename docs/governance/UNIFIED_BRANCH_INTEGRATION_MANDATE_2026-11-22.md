@@ -92,3 +92,6 @@ No new branch was created. No source integration was performed in these disposit
 
 
 | `codex/phase1-featured-ad-geography-all-arab-2026-11-20` | `ac22ff635c41e4a36603c8864af53942e22e3fcb` | Fresh head and compare against e522; inspected the branch commit diff and fetched `functions/src/featured-advertising.ts` and `functions/test/featured-advertising.test.js` at both refs. Both source and test blob SHAs are identical across e522 and candidate; the all-Arab-countries matching regression test is already present in the baseline. | **X — exact source/test content already present in e522.** No port required. | None. |
+
+
+| `codex/phase1-group-call-remainder-to-initiator-2026-11-20` | `99639a6c7adf25c32eca6b93c0cc393d130f8e8f` | Fresh head and compare against e522; fetched both `functions/src/group-call-economy.ts` and `functions/test/group-call-economy.test.js` at both refs. Both file blob SHAs are identical across baseline and candidate. The initiator remainder allocation implementation and its regression tests are already exactly present in e522. | **X — exact source/test content already present in e522.** No port required. | None. |
