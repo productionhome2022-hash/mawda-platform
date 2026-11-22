@@ -669,7 +669,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
                 ],
                 if (status == 'draft' || status == 'paused')
                   const PopupMenuItem(value: 'edit', child: Text('تعديل')),
-                if (status != 'published') const PopupMenuItem(value: 'published', child: Text('نشر')),
+                if (status != 'published' && status != 'archived') const PopupMenuItem(value: 'published', child: Text('نشر')),
                 if (status == 'published') const PopupMenuItem(value: 'paused', child: Text('إيقاف مؤقت')),
                 if (status != 'archived') const PopupMenuItem(value: 'archived', child: Text('أرشفة')),
               ],
