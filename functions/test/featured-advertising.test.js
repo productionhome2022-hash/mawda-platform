@@ -38,7 +38,6 @@ test("Owner-approved priority campaigns take precedence without geographic filte
       { ...base, campaignId: "priority_first", featuredPlacement: "priority", priorityOrder: 1 },
       { ...base, campaignId: "priority_other_market", featuredPlacement: "priority" },
     ],
-    audienceGeography: "syria",
     nowMs: 500,
   });
   assert.equal(result.mode, "priority");
@@ -53,7 +52,6 @@ test("fallback rotates a randomized eligible pool and does not rank by view coun
       { ...base, campaignId: "less_viewed", viewCount: 1 },
       { ...base, campaignId: "third_ad", viewCount: 50 },
     ],
-    audienceGeography: "syria",
     nowMs: 500,
     random: () => 0,
   });
@@ -71,11 +69,7 @@ test("withdrawn, unpaid, unapproved and expired campaigns are excluded", () => {
     { ...base, campaignId: "expired", endsAtMs: 500 },
     { ...base, campaignId: "future", startsAtMs: 501 },
   ];
-  const result = selectFeaturedAdShowcase({
-    campaigns,
-    audienceGeography: "syria",
-    nowMs: 500,
-  });
+  const result = selectFeaturedAdShowcase({ campaigns, nowMs: 500 });
   assert.equal(result.mode, "empty");
   assert.deepEqual(result.campaignIds, []);
 });
@@ -83,51 +77,28 @@ test("withdrawn, unpaid, unapproved and expired campaigns are excluded", () => {
 test("owner can configure rotation interval and invalid inputs fail closed", () => {
   const result = selectFeaturedAdShowcase({
     campaigns: [{ ...base, campaignId: "ad_one" }],
-    audienceGeography: "syria",
     nowMs: 500,
     rotationIntervalMs: 1500,
   });
   assert.equal(result.rotationIntervalMs, 1500);
   assert.throws(() => selectFeaturedAdShowcase({
     campaigns: [],
-    audienceGeography: "",
-    nowMs: 500,
+    nowMs: -1,
   }), /INPUT_INVALID/);
   assert.throws(() => selectFeaturedAdShowcase({
     campaigns: [{ ...base, campaignId: "ad_one" }, { ...base, campaignId: "ad_two" }],
-    audienceGeography: "syria",
     nowMs: 500,
     random: () => 1,
   }), /RANDOM_SOURCE_INVALID/);
 });
 
-
-test("featured campaigns are selected independently of audience geography", () => {
-  const allArabCampaign = {
-    ...base, campaignId: "all_market_campaign",
-  };
-  const syriaOnlyCampaign = {
-    ...base, campaignId: "another_market_campaign",
-  };
-  const syria = selectFeaturedAdShowcase({
-    campaigns: [allArabCampaign, syriaOnlyCampaign],
-    audienceGeography: "syria",
+test("featured campaigns are selected independently of viewer geography", () => {
+  const result = selectFeaturedAdShowcase({
+    campaigns: [
+      { ...base, campaignId: "all_market_campaign" },
+      { ...base, campaignId: "another_market_campaign" },
+    ],
     nowMs: 500,
   });
-  assert.deepEqual(syria.campaignIds.sort(), ["all_arab_campaign", "syria_only"]);
-
-  const lebanon = selectFeaturedAdShowcase({
-    campaigns: [allArabCampaign, syriaOnlyCampaign],
-    audienceGeography: "lebanon",
-    nowMs: 500,
-  });
-  assert.deepEqual(lebanon.campaignIds, ["all_arab_campaign"]);
-
-  const allArabPseudoAudience = selectFeaturedAdShowcase({
-    campaigns: [syriaOnlyCampaign],
-    audienceGeography: "all_arab_countries",
-    nowMs: 500,
-  });
-  assert.deepEqual(allArabPseudoAudience.campaignIds, [],
-    "an all-Arab campaign target must not be treated as a viewer location that matches every country-specific campaign");
+  assert.deepEqual(result.campaignIds.sort(), ["all_market_campaign", "another_market_campaign"]);
 });
