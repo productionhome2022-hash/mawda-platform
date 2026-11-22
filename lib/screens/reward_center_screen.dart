@@ -4,10 +4,16 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class RewardCenterScreen extends StatefulWidget {
-  const RewardCenterScreen({super.key, this.adType, this.geographicTarget});
+  const RewardCenterScreen({
+    super.key,
+    this.adType,
+    this.geographicTarget,
+    this.openHistoryOnLoad = false,
+  });
 
   final String? adType;
   final String? geographicTarget;
+  final bool openHistoryOnLoad;
   @override
   State<RewardCenterScreen> createState() => _RewardCenterScreenState();
 }
@@ -25,6 +31,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   String? _creativeUrl;
   String? _creativeType;
   bool _creativeLoaded = false;
+  bool _historyOpened = false;
 
   @override
   void initState() {
@@ -77,6 +84,11 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         _heartbeatTimer?.cancel();
         _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
           if (_foreground) unawaited(_sendHeartbeat(foreground: true));
+        });
+      } else if (widget.openHistoryOnLoad && !_historyOpened) {
+        _historyOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_showRewardHistory());
         });
       }
     } on FirebaseFunctionsException catch (error) {
