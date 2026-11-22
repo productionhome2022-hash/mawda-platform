@@ -61,3 +61,17 @@ The final outcome must be one internally validated candidate on `codex/mawda-ful
 - The existing recovery documentation branch and its PR are not the integration destination.
 - Initial branch discovery returned 80 existing branches on the first page and no additional branches on the next page. This is a discovery snapshot; every listed branch still requires exact-head and file-level review.
 - No application source changes are included in this mandate document.
+
+
+## Incremental branch-by-branch execution ledger
+
+The owner clarified that each branch is a self-contained work item: inspect it, compare it with the immutable baseline, decide and execute its disposition immediately, run the required GitHub Actions gate for any source integration, then move to the next branch. Do not defer all implementation until the entire inventory is complete.
+
+### Completed dispositions — first reviewed candidates
+
+| Branch | Reviewed head | Evidence inspected | Decision | Source changes |
+|---|---|---|---|---|
+| `codex/mawdda-group-call-capacity-2026-11-20-r2` | `c0a14ef27b3c0442c969f872243214e637cdc188` | Compared against e522; fetched `functions/src/room-call-policy.ts` and `functions/test/room-call-policy.test.js` at both refs. Both files have identical blob SHAs at baseline and candidate. | **X — no port required.** The candidate's policy and test files are already exactly represented in e522. | None. |
+| `codex/phase1-direct-call-transaction-revalidation-2026-11-20` | `b78817d0e6d7a73398fcce1d54c7df4f6707d045` | Compared against e522; inspected `functions/src/index.ts` and `functions/test/room-call-policy.test.js`. Candidate is behind/diverged; its call transaction snapshot set omits baseline's newer group-call pricing and entitlement reads. The direct-call eligibility revalidation is already present in the baseline implementation. | **X — no port required.** Candidate does not provide a missing stronger implementation; importing it would risk regressing the newer baseline transaction. | None. |
+
+No new branch was created. No source integration was performed in these two dispositions, so no source-change test run is claimed. Continue the same immediate inspect → compare → decide/port-and-complete → GitHub Actions gate → next-branch sequence for every remaining branch.
