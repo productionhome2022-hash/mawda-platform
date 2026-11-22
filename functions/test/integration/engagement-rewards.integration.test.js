@@ -26,7 +26,7 @@ async function cleanupTimedCampaign(campaignId) {
   const versions = await db.collection("timedAdCampaignVersions").doc(campaignId)
     .collection("versions").get();
   await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
-  await cleanupTimedCampaign(campaignId);
+  await db.collection("timedAdCampaigns").doc(campaignId).delete().catch(() => undefined);
 }
 const memberRequest = (uid, data = {}) => ({
   data,
