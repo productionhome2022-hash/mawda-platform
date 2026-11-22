@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'featured_ads_screen.dart';
+import 'reward_center_screen.dart';
 
 class AdViewingScreen extends StatelessWidget {
   const AdViewingScreen({super.key});
@@ -138,10 +139,11 @@ class StandardCommercialAdsScreen extends StatelessWidget {
                 return Card(
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'سيتم تحميل إعلانات ${region.$2} بعد ربط استعلام العرض الخادمي.',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => RewardCenterScreen(
+                          adType: 'standard',
+                          geographicTarget: region.$1,
                         ),
                       ),
                     ),
