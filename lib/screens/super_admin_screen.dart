@@ -604,6 +604,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     const categories = [
       'feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery',
       'badge', 'frame', 'username_style', 'profile_layout', 'boost', 'greeting', 'privacy',
+      'media_saver',
     ];
     var category = categories.contains(existing?['category'])
         ? existing!['category'] as String
@@ -625,6 +626,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         'discovery_boost_7d': 'boost',
         'profile_theme_30d': 'theme',
         'visitor_greeting_30d': 'greeting',
+        'media_saver_24h': 'media_saver',
+        'media_saver_7d': 'media_saver',
+        'media_saver_30d': 'media_saver',
       };
       return readyItems[itemIdController.text.trim()] == category;
     }
@@ -693,6 +697,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       DropdownMenuItem(value: 'vip', child: Text('عضوية VIP')),
                       DropdownMenuItem(value: 'discovery', child: Text('اكتشاف')),
                       DropdownMenuItem(value: 'privacy', child: Text('خصوصية')),
+                      DropdownMenuItem(value: 'media_saver', child: Text('Mawdda Media Saver')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
