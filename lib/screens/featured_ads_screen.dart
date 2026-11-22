@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'reward_center_screen.dart';
+
 class FeaturedAdsScreen extends StatelessWidget {
   const FeaturedAdsScreen({super.key});
 
@@ -9,13 +11,13 @@ class FeaturedAdsScreen extends StatelessWidget {
           title: const Text('الإعلانات التجارية المميزة'),
           actions: [
             IconButton(
-              tooltip: 'سجل مكافآت المشاهدة',
+              tooltip: 'أرشيف مكافآت المشاهدة',
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const FeaturedAdRewardsScreen(),
+                  builder: (_) => const RewardCenterScreen(adType: 'featured'),
                 ),
               ),
-              icon: const Icon(Icons.card_giftcard_outlined),
+              icon: const Icon(Icons.history),
             ),
           ],
         ),
@@ -23,7 +25,6 @@ class FeaturedAdsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             Card(
-              clipBehavior: Clip.antiAlias,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -38,7 +39,7 @@ class FeaturedAdsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'اختر الإعلان المميز الذي تريد مشاهدته. ترتيب العرض والأولوية والتنوع تحددها خدمة المنصة الخادمية.',
+                      'ترتيب العرض والأولوية والتنوع تحددها خدمة المنصة الخادمية.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
@@ -47,26 +48,15 @@ class FeaturedAdsScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(22),
-                child: Column(
-                  children: [
-                    Icon(Icons.campaign_outlined, size: 40),
-                    SizedBox(height: 10),
-                    Text(
-                      'لا توجد إعلانات مميزة متاحة للعرض حالياً.',
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 6),
-                    Text(
-                      'سيظهر الإعلان بعد ربط استعلام العرض الخادمي واعتماد الحملة ومادتها وجدولها وميزانيتها.',
-                      textAlign: TextAlign.center,
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const RewardCenterScreen(adType: 'featured'),
+                        ),
+                      ),
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text('عرض الإعلانات المميزة'),
                     ),
                   ],
                 ),
@@ -85,8 +75,8 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
         appBar: AppBar(title: const Text('مكافآت الإعلانات المميزة')),
         body: ListView(
           padding: const EdgeInsets.all(16),
-          children: const [
-            Card(
+          children: [
+            const Card(
               child: Padding(
                 padding: EdgeInsets.all(18),
                 child: Column(
@@ -112,13 +102,27 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Card(
               child: Padding(
-                padding: EdgeInsets.all(18),
-                child: Text(
-                  'سجل المكافآت سيعرض القيود المؤكدة من سجل المحفظة المركزي بعد ربط واجهة السجل الخادمية.',
-                  textAlign: TextAlign.center,
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  children: [
+                    const Text(
+                      'سجل المكافآت مرتبط بدفتر المحفظة المركزي ولا ينشئ رصيداً مستقلاً.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const RewardCenterScreen(adType: 'featured'),
+                        ),
+                      ),
+                      icon: const Icon(Icons.history),
+                      label: const Text('فتح أرشيف المكافآت'),
+                    ),
+                  ],
                 ),
               ),
             ),
