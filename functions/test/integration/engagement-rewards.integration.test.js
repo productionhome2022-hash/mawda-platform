@@ -731,6 +731,14 @@ test("standard ads are geographically filtered and featured ads use the same ato
       adType: "featured",
     }));
     assert.equal(afterRefund.campaigns.some((item) => item.campaignId === featuredCampaignId), false);
+    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId, status: "archived",
+    }));
+    const archivedReport = await getOwnerTimedAdCampaignReport.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+    }));
+    assert.equal(archivedReport.campaign.status, "archived");
+    assert.ok(archivedReport.versionCount >= 4);
   } finally {
     const [sessions, claims, counters, versions, audits] = await Promise.all([
       db.collection("timedAdSessions").where("campaignId", "in",
