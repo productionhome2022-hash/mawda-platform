@@ -716,6 +716,21 @@ test("standard ads are geographically filtered and featured ads use the same ato
     assert.equal(report.sessionCounts.completed, 1);
     assert.equal(report.sessionCounts.cancelled, 1);
     assert.equal(report.totalRewardCoins, 10);
+    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+      action: "refund_recorded",
+      idempotencyKey: `refund_key_${tag}`,
+      amountMinor: 1000,
+      currency: "EUR",
+      externalReference: `featured_refund_${tag}`,
+      evidenceReference: `evidence://featured_refund_${tag}`,
+      note: "Synthetic refund to verify immediate campaign pause.",
+    }));
+    assert.equal((await db.collection("timedAdCampaigns").doc(featuredCampaignId).get()).data().status, "paused");
+    const afterRefund = await getActiveTimedAdCampaigns.run(memberRequest(syriaUid, {
+      adType: "featured",
+    }));
+    assert.equal(afterRefund.campaigns.some((item) => item.campaignId === featuredCampaignId), false);
   } finally {
     const [sessions, claims, counters, versions, audits] = await Promise.all([
       db.collection("timedAdSessions").where("campaignId", "in",
