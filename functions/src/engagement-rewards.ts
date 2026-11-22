@@ -21,7 +21,7 @@ export interface TimedAdCampaignInput {
   sponsorLabel: string;
   body: string;
   placement: "reward_center" | "home";
-  adType: TimedAdType;
+  adType?: TimedAdType;
   geographicTargets: TimedAdGeographicTarget[];
   featuredPlacement: "rotation" | "priority";
   priorityOrder: number;
@@ -160,7 +160,8 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   }
   return {
     title, sponsorLabel, body,
-    placement, adType, geographicTargets: geographicTargets as TimedAdGeographicTarget[],
+    placement, ...(adTypeWasProvided ? { adType: adType as TimedAdType } : {}),
+    geographicTargets: geographicTargets as TimedAdGeographicTarget[],
     featuredPlacement, priorityOrder,
     ...(maxDailyClaimsPerMember === undefined ? {} : { maxDailyClaimsPerMember: maxDailyClaimsPerMember as number }),
     durationSeconds,
