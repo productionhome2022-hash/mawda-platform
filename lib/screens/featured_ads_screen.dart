@@ -52,7 +52,7 @@ class FeaturedAdsScreen extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const RewardCenterScreen(adType: 'featured', openHistoryOnLoad: true),
+                          builder: (_) => const RewardCenterScreen(adType: 'featured'),
                         ),
                       ),
                       icon: const Icon(Icons.play_arrow),
