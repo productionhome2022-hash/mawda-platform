@@ -390,7 +390,38 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     final amountMinor = isReview ? null : int.tryParse(amount.text.trim());
     final currencyCode = isReview ? null : currency.text.trim().toUpperCase();
     if ((!isReview && (amountMinor == null || amountMinor < 1 ||
-          currencyCode == null || !RegExp(r'^[A-Z]{3}\
+          currencyCode == null || currencyCode.length != 3 || !RegExp(r'^[A-Z]{3}').hasMatch(currencyCode))) ||
+        external.text.trim().length < 3 || note.text.trim().length < 5 ||
+        ((action == 'payment_received' || action == 'refund_recorded') && evidence.text.trim().length < 3)) {
+      setState(() => _error = 'بيانات الحدث المالي غير مكتملة أو غير صالحة.');
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      final suffix = DateTime.now().microsecondsSinceEpoch.toString() + '_' +
+          Random.secure().nextInt(1 << 32).toString();
+      await _functions.httpsCallable('recordFeaturedAdFinancialEvent').call({
+        'campaignId': campaignId,
+        'action': action,
+        'idempotencyKey': 'owner_finance_' + suffix,
+        'amountMinor': amountMinor,
+        'currency': currencyCode,
+        'externalReference': external.text.trim(),
+        'evidenceReference': evidence.text.trim().isEmpty ? null : evidence.text.trim(),
+        'note': note.text.trim(),
+        'reviewOutcome': isReview ? 'approved' : null,
+      });
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تسجيل الحدث المالي.');
+    } finally {
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<DateTime?> _pickDate(DateTime initial) async {
     final date = await showDatePicker(
       context: context, initialDate: initial,
       firstDate: DateTime.now().subtract(const Duration(days: 1)),
@@ -399,7 +430,6 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     if (date == null) return null;
     return DateTime(date.year, date.month, date.day, 12);
   }
-
   Widget _coinField(String label, TextEditingController controller) => SizedBox(
     width: 110,
     child: TextField(
