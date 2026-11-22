@@ -8685,7 +8685,7 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
 
 function normalizeAdGeography(value: unknown): string {
   return typeof value === "string"
-    ? value.trim().toLocaleLowerCase().replace(/[\\s_–-]+/g, " ")
+    ? value.trim().toLocaleLowerCase().replace(/[\s_–-]+/g, " ")
     : "";
 }
 
