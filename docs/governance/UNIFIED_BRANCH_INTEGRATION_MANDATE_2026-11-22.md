@@ -198,3 +198,16 @@ No wholesale branch merge was performed. No new branch was created. These two br
 ### Verification state at ledger update
 
 The previous SHA `728c3a9acbe01458978d29a4ad8d6cdb73dbd393` had all four advertising-related GitHub Actions runs completed successfully (Economic phase verification, Validate Mawda, Mawdda economy regression, and Mawdda Test Center). The new P0 source changes listed above were committed after that SHA; they are **not accepted as tested until the new head's GitHub Actions runs complete successfully**. No local/Termux/device/Firebase-production tests were run.
+
+
+### Additional advertising-related branch inventory
+
+The remaining advertising-named branches were checked against E522 as well:
+
+| Branch | Reviewed head | Comparison to E522 | Disposition |
+|---|---|---|---|
+| `codex/phase1-advertising-callable-auth-2026-11-20` | `d857497c50eca8d7dcf105e938c8060402ae85e3` | 0 ahead / 504 behind | No unique commits to port relative to E522. |
+| `codex/phase1-featured-ad-geography-all-arab-2026-11-20` | `ac22ff635c41e4a36603c8864af53942e22e3fcb` | 2 ahead / 481 behind | The module implementation matches the E522 selection code; the additional tests assert geographic filtering for featured previews. That behavior conflicts with the approved non-geographic featured-ad rule, so it was intentionally not imported. |
+| `codex/production-readiness-tests` | `424599a34acc9ec33b4e759ba166dc6d0a9df04d` | 0 ahead / 3370 behind | No unique commits to port relative to E522. |
+
+Thus, no remaining unique advertising callable-auth implementation was found in these branches. The only compatible selection behavior retained is priority ordering and randomized rotation; geographic targeting remains exclusive to standard campaigns.
