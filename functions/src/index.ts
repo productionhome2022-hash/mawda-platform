@@ -8585,6 +8585,20 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     if (nextVersionSnapshot.exists) {
       throw new HttpsError("failed-precondition", "إصدار مالي موجود دون مؤشر حالي؛ يلزم التدقيق.");
     }
+    const campaignData = campaign.data() ?? {};
+    const pausePublishedFeaturedCampaign = campaignData.adType === "featured" &&
+      campaignData.status === "published" &&
+      (next.paymentStatus !== "paid" || next.reviewStatus !== "reconciled");
+    const campaignNextVersion = (Number.isSafeInteger(campaignData.version) ? campaignData.version : 0) + 1;
+    const campaignVersionRef = pausePublishedFeaturedCampaign
+      ? db.collection("timedAdCampaignVersions").doc(event.campaignId)
+        .collection("versions").doc(String(campaignNextVersion))
+      : null;
+    const existingCampaignVersion = campaignVersionRef
+      ? await transaction.get(campaignVersionRef) : null;
+    if (existingCampaignVersion?.exists) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة موجود دون تطابق مع الإصدار الحالي.");
+    }
     const now = FieldValue.serverTimestamp();
     const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
     transaction.create(versionRef, {
@@ -8609,7 +8623,24 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       currencyExponent, externalReference: event.externalReference,
       paymentPolicySnapshot, snapshotVersion: version, createdAt: now,
     });
-    return { campaignId: event.campaignId, eventId, snapshot: next, version, idempotentReplay: false };
+    if (pausePublishedFeaturedCampaign && campaignVersionRef) {
+      transaction.update(campaignRef, {
+        status: "paused", version: campaignNextVersion,
+        updatedAt: now, updatedBy: actorUid,
+        pauseReason: "featured_ad_financial_review_required",
+      });
+      transaction.create(campaignVersionRef, {
+        ...campaignData, status: "paused", version: campaignNextVersion,
+        updatedAt: now, updatedBy: actorUid,
+        snapshotAt: now, snapshotBy: actorUid,
+        transitionReason: "featured_ad_financial_review_required",
+      });
+    }
+    return {
+      campaignId: event.campaignId, eventId, snapshot: next, version,
+      campaignPaused: pausePublishedFeaturedCampaign,
+      idempotentReplay: false,
+    };
   });
 });
 
