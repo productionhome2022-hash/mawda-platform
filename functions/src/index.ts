@@ -8785,7 +8785,7 @@ function campaignMatchesTimedAdAudience(
   // Older reward-center campaigns predate the explicit audience field. Keep
   // them readable only as legacy campaigns; every newly typed standard ad
   // must carry an explicit target at validation time.
-  if (campaign.adType === undefined && targets.length === 0) return true;
+  if (campaign.adType === undefined && targets.length === 0) return selectedTarget === undefined;
   if (targets.length === 0) return false;
   const allowedByCampaign = selectedTarget
     ? targets.includes(selectedTarget) || targets.includes("all_arab_countries")
@@ -8802,6 +8802,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
       !isMemberAccountInGoodStanding(userSnapshot.data())) {
     throw new HttpsError("permission-denied", "هذا القسم متاح للأعضاء النشطين فقط.");
   }
+  const explicitType = request.data?.adType !== undefined;
   const requestedType = request.data?.adType ?? "standard";
   const selectedTarget = request.data?.geographicTarget;
   if (requestedType !== "standard" && requestedType !== "featured") {
@@ -8820,6 +8821,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
     .filter((doc) => {
       const data = doc.data();
       const type = data.adType ?? "standard";
+      if (explicitType && data.adType === undefined) return false;
       const placementMatches = requestedType === "featured"
         ? data.placement === "home"
         : data.placement === "reward_center";
@@ -8930,7 +8932,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
     const requestedAdType = request.data?.adType;
-    if (requestedAdType !== undefined && requestedAdType !== (data.adType ?? "standard")) {
+    if (requestedAdType !== undefined && data.adType === undefined) {
+      throw new HttpsError("failed-precondition", "الحملة القديمة غير مؤهلة لمشغل الإعلانات المصنف؛ استخدم دورة العرض القديمة فقط.");
+    }
+    if (requestedAdType !== undefined && requestedAdType !== data.adType) {
       throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
     }
     if ((data.adType ?? "standard") === "standard" &&
