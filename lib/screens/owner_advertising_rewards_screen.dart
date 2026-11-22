@@ -310,6 +310,10 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       final report = Map<String, dynamic>.from(response.data as Map);
       final counts = Map<String, dynamic>.from(report['sessionCounts'] as Map? ?? const {});
       final financial = report['financialSnapshot'] as Map?;
+      final financialEvents = (report['financialEvents'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+      final rewardClaims = (report['rewardClaims'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -330,7 +334,21 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
                 Text('حالة الدفع: ${financial?['paymentStatus'] ?? 'غير مسجل'}'),
                 Text('حالة المراجعة المالية: ${financial?['reviewStatus'] ?? 'غير مسجل'}'),
                 const SizedBox(height: 8),
-                Text('أحداث مالية محفوظة: ${(report['financialEvents'] as List? ?? const []).length}'),
+                Text('أحداث مالية محفوظة: ${financialEvents.length}'),
+                const SizedBox(height: 8),
+                const Text('آخر الأحداث المالية', style: TextStyle(fontWeight: FontWeight.bold)),
+                ...financialEvents.take(5).map((event) => ListTile(
+                  dense: true,
+                  title: Text(event['action']?.toString() ?? 'حدث مالي'),
+                  subtitle: Text('${event['amountMinor'] ?? '—'} ${event['currency'] ?? ''} • ${event['externalReference'] ?? ''}'),
+                )),
+                const SizedBox(height: 8),
+                const Text('سجل المكافآت', style: TextStyle(fontWeight: FontWeight.bold)),
+                ...rewardClaims.take(10).map((claim) => ListTile(
+                  dense: true,
+                  title: Text('${claim['amountCoins'] ?? 0} كوين'),
+                  subtitle: Text('العضو: ${claim['uid'] ?? '—'} • الجلسة: ${claim['sessionId'] ?? '—'}'),
+                )),
               ],
             ),
           ),
