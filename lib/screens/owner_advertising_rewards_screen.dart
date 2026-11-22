@@ -647,7 +647,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             subtitle: Text('${campaign['adType'] == 'featured' ? 'مميز' : 'عادي'} • ${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0} • الدفع: ${(campaign['financialSnapshot'] as Map?)?['paymentStatus'] ?? 'غير مسجل'} • المراجعة: ${(campaign['financialSnapshot'] as Map?)?['reviewStatus'] ?? 'غير مسجل'}'),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
-              enabled: !_saving && status != 'archived',
+              enabled: !_saving,
               onSelected: (value) {
                 if (value == 'edit') {
                   _editCampaign(campaign);
