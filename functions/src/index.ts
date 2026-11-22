@@ -7174,6 +7174,7 @@ export {
   getChatImageAttachmentUrl,
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
+  getMediaSaverAttachmentUrl,
   getMemberProfileMediaUrl,
   listMemberProfileGallery,
   getMyMediaUploadStatus,
