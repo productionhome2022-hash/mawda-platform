@@ -3,28 +3,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mawda_app/screens/featured_ads_screen.dart';
 
 void main() {
-  testWidgets('featured ads discovery shows honest empty state and approved geography', (tester) async {
+  testWidgets('featured ads use a separate non-geographic showcase with an honest empty state', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: FeaturedAdsScreen()));
 
-    expect(find.text('الإعلانات المميزة'), findsOneWidget);
-    expect(find.text('لا توجد حملات مميزة متاحة للعرض حالياً.'), findsOneWidget);
-    expect(find.text('جميع الإعلانات العربية'), findsOneWidget);
-    expect(find.text('سوريا'), findsOneWidget);
-    expect(find.text('لبنان وفلسطين'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('لا نستخدم لغة الجهاز أو موقعه لتحديد الاستهداف.'), findsOneWidget);
+    expect(find.text('الإعلانات التجارية المميزة'), findsOneWidget);
+    expect(find.textContaining('ترتيب العرض والأولوية والتنوع'), findsOneWidget);
+    expect(find.text('لا يوجد تصفح جغرافي في هذا القسم.'), findsOneWidget);
+    expect(find.text('لا توجد إعلانات مميزة متاحة للعرض حالياً.'), findsOneWidget);
+    expect(find.textContaining('استعلام العرض الخادمي'), findsOneWidget);
+    expect(find.text('سوريا'), findsNothing);
+    expect(find.text('لبنان وفلسطين'), findsNothing);
   });
 
-  testWidgets('featured reward page explains that opening the screen is not rewarded', (tester) async {
+  testWidgets('featured reward page does not promise a reward for opening the screen', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: FeaturedAdRewardsScreen()));
 
-    expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
-    expect(find.textContaining('لا تمنح ضغطة الزر أو فتح الشاشة'), findsOneWidget);
-    await tester.scrollUntilVisible(find.text('سجل المكافآت'), 300);
-    expect(find.text('سجل المكافآت'), findsOneWidget);
+    expect(find.text('استحقاق المشاهدة'), findsOneWidget);
+    expect(
+      find.textContaining('فتح الشاشة أو معاينة الإعلان أو انتهاء المؤقت المحلي لا يمنح مكافأة'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('قيمة المكافأة والمدة والميزانية وحدود التكرار'), findsOneWidget);
+    expect(find.textContaining('الحد الأعلى للمشاهدة المميزة: 10 مشاهدات مؤهلة'), findsOneWidget);
+    expect(find.textContaining('سجل المحفظة المركزي'), findsOneWidget);
   });
 }
