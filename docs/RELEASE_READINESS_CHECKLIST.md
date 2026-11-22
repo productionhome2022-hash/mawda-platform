@@ -1,5 +1,8 @@
 # Mawadda Release Readiness Checklist
 
+> **Current HQ work-scope override (owner-confirmed 2026-11-22):** This workstream is limited to internal GitHub Actions tests. Do not perform or report as completed any 5,000-persona simulation, external testing, physical Android/iOS device testing, actual APK/AAB signing, keystore/certificate operations, production Firebase Console setup or mutation, production deployment, billing, or paid-resource activation. These items remain outside this workstream; they are neither passed nor required for its internal-only result. Track internal CI evidence and remaining internal test gaps in [INTERNAL_GITHUB_ACCEPTANCE_SCOPE_2026-11-22.md](audit/recovery/INTERNAL_GITHUB_ACCEPTANCE_SCOPE_2026-11-22.md). The broader release gates below remain historical/product release requirements unless separately changed by the owner; do not execute their excluded operations under this workstream.
+
+
 This checklist is a release gate, not a statement that the listed work is complete. Keep the product on the development branch until every applicable gate is evidenced and reviewed.
 
 ## 1. Repository and continuous integration
@@ -214,23 +217,30 @@ By the owner's current delivery instruction, the 5,000-persona load simulation a
 - [ ] Expiry, revocation, disconnect, privacy visibility, wrong-account linking, token exposure, and all provider-specific failure paths are tested.
 
 
-## High-assurance biometric verification and 1,500-coin reward release gates
+## Owner-reviewed biometric verification and 1,500-BetaCoins reward release gates
 
-**Security status — 14 November 2026:** the previous callable credited 1,500 coins from a client-supplied `localAuthenticationSucceeded` boolean and client attempt ID. This was not server-verifiable proof and could be forged by a modified client. The callable now fails closed with `failed-precondition` and does not write wallet balance, biometric verification status, or reward ledger entries. Regression tests enforce this behavior. Legacy verification records whose method is `local_os_biometric_prompt` or trust model is `client_claim_after_local_os_prompt` are also rejected by biometric entitlement checks, so old client-only claims no longer unlock biometric-gated links. Historical wallet credits are not automatically clawed back: they require a separate ledger audit and owner-approved remediation to avoid debiting legitimate balances. The 1,500-coin reward is intentionally unavailable until a device-bound cryptographic challenge/attestation is verified server-side (fresh nonce, UID/platform/key binding, replay protection, revocation/expiry, and atomic idempotent credit). This is a security containment fix, not completion of biometric verification.
+**Governing policy:** `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`, including owner reaffirmation BIO-002 (2026-11-20) and evidence-duration amendment BIO-003 (2026-11-21), supersedes the older high-assurance/provider-attestation requirements previously recorded in this checklist.
 
-- [ ] Select and assess a qualified identity-verification provider/stack; document supported jurisdictions, assurance level, provider security evidence, data locations, subprocessors, retention, and incident procedures.
-- [ ] Complete a DPIA and applicable legal review before collection, including GDPR special-category biometric-data requirements where applicable; implement explicit consent where required, purpose limitation, member rights, retention/deletion, and withdrawal handling.
-- [ ] The product's “real identity verified” claim is backed by appropriate identity proofing (for example, accepted identity-document validation and live-face match). A selfie video, voice challenge, device biometric unlock, or profile photo alone is not identity proof.
-- [ ] Implement randomized, session-bound liveness challenges and validated presentation-attack detection for printed photos, screen replay, prerecorded video/audio, masks, face swaps, deepfakes/synthetic media, virtual cameras, injected streams, and replayed sessions.
-- [ ] Treat moving selfie (3–5 seconds) and voice liveness (~20 seconds) only as supporting signals unless a validated provider confirms the required assurance; never infer gender or other sensitive traits from voice.
-- [ ] Provider results are verified server-to-server or through signed callbacks; nonce/session, provider transaction, authenticated UID, assurance level, timestamp, expiry, and revocation are checked. Client status, uploaded files, and local device biometric results cannot grant verification.
-- [ ] Prevent cross-account result reuse, replay, duplicate-account reward farming, and status transfer. Use privacy-preserving provider anti-duplication signals; no unrestricted biometric database.
-- [ ] Grant the 1,500-coin reward after each successful eligible 30-day cycle only after final server-confirmed approval at the required assurance level; enforce exactly-once-per-cycle atomic ledger posting, idempotency, and no reward for pending/failed/replayed/expired attempts.
-- [ ] Badge, profile social-link eligibility, and link-sharing permissions are server-derived and become active only after approval; expiry/revocation removes them immediately, including stale-cache and already-open-session tests.
-- [ ] Define validity period, renewal, risk-triggered re-verification, rate limits, provider outage behavior, false-rejection appeal, and human review. Automated risk scores alone do not permanently label members as fraudulent.
-- [ ] Raw face/voice media and biometric templates are minimized, encrypted, access-restricted, audited, and deleted on a documented schedule; no unrelated use, advertising, or model training.
-- [ ] Test spoof/replay/deepfake/injection, webhook forgery, UID/session mismatch, expiry/revocation, account recovery, duplicate reward attempts, deletion/withdrawal, unauthorized staff access, provider outage, false rejection, and ledger exactly-once behavior.
-- [ ] Member-facing badge wording accurately states the check completed and does not imply absolute fraud-proofing or permanent identity assurance.
+**Approved decision:** the Super Owner personally reviews the submitted evidence and explicitly accepts or rejects it. That human decision alone is sufficient for this product's biometric-verification workflow. Do not require Play Integrity, Apple App Attest, device-bound cryptographic proof, third-party provider attestation, automated face/voice matching, automated classification, or identity-document provider checks as a prerequisite. Do not describe the result as civil identity proof or claim more assurance than the approved manual review provides.
+
+**Required workflow and server safeguards:**
+- [ ] Super Owner-only server authorization with fresh MFA/step-up and immutable audit records for decisions and every private evidence access.
+- [ ] Bind the request and evidence to the canonical authenticated member UID; prevent member self-review, cross-account evidence reuse, forged attempt numbers, and replayed decisions.
+- [ ] Use the pre-established owner-approved spoken phrase/version. The member cannot choose or alter the phrase during submission.
+- [ ] Match the submitted gender value to the member's existing canonical profile value; the verification form cannot override it.
+- [ ] Enforce three total attempts. After a rejection, the next attempt is unavailable until one full calendar month has elapsed. A third rejection closes the verification file permanently; no fourth attempt or extra lockout is allowed.
+- [ ] Enforce biometric voice-evidence duration of at most 20,000 ms and size of at most 5 MiB in capture UI, upload path, server-side byte/container inspection, and tests.
+- [ ] Enforce biometric video duration of 3,000–5,000 ms from uploaded media bytes on the server; client metadata alone is not authoritative.
+- [ ] Keep evidence private, least-privilege, encrypted in transit/at rest as configured, access-audited, and subject to the approved retention/deletion lifecycle. No public URLs or broad owner-media access.
+- [ ] On explicit Super Owner acceptance, atomically activate the server-owned verification status and credit exactly 1,500 BetaCoins through the central economy ledger once per eligible verification lifecycle. Retries/replays must not duplicate the credit.
+- [ ] Renew on one calendar-month boundaries independently of the 90-day email-verification cycle. Expiry/revocation must immediately remove dependent entitlements; do not claw back a legitimately earned reward solely because a later lease expires.
+- [ ] Keep the feature fail-closed until the complete workflow, privacy controls, audit, deletion/retry behavior, and exact-head tests are green.
+
+**Privacy and legal gates remain mandatory:** complete the applicable DPIA/legal review for the actual evidence collected, establish a lawful basis and purpose limitation, provide localized notice and separate consent where required, document retention/deletion/withdrawal/member rights, restrict staff access, and ensure the badge wording accurately describes the manual review. These safeguards do not reintroduce device attestation or automated scoring as approval prerequisites.
+
+**Test coverage required on the final candidate:** authorization/MFA, UID and evidence binding, phrase version, immutable gender, attempt boundaries and calendar-month arithmetic, 20-second audio and 3–5-second video byte-level boundaries, malicious/invalid media, private storage access, audit failure fail-closed behavior, concurrent accept/reject, exactly-once wallet credit, replay, expiry/revocation, and deletion retry. Historical CI results are evidence for their own SHAs only; rerun on the final release candidate.
+
+**Superseded text:** any earlier paragraph in this checklist requiring an identity provider, randomized provider liveness/PAD, signed provider callbacks, device attestation, cryptographic challenge proof, or an automated assurance score as a condition for this approved workflow is obsolete and must not be used as a release criterion.
 
 
 
