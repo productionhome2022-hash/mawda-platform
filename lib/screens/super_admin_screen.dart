@@ -612,6 +612,14 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     var active = existing?['active'] != false;
     var purchaseEnabled = existing?['purchaseEnabled'] == true &&
         existing?['fulfillmentReady'] == true;
+    int? requiredMediaSaverDurationDays() {
+      const durations = <String, int>{
+        'media_saver_24h': 1,
+        'media_saver_7d': 7,
+        'media_saver_30d': 30,
+      };
+      return durations[itemIdController.text.trim()];
+    }
     bool canEnableStorePurchase() {
       const readyItems = <String, String>{
         'vip_monthly': 'vip',
@@ -721,9 +729,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   TextField(
                     controller: durationController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'المدة بالأيام (اتركها فارغة للاستحقاق الدائم)',
-                      border: OutlineInputBorder(),
+                      helperText: category == 'media_saver'
+                          ? 'Media Saver: 24 ساعة = 1، و7 أيام = 7، و30 يوماً = 30.'
+                          : null,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -774,10 +785,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 final price = int.tryParse(priceController.text.trim());
                 final durationText = durationController.text.trim();
                 final duration = durationText.isEmpty ? null : int.tryParse(durationText);
+                final requiredMediaSaverDuration = requiredMediaSaverDurationDays();
                 final sortOrder = int.tryParse(sortController.text.trim());
                 if (itemId.length >= 3 && name.length >= 2 &&
                     price != null && price > 0 &&
                     (durationText.isEmpty || (duration != null && duration > 0)) &&
+                    (requiredMediaSaverDuration == null || duration == requiredMediaSaverDuration) &&
                     sortOrder != null) {
                   Navigator.pop(dialogContext, {
                     'itemId': itemId,
