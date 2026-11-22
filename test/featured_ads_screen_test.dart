@@ -9,8 +9,7 @@ void main() {
     expect(find.text('الإعلانات التجارية المميزة'), findsOneWidget);
     expect(find.textContaining('ترتيب العرض والأولوية والتنوع'), findsOneWidget);
     expect(find.text('لا يوجد تصفح جغرافي في هذا القسم.'), findsOneWidget);
-    expect(find.text('لا توجد إعلانات مميزة متاحة للعرض حالياً.'), findsOneWidget);
-    expect(find.textContaining('استعلام العرض الخادمي'), findsOneWidget);
+    expect(find.text('عرض الإعلانات المميزة'), findsOneWidget);
     expect(find.text('سوريا'), findsNothing);
     expect(find.text('لبنان وفلسطين'), findsNothing);
   });
