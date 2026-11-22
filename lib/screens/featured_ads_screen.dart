@@ -52,7 +52,7 @@ class FeaturedAdsScreen extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const RewardCenterScreen(adType: 'featured'),
+                          builder: (_) => const RewardCenterScreen(adType: 'featured', openHistoryOnLoad: true),
                         ),
                       ),
                       icon: const Icon(Icons.play_arrow),
@@ -116,7 +116,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => const RewardCenterScreen(adType: 'featured'),
+                          builder: (_) => const RewardCenterScreen(adType: 'featured', openHistoryOnLoad: true),
                         ),
                       ),
                       icon: const Icon(Icons.history),
