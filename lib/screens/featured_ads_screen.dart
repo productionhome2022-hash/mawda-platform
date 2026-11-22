@@ -109,7 +109,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      'سجل المكافآت مرتبط بدفتر المحفظة المركزي ولا ينشئ رصيداً مستقلاً.',
+                      'المكافآت تسجل في سجل المحفظة المركزي، ولا تنشئ رصيداً مستقلاً.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
