@@ -35,6 +35,7 @@ const {
   cleanupExpiredMediaUploadIntents,
   sendChatImageAttachment,
   getChatImageAttachmentUrl,
+  getMediaSaverAttachmentUrl,
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
@@ -1379,5 +1380,50 @@ test("biometric upload intents bind one audio and one video asset to an open mem
     }
     await requestRef.delete().catch(() => undefined);
     await db.collection("mediaUploadQuotas").doc(uid).delete().catch(() => undefined);
+  }
+});
+
+
+test("Media Saver requires an active owner-issued entitlement on every request and retains conversation authorization", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const uid = `media-saver-gate-${randomUUID()}`;
+  const userRef = db.collection("users").doc(uid);
+  const entitlementIds = ["media_saver_24h", "media_saver_7d", "media_saver_30d"];
+  await userRef.set({ profileCompleted: true, accountStatus: "active" });
+  const request = () => getMediaSaverAttachmentUrl.run({
+    data: {
+      scope: "direct",
+      mediaId: "11111111-1111-4111-8111-111111111111",
+      messageId: "a".repeat(64),
+      chatId: "missing-chat",
+    },
+    auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  try {
+    await assert.rejects(request(), (error) => error && error.code === "failed-precondition");
+    for (const itemId of entitlementIds) {
+      await userRef.collection("entitlements").doc(itemId).set({
+        status: "active",
+        expiresAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      await assert.rejects(
+        request(),
+        (error) => error && error.code === "permission-denied",
+        `active ${itemId} must pass entitlement validation but still require conversation membership`,
+      );
+      await userRef.collection("entitlements").doc(itemId).delete();
+    }
+    await userRef.collection("entitlements").doc("media_saver_7d").set({
+      status: "active",
+      expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+    });
+    await assert.rejects(request(), (error) => error && error.code === "failed-precondition");
+  } finally {
+    await Promise.all([
+      userRef.delete().catch(() => undefined),
+      ...entitlementIds.map((itemId) =>
+        userRef.collection("entitlements").doc(itemId).delete().catch(() => undefined),
+      ),
+    ]);
   }
 });
