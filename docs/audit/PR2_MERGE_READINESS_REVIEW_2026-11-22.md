@@ -34,7 +34,7 @@ At inspection:
 | Mawdda Test Center | [45026580658](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45026580658) | `0be47684a5fde5d04628de5c81d69391e41c3036` | Success. |
 | Validate Mawda | [45028694828](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028694828) | `21dd24c19998c310b1a668534df677ba208222c7` | Pending at inspection; no jobs had been returned yet. No pass/fail claim. |
 | Economic phase verification | [45028694770](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028694770) | `21dd24c19998c310b1a668534df677ba208222c7` | Success. |
-| Validate Mawda | [45028890306](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028890306) | `721f25523fa28f8a2b2c3ae497d979e6a0beb878` | PR checks success: Analyze (actions) and Analyze (javascript-typescript). This is not the full Flutter/Functions/emulator validation. |
+| PR #2 checks | [45028890306](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028890306) | `721f25523fa28f8a2b2c3ae497d979e6a0beb878` | Success: Analyze (actions) and Analyze (javascript-typescript). This is not the full Flutter/Functions/emulator validation. |
 | Economic phase verification | [45028889044](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028889044) | `721f25523fa28f8a2b2c3ae497d979e6a0beb878` | Success. |
 | Mawdda Test Center | [45028888991](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/45028888991) | `721f25523fa28f8a2b2c3ae497d979e6a0beb878` | Pending at inspection. |
 
