@@ -169,3 +169,32 @@ Owner instruction (2026-11-22): all branches adjudicated **X** are grouped here 
 | `codex/mawdda-unified-final-v3` | `ab5e37e6d7f437a491e85883b91e8bcde76d438e` | Compare against official reports zero candidate-ahead commits and no changed files; fully superseded by official history. |
 
 **Current X count: 61 branches.** These refs are retained, not deleted. Branches not listed here remain pending review or have another explicit disposition; do not infer X from this register.
+
+
+## P0 unified advertising execution — 2026-11-22
+
+Tracking issue: [#87 — unified standard/featured ad lifecycle](https://github.com/productionhome2022-hash/mawda-platform/issues/87).
+
+The owner requested simultaneous execution of the interdependent campaign-schema, serving, player, rewards/budget, owner-policy UI, archive/report, branch-port, and CI-repair tracks. Work remains confined to the existing official development branch and the preserved E522 ancestry.
+
+### Legacy featured-ad branch disposition
+
+| Branch | Reviewed head | Comparison to E522 | Disposition |
+|---|---|---|---|
+| `codex/featured-ads-secure-lifecycle-20261118` | `b15b643f14bc6c1196bf914190778e053e2ac9b1` | 199 ahead / 772 behind | Do not merge its standalone featured session/campaign collections. Its `featuredAdSessions`, `featuredAdRewardClaims`, and independent reward policy would duplicate the existing `timedAdSessions`, `timedAdRewardClaims`, wallet ledger, budget reservation, and idempotent completion lifecycle. The current implementation instead extends the unified timed-ad campaign and session model and reuses the existing featured financial ledger. |
+| `codex/featured-ads-serving-foundation` | `0fe15db693eb0a36a73c11a6e563e189069e74ba` | 139 ahead / 771 behind | Do not import its separate `featuredAdCampaigns` store or separate viewing-session endpoints. Reuse its relevant priority/rotation behavior through the existing `featured-advertising.ts` selection module, now connected to the unified `timedAdCampaigns` feed. |
+
+No wholesale branch merge was performed. No new branch was created. These two branches remain retained pending the broader branch inventory and the deferred X cleanup decision.
+
+### Source integration currently on the official branch
+
+- Extended `TimedAdCampaignInput` with `adType`, `geographicTargets`, `featuredPlacement`, `priorityOrder`, and the featured per-member daily cap. Explicit standard campaigns require geographic targets; featured campaigns require no geographic targets and a daily cap from 1 through 10.
+- Extended `getActiveTimedAdCampaigns` to return standard and featured campaign feeds from the same `timedAdCampaigns` collection, with member-country/region validation for standard ads and server-side priority/rotation selection for featured ads.
+- Connected both member entry points to the existing `RewardCenterScreen` timed player. The player sends route visibility and only reports creative visibility after an approved image/GIF has rendered. Video publication remains fail-closed until a supported player/device test exists.
+- Added member cancellation with transactional budget-reservation release, UTC daily featured claim accounting in the existing member/campaign counter, member reward history, and owner campaign reports across the existing session, claim, version, and financial-event records.
+- Added campaign-state version snapshots and optimistic version checks for owner edits. Featured publication now requires the existing featured-ad financial record to be paid and fully reconciled; it does not create a separate wallet or payment system.
+- Extended the existing Super Owner advertising/rewards screen with ad type, geography, featured priority, daily cap, finance actions, and report/archive access.
+
+### Verification state at ledger update
+
+The previous SHA `728c3a9acbe01458978d29a4ad8d6cdb73dbd393` had all four advertising-related GitHub Actions runs completed successfully (Economic phase verification, Validate Mawda, Mawdda economy regression, and Mawdda Test Center). The new P0 source changes listed above were committed after that SHA; they are **not accepted as tested until the new head's GitHub Actions runs complete successfully**. No local/Termux/device/Firebase-production tests were run.
