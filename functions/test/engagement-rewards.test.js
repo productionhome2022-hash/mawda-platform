@@ -55,6 +55,24 @@ test("timed-ad campaign validation bounds duration, rewards, dates and budget", 
     rewardBudgetCoins: 1000,
   };
   assert.equal(validateTimedAdCampaignInput(valid).rewardCoins, 10);
+  const standard = validateTimedAdCampaignInput({
+    ...valid, adType: "standard", geographicTargets: ["syria"],
+  });
+  assert.equal(standard.adType, "standard");
+  assert.deepEqual(standard.geographicTargets, ["syria"]);
+  const featured = validateTimedAdCampaignInput({
+    ...valid, placement: "home", adType: "featured", geographicTargets: [],
+    maxDailyClaimsPerMember: 10, featuredPlacement: "priority", priorityOrder: 2,
+  });
+  assert.equal(featured.adType, "featured");
+  assert.equal(featured.maxDailyClaimsPerMember, 10);
+  assert.throws(() => validateTimedAdCampaignInput({
+    ...valid, adType: "featured", geographicTargets: ["gcc"],
+    placement: "home", maxDailyClaimsPerMember: 11,
+  }));
+  assert.throws(() => validateTimedAdCampaignInput({
+    ...valid, adType: "standard", geographicTargets: [],
+  }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, durationSeconds: 5 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, rewardBudgetCoins: 9 }));
   assert.throws(() => validateTimedAdCampaignInput({ ...valid, endsAtMs: 1000 }));
