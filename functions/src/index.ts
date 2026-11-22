@@ -8600,7 +8600,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "إصدار الحملة موجود دون تطابق مع الإصدار الحالي.");
     }
     const now = FieldValue.serverTimestamp();
-    const currencyExponent = event.currency === null ? null : currencyExponentForCode(event.currency);
+    const currencyExponent = next.currency === null ? null : currencyExponentForCode(next.currency);
     transaction.create(versionRef, {
       campaignId: event.campaignId, ...next, version,
       lastEventId: eventId, currencyExponent, paymentPolicySnapshot,
