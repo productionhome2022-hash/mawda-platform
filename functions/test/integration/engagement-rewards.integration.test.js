@@ -758,6 +758,7 @@ test("standard ads are geographically filtered and featured ads use the same ato
           .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
         db.collection("featuredAdFinancials").doc(featuredCampaignId).delete(),
       ] : []),
+      ...(firstSessionId ? [syriaUser.collection("walletLedger").doc(`timed_ad_${firstSessionId}`).delete().catch(() => undefined)] : []),
       ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("users").doc(uid).delete()),
       ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined)),
     ]);
