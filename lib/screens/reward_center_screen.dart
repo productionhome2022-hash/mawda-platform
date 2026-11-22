@@ -24,6 +24,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   String? _error;
   String? _creativeUrl;
   String? _creativeType;
+  bool _creativeLoaded = false;
 
   @override
   void initState() {
@@ -88,6 +89,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   }
 
   Future<void> _loadCreative(Map<String, dynamic> session) async {
+    _creativeLoaded = session['mediaId'] == null;
     if (session['mediaId'] == null || session['creativeType'] == null ||
         session['creativeType'] == 'text') return;
     try {
@@ -144,6 +146,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       });
       _creativeUrl = null;
       _creativeType = null;
+      _creativeLoaded = session['mediaId'] == null;
       unawaited(_loadCreative(session));
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -166,7 +169,9 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         'sessionId': session['sessionId'],
         'sequence': nextSequence,
         'foreground': foreground,
-        'visible': mounted && (ModalRoute.of(context)?.isCurrent ?? true),
+        'visible': mounted &&
+            (ModalRoute.of(context)?.isCurrent ?? true) &&
+            (session['mediaId'] == null || _creativeLoaded),
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted || _activeSession == null) return;
@@ -178,7 +183,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       if (error.code == 'deadline-exceeded') {
         _heartbeatTimer?.cancel();
         if (!mounted) return;
-        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; });
+        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; _creativeLoaded = false; });
         await _load();
       } else {
         await _reconcileActiveSession();
@@ -225,6 +230,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         _requiredMs = 0;
         _creativeUrl = null;
         _creativeType = null;
+        _creativeLoaded = false;
       });
       await _load();
     } on FirebaseFunctionsException catch (error) {
@@ -339,10 +345,24 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     _creativeUrl!, fit: BoxFit.contain,
-                    loadingBuilder: (context, child, progress) => progress == null
-                        ? child
-                        : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator())),
-                    errorBuilder: (_, __, ___) => const Text('تعذر عرض النسخة الآمنة للإعلان.'),
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null && !_creativeLoaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && !_creativeLoaded) setState(() => _creativeLoaded = true);
+                        });
+                      }
+                      return progress == null
+                          ? child
+                          : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()));
+                    },
+                    errorBuilder: (_, __, ___) {
+                      if (_creativeLoaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _creativeLoaded = false);
+                        });
+                      }
+                      return const Text('تعذر عرض النسخة الآمنة للإعلان.');
+                    },
                   ),
                 ),
               ],
