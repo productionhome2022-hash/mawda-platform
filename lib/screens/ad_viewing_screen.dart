@@ -167,7 +167,7 @@ class StandardCommercialAdsScreen extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(14),
                 child: Text(
-                  'ستظهر الإعلانات المؤهلة هنا بعد ربط الاستعلام الجغرافي الخادمي. لا تمنح معاينة الإعلان أو فتحه أي مكافأة.',
+                  'بعد اختيار البلد أو المنطقة، يجلب المشغل الحملات المؤهلة من الخادم ويتحقق من أهلية الحساب قبل بدء جلسة المشاهدة.',
                   textAlign: TextAlign.center,
                 ),
               ),
