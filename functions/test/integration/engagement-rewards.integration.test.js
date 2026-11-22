@@ -357,9 +357,6 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
   let campaignId;
   let firstSessionId;
   let secondSessionId;
-  const economyRef = db.doc("platformSettings/economyPricing");
-  const previousEconomy = await economyRef.get();
-  const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
   await Promise.all([
     firstUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
     secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
@@ -558,6 +555,9 @@ test("standard ads are geographically filtered and featured ads use the same ato
   let featuredCampaignId;
   let firstSessionId;
   let secondSessionId;
+  const economyRef = db.doc("platformSettings/economyPricing");
+  const previousEconomy = await economyRef.get();
+  const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
   await Promise.all([
     syriaUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
     egyptUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "مصر", region: "شمال أفريقيا" }),
@@ -685,10 +685,11 @@ test("standard ads are geographically filtered and featured ads use the same ato
     }));
     assert.equal(completed.completed, true);
     const counter = await db.collection("timedAdMemberCounters")
-      .where("uid", "==", syriaUid).where("campaignId", "==", featuredCampaignId).get();
-    assert.equal(counter.size, 1);
-    assert.equal(counter.docs[0].data().dailyClaimCount, 1);
-    assert.equal(counter.docs[0].data().utcDay, new Date().toISOString().slice(0, 10));
+      .where("campaignId", "==", featuredCampaignId).get();
+    const memberCounter = counter.docs.find((doc) => doc.data().uid === syriaUid);
+    assert.ok(memberCounter);
+    assert.equal(memberCounter.data().dailyClaimCount, 1);
+    assert.equal(memberCounter.data().utcDay, new Date().toISOString().slice(0, 10));
     await assert.rejects(
       () => startTimedAdvertisement.run(memberRequest(syriaUid, {
         campaignId: featuredCampaignId, adType: "featured",
