@@ -207,6 +207,7 @@ class _ShopScreenState extends State<ShopScreen> {
     'greeting' => 'ترحيب الزوار',
     'voice_call' => 'المكالمات الصوتية',
     'video_call' => 'المكالمات المرئية',
+    'media_saver' => 'Mawdda Media Saver',
     'privacy' => 'الخصوصية - قيد التجهيز',
     _ => 'ميزات خاصة',
   };
