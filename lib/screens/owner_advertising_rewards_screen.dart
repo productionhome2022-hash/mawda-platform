@@ -19,6 +19,10 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   final _reward = TextEditingController(text: '10');
   final _budget = TextEditingController(text: '1000');
   final _maxClaims = TextEditingController(text: '1');
+  final _maxDailyClaims = TextEditingController();
+  String _adType = 'standard';
+  String _geographicTarget = 'all_arab_countries';
+  String _featuredPlacement = 'rotation';
   String _placement = 'reward_center';
   String? _editingCampaignId;
   List<Map<String, dynamic>> _campaigns = [];
@@ -45,6 +49,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   void dispose() {
     _title.dispose(); _sponsor.dispose(); _body.dispose();
     _duration.dispose(); _reward.dispose(); _budget.dispose(); _maxClaims.dispose();
+    _maxDailyClaims.dispose();
     _hourlyCoins.dispose(); _dailyCoins.dispose(); _weeklyCoins.dispose();
     super.dispose();
   }
@@ -191,10 +196,13 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     final reward = int.tryParse(_reward.text.trim());
     final budget = int.tryParse(_budget.text.trim());
     final maxClaims = int.tryParse(_maxClaims.text.trim());
+    final maxDailyClaims = int.tryParse(_maxDailyClaims.text.trim());
     if (_title.text.trim().length < 3 || _sponsor.text.trim().length < 2 ||
         _body.text.trim().length < 10 || duration == null || reward == null ||
         budget == null || duration < 15 || duration > 900 || reward < 0 ||
         budget < reward || budget > 100000000 || maxClaims == null || maxClaims < 1 || maxClaims > 100 ||
+        (_adType == 'featured' && (maxDailyClaims == null || maxDailyClaims < 1 || maxDailyClaims > 10)) ||
+        (_adType == 'standard' && _geographicTarget.isEmpty) ||
         !_endsAt.isAfter(_startsAt)) {
       setState(() => _error = 'راجع عنوان الحملة والمعلن والنص والمدة والمكافأة والميزانية والتواريخ.');
       return;
@@ -205,7 +213,12 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'title': _title.text.trim(),
         'sponsorLabel': _sponsor.text.trim(),
         'body': _body.text.trim(),
-        'placement': _placement,
+        'placement': _adType == 'featured' ? 'home' : 'reward_center',
+        'adType': _adType,
+        'geographicTargets': _adType == 'featured' ? <String>[] : <String>[_geographicTarget],
+        'featuredPlacement': _featuredPlacement,
+        'priorityOrder': 0,
+        if (_adType == 'featured') 'maxDailyClaimsPerMember': maxDailyClaims,
         if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
         'durationSeconds': duration,
         'rewardCoins': reward,
@@ -221,6 +234,10 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _selectedMediaId = null;
       _editingCampaignId = null;
       _maxClaims.text = '1';
+      _maxDailyClaims.clear();
+      _adType = 'standard';
+      _geographicTarget = 'all_arab_countries';
+      _featuredPlacement = 'rotation';
       _placement = 'reward_center';
       await _load();
       if (!mounted) return;
@@ -245,7 +262,12 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _reward.text = (campaign['rewardCoins'] ?? 0).toString();
       _budget.text = (campaign['rewardBudgetCoins'] ?? 0).toString();
       _maxClaims.text = (campaign['maxClaimsPerMember'] ?? 1).toString();
-      _placement = campaign['placement'] == 'home' ? 'home' : 'reward_center';
+      _adType = campaign['adType'] == 'featured' ? 'featured' : 'standard';
+      _placement = _adType == 'featured' ? 'home' : 'reward_center';
+      final targets = campaign['geographicTargets'];
+      _geographicTarget = targets is List && targets.isNotEmpty ? targets.first.toString() : 'all_arab_countries';
+      _featuredPlacement = campaign['featuredPlacement'] == 'priority' ? 'priority' : 'rotation';
+      _maxDailyClaims.text = (campaign['maxDailyClaimsPerMember'] ?? '').toString();
       _selectedMediaId = campaign['mediaId'] as String?;
       final starts = campaign['startsAtMs'];
       final ends = campaign['endsAtMs'];
@@ -267,6 +289,46 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحديث حالة الحملة.');
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _showCampaignReport(String campaignId) async {
+    try {
+      final response = await _functions.httpsCallable('getOwnerTimedAdCampaignReport').call({
+        'campaignId': campaignId,
+      });
+      final report = Map<String, dynamic>.from(response.data as Map);
+      final counts = Map<String, dynamic>.from(report['sessionCounts'] as Map? ?? const {});
+      final financial = report['financialSnapshot'] as Map?;
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('تقرير الحملة وأرشيفها'),
+          content: SizedBox(
+            width: 520,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                Text('الحملة: ${(report['campaign'] as Map?)?['title'] ?? campaignId}'),
+                Text('الإصدارات المؤرشفة: ${report['versionCount'] ?? 0}'),
+                Text('جلسات مكتملة: ${counts['completed'] ?? 0}'),
+                Text('جلسات ملغاة: ${counts['cancelled'] ?? 0}'),
+                Text('جلسات منتهية: ${counts['expired'] ?? 0}'),
+                Text('جلسات نشطة: ${counts['active'] ?? 0}'),
+                Text('مجموع مكافآت الكوينز: ${report['totalRewardCoins'] ?? 0}'),
+                Text('حالة الدفع: ${financial?['paymentStatus'] ?? 'غير مسجل'}'),
+                Text('حالة المراجعة المالية: ${financial?['reviewStatus'] ?? 'غير مسجل'}'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق')),
+          ],
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل تقرير الحملة.');
     }
   }
 
@@ -370,14 +432,53 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: _placement,
-              decoration: const InputDecoration(labelText: 'موضع العرض', border: OutlineInputBorder()),
+              initialValue: _adType,
+              decoration: const InputDecoration(labelText: 'نوع الإعلان', border: OutlineInputBorder()),
               items: const [
-                DropdownMenuItem(value: 'reward_center', child: Text('مركز المكافآت')),
-                DropdownMenuItem(value: 'home', enabled: false, child: Text('الرئيسية (قيد التنفيذ)')),
+                DropdownMenuItem(value: 'standard', child: Text('إعلان تجاري عادي')),
+                DropdownMenuItem(value: 'featured', child: Text('إعلان تجاري مميز')),
               ],
-              onChanged: _saving ? null : (value) => setState(() => _placement = value ?? 'reward_center'),
+              onChanged: _saving ? null : (value) => setState(() {
+                _adType = value ?? 'standard';
+                _placement = _adType == 'featured' ? 'home' : 'reward_center';
+              }),
             ),
+            if (_adType == 'standard')
+              DropdownButtonFormField<String>(
+                initialValue: _geographicTarget,
+                decoration: const InputDecoration(labelText: 'استهداف جغرافي', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'all_arab_countries', child: Text('جميع البلدان العربية')),
+                  DropdownMenuItem(value: 'syria', child: Text('سوريا')),
+                  DropdownMenuItem(value: 'lebanon_palestine', child: Text('لبنان وفلسطين')),
+                  DropdownMenuItem(value: 'iraq_jordan', child: Text('العراق والأردن')),
+                  DropdownMenuItem(value: 'gcc', child: Text('دول مجلس التعاون الخليجي')),
+                  DropdownMenuItem(value: 'egypt', child: Text('مصر')),
+                  DropdownMenuItem(value: 'tunisia_libya_sudan', child: Text('تونس وليبيا والسودان')),
+                  DropdownMenuItem(value: 'algeria_morocco', child: Text('الجزائر والمغرب')),
+                  DropdownMenuItem(value: 'europe_turkey', child: Text('أوروبا وتركيا')),
+                  DropdownMenuItem(value: 'asia_middle_east', child: Text('آسيا والشرق الأوسط')),
+                ],
+                onChanged: _saving ? null : (value) => setState(() => _geographicTarget = value ?? _geographicTarget),
+              ),
+            if (_adType == 'featured') ...[
+              DropdownButtonFormField<String>(
+                initialValue: _featuredPlacement,
+                decoration: const InputDecoration(labelText: 'ترتيب العرض المميز', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'rotation', child: Text('تدوير متنوع')),
+                  DropdownMenuItem(value: 'priority', child: Text('أولوية المالك')),
+                ],
+                onChanged: _saving ? null : (value) => setState(() => _featuredPlacement = value ?? 'rotation'),
+              ),
+              TextField(
+                controller: _maxDailyClaims,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الحد اليومي لكل عضو/إعلان (1–10)'),
+              ),
+              const Text('الإعلانات المميزة لا تستخدم استهدافاً جغرافياً. الحد الأعلى 10، والمالك يحدد الحد الفعلي.'),
+            ],
             const SizedBox(height: 8),
             Wrap(spacing: 12, runSpacing: 8, children: [
               SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
@@ -422,18 +523,21 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
           final status = campaign['status'];
           return Card(child: ListTile(
             title: Text(campaign['title'] as String? ?? id),
-            subtitle: Text('${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0}'),
+            subtitle: Text('${campaign['adType'] == 'featured' ? 'مميز' : 'عادي'} • ${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0}'),
             isThreeLine: true,
             trailing: PopupMenuButton<String>(
               enabled: !_saving && status != 'archived',
               onSelected: (value) {
                 if (value == 'edit') {
                   _editCampaign(campaign);
+                } else if (value == 'report') {
+                  _showCampaignReport(id);
                 } else {
                   _changeStatus(id, value);
                 }
               },
               itemBuilder: (_) => [
+                const PopupMenuItem(value: 'report', child: Text('التقرير والأرشيف')),
                 if (status == 'draft' || status == 'paused')
                   const PopupMenuItem(value: 'edit', child: Text('تعديل')),
                 if (status != 'published') const PopupMenuItem(value: 'published', child: Text('نشر')),
