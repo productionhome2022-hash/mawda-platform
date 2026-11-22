@@ -127,6 +127,7 @@ import {
   type ContractStatus,
 } from "./contracts-workflow";
 import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
+import { selectFeaturedAdShowcase } from "./featured-advertising";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -8796,16 +8797,34 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
         priorityOrder: data.priorityOrder ?? 0,
         maxDailyClaimsPerMember: data.maxDailyClaimsPerMember ?? null,
         durationSeconds: data.durationSeconds, rewardCoins: data.rewardCoins,
+        startsAtMs: data.startsAtMs, endsAtMs: data.endsAtMs,
         version: data.version, geographicTargets: data.geographicTargets ?? [],
         mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
       };
     });
   if (requestedType === "featured") {
-    campaigns.sort((left, right) =>
-      (left.featuredPlacement === "priority" ? 0 : 1) -
-      (right.featuredPlacement === "priority" ? 0 : 1) ||
-      left.priorityOrder - right.priorityOrder ||
-      left.campaignId.localeCompare(right.campaignId));
+    const selection = selectFeaturedAdShowcase({
+      campaigns: campaigns.map((campaign) => ({
+        campaignId: campaign.campaignId,
+        status: "published",
+        ownerApproved: true,
+        ownerWithdrawn: false,
+        paymentConfirmed: true,
+        creativeApproved: true,
+        startsAtMs: campaign.startsAtMs,
+        endsAtMs: campaign.endsAtMs,
+        featuredPlacement: campaign.featuredPlacement,
+        priorityOrder: campaign.priorityOrder,
+      })),
+      nowMs: now,
+      rewardEligible: true,
+    });
+    const byId = new Map(campaigns.map((campaign) => [campaign.campaignId, campaign]));
+    return {
+      campaigns: selection.campaignIds
+        .map((campaignId) => byId.get(campaignId))
+        .filter((campaign): campaign is NonNullable<typeof campaign> => campaign !== undefined),
+    };
   }
   return { campaigns };
 });
