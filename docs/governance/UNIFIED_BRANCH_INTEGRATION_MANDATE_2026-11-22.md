@@ -95,3 +95,27 @@ No new branch was created. No source integration was performed in these disposit
 
 
 | `codex/phase1-group-call-remainder-to-initiator-2026-11-20` | `99639a6c7adf25c32eca6b93c0cc393d130f8e8f` | Fresh head and compare against e522; fetched both `functions/src/group-call-economy.ts` and `functions/test/group-call-economy.test.js` at both refs. Both file blob SHAs are identical across baseline and candidate. The initiator remainder allocation implementation and its regression tests are already exactly present in e522. | **X — exact source/test content already present in e522.** No port required. | None. |
+
+
+## Consolidated X register — deferred full deletion
+
+Owner instruction (2026-11-22): all branches adjudicated **X** are grouped here and retained until the integration, remediation, transfer, and validation work is complete. Do not delete these branch refs during the active integration phase. At final cleanup, review this register and then perform full branch deletion, verifying each ref is absent. X means "do not port / no active integration value against the preserved baseline"; it does not mean the branch has already been deleted.
+
+| Branch | Reviewed head | X disposition evidence |
+|---|---|---|
+| `codex/mawdda-group-call-capacity-2026-11-20-r2` | `c0a14ef27b3c0442c969f872243214e637cdc188` | Policy and test blobs are identical to e522. |
+| `codex/phase1-direct-call-transaction-revalidation-2026-11-20` | `b78817d0e6d7a73398fcce1d54c7df4f6707d045` | Direct-call revalidation exists in e522; candidate transaction omits newer group-call pricing and entitlement reads. |
+| `codex/phase1-media-scanner-verdict-tests-2026-11-20` | `6da140cbcd359c17805477e81401bfacef7268f0` | No unique non-empty test coverage; e522 source has stronger purpose validation and delivery authorization. |
+| `codex/phase1-media-scanner-replay-regression-2026-11-20` | `87ff3963868a4431948274695c83dce255aaa350` | e522 already tests replay idempotency and exactly one malicious-verdict audit event. |
+| `codex/phase1-media-direct-delivery-denials-2026-11-20` | `b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e` | Denial cases already exist; e522 adds stronger biometric-purpose protections. |
+| `codex/phase1-rented-room-call-gate-2026-11-20` | `41dc2c2fd679f736d48f912c1e248f8615554649` | Official branch supersedes candidate with transactional membership revalidation, direct-call relationship checks, participant-capacity policy, and call-entitlement checks; candidate tests add no unique non-empty coverage in inspected files. |
+| `codex/phase1-media-hold-delete-race-2026-11-20` | `43471705e469f09e55658660b8b9f921401a00d4` | Exact denial test and member-standing enforcement already exist in e522. |
+| `codex/phase1-scanner-error-callback-test-2026-11-20` | `20519494a898b19f08bcaf4f22e4af64acff622b` | Error callback test already exists; e522 malicious replay/audit assertions are stronger. |
+| `codex/phase1-featured-ad-geography-all-arab-2026-11-20` | `ac22ff635c41e4a36603c8864af53942e22e3fcb` | Source and test blobs are identical to e522. |
+| `codex/phase1-group-call-remainder-to-initiator-2026-11-20` | `99639a6c7adf25c32eca1d1b539b24bf7b84cd1019` | Group-call economy source and test blobs are identical to e522. |
+| `codex/mawdda-mfa-signin` | `607647ec0325eaf56bd58a4c2283aedaa47e7e68` | Authentication screens are represented in e522, whose owner-identity matching is newer. |
+| `codex/phase1-store-gift-concurrency-2026-11-20` | `2f175165ed17a1a02b47439bacfbb187b1e00d6e` | e522 has broader store-gifting coverage, including price/version, permanent entitlements, and recipient eligibility. |
+| `codex/mawdda-member-inbox` | `f55e1d15423abee81dc125315e95a9acea199fdf` | Inbox/navigation behavior is already in e522; branch index is an older monolithic snapshot and tests add no unique non-empty coverage. |
+| `codex/mawdda-room-audio-duration-enforcement` | `dc1c1a43f6c8b4cfb198544ad21975612f89ca83` | Compared branch files with the official branch. Candidate raises chat audio to 120 seconds and raises audio/video/GIF byte/frame limits beyond the approved caps. Official policy enforces 60-second live audio, 5 MiB audio, 15 MiB safe video derivative, and stricter GIF limits; official tests include exact 60-second and over-limit processor cases. Candidate also carries older media-purpose and delivery code. No safe unique port. |
+
+**Current X count: 14 branches.** These refs are retained, not deleted. Branches not listed here remain pending review or have another explicit disposition; do not infer X from this register.
