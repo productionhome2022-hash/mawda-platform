@@ -8814,8 +8814,15 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "النطاق الجغرافي المطلوب غير صالح.");
   }
   const now = Date.now();
+  const placement = requestedType === "featured" ? "home" : "reward_center";
+  // Apply time and placement filters in Firestore before the result cap.
+  // Otherwise expired or future campaigns can occupy the first 100 documents
+  // and hide currently eligible campaigns from member discovery.
   const snapshot = await db.collection("timedAdCampaigns")
     .where("status", "==", "published")
+    .where("placement", "==", placement)
+    .where("startsAtMs", "<=", now)
+    .where("endsAtMs", ">", now)
     .limit(100).get();
   const campaigns = snapshot.docs
     .filter((doc) => {
@@ -8932,11 +8939,11 @@ export const startTimedAdvertisement = onCall(async (request) => {
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
     const requestedAdType = request.data?.adType;
+    if (data.adType !== undefined && requestedAdType !== data.adType) {
+      throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
+    }
     if (requestedAdType !== undefined && data.adType === undefined) {
       throw new HttpsError("failed-precondition", "الحملة القديمة غير مؤهلة لمشغل الإعلانات المصنف؛ استخدم دورة العرض القديمة فقط.");
-    }
-    if (requestedAdType !== undefined && requestedAdType !== data.adType) {
-      throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
     }
     if ((data.adType ?? "standard") === "standard" &&
         data.adType !== undefined &&
