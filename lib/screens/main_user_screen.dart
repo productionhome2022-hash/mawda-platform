@@ -525,22 +525,34 @@ class _CompletedProfilePanel extends StatelessWidget {
                         ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.campaign_outlined),
-                      label: const Text('مشاهدة الإعلانات'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const AdViewingScreen(),
-                        ),
-                      ),
-                    ),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.video_library_outlined),
-                      label: const Text('Media Workspace'),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MediaWorkspaceScreen(),
-                        ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.campaign_outlined),
+                              label: const Text('مشاهدة الإعلانات'),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const AdViewingScreen(),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              icon: const Icon(Icons.video_library_outlined),
+                              label: const Text('Media Workspace'),
+                              onPressed: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const MediaWorkspaceScreen(),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     OutlinedButton.icon(
