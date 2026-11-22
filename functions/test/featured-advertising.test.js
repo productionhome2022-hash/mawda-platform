@@ -13,14 +13,12 @@ const base = {
   creativeApproved: true,
   startsAtMs: 100,
   endsAtMs: 10_000,
-  geographicTargets: ["syria"],
   featuredPlacement: "rotation",
 };
 
 test("featured previews default to a one-second rotation and can never award coins", () => {
   const result = selectFeaturedAdShowcase({
     campaigns: [{ ...base, campaignId: "ad_one" }],
-    audienceGeography: "syria",
     nowMs: 500,
   });
   assert.equal(DEFAULT_FEATURED_AD_ROTATION_INTERVAL_MS, 1000);
@@ -32,19 +30,19 @@ test("featured previews default to a one-second rotation and can never award coi
   });
 });
 
-test("Owner-approved priority campaigns take precedence only in their geographic target", () => {
+test("Owner-approved priority campaigns take precedence without geographic filtering", () => {
   const result = selectFeaturedAdShowcase({
     campaigns: [
       { ...base, campaignId: "rotation_ad" },
       { ...base, campaignId: "priority_later", featuredPlacement: "priority", priorityOrder: 2 },
       { ...base, campaignId: "priority_first", featuredPlacement: "priority", priorityOrder: 1 },
-      { ...base, campaignId: "priority_other_geo", featuredPlacement: "priority", geographicTargets: ["lebanon"] },
+      { ...base, campaignId: "priority_other_market", featuredPlacement: "priority" },
     ],
     audienceGeography: "syria",
     nowMs: 500,
   });
   assert.equal(result.mode, "priority");
-  assert.deepEqual(result.campaignIds, ["priority_first", "priority_later"]);
+  assert.deepEqual(result.campaignIds, ["priority_first", "priority_later", "priority_other_market"]);
   assert.equal(result.rewardEligible, false);
 });
 
@@ -64,7 +62,7 @@ test("fallback rotates a randomized eligible pool and does not rank by view coun
   assert.equal(result.rewardEligible, false);
 });
 
-test("withdrawn, unpaid, unapproved, expired and geographically unrelated campaigns are excluded", () => {
+test("withdrawn, unpaid, unapproved and expired campaigns are excluded", () => {
   const campaigns = [
     { ...base, campaignId: "withdrawn", ownerWithdrawn: true },
     { ...base, campaignId: "unpaid", paymentConfirmed: false },
@@ -72,7 +70,6 @@ test("withdrawn, unpaid, unapproved, expired and geographically unrelated campai
     { ...base, campaignId: "not_approved", ownerApproved: false },
     { ...base, campaignId: "expired", endsAtMs: 500 },
     { ...base, campaignId: "future", startsAtMs: 501 },
-    { ...base, campaignId: "wrong_geo", geographicTargets: ["egypt"] },
   ];
   const result = selectFeaturedAdShowcase({
     campaigns,
@@ -105,14 +102,12 @@ test("owner can configure rotation interval and invalid inputs fail closed", () 
 });
 
 
-test("all-Arab-country campaigns match each supported country without widening country-only campaigns", () => {
+test("featured campaigns are selected independently of audience geography", () => {
   const allArabCampaign = {
-    ...base, campaignId: "all_arab_campaign",
-    geographicTargets: ["all_arab_countries"],
+    ...base, campaignId: "all_market_campaign",
   };
   const syriaOnlyCampaign = {
-    ...base, campaignId: "syria_only",
-    geographicTargets: ["syria"],
+    ...base, campaignId: "another_market_campaign",
   };
   const syria = selectFeaturedAdShowcase({
     campaigns: [allArabCampaign, syriaOnlyCampaign],
