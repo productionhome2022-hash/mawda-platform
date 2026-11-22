@@ -52,8 +52,9 @@ function randomized<T>(items: T[], random: () => number): T[] {
 }
 
 /**
- * Chooses the upper Watch Ads showcase only. It deliberately does not create
- * rewarded-view sessions. Featured selection is deliberately non-geographic.
+ * Selects ordering for the featured showcase only; the caller explicitly opts
+ * into reward eligibility when those campaigns use the shared timed-ad session.
+ * Featured selection is deliberately non-geographic.
  */
 export function selectFeaturedAdShowcase(args: {
   campaigns: FeaturedAdCampaignCandidate[];
