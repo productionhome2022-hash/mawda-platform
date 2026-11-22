@@ -279,3 +279,38 @@ test("every seeded shop item has a provisional price and any temporary term is b
     }
   }
 });
+
+
+test("Media Saver is a server-fulfilled owner-priced catalog category with fixed approved durations", () => {
+  const { validateStoreCatalogItemInput, isStoreItemPurchasable } = require("../lib/store-catalog");
+  const plans = [
+    ["media_saver_24h", 1],
+    ["media_saver_7d", 7],
+    ["media_saver_30d", 30],
+  ];
+  for (const [itemId, durationDays] of plans) {
+    const item = validateStoreCatalogItemInput({
+      itemId,
+      name: "Mawdda Media Saver",
+      description: "حفظ محلي للوسائط المدعومة دون تمديد الاحتفاظ على الخادم.",
+      category: "media_saver",
+      version: 1,
+      priceCoins: 77,
+      durationDays,
+      active: true,
+      purchaseEnabled: true,
+    });
+    assert.equal(item.fulfillmentReady, true, itemId);
+    assert.equal(isStoreItemPurchasable(item), true, itemId);
+    assert.throws(() => validateStoreCatalogItemInput({
+      itemId,
+      name: "Mawdda Media Saver",
+      description: "مدة غير مطابقة.",
+      category: "media_saver",
+      priceCoins: 77,
+      durationDays: durationDays + 1,
+      active: true,
+      purchaseEnabled: true,
+    }), /INVALID_STORE_ITEM_FIELDS/);
+  }
+});
