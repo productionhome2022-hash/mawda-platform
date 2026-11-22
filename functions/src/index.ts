@@ -8656,11 +8656,26 @@ export const setTimedAdCampaignStatus = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "لا يمكن نشر الحملة قبل اعتماد مادة الإعلان أمنياً.");
       }
     }
+    const nextVersion = (Number.isSafeInteger(data.version) ? data.version : 0) + 1;
+    if (!Number.isSafeInteger(nextVersion)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد للحملة.");
+    }
+    const versionRef = db.collection("timedAdCampaignVersions")
+      .doc(campaignId).collection("versions").doc(String(nextVersion));
+    const previousVersion = await transaction.get(versionRef);
+    if (previousVersion.exists) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة موجود مسبقاً دون تطابق مع الإصدار الحالي.");
+    }
+    const now = FieldValue.serverTimestamp();
     transaction.update(campaignRef, {
-      status, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
-      version: (Number.isSafeInteger(data.version) ? data.version : 0) + 1,
+      status, updatedAt: now, updatedBy: actorUid, version: nextVersion,
     });
-    return { campaignId, status };
+    transaction.create(versionRef, {
+      ...data, status, version: nextVersion,
+      updatedAt: now, updatedBy: actorUid,
+      snapshotAt: now, snapshotBy: actorUid,
+    });
+    return { campaignId, status, version: nextVersion };
   });
   await appendOwnerReviewAuditEvent({
     actorUid, action: "timed_ad_campaign_status_changed", ...result, outcome: "success",
