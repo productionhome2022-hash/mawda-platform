@@ -8938,7 +8938,8 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const utcDay = new Date(nowMs).toISOString().slice(0, 10);
     const dailyClaims = counterData.utcDay === utcDay
       ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
-    if (claims >= data.maxClaimsPerMember ||
+    if (((data.adType ?? "standard") !== "featured" &&
+         claims >= data.maxClaimsPerMember) ||
         ((data.adType ?? "standard") === "featured" &&
          dailyClaims >= data.maxDailyClaimsPerMember)) {
       throw new HttpsError("failed-precondition", "تم بلوغ الحد المسموح لمشاهدة هذه الحملة.");
@@ -9149,7 +9150,8 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const dailyClaims = counterData.utcDay === utcDay
       ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
-        claims >= campaignData.maxClaimsPerMember ||
+        ((campaignData.adType ?? "standard") !== "featured" &&
+         claims >= campaignData.maxClaimsPerMember) ||
         ((campaignData.adType ?? "standard") === "featured" &&
          dailyClaims >= campaignData.maxDailyClaimsPerMember)) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
