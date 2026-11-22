@@ -26,4 +26,14 @@ void main() {
     expect(find.textContaining('الحد الأعلى للمشاهدة المميزة: 10 مشاهدات مؤهلة'), findsOneWidget);
     expect(find.textContaining('سجل المحفظة المركزي'), findsOneWidget);
   });
+  testWidgets('featured browse opens the campaign list without auto-opening reward history', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: FeaturedAdsScreen()));
+
+    await tester.tap(find.text('عرض الإعلانات المميزة'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('الإعلانات التجارية المميزة'), findsOneWidget);
+    expect(find.text('أرشيف مكافآت الإعلانات'), findsNothing);
+  });
+
 }
