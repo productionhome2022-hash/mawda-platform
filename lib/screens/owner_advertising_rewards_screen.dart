@@ -27,6 +27,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
   String _geographicTarget = 'all_arab_countries';
   String _featuredPlacement = 'rotation';
   String? _editingCampaignId;
+  int? _editingVersion;
   List<Map<String, dynamic>> _campaigns = [];
   List<Map<String, dynamic>> _approvedCreatives = [];
   String? _selectedMediaId;
@@ -225,6 +226,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
         'priorityOrder': _adType == 'featured' ? priorityOrder : 0,
         if (_adType == 'featured') 'maxDailyClaimsPerMember': maxDailyClaims,
         if (_editingCampaignId != null) 'campaignId': _editingCampaignId,
+        if (_editingCampaignId != null) 'expectedVersion': _editingVersion,
         'durationSeconds': duration,
         'rewardCoins': reward,
         'startsAtMs': _startsAt.millisecondsSinceEpoch,
@@ -238,6 +240,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       _title.clear(); _sponsor.clear(); _body.clear();
       _selectedMediaId = null;
       _editingCampaignId = null;
+      _editingVersion = null;
       _maxClaims.text = '1';
       _maxDailyClaims.clear();
       _adType = 'standard';
@@ -260,6 +263,7 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
     if (!['draft', 'paused'].contains(campaign['status'])) return;
     setState(() {
       _editingCampaignId = campaign['campaignId'] as String?;
+      _editingVersion = (campaign['version'] as num?)?.toInt();
       _title.text = campaign['title'] as String? ?? '';
       _sponsor.text = campaign['sponsorLabel'] as String? ?? '';
       _body.text = campaign['body'] as String? ?? '';
