@@ -54,7 +54,8 @@ void main() {
       expect(find.text('مكافآت مشاهدة الإعلانات'), findsOneWidget);
       await tester.tap(find.text('مكافآت مشاهدة الإعلانات'));
       await tester.pumpAndSettle();
-      expect(find.text('كيف تحصل على المكافأة؟'), findsOneWidget);
+      expect(find.text('استحقاق المشاهدة'), findsOneWidget);
+      expect(find.textContaining('فتح الشاشة أو معاينة الإعلان'), findsOneWidget);
     },
   );
 }
