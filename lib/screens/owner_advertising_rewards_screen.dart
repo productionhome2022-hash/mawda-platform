@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
@@ -319,6 +321,8 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
                 Text('مجموع مكافآت الكوينز: ${report['totalRewardCoins'] ?? 0}'),
                 Text('حالة الدفع: ${financial?['paymentStatus'] ?? 'غير مسجل'}'),
                 Text('حالة المراجعة المالية: ${financial?['reviewStatus'] ?? 'غير مسجل'}'),
+                const SizedBox(height: 8),
+                Text('أحداث مالية محفوظة: ${(report['financialEvents'] as List? ?? const []).length}'),
               ],
             ),
           ),
@@ -331,6 +335,320 @@ class _OwnerAdvertisingRewardsScreenState extends State<OwnerAdvertisingRewardsS
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل تقرير الحملة.');
     }
   }
+
+  Future<void> _recordFinancialAction(String campaignId, String action) async {
+    final amount = TextEditingController();
+    final currency = TextEditingController();
+    final external = TextEditingController();
+    final evidence = TextEditingController();
+    final note = TextEditingController(text: 'مراجعة مالية للحملة من المالك');
+    final isReview = action == 'review_completed';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(switch (action) {
+          'payment_received' => 'تسجيل قبض المعلن',
+          'refund_recorded' => 'تسجيل استرداد',
+          'settlement_reconciled' => 'تسوية المبلغ',
+          _ => 'مراجعة السجل المالي',
+        }),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!isReview) ...[
+                  TextField(controller: amount, keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'المبلغ بأصغر وحدة للعملة')),
+                  TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(labelText: 'رمز العملة ISO-4217 (ثلاثة أحرف)')),
+                ],
+                TextField(controller: external,
+                  decoration: const InputDecoration(labelText: 'المرجع الخارجي / رقم المستند')),
+                if (action == 'payment_received' || action == 'refund_recorded')
+                  TextField(controller: evidence,
+                    decoration: const InputDecoration(labelText: 'مرجع الدليل المالي')),
+                TextField(controller: note, minLines: 2, maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'ملاحظة التدقيق')),
+                if (isReview)
+                  const Text('سيتم تسجيل قرار مراجعة معتمد، ولا يُنشئ ذلك قبضاً أو تسوية مالية.'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('تسجيل الحدث')),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      return;
+    }
+    final amountMinor = isReview ? null : int.tryParse(amount.text.trim());
+    final currencyCode = isReview ? null : currency.text.trim().toUpperCase();
+    if ((!isReview && (amountMinor == null || amountMinor < 1 ||
+          currencyCode == null || !RegExp(r'^[A-Z]{3}\
+    final date = await showDatePicker(
+      context: context, initialDate: initial,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null) return null;
+    return DateTime(date.year, date.month, date.day, 12);
+  }
+
+  Widget _coinField(String label, TextEditingController controller) => SizedBox(
+    width: 110,
+    child: TextField(
+      controller: controller,
+      enabled: !_saving,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: label, suffixText: 'كوين'),
+    ),
+  );
+
+  String _statusLabel(Object? status) {
+    switch (status) {
+      case 'draft': return 'مسودة';
+      case 'published': return 'منشورة';
+      case 'paused': return 'متوقفة مؤقتاً';
+      case 'archived': return 'مؤرشفة';
+      default: return 'حالة غير معروفة';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('إعلانات مودة ومكافآت الأعضاء'),
+      actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
+    ),
+    body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (_error != null) Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+        ),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('مكافآت الحضور • إصدار السياسة $_policyVersion',
+              style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text('المبالغ تُحفظ على الخادم، وتُمنح مرة واحدة لكل عضو ولكل فترة UTC. القيم الافتراضية متوقفة وصفرية.'),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور الساعي'),
+              value: _hourlyEnabled, onChanged: _saving ? null : (v) => setState(() => _hourlyEnabled = v)),
+            _coinField('مبلغ الساعة', _hourlyCoins),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور اليومي'),
+              value: _dailyEnabled, onChanged: _saving ? null : (v) => setState(() => _dailyEnabled = v)),
+            _coinField('مبلغ اليوم', _dailyCoins),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero, title: const Text('تفعيل مكافأة الحضور الأسبوعي'),
+              value: _weeklyEnabled, onChanged: _saving ? null : (v) => setState(() => _weeklyEnabled = v)),
+            _coinField('مبلغ الأسبوع', _weeklyCoins),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: _saving ? null : _saveAttendancePolicy,
+              icon: const Icon(Icons.save_outlined), label: const Text('حفظ سياسة المكافآت')),
+          ],
+        ))),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(_editingCampaignId == null ? 'إنشاء إعلان من المالك' : 'تعديل الحملة ${_editingCampaignId}',
+              style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text('يمكن للمالك رفع الصور وGIF والفيديو إلى مسار الحجر والفحص الأمني، ولا تُقبل المادة للحملة قبل اعتماد النسخة الآمنة. حملات الفيديو تبقى مسودات حتى يكتمل المشغل واختبار الأجهزة، وموضع الرئيسية غير قابل للنشر حتى اكتمال واجهته. الحملات النصية مستقلة عن أي مزود خارجي مستقبلي.'),
+            const SizedBox(height: 12),
+            TextField(controller: _title, enabled: !_saving, decoration: const InputDecoration(labelText: 'عنوان الحملة')),
+            TextField(controller: _sponsor, enabled: !_saving, decoration: const InputDecoration(labelText: 'اسم المعلن / الراعي')),
+            TextField(controller: _body, enabled: !_saving, minLines: 3, maxLines: 5,
+              decoration: const InputDecoration(labelText: 'نص الإعلان')),
+            OutlinedButton.icon(
+              onPressed: _saving || _uploadingCreative ? null : _uploadCreative,
+              icon: _uploadingCreative
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.perm_media_outlined),
+              label: const Text('رفع صورة أو GIF أو فيديو وفحصه أمنياً'),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedMediaId,
+              decoration: const InputDecoration(labelText: 'المادة المعتمدة للحملة (اختياري)', border: OutlineInputBorder()),
+              items: [
+                const DropdownMenuItem<String>(value: null, child: Text('إعلان نصي فقط')),
+                ..._approvedCreatives.map((item) => DropdownMenuItem<String>(
+                  value: item['mediaId'] as String,
+                  child: Text('${item['originalName'] ?? item['mediaId']} • ${item['mediaCategory']}'),
+                )),
+              ],
+              onChanged: _saving ? null : (value) => setState(() => _selectedMediaId = value),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _adType,
+              decoration: const InputDecoration(labelText: 'نوع الإعلان', border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(value: 'standard', child: Text('إعلان تجاري عادي')),
+                DropdownMenuItem(value: 'featured', child: Text('إعلان تجاري مميز')),
+              ],
+              onChanged: _saving ? null : (value) => setState(() {
+                _adType = value ?? 'standard';
+                _placement = _adType == 'featured' ? 'home' : 'reward_center';
+              }),
+            ),
+            if (_adType == 'standard')
+              DropdownButtonFormField<String>(
+                initialValue: _geographicTarget,
+                decoration: const InputDecoration(labelText: 'استهداف جغرافي', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'all_arab_countries', child: Text('جميع البلدان العربية')),
+                  DropdownMenuItem(value: 'syria', child: Text('سوريا')),
+                  DropdownMenuItem(value: 'lebanon_palestine', child: Text('لبنان وفلسطين')),
+                  DropdownMenuItem(value: 'iraq_jordan', child: Text('العراق والأردن')),
+                  DropdownMenuItem(value: 'gcc', child: Text('دول مجلس التعاون الخليجي')),
+                  DropdownMenuItem(value: 'egypt', child: Text('مصر')),
+                  DropdownMenuItem(value: 'tunisia_libya_sudan', child: Text('تونس وليبيا والسودان')),
+                  DropdownMenuItem(value: 'algeria_morocco', child: Text('الجزائر والمغرب')),
+                  DropdownMenuItem(value: 'europe_turkey', child: Text('أوروبا وتركيا')),
+                  DropdownMenuItem(value: 'asia_middle_east', child: Text('آسيا والشرق الأوسط')),
+                ],
+                onChanged: _saving ? null : (value) => setState(() => _geographicTarget = value ?? _geographicTarget),
+              ),
+            if (_adType == 'featured') ...[
+              DropdownButtonFormField<String>(
+                initialValue: _featuredPlacement,
+                decoration: const InputDecoration(labelText: 'ترتيب العرض المميز', border: OutlineInputBorder()),
+                items: const [
+                  DropdownMenuItem(value: 'rotation', child: Text('تدوير متنوع')),
+                  DropdownMenuItem(value: 'priority', child: Text('أولوية المالك')),
+                ],
+                onChanged: _saving ? null : (value) => setState(() => _featuredPlacement = value ?? 'rotation'),
+              ),
+              TextField(
+                controller: _maxDailyClaims,
+                enabled: !_saving,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'الحد اليومي لكل عضو/إعلان (1–10)'),
+              ),
+              const Text('الإعلانات المميزة لا تستخدم استهدافاً جغرافياً. الحد الأعلى 10، والمالك يحدد الحد الفعلي.'),
+            ],
+            const SizedBox(height: 8),
+            Wrap(spacing: 12, runSpacing: 8, children: [
+              SizedBox(width: 120, child: TextField(controller: _maxClaims, enabled: !_saving,
+                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مرات/عضو'))),
+
+              SizedBox(width: 110, child: TextField(controller: _duration, enabled: !_saving,
+                keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المدة (ثانية)'))),
+              _coinField('المكافأة', _reward),
+              _coinField('الميزانية', _budget),
+            ]),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('بداية الحملة'),
+              subtitle: Text(_startsAt.toLocal().toString()),
+              trailing: const Icon(Icons.calendar_month),
+              onTap: _saving ? null : () async {
+                final value = await _pickDate(_startsAt);
+                if (value != null) setState(() => _startsAt = value);
+              },
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('نهاية الحملة'),
+              subtitle: Text(_endsAt.toLocal().toString()),
+              trailing: const Icon(Icons.event_available),
+              onTap: _saving ? null : () async {
+                final value = await _pickDate(_endsAt);
+                if (value != null) setState(() => _endsAt = value);
+              },
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _saving ? null : _createCampaign,
+              icon: const Icon(Icons.add_circle_outline), label: const Text('حفظ الحملة كمسودة')),
+          ],
+        ))),
+        Text('الحملات المسجلة', style: Theme.of(context).textTheme.titleLarge),
+        if (_campaigns.isEmpty) const Card(child: Padding(
+          padding: EdgeInsets.all(16), child: Text('لا توجد حملات بعد.'))),
+        ..._campaigns.map((campaign) {
+          final id = campaign['campaignId'] as String? ?? '';
+          final status = campaign['status'];
+          return Card(child: ListTile(
+            title: Text(campaign['title'] as String? ?? id),
+            subtitle: Text('${campaign['adType'] == 'featured' ? 'مميز' : 'عادي'} • ${_statusLabel(status)} • ${campaign['rewardCoins'] ?? 0} كوين • مستخدم ${campaign['spentRewardCoins'] ?? 0} • محجوز ${campaign['reservedRewardCoins'] ?? 0} • الميزانية ${campaign['rewardBudgetCoins'] ?? 0} • الدفع: ${(campaign['financialSnapshot'] as Map?)?['paymentStatus'] ?? 'غير مسجل'} • المراجعة: ${(campaign['financialSnapshot'] as Map?)?['reviewStatus'] ?? 'غير مسجل'}'),
+            isThreeLine: true,
+            trailing: PopupMenuButton<String>(
+              enabled: !_saving && status != 'archived',
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _editCampaign(campaign);
+                } else if (value == 'report') {
+                  _showCampaignReport(id);
+                } else if (['payment_received', 'settlement_reconciled', 'review_completed', 'refund_recorded'].contains(value)) {
+                  _pickFinancialAction(id, value);
+                } else {
+                  _changeStatus(id, value);
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'report', child: Text('التقرير والأرشيف')),
+                if (campaign['adType'] == 'featured') ...[
+                  const PopupMenuItem(value: 'payment_received', child: Text('تسجيل قبض المعلن')),
+                  const PopupMenuItem(value: 'settlement_reconciled', child: Text('تسوية مالية')),
+                  const PopupMenuItem(value: 'review_completed', child: Text('اعتماد المراجعة المالية')),
+                  const PopupMenuItem(value: 'refund_recorded', child: Text('تسجيل استرداد')),
+                ],
+                if (status == 'draft' || status == 'paused')
+                  const PopupMenuItem(value: 'edit', child: Text('تعديل')),
+                if (status != 'published') const PopupMenuItem(value: 'published', child: Text('نشر')),
+                if (status == 'published') const PopupMenuItem(value: 'paused', child: Text('إيقاف مؤقت')),
+                if (status != 'archived') const PopupMenuItem(value: 'archived', child: Text('أرشفة')),
+              ],
+            ),
+          ));
+        }),
+      ],
+    ),
+  );
+}
+).hasMatch(currencyCode))) ||
+        external.text.trim().length < 3 || note.text.trim().length < 5 ||
+        ((action == 'payment_received' || action == 'refund_recorded') && evidence.text.trim().length < 3)) {
+      setState(() => _error = 'بيانات الحدث المالي غير مكتملة أو غير صالحة.');
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      return;
+    }
+    setState(() { _saving = true; _error = null; });
+    try {
+      final suffix = '${DateTime.now().microsecondsSinceEpoch}_${Random.secure().nextInt(1 << 32)}';
+      await _functions.httpsCallable('recordFeaturedAdFinancialEvent').call({
+        'campaignId': campaignId,
+        'action': action,
+        'idempotencyKey': 'owner_finance_$suffix',
+        'amountMinor': amountMinor,
+        'currency': currencyCode,
+        'externalReference': external.text.trim(),
+        'evidenceReference': evidence.text.trim().isEmpty ? null : evidence.text.trim(),
+        'note': note.text.trim(),
+        'reviewOutcome': isReview ? 'approved' : null,
+      });
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تسجيل الحدث المالي.');
+    } finally {
+      amount.dispose(); currency.dispose(); external.dispose(); evidence.dispose(); note.dispose();
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _pickFinancialAction(String campaignId, String action) =>
+      _recordFinancialAction(campaignId, action);
 
   Future<DateTime?> _pickDate(DateTime initial) async {
     final date = await showDatePicker(
