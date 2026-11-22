@@ -18,6 +18,7 @@ const {
   cancelTimedAdvertisement,
   getMyTimedAdRewardHistory,
   getOwnerTimedAdCampaignReport,
+  recordFeaturedAdFinancialEvent,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -356,6 +357,9 @@ test("abandoned expired ad sessions release their reserved campaign budget", asy
   let campaignId;
   let firstSessionId;
   let secondSessionId;
+  const economyRef = db.doc("platformSettings/economyPricing");
+  const previousEconomy = await economyRef.get();
+  const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
   await Promise.all([
     firstUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
     secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active" }),
@@ -560,6 +564,21 @@ test("standard ads are geographically filtered and featured ads use the same ato
     secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
   ]);
   try {
+    await economyRef.set({
+      ...(previousEconomyData ?? {
+        coinPackages: [], adPrices: [], customCoinRequestBounds: null,
+        version: 1, manualCoinPurchasesEnabled: false,
+        automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
+      }),
+      manualFeaturedAdsEnabled: true,
+      paymentPolicy: {
+        coin_purchases: { manualEnabled: false, automatedEnabled: false },
+        featured_ads: { manualEnabled: true, automatedEnabled: false },
+        public_ads: { manualEnabled: false, automatedEnabled: false },
+        influencer_services: { manualEnabled: false, automatedEnabled: false },
+        store_entitlements: { manualEnabled: false, automatedEnabled: false },
+      },
+    });
     const standard = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
       title: "Standard geographic campaign",
       sponsorLabel: "Verified standard sponsor",
@@ -613,6 +632,35 @@ test("standard ads are geographically filtered and featured ads use the same ato
       rewardBudgetCoins: 30,
     }));
     featuredCampaignId = featured.campaignId;
+    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+      action: "payment_received",
+      idempotencyKey: `payment_key_${tag}`,
+      amountMinor: 10000,
+      currency: "EUR",
+      externalReference: `featured_receipt_${tag}`,
+      evidenceReference: `evidence://featured_receipt_${tag}`,
+      note: "Synthetic receipt for the integration test.",
+    }));
+    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+      action: "settlement_reconciled",
+      idempotencyKey: `settlement_key_${tag}`,
+      amountMinor: 10000,
+      currency: "EUR",
+      externalReference: `featured_settlement_${tag}`,
+      note: "Synthetic settlement for the integration test.",
+    }));
+    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
+      campaignId: featuredCampaignId,
+      action: "review_completed",
+      idempotencyKey: `review_key_${tag}`,
+      amountMinor: null,
+      currency: null,
+      externalReference: `featured_review_${tag}`,
+      note: "Synthetic owner review for the integration test.",
+      reviewOutcome: "approved",
+    }));
     await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
       campaignId: featuredCampaignId, status: "published",
     }));
@@ -686,9 +734,18 @@ test("standard ads are geographically filtered and featured ads use the same ato
       ...versions.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
       ...audits.docs.map((doc) => doc.ref.delete()),
       ...(standardCampaignId ? [db.collection("timedAdCampaigns").doc(standardCampaignId).delete()] : []),
-      ...(featuredCampaignId ? [db.collection("timedAdCampaigns").doc(featuredCampaignId).delete()] : []),
+      ...(featuredCampaignId ? [
+        db.collection("timedAdCampaigns").doc(featuredCampaignId).delete(),
+        db.collection("featuredAdFinancials").doc(featuredCampaignId).collection("events").get()
+          .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
+        db.collection("featuredAdFinancialVersions").doc(featuredCampaignId).collection("versions").get()
+          .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
+        db.collection("featuredAdFinancials").doc(featuredCampaignId).delete(),
+      ] : []),
       ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("users").doc(uid).delete()),
       ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined)),
     ]);
+    if (previousEconomyData) await economyRef.set(previousEconomyData);
+    else await economyRef.delete().catch(() => undefined);
   }
 });
