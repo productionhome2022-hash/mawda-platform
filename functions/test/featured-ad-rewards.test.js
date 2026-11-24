@@ -5,9 +5,20 @@ const {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
   decideFeaturedAdReward,
+  featuredAdCampaignRewardPolicy,
+  featuredAdRewardBudgetAvailable,
 } = require("../lib/featured-ad-rewards");
 
-const policy = defaultFeaturedAdRewardPolicy();
+const defaults = defaultFeaturedAdRewardPolicy();
+// Values below are isolated test fixtures, not production defaults or owner policy.
+const policy = validateFeaturedAdRewardPolicy({
+  ...defaults,
+  enabled: true,
+  rewardCoinsPerView: 2,
+  maxRewardedViewsPerUtcDay: 10,
+  maxRewardCoinsPerUtcDay: 20,
+  maxRewardsPerCampaignRolling24h: 3,
+});
 const base = {
   nowMs: 1_800_000_000_000,
   campaignEligible: true,
@@ -21,8 +32,14 @@ const base = {
   sameCampaignRewardsInWindow: 0,
 };
 
-test("uses the approved experimental featured-ad reward defaults", () => {
-  assert.deepEqual(policy, FEATURED_AD_REWARD_DEFAULTS);
+test("featured-ad rewards remain disabled and zero until the owner configures policy", () => {
+  assert.deepEqual(defaults, FEATURED_AD_REWARD_DEFAULTS);
+  assert.equal(defaults.enabled, false);
+  assert.equal(defaults.rewardCoinsPerView, 0);
+  assert.equal(defaults.maxRewardedViewsPerUtcDay, 0);
+  assert.equal(defaults.maxRewardCoinsPerUtcDay, 0);
+  assert.equal(defaults.maxRewardsPerCampaignRolling24h, 0);
+  assert.deepEqual(validateFeaturedAdRewardPolicy(defaults), defaults);
 });
 
 test("validates and rejects unsafe owner reward policies", () => {
@@ -32,7 +49,7 @@ test("validates and rejects unsafe owner reward policies", () => {
   assert.throws(() => validateFeaturedAdRewardPolicy({ ...policy, maxRewardsPerCampaignRolling24h: 0 }));
 });
 
-test("rewards a qualifying visible video once", () => {
+test("rewards a qualifying visible video only under an enabled owner policy", () => {
   assert.deepEqual(decideFeaturedAdReward(policy, base), {
     eligible: true, amountCoins: 2, reason: "qualified",
   });
@@ -40,6 +57,7 @@ test("rewards a qualifying visible video once", () => {
 
 test("does not reward when policy is disabled", () => {
   assert.equal(decideFeaturedAdReward({ ...policy, enabled: false }, base).reason, "policy_disabled");
+  assert.equal(decideFeaturedAdReward(defaults, base).reason, "policy_disabled");
 });
 
 test("does not reward withdrawn or otherwise ineligible campaigns", () => {
@@ -68,12 +86,12 @@ test("enforces continuous visible time for static images", () => {
   }).eligible, true);
 });
 
-test("enforces the daily rewarded-view and coin caps", () => {
+test("enforces owner-configured daily rewarded-view and coin caps", () => {
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: 10 }).reason, "daily_view_cap");
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 19 }).reason, "daily_coin_cap");
 });
 
-test("enforces the approved three rewards per campaign in a rolling 24-hour window", () => {
+test("enforces the owner-configured per-campaign rolling window cap", () => {
   assert.equal(decideFeaturedAdReward(policy, {
     ...base, sameCampaignRewardsInWindow: 2,
   }).eligible, true);
@@ -84,4 +102,15 @@ test("enforces the approved three rewards per campaign in a rolling 24-hour wind
 
 test("rejects invalid server evidence rather than granting a reward", () => {
   assert.throws(() => decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: -1 }));
+});
+
+test("campaign reward cannot exceed the owner ceiling and must fit its remaining budget", () => {
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 2).rewardCoinsPerView, 2);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 1).rewardCoinsPerView, 1);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, 3).rewardCoinsPerView, 0);
+  assert.equal(featuredAdCampaignRewardPolicy(policy, "2").rewardCoinsPerView, 0);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 98, 2), true);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 99, 2), false);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 101, 1), false);
+  assert.equal(featuredAdRewardBudgetAvailable(100, 0, 0), false);
 });

@@ -1,9 +1,10 @@
 export const FEATURED_AD_REWARD_DEFAULTS = {
-  enabled: true,
-  rewardCoinsPerView: 2,
-  maxRewardedViewsPerUtcDay: 10,
-  maxRewardCoinsPerUtcDay: 20,
-  maxRewardsPerCampaignRolling24h: 3,
+  // No reward amount or quota is assumed until the owner explicitly configures it.
+  enabled: false,
+  rewardCoinsPerView: 0,
+  maxRewardedViewsPerUtcDay: 0,
+  maxRewardCoinsPerUtcDay: 0,
+  maxRewardsPerCampaignRolling24h: 0,
   sameCampaignWindowMs: 24 * 60 * 60 * 1000,
   videoCompletionPercent: 90,
   imageContinuousVisibleMs: 10_000,
@@ -49,13 +50,14 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
       !integerInRange(input.rewardCoinsPerView, 0, 100_000) ||
       !integerInRange(input.maxRewardedViewsPerUtcDay, 0, 10_000) ||
       !integerInRange(input.maxRewardCoinsPerUtcDay, 0, 1_000_000) ||
-      !integerInRange(input.maxRewardsPerCampaignRolling24h, 1, 1000) ||
+      !integerInRange(input.maxRewardsPerCampaignRolling24h, 0, 1000) ||
       !integerInRange(input.sameCampaignWindowMs, 1, 31 * 24 * 60 * 60 * 1000) ||
       !integerInRange(input.videoCompletionPercent, 1, 100) ||
       !integerInRange(input.imageContinuousVisibleMs, 1_000, 60 * 60 * 1000) ||
       (input.enabled && (input.rewardCoinsPerView < 1 ||
         input.maxRewardedViewsPerUtcDay < 1 ||
-        input.maxRewardCoinsPerUtcDay < input.rewardCoinsPerView))) {
+        input.maxRewardCoinsPerUtcDay < input.rewardCoinsPerView ||
+        input.maxRewardsPerCampaignRolling24h < 1))) {
     throw new Error("FEATURED_AD_REWARD_POLICY_INVALID");
   }
   return {
@@ -72,6 +74,32 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
 
 export function defaultFeaturedAdRewardPolicy(): FeaturedAdRewardPolicy {
   return { ...FEATURED_AD_REWARD_DEFAULTS };
+}
+
+/** Resolve an immutable campaign reward under the owner's global per-view ceiling. */
+export function featuredAdCampaignRewardPolicy(
+  policyInput: unknown,
+  campaignRewardCoins: unknown,
+): FeaturedAdRewardPolicy {
+  const policy = validateFeaturedAdRewardPolicy(policyInput);
+  const configured = integerInRange(campaignRewardCoins, 1, 100_000) &&
+    campaignRewardCoins <= policy.rewardCoinsPerView;
+  return {
+    ...policy,
+    rewardCoinsPerView: configured ? campaignRewardCoins : 0,
+  };
+}
+
+export function featuredAdRewardBudgetAvailable(
+  budgetCoins: unknown,
+  spentCoins: unknown,
+  rewardCoins: unknown,
+): boolean {
+  return integerInRange(budgetCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(spentCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(rewardCoins, 1, 100_000) &&
+    spentCoins <= budgetCoins &&
+    budgetCoins - spentCoins >= rewardCoins;
 }
 
 export interface FeaturedAdRewardEvidence {
