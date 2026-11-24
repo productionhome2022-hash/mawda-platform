@@ -30,6 +30,8 @@ concurrency:
 
 jobs:
   live-validation:
+    # Disabled: this phase does not run live cloud/GCS tests outside GitHub's isolated emulators.
+    if: false
     name: Live scanner E2E and GCS generation-retention proof
     runs-on: ubuntu-latest
     timeout-minutes: 45
