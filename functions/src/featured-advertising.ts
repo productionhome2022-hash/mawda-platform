@@ -19,7 +19,7 @@ export type FeaturedAdSelection = {
   campaignIds: string[];
   rotationIntervalMs: number;
   /** Caller controls whether the selected campaign is a rewarded viewing placement. */
-  rewardEligible: boolean;
+  rewardEligible: false;
 };
 
 function isEligible(
@@ -61,7 +61,6 @@ export function selectFeaturedAdShowcase(args: {
   nowMs: number;
   rotationIntervalMs?: number;
   random?: () => number;
-  rewardEligible?: boolean;
 }): FeaturedAdSelection {
   const interval = args.rotationIntervalMs ?? DEFAULT_FEATURED_AD_ROTATION_INTERVAL_MS;
   if (!Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
@@ -85,7 +84,7 @@ export function selectFeaturedAdShowcase(args: {
       mode: "priority",
       campaignIds: priority.map((campaign) => campaign.campaignId),
       rotationIntervalMs: interval,
-      rewardEligible: args.rewardEligible === true,
+      rewardEligible: false,
     };
   }
 
@@ -94,7 +93,7 @@ export function selectFeaturedAdShowcase(args: {
       mode: "empty",
       campaignIds: [],
       rotationIntervalMs: interval,
-      rewardEligible: args.rewardEligible === true,
+      rewardEligible: false,
     };
   }
 
@@ -105,6 +104,6 @@ export function selectFeaturedAdShowcase(args: {
       args.random ?? Math.random,
     ),
     rotationIntervalMs: interval,
-    rewardEligible: args.rewardEligible === true,
+    rewardEligible: false,
   };
 }
