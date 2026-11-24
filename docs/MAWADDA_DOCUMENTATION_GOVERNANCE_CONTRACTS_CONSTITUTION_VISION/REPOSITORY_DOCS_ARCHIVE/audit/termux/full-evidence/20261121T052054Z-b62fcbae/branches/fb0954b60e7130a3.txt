@@ -1,0 +1,283 @@
+BRANCH: codex/governance-biometric-integration-2026-11-19
+SHA: 619eab643e2d5849b3b2c055461d53ba2be01753
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 1a3d17ddde864a2649f7f0411b2f8b6552effd59
+
+=== DIVERGENCE target-only / branch-only ===
+487	89
+
+=== BRANCH UNIQUE COMMITS ===
+619eab643e2d5849b3b2c055461d53ba2be01753 test: keep fixed five-seat ordinal policy unresolved
+a1295f7fb0268c7a4fd351b1516fb0cf2edca10e fix: limit permanent ordinal allocation to Admin N
+4b56fdc54a55e5c66546f77242f815d3a2bc431b docs: clarify unresolved five-seat number reuse policy
+54db10403de1ec20c43e5a837314336125563c7c ci: validate governance branch on every push
+e6d6e03fb8fd70d281a7d76f047a9cb3350252c8 ci: validate governance branch on every push
+eca9e14c01ce911c463f7a4670ed09a0a57f65c5 docs: record canonical Admin Media permission catalogue
+23e43410ba881056868c58869dc99063c2ee403a test: use canonical Admin Media permission
+78066717b43578864be0e67c6e00460bb98c62f1 test: fix role matrix test description
+f052181bee2158b7bb7465b66846fb6f9bc1d6a4 test: align Admin Media grants with approved permission catalogue
+0ec3ef32ab65c2346eba17d9f340d0d9ac0f2098 security: unify Admin Media permission catalogue
+edfbd98fd9edc78aa38afc7d068972f8d9440a14 docs: record fail-closed unconfigured role grants
+3326f7a314d1a386108e9425f4b30691aa45fc52 test: deny unconfigured specialized role permission grants
+4e560b0774dc726682c728a217e4614ca2c722f2 security: deny unconfigured specialized role grants
+cacacdd7c88a1b1a9a9d76197cb0a1e043cd0bd4 docs: record remaining authorization integration gaps
+5b70b6f7f65e154b58d34fdb145f56cbc9bf94f7 test: enforce canonical unnumbered team supervisor label
+d419dbeefa8c9f68a8b17e3e607eee48b0628c43 fix: keep team production supervisor display unnumbered
+44b76eb7ad362474776dd54c7cd1da2044c1e74e docs: align advertising supervisor traceability labels
+3bc6f2611c821b434a308211fd892cefc6e47871 docs: align advertising workspace roles with canonical names
+09a30058028cfe62109ccd5efde988fdecd0f84e docs: record supervisor permission boundary remediation
+880456dc24297b8316de5839f7c96e4d7dfdfe7d docs(ui): remove legacy owner title from model comments
+a68cdeb5ca20d5a72a9f56ac3d4b34209c41aa9b test: cover specialized supervisor permission isolation
+55086f4afae4c021c0202a96e03ee1650cac9d9d security: enforce specialized role permission boundaries
+bacce6208d82a1cd3017681763c414653be8edec test: run biometric evidence lifecycle against Storage Emulator
+418dd2899dc3fd22e10748037c899484a687c364 test: verify biometric evidence deletion in Storage Emulator
+964a54d0cc9dbc367d9f9e19f9bde7017ae7fabe test: scope biometric reward security assertions to callable body
+6ce60c126856e0dbc61493640c7e7c67759d332b test: serialize Firestore and Storage rules suites to avoid shared emulator races
+8330111e97808a9971f472dc91a5ff7ffe5c4530 test: assert local authentication is not biometric proof
+0d51a3aaa37597a60dd355271e300effe57c904a test: align biometric eligibility fixtures with owner-reviewed records
+a60dc4bc16c4ab515fe0b8a2f83ff58b12b8423e fix: import biometric and role policy helpers into Functions
+1b0ddf5e1c12cdf92de6f95a48ee787344fafe6e ci: rerun validation suites for governance biometric head
+faca18a04f47e91815443f92c5d8caf15a9d7298 Test server denial of biometric upload URLs for non-active or foreign requests
+dbc3ef9124d21168eb1c11f9d2d3d1d2643bd66e Guard the legacy owner authorization ID while changing display terminology
+a0a789951a9a0894e1c5fb11044dc244f4204694 Keep duplicate-submission test focused on pending-request protection after consent
+d03045997d5fa090e1d03903bb7a73a18597783a Normalize legacy owner title in execution and traceability documents
+ca67d2e74f7a6d2de6dbcb28771364498162048c Normalize legacy owner title in execution and traceability documents
+381dcc48a32fe4c54fbd67ac381fb48634e8d4e6 Normalize legacy owner title in execution and traceability documents
+0df394149042a05c343f53d81c910557c7fae6b2 Replace legacy owner title in canonical product documentation
+daba8aa47abe2908b3562009f7d03bc07f5f8708 Replace legacy owner title in canonical product documentation
+4e5c8e45e4fa5dde29b2b0eb720975f88c9c5a21 Replace legacy owner title in canonical product documentation
+4105fdfa4ce4e5ff38973f8816372ce6f5b5bf15 Replace legacy owner title in canonical product documentation
+4a6ca9d927506c143379864fd8100acf0b1353a9 Update biometric settings UI implementation traceability
+bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef Add owner-controlled biometric settings without inventing limits or phrases
+c2fc0d6e75a44967ae957476d85bb6763c0875fc Bound local biometric recording size and clean temporary evidence files
+8ece689cafe93d330f381c49e828decd695edc65 Track governance and biometric integration status and remaining acceptance gates
+0d1d229096d8026750a2565f49c57dfb046d4b40 Test calendar-month biometric lockout boundaries
+1c84e6c2fc16948fe109e36c74821d60d96a5372 Use exact three-calendar-month biometric lockout semantics
+b94803fe1e0d1ca077309361fecf6b4d36cdc15e Preserve existing super_admin authorization identifier for Super Owner display rename
+f1cbc1741d13475dd17fbdd0c7ef2e77ff35dc70 Replace legacy owner label in server-generated chat messages
+7c7e3a30f318a0a13a6a25a2493614830046748d Verify explicit server-enforced consent before biometric submission
+51064dc459c720f0a660282be02efa458dd01f2f Send explicit biometric evidence consent to server
+7b74813276db8f2bfa549f42f0ab3fcd9e190f5f Persist explicit biometric evidence consent and bind deletion to canonical owner paths
+25b2459540a433d3e943c8e48c91009fd25fe4ee Add Super Owner biometric review inbox entry point
+2bb81ad742124c12cbd7319f3d6a79cdef93f2b4 Expose member biometric verification workflow in completed profile
+c7fe5a9a3863953acfd7b515408f24ebabfea6cc Issue short-lived member-owned upload URLs for biometric evidence
+844be9a1fc1153fb3f1786ff8a88f9d43a09a2f3 Add Super Owner biometric review inbox and decision screen
+cfb5a84851736a8d70c9d36ec45469b01f94904d Add member biometric recording and submission screen
+b02224c068a9c4c52a5cb31c4bb27eb48a3a4826 Correct biometric evidence path validation expressions
+8baf6c9174d8cfd2975aab55b00f90fcbfc6a6ec Fail closed when biometric evidence deletion paths are missing or malformed
+9dc2b4885789b4c4faf09f108c6fb9a51a4ed7d8 Run validation workflows on governance integration branch
+d01eebad03479ba4c308beb0a234c6edebbf31ae Run validation workflows on governance integration branch
+b17d11bf6b9dc634330b381e04de52791aeb4dc7 Link governance and biometric verification specification
+7acc099ede9bd3b59bfaf32d9acdb0957d7cbb86 Document biometric review and administrative governance acceptance gates
+66d926550c9e164c562d204cceb263b11aa6ce4e Align product vision and execution plan with approved role terminology
+abfdc05256d5b9d15333e998e659cfd5d3159472 Align product vision and execution plan with approved role terminology
+058ef11f9f43a1533241dc008eeecef1ac5ea428 Align governance decisions with canonical Super Owner terminology
+1b750c0f100693104e6a9d6b549e61c460144732 Align governance decisions with canonical Super Owner terminology
+77489ca76753e89b1d3dd79859ba970339468860 Record canonical owner and supervisor display terminology
+52edabb67154da19c8fb53a83eab69a3ef1cce49 Link canonical administrative terminology standard
+7a991528d45dd3240289bd16aa6e9e62c7f4562d Add canonical administrative role terminology standard
+e241d7f42bca69ca4def57aa10d202b4832148a9 Apply canonical Super Owner display terminology
+2aaf22e9df02193deda8b6284330cd43b438cac2 Apply canonical Super Owner display terminology
+7488c435a0207244c27203440427f56ef4b25bc2 Apply canonical Super Owner display terminology
+8913885ac4481c48ab7521a4120fbbe249ca9082 Test member-owned biometric evidence access and upload rules
+2c64ebe8604d0100e5c91e76f4e2129e2b553ca7 Test member-owned biometric evidence access and upload rules
+df461aa7a315957183742fe890db617741883afc Integrate biometric and role policy regression coverage
+aac55fcfc8b2d39501a3246c59762c30e834350a Integrate biometric and role policy regression coverage
+0fe243799b67a02b49c7a5962bea048c03d306f4 Integrate biometric and role policy regression coverage
+01048495f624fe97e713a5de9bf350e984807b28 Add specialized role capacity emulator tests
+c68823a48b180fc2d759a00592d609c63f55d470 Integrate biometric and role policy regression coverage
+ce4ff1b4d3f4b23550ca83c374b27e86d78712bc Add role identity capacity and permanent numbering tests
+8aee9b197740fdbb2bd1ef297f80db3d7cf072a6 Add unit coverage for biometric review and canonical role policies
+d6b8b78ca251b8551ed2ef9df05b2df6c1367cb7 Add unit coverage for biometric review and canonical role policies
+90ffa5896fd3d7eee663d47e0f2e876724b192a2 Require owner-reviewed evidence for active biometric verification
+5f045b834ed699de8a060bae1575bbc5b7c1cadb Add private, bounded biometric evidence upload rules
+90ac7d80c80bab4bf217b0707aa5dd7a9fb04d12 Restrict biometric request reads to member-owned upload state
+7aa0bff8854e343d0ae09ad5147ab756b3c12719 Integrate owner-reviewed biometric workflow and scoped role capacity checks
+a601b965847a970641c8d11a107923706ba13465 Add reviewed biometric and canonical role policy helpers
+cde71c69b4993db91802ebd25bd9ea4a46c048e0 Add reviewed biometric and canonical role policy helpers
+20b5df5f1b715fdc4786f024692e91ff98c1c7c4 Add reviewed biometric and canonical role policy helpers
+
+=== CHERRY STATUS ===
++ 20b5df5f1b715fdc4786f024692e91ff98c1c7c4 Add reviewed biometric and canonical role policy helpers
++ cde71c69b4993db91802ebd25bd9ea4a46c048e0 Add reviewed biometric and canonical role policy helpers
++ a601b965847a970641c8d11a107923706ba13465 Add reviewed biometric and canonical role policy helpers
++ 7aa0bff8854e343d0ae09ad5147ab756b3c12719 Integrate owner-reviewed biometric workflow and scoped role capacity checks
++ 90ac7d80c80bab4bf217b0707aa5dd7a9fb04d12 Restrict biometric request reads to member-owned upload state
++ 5f045b834ed699de8a060bae1575bbc5b7c1cadb Add private, bounded biometric evidence upload rules
++ 90ffa5896fd3d7eee663d47e0f2e876724b192a2 Require owner-reviewed evidence for active biometric verification
++ d6b8b78ca251b8551ed2ef9df05b2df6c1367cb7 Add unit coverage for biometric review and canonical role policies
++ 8aee9b197740fdbb2bd1ef297f80db3d7cf072a6 Add unit coverage for biometric review and canonical role policies
++ ce4ff1b4d3f4b23550ca83c374b27e86d78712bc Add role identity capacity and permanent numbering tests
++ c68823a48b180fc2d759a00592d609c63f55d470 Integrate biometric and role policy regression coverage
++ 01048495f624fe97e713a5de9bf350e984807b28 Add specialized role capacity emulator tests
++ 0fe243799b67a02b49c7a5962bea048c03d306f4 Integrate biometric and role policy regression coverage
++ aac55fcfc8b2d39501a3246c59762c30e834350a Integrate biometric and role policy regression coverage
++ df461aa7a315957183742fe890db617741883afc Integrate biometric and role policy regression coverage
++ 2c64ebe8604d0100e5c91e76f4e2129e2b553ca7 Test member-owned biometric evidence access and upload rules
++ 8913885ac4481c48ab7521a4120fbbe249ca9082 Test member-owned biometric evidence access and upload rules
++ 7488c435a0207244c27203440427f56ef4b25bc2 Apply canonical Super Owner display terminology
+- 2aaf22e9df02193deda8b6284330cd43b438cac2 Apply canonical Super Owner display terminology
++ e241d7f42bca69ca4def57aa10d202b4832148a9 Apply canonical Super Owner display terminology
++ 7a991528d45dd3240289bd16aa6e9e62c7f4562d Add canonical administrative role terminology standard
++ 52edabb67154da19c8fb53a83eab69a3ef1cce49 Link canonical administrative terminology standard
++ 77489ca76753e89b1d3dd79859ba970339468860 Record canonical owner and supervisor display terminology
++ 1b750c0f100693104e6a9d6b549e61c460144732 Align governance decisions with canonical Super Owner terminology
++ 058ef11f9f43a1533241dc008eeecef1ac5ea428 Align governance decisions with canonical Super Owner terminology
++ abfdc05256d5b9d15333e998e659cfd5d3159472 Align product vision and execution plan with approved role terminology
++ 66d926550c9e164c562d204cceb263b11aa6ce4e Align product vision and execution plan with approved role terminology
++ 7acc099ede9bd3b59bfaf32d9acdb0957d7cbb86 Document biometric review and administrative governance acceptance gates
++ b17d11bf6b9dc634330b381e04de52791aeb4dc7 Link governance and biometric verification specification
+- d01eebad03479ba4c308beb0a234c6edebbf31ae Run validation workflows on governance integration branch
+- 9dc2b4885789b4c4faf09f108c6fb9a51a4ed7d8 Run validation workflows on governance integration branch
++ 8baf6c9174d8cfd2975aab55b00f90fcbfc6a6ec Fail closed when biometric evidence deletion paths are missing or malformed
++ b02224c068a9c4c52a5cb31c4bb27eb48a3a4826 Correct biometric evidence path validation expressions
++ cfb5a84851736a8d70c9d36ec45469b01f94904d Add member biometric recording and submission screen
++ 844be9a1fc1153fb3f1786ff8a88f9d43a09a2f3 Add Super Owner biometric review inbox and decision screen
++ c7fe5a9a3863953acfd7b515408f24ebabfea6cc Issue short-lived member-owned upload URLs for biometric evidence
++ 2bb81ad742124c12cbd7319f3d6a79cdef93f2b4 Expose member biometric verification workflow in completed profile
++ 25b2459540a433d3e943c8e48c91009fd25fe4ee Add Super Owner biometric review inbox entry point
++ 7b74813276db8f2bfa549f42f0ab3fcd9e190f5f Persist explicit biometric evidence consent and bind deletion to canonical owner paths
++ 51064dc459c720f0a660282be02efa458dd01f2f Send explicit biometric evidence consent to server
++ 7c7e3a30f318a0a13a6a25a2493614830046748d Verify explicit server-enforced consent before biometric submission
++ f1cbc1741d13475dd17fbdd0c7ef2e77ff35dc70 Replace legacy owner label in server-generated chat messages
++ b94803fe1e0d1ca077309361fecf6b4d36cdc15e Preserve existing super_admin authorization identifier for Super Owner display rename
++ 1c84e6c2fc16948fe109e36c74821d60d96a5372 Use exact three-calendar-month biometric lockout semantics
++ 0d1d229096d8026750a2565f49c57dfb046d4b40 Test calendar-month biometric lockout boundaries
++ 8ece689cafe93d330f381c49e828decd695edc65 Track governance and biometric integration status and remaining acceptance gates
++ c2fc0d6e75a44967ae957476d85bb6763c0875fc Bound local biometric recording size and clean temporary evidence files
++ bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef Add owner-controlled biometric settings without inventing limits or phrases
++ 4a6ca9d927506c143379864fd8100acf0b1353a9 Update biometric settings UI implementation traceability
+- 4105fdfa4ce4e5ff38973f8816372ce6f5b5bf15 Replace legacy owner title in canonical product documentation
++ 4e5c8e45e4fa5dde29b2b0eb720975f88c9c5a21 Replace legacy owner title in canonical product documentation
++ daba8aa47abe2908b3562009f7d03bc07f5f8708 Replace legacy owner title in canonical product documentation
++ 0df394149042a05c343f53d81c910557c7fae6b2 Replace legacy owner title in canonical product documentation
++ 381dcc48a32fe4c54fbd67ac381fb48634e8d4e6 Normalize legacy owner title in execution and traceability documents
+- ca67d2e74f7a6d2de6dbcb28771364498162048c Normalize legacy owner title in execution and traceability documents
++ d03045997d5fa090e1d03903bb7a73a18597783a Normalize legacy owner title in execution and traceability documents
++ a0a789951a9a0894e1c5fb11044dc244f4204694 Keep duplicate-submission test focused on pending-request protection after consent
++ dbc3ef9124d21168eb1c11f9d2d3d1d2643bd66e Guard the legacy owner authorization ID while changing display terminology
++ faca18a04f47e91815443f92c5d8caf15a9d7298 Test server denial of biometric upload URLs for non-active or foreign requests
+- 1b0ddf5e1c12cdf92de6f95a48ee787344fafe6e ci: rerun validation suites for governance biometric head
++ a60dc4bc16c4ab515fe0b8a2f83ff58b12b8423e fix: import biometric and role policy helpers into Functions
++ 0d51a3aaa37597a60dd355271e300effe57c904a test: align biometric eligibility fixtures with owner-reviewed records
++ 8330111e97808a9971f472dc91a5ff7ffe5c4530 test: assert local authentication is not biometric proof
++ 6ce60c126856e0dbc61493640c7e7c67759d332b test: serialize Firestore and Storage rules suites to avoid shared emulator races
++ 964a54d0cc9dbc367d9f9e19f9bde7017ae7fabe test: scope biometric reward security assertions to callable body
++ 418dd2899dc3fd22e10748037c899484a687c364 test: verify biometric evidence deletion in Storage Emulator
+- bacce6208d82a1cd3017681763c414653be8edec test: run biometric evidence lifecycle against Storage Emulator
++ 55086f4afae4c021c0202a96e03ee1650cac9d9d security: enforce specialized role permission boundaries
++ a68cdeb5ca20d5a72a9f56ac3d4b34209c41aa9b test: cover specialized supervisor permission isolation
+- 880456dc24297b8316de5839f7c96e4d7dfdfe7d docs(ui): remove legacy owner title from model comments
++ 09a30058028cfe62109ccd5efde988fdecd0f84e docs: record supervisor permission boundary remediation
++ 3bc6f2611c821b434a308211fd892cefc6e47871 docs: align advertising workspace roles with canonical names
++ 44b76eb7ad362474776dd54c7cd1da2044c1e74e docs: align advertising supervisor traceability labels
++ d419dbeefa8c9f68a8b17e3e607eee48b0628c43 fix: keep team production supervisor display unnumbered
++ 5b70b6f7f65e154b58d34fdb145f56cbc9bf94f7 test: enforce canonical unnumbered team supervisor label
++ cacacdd7c88a1b1a9a9d76197cb0a1e043cd0bd4 docs: record remaining authorization integration gaps
++ 4e560b0774dc726682c728a217e4614ca2c722f2 security: deny unconfigured specialized role grants
++ 3326f7a314d1a386108e9425f4b30691aa45fc52 test: deny unconfigured specialized role permission grants
++ edfbd98fd9edc78aa38afc7d068972f8d9440a14 docs: record fail-closed unconfigured role grants
++ 0ec3ef32ab65c2346eba17d9f340d0d9ac0f2098 security: unify Admin Media permission catalogue
++ f052181bee2158b7bb7465b66846fb6f9bc1d6a4 test: align Admin Media grants with approved permission catalogue
++ 78066717b43578864be0e67c6e00460bb98c62f1 test: fix role matrix test description
++ 23e43410ba881056868c58869dc99063c2ee403a test: use canonical Admin Media permission
++ eca9e14c01ce911c463f7a4670ed09a0a57f65c5 docs: record canonical Admin Media permission catalogue
++ e6d6e03fb8fd70d281a7d76f047a9cb3350252c8 ci: validate governance branch on every push
++ 54db10403de1ec20c43e5a837314336125563c7c ci: validate governance branch on every push
++ 4b56fdc54a55e5c66546f77242f815d3a2bc431b docs: clarify unresolved five-seat number reuse policy
++ a1295f7fb0268c7a4fd351b1516fb0cf2edca10e fix: limit permanent ordinal allocation to Admin N
++ 619eab643e2d5849b3b2c055461d53ba2be01753 test: keep fixed five-seat ordinal policy unresolved
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/models/app_models.dart
+A	lib/screens/biometric_verification_screen.dart
+M	lib/screens/main_user_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules
+
+=== NUMSTAT ===
+2	0	.github/workflows/mawdda-domain-regression.yml
+2	0	.github/workflows/validate.yml
+6	2	README.md
+8	8	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+51	14	docs/IMPLEMENTATION_TRACEABILITY.md
+3	3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+16	3	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+35	0	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+5	5	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+19	19	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+23	6	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+149	0	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+6	0	firestore.rules
+5	4	functions/package.json
+61	16	functions/src/advertising-governance.ts
+97	0	functions/src/biometric-media.ts
+154	0	functions/src/biometric-review.ts
+4	1	functions/src/biometric-verification.ts
+841	10	functions/src/index.ts
+86	0	functions/src/platform-role-identities.ts
+67	4	functions/test/advertising-governance.test.js
+61	0	functions/test/biometric-media.test.js
+96	0	functions/test/biometric-review.test.js
+2	2	functions/test/biometric-reward-security.test.js
+7	0	functions/test/biometric-verification.test.js
+177	1	functions/test/integration/biometric-verification.integration.test.js
+120	0	functions/test/integration/specialized-role-capacity.integration.test.js
+3	0	functions/test/member-social-links-access.test.js
+10	1	functions/test/member-social-links.test.js
+50	0	functions/test/platform-role-identities.test.js
+23	0	functions/test/rules/firestore.rules.test.js
+124	20	functions/test/rules/storage.rules.test.js
+4	4	lib/models/app_models.dart
+293	0	lib/screens/biometric_verification_screen.dart
+9	1	lib/screens/main_user_screen.dart
+276	0	lib/screens/owner_biometric_review_screen.dart
+1	1	lib/screens/owner_chat_participation_screen.dart
+14	2	lib/screens/super_admin_screen.dart
+24	4	storage.rules
+
+=== DIFF CHECK ===
+docs/IMPLEMENTATION_TRACEABILITY.md:663: trailing whitespace.
++**Current integration branch:** `codex/governance-biometric-integration-2026-11-19`  
+docs/IMPLEMENTATION_TRACEABILITY.md:664: trailing whitespace.
++**Draft PR:** [#33](https://github.com/productionhome2022-hash/mawda-platform/pull/33)  
+docs/IMPLEMENTATION_TRACEABILITY.md:665: trailing whitespace.
++**Current inspected PR head at last update:** `bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef`  
+docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md:3: trailing whitespace.
++**Decision date:** 2026-11-19  
+DIFF_CHECK=WARNING

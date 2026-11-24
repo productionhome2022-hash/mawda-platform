@@ -1,0 +1,27 @@
+Branch: codex/mawdda-biometric-owner-review-policy-2026-11-20
+Branch SHA: 693dc110a931107f2fcc1f829e08974932ab65db
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+178	2
+
+--- Merge base ---
+0486afaad1414311c9c9daf136e3ec6ed46b592d
+
+--- Changed files relative to common ancestor ---
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md
+
+--- Diff statistics ---
+ ..._SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md | 113 +++++++++++++++++++++
+ 1 file changed, 113 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+693dc110 (origin/codex/mawdda-biometric-owner-review-policy-2026-11-20) docs(verification): clarify fully independent email and biometric tracks
+6fc76960 docs(biometric): record Super Owner manual review policy amendment
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

@@ -1,0 +1,747 @@
+diff --git a/functions/src/biometric-verification-cycle.ts b/functions/src/biometric-verification-cycle.ts
+new file mode 100644
+index 00000000..8f2ac005
+--- /dev/null
++++ b/functions/src/biometric-verification-cycle.ts
+@@ -0,0 +1,62 @@
++import { createHash } from "node:crypto";
++
++export const BIOMETRIC_VERIFICATION_CYCLE_DAYS = 30;
++export const BIOMETRIC_VERIFICATION_REWARD_COINS = 1_500;
++export const BIOMETRIC_VERIFICATION_CYCLE_MS =
++  BIOMETRIC_VERIFICATION_CYCLE_DAYS * 24 * 60 * 60 * 1000;
++
++export interface BiometricVerificationCycle {
++  cycleId: string;
++  uid: string;
++  sequence: number;
++  status: "pending" | "rewarded" | "expired" | "revoked";
++  startedAtMs: number;
++  expiresAtMs: number;
++}
++
++/**
++ * Creates a deterministic, server-clocked reward cycle.
++ * This records completion of the OS-local prompt workflow; it is not
++ * cryptographic proof of a person's civil identity or biometric liveness.
++ */
++export function createBiometricVerificationCycle(input: {
++  uid: string;
++  sequence: number;
++  serverNowMs: number;
++}): BiometricVerificationCycle {
++  const uid = input.uid.trim();
++  if (!uid || uid.length > 128 ||
++      !Number.isSafeInteger(input.sequence) || input.sequence < 1 ||
++      !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0) {
++    throw new Error("INVALID_BIOMETRIC_CYCLE_INPUT");
++  }
++  const cycleId = createHash("sha256")
++    .update("mawdda-biometric-local-prompt-v1|" + uid + "|" + input.sequence)
++    .digest("hex");
++  return {
++    cycleId,
++    uid,
++    sequence: input.sequence,
++    status: "pending",
++    startedAtMs: input.serverNowMs,
++    expiresAtMs: input.serverNowMs + BIOMETRIC_VERIFICATION_CYCLE_MS,
++  };
++}
++
++export function isBiometricVerificationDue(
++  lastVerifiedAtMs: number,
++  serverNowMs: number,
++): boolean {
++  if (!Number.isSafeInteger(lastVerifiedAtMs) || lastVerifiedAtMs < 0 ||
++      !Number.isSafeInteger(serverNowMs) || serverNowMs < 0) {
++    throw new Error("INVALID_BIOMETRIC_VERIFICATION_CLOCK");
++  }
++  return serverNowMs >= lastVerifiedAtMs + BIOMETRIC_VERIFICATION_CYCLE_MS;
++}
++
++export function biometricVerificationRewardLedgerId(cycleId: string): string {
++  if (!/^[a-f0-9]{64}$/.test(cycleId)) {
++    throw new Error("INVALID_BIOMETRIC_CYCLE_ID");
++  }
++  return "biometric_verification_" + cycleId;
++}
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index a4600437..aaf331ff 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,105 +1,110 @@
+ import { initializeApp } from "firebase-admin/app";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { validateMemberProfile } from "./member-profile";
+ import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
++import {
++  createBiometricVerificationCycle,
++  biometricVerificationRewardLedgerId,
++  BIOMETRIC_VERIFICATION_REWARD_COINS,
++} from "./biometric-verification-cycle";
+ import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash } from "node:crypto";
+ import { audienceForAge, canJoinRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { DEFAULT_COIN_PACKAGES, DEFAULT_AD_PRICES, validateCoinPackages, validateAdPrices } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ 
+ initializeApp();
+ 
+ const db = getFirestore();
+ const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
+ const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
+ const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
+ 
+ /**
+  * Append a hash-linked owner-review audit event. A Firestore transaction
+  * serializes head updates so concurrent review requests cannot fork sequence.
+  * The head is maintained separately from the event documents.
+  */
+ async function appendOwnerReviewAuditEvent(
+   event: Record<string, unknown>,
+   eventId?: string,
+ ): Promise<string> {
+   const auditRef = eventId
+     ? db.collection("adminAuditLogs").doc(eventId)
+     : db.collection("adminAuditLogs").doc();
+   await db.runTransaction(async (transaction) => {
+     const existingEvent = await transaction.get(auditRef);
+     if (existingEvent.exists) return;
+     const headSnapshot = await transaction.get(OWNER_REVIEW_AUDIT_HEAD);
+     const head = headSnapshot.data() ?? {};
+     const previousSequence = headSnapshot.exists ? head.sequence : 0;
+     const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+     if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+         typeof previousHash !== "string" ||
+         !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+       throw new Error("OWNER_AUDIT_CHAIN_HEAD_INVALID");
+     }
+     const sequence = previousSequence + 1;
+     const eventHash = calculateOwnerAuditHash(event, sequence, previousHash);
+     transaction.create(auditRef, {
+       ...event,
+@@ -522,160 +527,284 @@ export const recordPrivacyAcknowledgement = onCall(async (request) => {
+   try {
+     const actorType = request.data?.actorType;
+     const provider = request.auth?.token.firebase &&
+       typeof request.auth.token.firebase === "object"
+       ? (request.auth.token.firebase as Record<string, unknown>).sign_in_provider
+       : null;
+     if (actorType === "guest" && provider !== "anonymous") {
+       throw new HttpsError("permission-denied", "إقرار الضيف يتطلب جلسة ضيف موثقة.");
+     }
+     if (actorType === "member" && provider === "anonymous") {
+       throw new HttpsError("permission-denied", "يجب ترقية جلسة الضيف قبل إقرار العضوية.");
+     }
+     acknowledgement = validatePrivacyAcknowledgement({
+       ...(request.data ?? {}),
+       actorType,
+     } as Record<string, unknown>);
+   } catch (error) {
+     if (error instanceof HttpsError) throw error;
+     const code = error instanceof Error ? error.message : "PRIVACY_ACKNOWLEDGEMENT_INVALID";
+     throw new HttpsError(
+       "failed-precondition",
+       code === "PRIVACY_POLICY_VERSION_MISMATCH" || code === "PRIVACY_POLICY_HASH_MISMATCH"
+         ? "تغير إشعار الخصوصية. حدّث التطبيق وراجع الإصدار الحالي قبل المتابعة."
+         : "بيانات إقرار الخصوصية غير صالحة.",
+     );
+   }
+ 
+   const acknowledgementRef = db.collection("privacyAcknowledgements")
+     .doc(`${uid}_${acknowledgement.policyVersion}`);
+   return db.runTransaction(async (transaction) => {
+     const existing = await transaction.get(acknowledgementRef);
+     if (existing.exists) {
+       const data = existing.data() ?? {};
+       if (data.policyHash !== acknowledgement.policyHash || data.uid !== uid) {
+         throw new HttpsError("failed-precondition", "يتعارض سجل إقرار الخصوصية مع الإصدار الحالي.");
+       }
+       return {
+         acknowledged: true,
+         policyVersion: acknowledgement.policyVersion,
+         idempotentReplay: true,
+       };
+     }
+     transaction.create(acknowledgementRef, {
+       uid,
+       actorType: acknowledgement.actorType,
+       policyVersion: acknowledgement.policyVersion,
+       policyHash: acknowledgement.policyHash,
+       locale: acknowledgement.locale,
+       appVersion: acknowledgement.appVersion,
+       acknowledgedAt: FieldValue.serverTimestamp(),
+       createdAt: FieldValue.serverTimestamp(),
+     });
+     return {
+       acknowledged: true,
+       policyVersion: acknowledgement.policyVersion,
+       idempotentReplay: false,
+     };
+   });
+ });
+ 
+ /** Returns whether this authenticated account accepted the current policy revision. */
+ export const getPrivacyAcknowledgementStatus = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const ref = db.collection("privacyAcknowledgements")
+     .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
+   const snapshot = await ref.get();
+   const data = snapshot.data() ?? {};
+   return {
+     acknowledged: snapshot.exists && data.uid === uid &&
+       data.policyHash === PRIVACY_POLICY_HASH &&
+       data.actorType === (request.auth?.token.firebase &&
+         typeof request.auth.token.firebase === "object" &&
+         (request.auth.token.firebase as Record<string, unknown>).sign_in_provider === "anonymous"
+         ? "guest" : "member"),
+     policyVersion: PRIVACY_POLICY_VERSION,
+     policyHash: PRIVACY_POLICY_HASH,
+   };
+ });
+ 
+ 
++/**
++ * Credits the approved 1,500-coin reward after the member completes the
++ * native Android BiometricPrompt / Apple LocalAuthentication prompt.
++ *
++ * Important assurance boundary: the operating system performs the local
++ * biometric match. The callable receives a client-reported success signal;
++ * it does not receive a biometric template, camera frame, microphone sample,
++ * hardware attestation, or cryptographic proof of civil identity.
++ * The server owns cycle timing, eligibility, balance mutation and idempotency.
++ */
++export const completeBiometricVerification = onCall(async (request) => {
++  const uid = requireAuthenticatedUid(request.auth?.uid);
++  if (request.data?.localAuthSucceeded !== true) {
++    throw new HttpsError("failed-precondition", "يجب إكمال نافذة المصادقة المحلية بنجاح أولاً.");
++  }
++  const platform = request.data?.platform;
++  if (platform !== "android" && platform !== "ios") {
++    throw new HttpsError("invalid-argument", "منصة المصادقة المحلية غير مدعومة.");
++  }
++
++  const userRef = db.collection("users").doc(uid);
++  const serverNowMs = Date.now();
++  return db.runTransaction(async (transaction) => {
++    const userSnapshot = await transaction.get(userRef);
++    if (!userSnapshot.exists) {
++      throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي قبل طلب مكافأة التوثيق.");
++    }
++    const userData = userSnapshot.data()!;
++    if (userData.profileCompleted !== true || !isMemberAccountInGoodStanding(userData)) {
++      throw new HttpsError("permission-denied", "المكافأة متاحة للأعضاء المكتملين والفعالين فقط.");
++    }
++
++    const currentVerification = userData.biometricVerification;
++    if (hasActiveBiometricVerification(currentVerification, serverNowMs)) {
++      const expiry = currentVerification.expiresAt;
++      const expiresAtMs = expiry instanceof Timestamp
++        ? expiry.toMillis()
++        : typeof expiry?.toMillis === "function" ? expiry.toMillis() : null;
++      return {
++        verified: true,
++        rewardGranted: false,
++        alreadyVerified: true,
++        expiresAtMs,
++        rewardAmount: BIOMETRIC_VERIFICATION_REWARD_COINS,
++      };
++    }
++
++    const priorSequence = Number.isSafeInteger(userData.biometricVerificationSequence)
++      ? userData.biometricVerificationSequence as number
++      : 0;
++    const cycle = createBiometricVerificationCycle({
++      uid,
++      sequence: priorSequence + 1,
++      serverNowMs,
++    });
++    const cycleRef = db.collection("biometricVerificationCycles")
++      .doc(uid + "_" + cycle.cycleId);
++    const ledgerRef = userRef.collection("walletLedger")
++      .doc(biometricVerificationRewardLedgerId(cycle.cycleId));
++    const [cycleSnapshot, ledgerSnapshot] = await Promise.all([
++      transaction.get(cycleRef),
++      transaction.get(ledgerRef),
++    ]);
++    if (cycleSnapshot.exists || ledgerSnapshot.exists) {
++      throw new HttpsError("already-exists", "دورة مكافأة التوثيق هذه مسجلة مسبقاً؛ لم يُكرر الصرف.");
++    }
++
++    const balance = Number.isSafeInteger(userData.coins) ? userData.coins as number : 0;
++    const newBalance = balance + BIOMETRIC_VERIFICATION_REWARD_COINS;
++    if (!Number.isSafeInteger(newBalance)) {
++      throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
++    }
++    const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
++    const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
++    transaction.update(userRef, {
++      coins: newBalance,
++      biometricVerificationSequence: cycle.sequence,
++      biometricVerificationCycleId: cycle.cycleId,
++      biometricVerification: {
++        status: "verified",
++        verifiedAt: startedAt,
++        expiresAt,
++        revokedAt: null,
++        method: "client_reported_os_local_auth",
++        platform,
++        assuranceLevel: "local_device_prompt_only",
++      },
++      updatedAt: FieldValue.serverTimestamp(),
++    });
++    transaction.create(cycleRef, {
++      ...cycle,
++      status: "rewarded",
++      startedAt,
++      expiresAt,
++      rewardedAt: startedAt,
++      method: "client_reported_os_local_auth",
++      platform,
++      assuranceLevel: "local_device_prompt_only",
++      createdAt: startedAt,
++    });
++    transaction.create(ledgerRef, {
++      type: "biometric_verification_reward",
++      direction: "credit",
++      amount: BIOMETRIC_VERIFICATION_REWARD_COINS,
++      reason: "completed_local_biometric_prompt",
++      cycleId: cycle.cycleId,
++      cycleSequence: cycle.sequence,
++      idempotencyKey: cycle.cycleId,
++      method: "client_reported_os_local_auth",
++      platform,
++      createdAt: startedAt,
++    });
++    return {
++      verified: true,
++      rewardGranted: true,
++      alreadyVerified: false,
++      rewardAmount: BIOMETRIC_VERIFICATION_REWARD_COINS,
++      newBalance,
++      cycleId: cycle.cycleId,
++      expiresAtMs: cycle.expiresAtMs,
++    };
++  });
++});
++
+ /**
+  * Completes a verified member's Mawda profile.
+  * The profile, unique username reservation, 500-coin email reward and
+  * immutable wallet ledger entry are created atomically by the trusted server.
+  * Registration is closed until the owner explicitly configures minimumAge at
+  * platformSettings/registration; no age threshold is silently assumed.
+  */
+ export const completeMemberProfile = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const authUser = await getAuth().getUser(uid);
+   if (!authUser.email || !authUser.emailVerified) {
+     throw new HttpsError("failed-precondition", "يجب التحقق من البريد الإلكتروني قبل إكمال العضوية.");
+   }
+ 
+   const registrationSettingsRef = db.doc("platformSettings/registration");
+   const userRef = db.collection("users").doc(uid);
+   const cycleStartMs = Date.now();
+   const cycleStart = Timestamp.fromMillis(cycleStartMs);
+   const initialEmailCycle = createEmailVerificationCycle({
+     uid, email: authUser.email, sequence: 1, serverNowMs: cycleStartMs,
+   });
+   const emailCycleRef = db.collection("emailVerificationCycles")
+     .doc(uid + "_" + initialEmailCycle.cycleId);
+   const rewardLedgerRef = userRef.collection("walletLedger")
+     .doc(emailVerificationRewardLedgerId(initialEmailCycle.cycleId));
+   const privacyAcknowledgementRef = db.collection("privacyAcknowledgements")
+     .doc(`${uid}_${PRIVACY_POLICY_VERSION}`);
+ 
+   return db.runTransaction(async (transaction) => {
+     // Read the registration gate in the same transaction as member creation.
+     // If the owner changes the policy concurrently, Firestore retries this
+     // transaction and the new policy is enforced before any profile/reward write.
+     const [userSnapshot, registrationSettings, privacyAcknowledgement] = await Promise.all([
+       transaction.get(userRef),
+       transaction.get(registrationSettingsRef),
+       transaction.get(privacyAcknowledgementRef),
+     ]);
+     const privacyData = privacyAcknowledgement.data() ?? {};
+     if (!privacyAcknowledgement.exists || privacyData.uid !== uid ||
+         privacyData.actorType !== "member" || privacyData.policyHash !== PRIVACY_POLICY_HASH) {
+       throw new HttpsError(
+         "failed-precondition",
+         "يجب الاطلاع على إشعار الخصوصية الحالي والإقرار به قبل إكمال العضوية.",
+       );
+     }
+ 
+     const registrationData = registrationSettings.exists
+       ? registrationSettings.data() ?? {}
+       : {};
+     if (registrationData.enabled !== true) {
+       throw new HttpsError(
+         "failed-precondition",
+         "التسجيل مغلق حالياً حتى يفعّله مالك المنصة ويضبط سياسة العمر.",
+       );
+     }
+ 
+     let profile;
+     try {
+       profile = validateMemberProfile(
+         (request.data ?? {}) as Record<string, unknown>,
+         registrationData.minimumAge,
+       );
+     } catch (error) {
+       const message = error instanceof Error ? error.message : "بيانات الملف الشخصي غير صالحة.";
+       if (message === "REGISTRATION_POLICY_NOT_CONFIGURED") {
+         throw new HttpsError(
+           "failed-precondition",
+           "التسجيل متوقف مؤقتاً حتى يضبط مالك المنصة سياسة الحد الأدنى للعمر.",
+         );
+       }
+       if (message === "ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT") {
+       throw new HttpsError("failed-precondition", "التعارف العاطفي ونية الزواج متاحان للأعضاء بعمر 18 عاماً فأكثر.");
+     }
+     if (message === "AGE_POLICY_NOT_MET") {
+         throw new HttpsError("failed-precondition", "العمر المدخل لا يطابق سياسة التسجيل المعتمدة.");
+       }
+       throw new HttpsError("invalid-argument", message);
+     }
+ 
+     const usernameRef = db.collection("usernameRegistry").doc(profile.username);
+diff --git a/functions/test/biometric-verification-cycle.test.js b/functions/test/biometric-verification-cycle.test.js
+new file mode 100644
+index 00000000..8a027209
+--- /dev/null
++++ b/functions/test/biometric-verification-cycle.test.js
+@@ -0,0 +1,44 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const {
++  BIOMETRIC_VERIFICATION_CYCLE_MS,
++  BIOMETRIC_VERIFICATION_REWARD_COINS,
++  createBiometricVerificationCycle,
++  isBiometricVerificationDue,
++  biometricVerificationRewardLedgerId,
++} = require("../lib/biometric-verification-cycle");
++
++const NOW = 1_800_000_000_000;
++
++test("creates deterministic 30-day server-clocked cycles", () => {
++  const input = { uid: "member-1", sequence: 3, serverNowMs: NOW };
++  const cycle = createBiometricVerificationCycle(input);
++  assert.deepEqual(cycle, createBiometricVerificationCycle(input));
++  assert.equal(cycle.startedAtMs, NOW);
++  assert.equal(cycle.expiresAtMs, NOW + BIOMETRIC_VERIFICATION_CYCLE_MS);
++  assert.equal(cycle.status, "pending");
++});
++
++test("rejects invalid member, sequence and server clock", () => {
++  for (const input of [
++    { uid: "", sequence: 1, serverNowMs: NOW },
++    { uid: "member", sequence: 0, serverNowMs: NOW },
++    { uid: "member", sequence: 1, serverNowMs: -1 },
++    { uid: "member", sequence: 1.5, serverNowMs: NOW },
++  ]) assert.throws(() => createBiometricVerificationCycle(input));
++});
++
++test("renewal becomes due exactly at 30 days", () => {
++  assert.equal(isBiometricVerificationDue(NOW, NOW + BIOMETRIC_VERIFICATION_CYCLE_MS - 1), false);
++  assert.equal(isBiometricVerificationDue(NOW, NOW + BIOMETRIC_VERIFICATION_CYCLE_MS), true);
++});
++
++test("ledger identity is cycle-specific and reward is exactly 1500 coins", () => {
++  const cycle = createBiometricVerificationCycle({ uid: "member", sequence: 1, serverNowMs: NOW });
++  assert.equal(
++    biometricVerificationRewardLedgerId(cycle.cycleId),
++    "biometric_verification_" + cycle.cycleId,
++  );
++  assert.throws(() => biometricVerificationRewardLedgerId("bad-id"));
++  assert.equal(BIOMETRIC_VERIFICATION_REWARD_COINS, 1500);
++});
+diff --git a/lib/screens/profile_screen.dart b/lib/screens/profile_screen.dart
+index ef4f4717..256d81a6 100644
+--- a/lib/screens/profile_screen.dart
++++ b/lib/screens/profile_screen.dart
+@@ -1,167 +1,205 @@
+ import 'package:cloud_functions/cloud_functions.dart';
++import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+ import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ import 'package:image_picker/image_picker.dart';
+ import '../services/coin_system_service.dart';
+ import '../services/member_media_upload_service.dart';
+ import '../services/auth_service.dart';
+ import '../services/local_biometric_service.dart';
+ import 'direct_chat_screen.dart';
+ import 'stories_screen.dart';
+ import 'profile_gallery_screen.dart';
+ 
+ class ProfileScreen extends StatefulWidget {
+   final String profileUserId;
+   final String currentUserId;
+ 
+   const ProfileScreen({
+     Key? key,
+     required this.profileUserId,
+     required this.currentUserId,
+   }) : super(key: key);
+ 
+   @override
+   State<ProfileScreen> createState() => _ProfileScreenState();
+ }
+ 
+ class _ProfileScreenState extends State<ProfileScreen> {
+   final CoinSystemService _coinService = CoinSystemService();
+   final ImagePicker _imagePicker = ImagePicker();
+   final MemberMediaUploadService _memberMedia = MemberMediaUploadService();
+   bool _changingProfileMedia = false;
+   bool _checkingLocalBiometrics = false;
+   bool _isTransferringCoins = false;
+   String? _pendingTransferKey;
+   String? _pendingTransferRequestId;
+   late Future<Map<String, dynamic>> _profileFuture;
+ 
+   @override
+   void initState() {
+     super.initState();
+     _profileFuture = _loadProfile();
+   }
+ 
+   Future<void> _checkLocalBiometrics() async {
+     if (_checkingLocalBiometrics) return;
+     final consent = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('موافقة مستقلة على المصادقة البيومترية'),
+         content: const Text(
+-          'هذا اختبار اختياري لمصادقة الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
+-          'يتولى نظام التشغيل المطابقة محلياً؛ لا ترسل مودة بصمتك أو صورة وجهك أو قالبك البيومتري إلى خوادمها. '
+-          'النتيجة لا تثبت هويتك المدنية ولا تمنح كوينز أو صلاحية خادمية. يمكنك الإلغاء دون أثر على الميزات الأساسية.',
++          'سيطلب النظام تأكيد المصادقة على هذا الجهاز عبر Android BiometricPrompt أو Apple LocalAuthentication. '
++          'تتم المطابقة محلياً ولا ترسل مودة بصمة أو صورة وجه أو قالباً بيومترياً إلى الخادم. '
++          'تعتمد المكافأة على إتمام نافذة النظام بنجاح، ولا تمثل هذه الخطوة إثباتاً للهوية المدنية أو فحصاً مستقلاً للحيوية.',
+         ),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('ليس الآن'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: const Text('أوافق وأتابع'),
+           ),
+         ],
+       ),
+     );
+     if (consent != true || !mounted) return;
++
+     setState(() => _checkingLocalBiometrics = true);
+     final result = await LocalBiometricService().authenticate();
+     if (!mounted) return;
+-    setState(() => _checkingLocalBiometrics = false);
+ 
+-    final message = switch (result.status) {
+-      LocalBiometricStatus.authenticated =>
+-        'نجحت المصادقة المحلية على هذا الجهاز. لم تُرسل بيانات بيومترية إلى خوادم مودة، ولم تُمنح مكافأة أو صلاحية خادمية بهذه الخطوة.',
+-      LocalBiometricStatus.unavailable =>
+-        'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
+-      LocalBiometricStatus.notEnrolled =>
+-        'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
+-      LocalBiometricStatus.cancelled =>
+-        'ألغيت المصادقة؛ لم يتم اعتماد أي تحقق.',
+-      LocalBiometricStatus.failed =>
+-        'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
+-    };
+-    ScaffoldMessenger.of(context).showSnackBar(
+-      SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
+-    );
++    if (!result.succeeded) {
++      setState(() => _checkingLocalBiometrics = false);
++      final message = switch (result.status) {
++        LocalBiometricStatus.unavailable =>
++          'هذا الجهاز أو النظام لا يتيح المصادقة البيومترية حالياً.',
++        LocalBiometricStatus.notEnrolled =>
++          'لم تُسجل بصمة أو وسيلة بيومترية على هذا الجهاز.',
++        LocalBiometricStatus.cancelled =>
++          'ألغيت المصادقة؛ لم تُمنح المكافأة.',
++        LocalBiometricStatus.failed =>
++          'تعذر إكمال المصادقة البيومترية. حاول لاحقاً أو تحقق من إعدادات الجهاز.',
++        LocalBiometricStatus.authenticated => 'اكتملت المصادقة المحلية.',
++      };
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(message), duration: const Duration(seconds: 5)),
++      );
++      return;
++    }
++
++    try {
++      final platform = defaultTargetPlatform == TargetPlatform.android
++          ? 'android'
++          : 'ios';
++      final response = await FirebaseFunctions.instance
++          .httpsCallable('completeBiometricVerification')
++          .call(<String, dynamic>{
++        'localAuthSucceeded': true,
++        'platform': platform,
++      });
++      if (!mounted) return;
++      final data = Map<String, dynamic>.from(response.data as Map);
++      final rewardGranted = data['rewardGranted'] == true;
++      final balance = (data['newBalance'] as num?)?.toInt();
++      final message = rewardGranted
++          ? 'تم اعتماد إكمال المصادقة المحلية وإضافة 1,500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.'
++          : 'توثيقك المحلي ما زال سارياً؛ لن تتكرر مكافأة الدورة الحالية.';
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
++      );
++    } on FirebaseFunctionsException catch (error) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(error.message ?? 'نجحت نافذة الجهاز، لكن تعذر تسجيل المكافأة على الخادم.')),
++      );
++    } catch (_) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('نجحت نافذة الجهاز، لكن لم يؤكد الخادم تسجيل المكافأة.')),
++      );
++    } finally {
++      if (mounted) setState(() => _checkingLocalBiometrics = false);
++    }
+   }
+ 
+   Future<void> _changeProfileVisibility(String visibility) async {
+     try {
+       final callable = FirebaseFunctions.instance.httpsCallable('setMemberProfileVisibility');
+       await callable.call(<String, dynamic>{'visibility': visibility});
+       if (!mounted) return;
+       setState(() => _profileFuture = _loadProfile());
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(visibility == 'public'
+             ? 'أصبح ملفك متاحاً للأعضاء وفق المعلومات العامة المعتمدة.'
+             : 'تم جعل ملفك خاصاً.')),
+       );
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر تحديث إعداد الخصوصية.')),
+       );
+     }
+   }
+ 
+ 
+   Future<void> _setSocialLinkHidden(String provider, bool hidden) async {
+     try {
+       await FirebaseFunctions.instance.httpsCallable(
+         'setMemberProfileSocialLinkVisibility',
+       ).call(<String, dynamic>{'provider': provider, 'hidden': hidden});
+       if (!mounted) return;
+       setState(() => _profileFuture = _loadProfile());
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(hidden ? 'تم إخفاء الرابط من ملفك.' : 'تم إظهار الرابط في ملفك.')),
+       );
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر تحديث خصوصية الرابط.')),
+       );
+     }
+   }
+ 
+   Future<void> _manageSocialLinks(Map<String, dynamic> profile) async {
+     final existing = Map<String, dynamic>.from(
+       profile['socialLinks'] as Map? ?? const <String, dynamic>{},
+     );
+     final controllers = <String, TextEditingController>{
+       'instagram': TextEditingController(text: existing['instagram'] as String? ?? ''),
+       'x': TextEditingController(text: existing['x'] as String? ?? ''),
+       'facebook': TextEditingController(text: existing['facebook'] as String? ?? ''),
+       'whatsapp': TextEditingController(text: existing['whatsapp'] as String? ?? ''),
+     };
+     final values = await showDialog<Map<String, String>>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('روابط التواصل في ملفي'),
+         content: SizedBox(
+           width: 460,
+           child: SingleChildScrollView(
+             child: Column(
+               mainAxisSize: MainAxisSize.min,
+               children: [
+                 const Text(
+                   'تُقبل الروابط الرسمية الآمنة فقط. يتطلب نشر الروابط توثيقاً بيومترياً نشطاً، ويمكنك حذفها في أي وقت.',
+                 ),
+                 const SizedBox(height: 12),
+                 for (final entry in controllers.entries)
+                   Padding(
+                     padding: const EdgeInsets.symmetric(vertical: 6),
+                     child: TextField(
+                       controller: entry.value,
+                       maxLength: 500,
+                       keyboardType: TextInputType.url,
+                       decoration: InputDecoration(
+                         labelText: entry.key == 'x'
+                             ? 'X / Twitter'
+                             : entry.key[0].toUpperCase() + entry.key.substring(1),
+                         hintText: 'https://...',
+                         border: const OutlineInputBorder(),
+                       ),
+                     ),
+                   ),

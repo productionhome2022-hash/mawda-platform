@@ -1,0 +1,812 @@
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index fc3cb1fb..96384a7c 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,136 +1,137 @@
+ import {
+   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+ } from "./store-gifting";
+ import {
+   assertPlatformRoleCapacity,
+   platformRoleCapacity,
+   PLATFORM_ROLE_CAPACITY,
+   type NumberedPlatformRole,
+ } from "./platform-role-identities";
+ import { initializeApp } from "firebase-admin/app";
+ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { getStorage } from "firebase-admin/storage";
+ import { validateMemberProfile } from "./member-profile";
+ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
+ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString, defineSecret } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { reconcileWalletLedger } from "./wallet-reconciliation";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+ import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+ import {
+   validateFeaturedAdFinancialEvent,
+   applyFeaturedAdFinancialEvent,
+   featuredAdFinancialIdempotencyId,
+   defaultFeaturedAdFinancialSnapshot,
+ } from "./featured-ad-finance";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash, createHmac, randomUUID } from "node:crypto";
+ import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
++import { isActiveRentedPrivateRoom } from "./room-call-policy";
+ import { isGuestSessionActive } from "./guest-sessions";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import {
+   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
+   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+   ADDITIONAL_AUDIT_COLLECTIONS,
+   isOwnerAuditArchiveEligible,
+   validateLockedAuditArchiveBucket,
+   verifyOwnerAuditArchiveChunk,
+   ownerAuditArchiveObjectName,
+   serializeOwnerAuditArchive,
+   auditCollectionArchiveObjectName,
+   serializeAuditCollectionArchive,
+ } from "./audit-archive";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   isStorePurchaseReplayCompatible,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+ import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+ import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+ import {
+   applyContractSignature,
+   assertContractStatusTransition,
+   canMakeContractEffective,
+   computeContractContentHash,
+   validateContractDraftInput,
+   validateContractReadyForSignature,
+   type ContractDraftInput,
+   type ContractSignatureEvidence,
+   type ContractSigningState,
+   type ContractStatus,
+ } from "./contracts-workflow";
+ import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
+ import {
+   defaultAttendanceRewardPolicy,
+   validateAttendanceRewardPolicy,
+   utcRewardPeriod,
+   validateTimedAdCampaignInput,
+   eligibleHeartbeatDelta,
+   timedAdMemberCounterId,
+   AttendanceRewardType,
+ } from "./engagement-rewards";
+ 
+ initializeApp();
+ 
+ const db = getFirestore();
+ const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
+@@ -10355,231 +10356,253 @@ export const listMyContracts = onCall(
+       return {
+         contractId: doc.id,
+         title: data.title,
+         contractType: data.contractType,
+         status: data.status,
+         version: data.version,
+         contentHash: data.contentHash,
+         body: data.body,
+         currency: data.currency,
+         commitmentMinor: data.commitmentMinor,
+         startsAtMs: data.startsAtMs,
+         endsAtMs: data.endsAtMs,
+         counterpartySignature: data.counterpartySignature,
+         companySignature: data.companySignature,
+         createdAt: data.createdAt,
+         updatedAt: data.updatedAt,
+       };
+     }),
+   };
+ });
+ 
+ 
+ /* -------------------------------------------------------------------------- */
+ /* Authenticated WebRTC call lifecycle and server-mediated signaling.        */
+ /* -------------------------------------------------------------------------- */
+ 
+ const CALL_SESSIONS = db.collection("callSessions");
+ const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
+ const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
+ const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
+ const CALL_AUDIO_ATTEMPT_LIMIT = 5;
+ const CALL_VIDEO_ATTEMPT_LIMIT = 3;
+ const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
+ 
+ /**
+  * Enforce the five-minute ceiling from the server timestamp created only
+  * after both sides report an established RTCPeerConnection. This is a
+  * server-recorded client connectivity signal, not cryptographic proof of
+  * network delivery; live device acceptance remains a separate release gate.
+  */
+ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
+   return db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(callRef);
+     if (!snapshot.exists) return null;
+     const call = snapshot.data() ?? {};
+     if (call.status !== "accepted" ||
+         !(call.maxDurationEndsAt instanceof Timestamp) ||
+         call.maxDurationEndsAt.toMillis() > Date.now()) {
+       return typeof call.status === "string" ? call.status : null;
+     }
+     const participantUids = Array.isArray(call.participantUids)
+       ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
+       : [];
+     const lockRefs = participantUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+     const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
+     transaction.update(callRef, {
+       status: "ended",
+       endedBy: "system",
+       endReason: "maximum_duration_reached",
+       endedAt: FieldValue.serverTimestamp(),
+       lastActivityAt: FieldValue.serverTimestamp(),
+     });
+     lockRefs.forEach((lockRef, index) => {
+       if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
+         transaction.delete(lockRef);
+       }
+     });
+     return "duration_expired";
+   });
+ }
+ 
+ export const startCall = onCall(async (request) => {
+   const callerUid = requireAuthenticatedUid(request.auth?.uid);
+   let input;
+   try { input = validateCallRequest(request.data); }
+   catch { throw new HttpsError("invalid-argument", "بيانات المكالمة غير صالحة."); }
+   const callerRef = db.collection("users").doc(callerUid);
+   const callRef = CALL_SESSIONS.doc(input.callId);
+   let participantUids: string[] = [];
+   let recipientUids: string[] = [];
++  let roomRefForCall: DocumentReference | null = null;
++  let roomRentalRef: DocumentReference | null = null;
+ 
+   if (input.scope === "direct") {
+     const chatRef = db.collection("directChats").doc(input.targetId);
+     const [callerSnapshot, chat] = await Promise.all([callerRef.get(), chatRef.get()]);
+     if (!callerSnapshot.exists || callerSnapshot.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(callerSnapshot.data())) {
+       throw new HttpsError("permission-denied", "حالة حسابك لا تسمح بإجراء المكالمات.");
+     }
+     const participants = chat.data()?.participantUids;
+     if (!chat.exists || !Array.isArray(participants) || !participants.includes(callerUid) ||
+         participants.length !== 2 || new Set(participants).size !== 2 ||
+         participants.some((memberUid) => typeof memberUid !== "string" || memberUid.length < 1)) {
+       throw new HttpsError("permission-denied", "لا تملك صلاحية الاتصال بهذه المحادثة.");
+     }
+     participantUids = [...participants].sort();
+     const peerUid = participantUids.find((uid) => uid !== callerUid)!;
+     const peer = await db.collection("users").doc(peerUid).get();
+     if (!peer.exists || peer.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(peer.data())) {
+       throw new HttpsError("failed-precondition", "الطرف الآخر غير متاح للمكالمة.");
+     }
+     const callerData = callerSnapshot.data() ?? {};
+     const peerData = peer.data() ?? {};
+     if ((Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(peerUid)) ||
+         (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid))) {
+       throw new HttpsError("permission-denied", "المكالمة غير متاحة بسبب إعدادات الحظر.");
+     }
+     if (!Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
+         ((callerData.age < 18) !== (peerData.age < 18))) {
+       throw new HttpsError("permission-denied", "لا يمكن إجراء المكالمة بين هاتين الفئتين العمريتين.");
+     }
+     recipientUids = [peerUid];
+   } else {
+     const roomRef = db.collection("rooms").doc(input.targetId);
+     const [caller, room, membership] = await Promise.all([
+       callerRef.get(), roomRef.get(),
+       roomRef.collection("members").doc(callerUid).get(),
+     ]);
+     if (!caller.exists || caller.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(caller.data()) ||
+         !room.exists || room.data()?.status !== "active" || !membership.exists) {
+       throw new HttpsError("permission-denied", "يجب أن تكون عضواً في غرفة نشطة لإجراء مكالمة.");
+     }
++    const roomData = room.data() ?? {};
++    if (roomData.kind !== "private" || roomData.isRented !== true ||
++        typeof roomData.rentalId !== "string" || !roomData.rentalId) {
++      throw new HttpsError("failed-precondition", "المكالمات الجماعية متاحة حصراً في الغرف الخاصة المستأجرة.");
++    }
++    roomRefForCall = roomRef;
++    roomRentalRef = db.collection("roomRentals").doc(roomData.rentalId);
++    const rental = await roomRentalRef.get();
++    if (!isActiveRentedPrivateRoom(roomData, rental.data(), Date.now())) {
++      throw new HttpsError("failed-precondition", "استئجار الغرفة غير نشط أو انتهت مدته؛ تعذر بدء المكالمة.");
++    }
+     const members = await roomRef.collection("members").limit(6).get();
+     if (members.size < 2 || members.size > 5) {
+       throw new HttpsError("failed-precondition", "مكالمات الغرف تدعم حالياً من عضوين إلى خمسة أعضاء كحد أقصى.");
+     }
+     participantUids = members.docs.map((doc) => doc.id).sort();
+     recipientUids = participantUids.filter((uid) => uid !== callerUid);
+     const profiles = await db.getAll(...recipientUids.map((uid) => db.collection("users").doc(uid)));
+     const callerData = caller.data() ?? {};
+     if (profiles.some((profile) => {
+       const peerData = profile.data() ?? {};
+       return !profile.exists || peerData.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(peerData) ||
+         !Number.isSafeInteger(callerData.age) || !Number.isSafeInteger(peerData.age) ||
+         ((callerData.age < 18) !== (peerData.age < 18)) ||
+         (Array.isArray(callerData.blockedUids) && callerData.blockedUids.includes(profile.id)) ||
+         (Array.isArray(peerData.blockedUids) && peerData.blockedUids.includes(callerUid));
+     })) {
+       throw new HttpsError("permission-denied", "يوجد عضو غير مؤهل أو محظور ضمن المشاركين في المكالمة.");
+     }
+   }
+ 
+   const now = Date.now();
+   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
+   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
+   const result = await db.runTransaction(async (transaction) => {
+-    const [existing, caller, quotaSnapshot] = await Promise.all([
+-      transaction.get(callRef), transaction.get(callerRef), transaction.get(quotaRef),
++    const [existing, caller, quotaSnapshot, roomSnapshot, rentalSnapshot] = await Promise.all([
++      transaction.get(callRef),
++      transaction.get(callerRef),
++      transaction.get(quotaRef),
++      roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
++      roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
+     ]);
++    if (input.scope === "room" &&
++        (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
++          !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
++      throw new HttpsError("failed-precondition", "الغرفة أو استئجارها لم يعد نشطاً؛ تم رفض بدء المكالمة.");
++    }
+     if (existing.exists) {
+       const prior = existing.data() ?? {};
+       if (prior.callerUid === callerUid && prior.targetId === input.targetId &&
+           prior.scope === input.scope && prior.mode === input.mode &&
+           prior.status === "ringing" && prior.expiresAt instanceof Timestamp &&
+           prior.expiresAt.toMillis() > now) {
+         return { callId: input.callId, status: prior.status, participantUids: prior.participantUids ?? participantUids, idempotentReplay: true };
+       }
+       throw new HttpsError("already-exists", "معرف المكالمة مستخدم مسبقاً.");
+     }
+     if (!caller.exists || caller.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(caller.data())) {
+       throw new HttpsError("permission-denied", "حالة الحساب لا تسمح ببدء المكالمة.");
+     }
+     const memberLockRefs = participantUids.map((memberUid) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
+     const memberLocks = await Promise.all(memberLockRefs.map((lockRef) => transaction.get(lockRef)));
+     const lockCallRefs = memberLocks.map((lock) => {
+       const lockCallId = lock.data()?.callId;
+       return lock.exists && typeof lockCallId === "string" && lockCallId !== input.callId
+         ? CALL_SESSIONS.doc(lockCallId) : null;
+     });
+     const lockedCalls = await Promise.all(lockCallRefs.map((lockCallRef) =>
+       lockCallRef ? transaction.get(lockCallRef) : Promise.resolve(null)));
+     for (let index = 0; index < memberLocks.length; index += 1) {
+       const lock = memberLocks[index];
+       const lockedCall = lockedCalls[index];
+       if (!lock.exists || !lockedCall?.exists) continue;
+       const lockedData = lockedCall.data() ?? {};
+       const memberUid = participantUids[index];
+       const memberHasLeft = Array.isArray(lockedData.leftUids) && lockedData.leftUids.includes(memberUid);
+       const memberDeclined = Array.isArray(lockedData.rejectedUids) && lockedData.rejectedUids.includes(memberUid);
+       const isStillRinging = lockedData.status === "ringing" &&
+         lockedData.expiresAt instanceof Timestamp && lockedData.expiresAt.toMillis() > now;
+       if (!memberHasLeft && !memberDeclined &&
+           (lockedData.status === "accepted" || isStillRinging)) {
+         throw new HttpsError("resource-exhausted", "أحد المشاركين لديه مكالمة نشطة بالفعل.");
+       }
+     }
+     const quotaNow = Date.now();
+     const quotaData = quotaSnapshot.data() ?? {};
+     const storedAttempts = quotaData.attempts;
+     if (quotaSnapshot.exists && !Array.isArray(storedAttempts)) {
+       throw new HttpsError("failed-precondition", "تعذر التحقق من سجل محاولات المكالمات بأمان.");
+     }
+     const allAttempts = (Array.isArray(storedAttempts) ? storedAttempts : [])
+       .map((attempt: unknown) => {
+         if (!attempt || typeof attempt !== "object") return null;
+         const item = attempt as Record<string, unknown>;
+         if (typeof item.callId !== "string" || item.callId.length < 16 ||
+             (item.mode !== "audio" && item.mode !== "video") ||
+             !Number.isSafeInteger(item.startedAtMs) ||
+             (item.startedAtMs as number) < 0 || (item.startedAtMs as number) > quotaNow) {
+           return null;
+         }
+         return {
+           callId: item.callId,
+           mode: item.mode,
+           startedAtMs: item.startedAtMs as number,
+         } as { callId: string; mode: "audio" | "video"; startedAtMs: number };
+       });
+     if (allAttempts.some((attempt) => attempt === null)) {
+       throw new HttpsError("failed-precondition", "سجل محاولات المكالمات غير صالح؛ تم إيقاف بدء المكالمة لحماية الحصة.");
+     }
+     const recentAttempts = (allAttempts as Array<{
+       callId: string; mode: "audio" | "video"; startedAtMs: number;
+     }>).filter((attempt) => attempt.startedAtMs > quotaNow - CALL_QUOTA_WINDOW_MS);
+     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
+     const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
+     if (modeAttempts >= modeLimit) {
+       throw new HttpsError(
+         "resource-exhausted",
+         input.mode === "audio"
+           ? "وصلت إلى الحد المسموح لمحاولات المكالمات الصوتية خلال آخر 24 ساعة."
+           : "وصلت إلى الحد المسموح لمحاولات المكالمات المرئية خلال آخر 24 ساعة.",
+       );
+     }
+     transaction.set(quotaRef, {
+       attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+diff --git a/functions/src/room-call-policy.ts b/functions/src/room-call-policy.ts
+new file mode 100644
+index 00000000..4537fcdd
+--- /dev/null
++++ b/functions/src/room-call-policy.ts
+@@ -0,0 +1,45 @@
++type TimestampLike = { toMillis?: unknown };
++
++function timestampMillis(value: unknown): number | null {
++  if (value === null || typeof value !== "object" ||
++      typeof (value as TimestampLike).toMillis !== "function") return null;
++  try {
++    const result = (value as { toMillis: () => number }).toMillis();
++    return Number.isSafeInteger(result) && result >= 0 ? result : null;
++  } catch {
++    return null;
++  }
++}
++
++/**
++ * Group-call eligibility follows the approved product boundary: active private
++ * rented rooms only, backed by the exact active rental record. Both expiries
++ * are checked because room and rental lifecycle transitions can diverge.
++ */
++export function isActiveRentedPrivateRoom(
++  roomInput: unknown,
++  rentalInput: unknown,
++  nowMs = Date.now(),
++): boolean {
++  if (!Number.isSafeInteger(nowMs) || nowMs < 0 ||
++      roomInput === null || typeof roomInput !== "object" || Array.isArray(roomInput) ||
++      rentalInput === null || typeof rentalInput !== "object" || Array.isArray(rentalInput)) {
++    return false;
++  }
++  const room = roomInput as Record<string, unknown>;
++  const rental = rentalInput as Record<string, unknown>;
++  const roomExpiry = timestampMillis(room.expiresAt);
++  const rentalExpiry = timestampMillis(rental.expiresAt);
++  return room.status === "active" &&
++    room.kind === "private" &&
++    room.isRented === true &&
++    typeof room.roomId === "string" && room.roomId.length > 0 &&
++    typeof room.rentalId === "string" && room.rentalId.length > 0 &&
++    typeof room.ownerUid === "string" && room.ownerUid.length > 0 &&
++    rental.status === "active" &&
++    rental.roomId === room.roomId &&
++    rental.ownerUid === room.ownerUid &&
++    rental.rentalId === room.rentalId &&
++    roomExpiry !== null && roomExpiry > nowMs &&
++    rentalExpiry !== null && rentalExpiry > nowMs;
++}
+diff --git a/functions/test/integration/call-signaling.integration.test.js b/functions/test/integration/call-signaling.integration.test.js
+index 5a184229..4017724a 100644
+--- a/functions/test/integration/call-signaling.integration.test.js
++++ b/functions/test/integration/call-signaling.integration.test.js
+@@ -34,227 +34,307 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
+     }));
+     assert.equal(started.status, "ringing");
+     assert.equal((await getActiveCall.run(call(calleeUid))).active, true);
+     const ice = await getCallIceConfiguration.run(call(callerUid, { callId }));
+     assert.equal(ice.turnConfigured, false);
+     assert.ok(ice.iceServers.some((server) => server.urls.includes("stun:stun.l.google.com:19302")));
+     await assert.rejects(
+       () => getCallIceConfiguration.run(call(outsiderUid, { callId })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => startCall.run(call(callerUid, {
+         callId: uid("call_overlap"), scope: "direct", targetId: chatId, mode: "audio",
+       })),
+       (error) => error && error.code === "resource-exhausted",
+       "a member cannot be reserved into overlapping active calls",
+     );
+ 
+     await assert.rejects(
+       () => sendCallSignal.run(call(outsiderUid, {
+         callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => sendCallSignal.run(call(callerUid, {
+         callId, toUid: calleeUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+ 
+     await sendCallSignal.run(call(callerUid, {
+       callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+     }));
+     await respondToCall.run(call(calleeUid, { callId, response: "accept" }));
+     await sendCallSignal.run(call(calleeUid, {
+       callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+     }));
+     await sendCallSignal.run(call(calleeUid, {
+       callId, toUid: callerUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "candidate:1" }), sequence: 1 },
+     }));
+     const received = await getCallSignals.run(call(callerUid, { callId, afterSequence: -1 }));
+     assert.equal(received.status, "accepted");
+     assert.deepEqual(received.signals.map((item) => item.kind), ["answer", "ice"]);
+     assert.deepEqual(received.signals.map((item) => item.sequence), [0, 1]);
+ 
+     await assert.rejects(
+       () => sendCallSignal.run(call(calleeUid, {
+         callId, toUid: callerUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "replay" }), sequence: 1 },
+       })),
+       (error) => error && error.code === "already-exists",
+     );
+     const ended = await endCall.run(call(calleeUid, { callId }));
+     assert.equal(ended.status, "ended");
+     assert.equal((await getActiveCall.run(call(callerUid))).active, false);
+     await assert.rejects(
+       () => sendCallSignal.run(call(callerUid, {
+         callId, toUid: calleeUid, signal: { kind: "ice", payload: JSON.stringify({ candidate: "late" }), sequence: 1 },
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+   } finally {
+     await db.recursiveDelete(callRef).catch(() => undefined);
+     await Promise.all([
+       callerRef, calleeRef, outsiderRef, chatRef,
+       db.collection("activeCallMemberLocks").doc(callerUid),
+       db.collection("activeCallMemberLocks").doc(calleeUid),
+     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+   }
+ });
+ 
+ 
+ test("room call signaling is peer-targeted and one member leaving does not end the room call", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const callerUid = uid("room_call_caller");
+   const firstUid = uid("room_call_first");
+   const secondUid = uid("room_call_second");
+   const roomId = uid("room_call");
+   const callId = uid("room_call_session");
+   const roomRef = db.collection("rooms").doc(roomId);
++  const rentalId = "rental_" + roomId;
++  const rentalRef = db.collection("roomRentals").doc(rentalId);
+   const memberRefs = [callerUid, firstUid, secondUid].map((memberUid) =>
+     db.collection("users").doc(memberUid));
+   const callRef = db.collection("callSessions").doc(callId);
++  const roomExpiry = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+   await Promise.all([
+     ...memberRefs.map((ref) => ref.set({
+       profileCompleted: true, accountStatus: "active", age: 30,
+     })),
+     roomRef.set({
+       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
+-      kind: "public", audience: "adult", status: "active", capacity: 5,
+-      memberCount: 3,
++      kind: "private", audience: "adult", status: "active", capacity: 5,
++      memberCount: 3, isRented: true, rentalId, expiresAt: roomExpiry,
++    }),
++    rentalRef.set({
++      rentalId, roomId, ownerUid: callerUid, status: "active", expiresAt: roomExpiry,
+     }),
+     ...[callerUid, firstUid, secondUid].map((memberUid) =>
+       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
+   ]);
+   try {
+     const started = await startCall.run(call(callerUid, {
+       callId, scope: "room", targetId: roomId, mode: "video",
+     }));
+     assert.equal(started.participantUids.length, 3);
+     await sendCallSignal.run(call(callerUid, {
+       callId, toUid: firstUid,
+       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+     }));
+     await sendCallSignal.run(call(callerUid, {
+       callId, toUid: secondUid,
+       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+     }));
+     await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+     await respondToCall.run(call(secondUid, { callId, response: "accept" }));
+     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
+     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
+     assert.equal(firstSignals.signals.length, 1);
+     assert.equal(firstSignals.signals[0].recipientUid, firstUid);
+     assert.equal(secondSignals.signals.length, 1);
+     assert.equal(secondSignals.signals[0].recipientUid, secondUid);
+ 
+     await sendCallSignal.run(call(firstUid, {
+       callId, toUid: callerUid,
+       signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+     }));
+     await sendCallSignal.run(call(secondUid, {
+       callId, toUid: callerUid,
+       signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
+     }));
+     const callerSignals = await getCallSignals.run(call(callerUid, { callId, afterSequence: -1 }));
+     assert.equal(callerSignals.signals.length, 2);
+     assert.deepEqual(new Set(callerSignals.signals.map((item) => item.senderUid)),
+       new Set([firstUid, secondUid]));
+ 
+     const left = await endCall.run(call(firstUid, { callId }));
+     assert.equal(left.status, "accepted");
+     assert.equal((await getActiveCall.run(call(firstUid))).active, false);
+     assert.equal((await getActiveCall.run(call(secondUid))).active, true);
+     assert.equal((await getActiveCall.run(call(callerUid))).active, true);
+     await endCall.run(call(callerUid, { callId }));
+     assert.equal((await getActiveCall.run(call(secondUid))).active, false);
+   } finally {
+     await db.recursiveDelete(callRef).catch(() => undefined);
+     await db.recursiveDelete(roomRef).catch(() => undefined);
++    await rentalRef.delete().catch(() => undefined);
+     await Promise.all([
+       ...memberRefs,
+       ...[callerUid, firstUid, secondUid].map((memberUid) =>
+         db.collection("activeCallMemberLocks").doc(memberUid)),
+     ].map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+   }
+ });
++ 
++test("group room calls fail closed for public rooms and missing or expired rentals", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const callerUid = uid("room_call_rental_guard");
++  const roomId = uid("room_call_rental_guard_room");
++  const callIds = [
++    uid("public_room_call"), uid("missing_rental_call"),
++    uid("inactive_rental_call"), uid("expired_rental_call"),
++  ];
++  const callerRef = db.collection("users").doc(callerUid);
++  const roomRef = db.collection("rooms").doc(roomId);
++  const rentalId = "rental_" + roomId;
++  const rentalRef = db.collection("roomRentals").doc(rentalId);
++  await Promise.all([
++    callerRef.set({ profileCompleted: true, accountStatus: "active", age: 30 }),
++    roomRef.set({
++      roomId, ownerUid: callerUid, kind: "public", status: "active",
++      isRented: false, capacity: 5,
++    }),
++    roomRef.collection("members").doc(callerUid).set({ uid: callerUid, role: "owner" }),
++  ]);
++  try {
++    await assert.rejects(
++      () => startCall.run(call(callerUid, {
++        callId: callIds[0], scope: "room", targetId: roomId, mode: "audio",
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++
++    const future = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
++    await roomRef.update({
++      kind: "private", isRented: true, rentalId, expiresAt: future,
++    });
++    await assert.rejects(
++      () => startCall.run(call(callerUid, {
++        callId: callIds[1], scope: "room", targetId: roomId, mode: "audio",
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++
++    await rentalRef.set({
++      rentalId, roomId, ownerUid: callerUid, status: "grace_period",
++      expiresAt: future,
++    });
++    await assert.rejects(
++      () => startCall.run(call(callerUid, {
++        callId: callIds[2], scope: "room", targetId: roomId, mode: "audio",
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++
++    await rentalRef.update({
++      status: "active", expiresAt: Timestamp.fromMillis(Date.now() - 1000),
++    });
++    await assert.rejects(
++      () => startCall.run(call(callerUid, {
++        callId: callIds[2], scope: "room", targetId: roomId, mode: "audio",
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++
++    for (const callId of callIds) {
++      assert.equal((await db.collection("callSessions").doc(callId).get()).exists, false);
++    }
++  } finally {
++    await Promise.all([
++      callerRef.delete().catch(() => undefined),
++      db.recursiveDelete(roomRef).catch(() => undefined),
++      rentalRef.delete().catch(() => undefined),
++    ]);
++  }
++});
++
+ 
+ test("expired ringing calls never expose stored signaling or ICE configuration", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const memberUid = uid("expired_call_member");
+   const signalsCallId = uid("expired_signals_call");
+   const iceCallId = uid("expired_ice_call");
+   const expiredAt = Timestamp.fromMillis(Date.now() - 1000);
+   const signalsCallRef = db.collection("callSessions").doc(signalsCallId);
+   const iceCallRef = db.collection("callSessions").doc(iceCallId);
+ 
+   await Promise.all([
+     signalsCallRef.set({
+       callId: signalsCallId, status: "ringing", callerUid: uid("expired_caller"),
+       participantUids: [memberUid], acceptedUids: [], rejectedUids: [], leftUids: [],
+       expiresAt: expiredAt,
+     }),
+     iceCallRef.set({
+       callId: iceCallId, status: "ringing", callerUid: uid("expired_ice_caller"),
+       participantUids: [memberUid], acceptedUids: [], rejectedUids: [], leftUids: [],
+       expiresAt: expiredAt,
+     }),
+     signalsCallRef.collection("signals").doc("expired_signal_fixture").set({
+       senderUid: uid("expired_sender"), recipientUid: memberUid, kind: "offer",
+       payload: JSON.stringify({ type: "offer", sdp: "must-not-be-served" }),
+       sequence: 0, createdAt: Timestamp.now(),
+       expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+     }),
+   ]);
+ 
+   try {
+     const result = await getCallSignals.run(call(memberUid, { callId: signalsCallId }));
+     assert.equal(result.status, "missed");
+     assert.deepEqual(result.signals, []);
+     assert.equal((await signalsCallRef.get()).data().status, "missed");
+ 
+     await assert.rejects(
+       () => getCallIceConfiguration.run(call(memberUid, { callId: iceCallId })),
+       (error) => error && error.code === "deadline-exceeded",
+       "expired ringing calls must not receive fresh ICE configuration",
+     );
+     assert.equal((await iceCallRef.get()).data().status, "missed");
+   } finally {
+     await Promise.all([
+       db.recursiveDelete(signalsCallRef).catch(() => undefined),
+       db.recursiveDelete(iceCallRef).catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ 
+ test("server enforces rolling audio and video attempt quotas without charging retries", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const callerUid = uid("call_quota_caller");
+   const calleeUid = uid("call_quota_callee");
+   const chatId = uid("call_quota_chat");
+   const firstCallId = uid("call_quota_first");
+   const callerRef = db.collection("users").doc(callerUid);
+   const calleeRef = db.collection("users").doc(calleeUid);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const quotaRef = db.collection("callQuotaWindows").doc(callerUid);
+   const callRef = db.collection("callSessions").doc(firstCallId);
+   const now = Date.now();
+ 
+   await Promise.all([
+     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
+     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
+     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
+     quotaRef.set({
+       attempts: [
+         ...Array.from({ length: 4 }, (_, index) => ({
+           callId: uid("prior_audio"),
+           mode: "audio",
+           startedAtMs: now - (index + 1) * 60_000,
+         })),
+         ...Array.from({ length: 3 }, (_, index) => ({
+           callId: uid("prior_video"),
+           mode: "video",
+           startedAtMs: now - (index + 1) * 60_000,
+         })),
+         {
+diff --git a/functions/test/room-call-policy.test.js b/functions/test/room-call-policy.test.js
+new file mode 100644
+index 00000000..cae4fa71
+--- /dev/null
++++ b/functions/test/room-call-policy.test.js
+@@ -0,0 +1,43 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { isActiveRentedPrivateRoom } = require("../lib/room-call-policy");
++
++function stamp(ms) { return { toMillis: () => ms }; }
++
++const room = {
++  roomId: "room-1", ownerUid: "owner-1", kind: "private",
++  isRented: true, rentalId: "rental-1", status: "active", expiresAt: stamp(20_000),
++};
++const rental = {
++  rentalId: "rental-1", roomId: "room-1", ownerUid: "owner-1",
++  status: "active", expiresAt: stamp(20_000),
++};
++
++test("active private rented room with matching live rental is eligible", () => {
++  assert.equal(isActiveRentedPrivateRoom(room, rental, 10_000), true);
++});
++
++test("public, non-rented, or inactive rooms are rejected", () => {
++  assert.equal(isActiveRentedPrivateRoom({ ...room, kind: "public" }, rental, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom({ ...room, isRented: false }, rental, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom({ ...room, status: "closed" }, rental, 10_000), false);
++});
++
++test("missing, mismatched, or inactive rental records are rejected", () => {
++  assert.equal(isActiveRentedPrivateRoom(room, null, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, roomId: "other" }, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, ownerUid: "other" }, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, rentalId: "other" }, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, status: "grace_period" }, 10_000), false);
++});
++
++test("room or rental expiry at or before server time is rejected", () => {
++  assert.equal(isActiveRentedPrivateRoom({ ...room, expiresAt: stamp(10_000) }, rental, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom(room, { ...rental, expiresAt: stamp(10_000) }, 10_000), false);
++  assert.equal(isActiveRentedPrivateRoom({ ...room, expiresAt: null }, rental, 1), false);
++});
++
++test("malformed timestamps and invalid clocks fail closed", () => {
++  assert.equal(isActiveRentedPrivateRoom({ ...room, expiresAt: { toMillis: () => { throw new Error("bad"); } } }, rental, 1), false);
++  assert.equal(isActiveRentedPrivateRoom(room, rental, -1), false);
++});

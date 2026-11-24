@@ -1,0 +1,8 @@
+539892ef5c7e84d7a988e24ded48f87ecba4db5e
+100644 a9218430ae1e50ed4a693d52acbc32cf37246522 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 29cd4905801fb2b4421d41b40ec8133351f4d4bf 3	.github/workflows/validate.yml
+
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging functions/test/integration/store-gifting.integration.test.js

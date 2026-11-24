@@ -1,0 +1,14 @@
+BRANCH: codex/phase1-integration-batch-01-inventory-2026-11-19
+REF: refs/remotes/origin/codex/phase1-integration-batch-01-inventory-2026-11-19
+SHA: 2fff6276055de44bc488cc123cec16491421a8e6
+
+MERGE BASE: 2fff6276055de44bc488cc123cec16491421a8e6
+
+=== DIVERGENCE ===
+308	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

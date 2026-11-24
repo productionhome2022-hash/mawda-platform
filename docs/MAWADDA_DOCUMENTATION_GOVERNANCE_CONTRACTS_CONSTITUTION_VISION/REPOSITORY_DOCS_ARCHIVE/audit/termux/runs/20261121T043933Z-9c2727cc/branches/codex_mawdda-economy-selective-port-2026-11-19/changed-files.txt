@@ -1,0 +1,9 @@
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/src/store-gifting.ts
+A	functions/test/integration/store-gifting.integration.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/shop_screen.dart

@@ -1,0 +1,10 @@
+7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0	production home	2026-11-19T19:08:26+03:00	test(economy): isolate store gifting catalog fixture
+16f4eeeb6b40ac5d94cd8409df675d20ebbe6bb4	production home	2026-11-19T19:07:37+03:00	ci(step1): trigger exact-head validation for PR 43
+21092dbac9a23f700f47ca273a7a8fee88eb04b3	production home	2026-11-19T18:29:55+03:00	feat(shop): add server-validated store gifting action
+ddbe502c10e08084c4dfa076ac6410d6243a692f	production home	2026-11-19T18:28:56+03:00	ci(economy): run store gifting integration coverage
+a49703b9ec0f4d44f637863abf79b8d98d654ce8	production home	2026-11-19T18:28:53+03:00	ci(economy): run store gifting integration coverage
+7cd868e28da7ae2fe277a120c8a98d4c8df08792	production home	2026-11-19T18:28:39+03:00	test(economy): add store gifting emulator test command
+4a5fbd9be951b6f25e51508a7f0018cff2c26b05	production home	2026-11-19T18:28:29+03:00	test(economy): add store gifting validation and emulator coverage
+0014611f47be4a0e8a712004d24f048a28b56b45	production home	2026-11-19T18:28:27+03:00	test(economy): add store gifting validation and emulator coverage
+c942341c4bd9f6e6d560fa4da1daa5346b6045fc	production home	2026-11-19T18:28:25+03:00	test(economy): add store gifting validation and emulator coverage
+92351517a18ebeff68ffc584ab5d00f847fbe3d0	production home	2026-11-19T18:28:21+03:00	feat(economy): add audited store gifting and catalog snapshots

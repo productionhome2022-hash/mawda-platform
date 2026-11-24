@@ -1,0 +1,21 @@
+beec6e424ccdb1f1df24d44b2893212983508f7e	production home	2026-11-19T13:13:53+03:00	docs: record currency contract conflict in manual coin purchase port
+3da2d70b792cab0eb02e44966c8659ed144c2993	production home	2026-11-19T13:13:33+03:00	docs: repair escaped newlines in economic document index
+2485a33e3ce21ea278dc8f916f65d7be34442d76	production home	2026-11-19T12:34:54+03:00	docs: index comprehensive stage closure checklist
+13bdc98078cb11d2ba9f51c2729715589885cac4	production home	2026-11-19T12:34:31+03:00	docs: bind comprehensive testing gates to integration plan
+4e462d24672911b15f6ebff9b403db3deef89e4f	production home	2026-11-19T12:34:05+03:00	docs: record initial GitHub branch and PR inventory for stage one
+c67ae4e130e06ecba65c0dff9f79cb05a3088ee4	production home	2026-11-19T12:33:03+03:00	docs: approve comprehensive testing and stage closure gates
+3aaae413ce734b71545f6a5d26451556b162922a	production home	2026-11-19T12:32:42+03:00	docs: enforce comprehensive testing gates for all fourteen stages
+a40a66f1fb5926f6988e288e6f6a07a40ff9c99d	production home	2026-11-19T12:29:41+03:00	docs: record exact-head CI evidence for PR35 and PR38
+a1ca2a0bb729085360cf446c90a4854a61d4035f	production home	2026-11-19T12:29:19+03:00	docs: record approval of gated execution stages
+cbdea06513dc01f95fd84a6720667a844e94697f	production home	2026-11-19T12:29:08+03:00	docs: add gated economic phase execution checklist
+ea91b21ca040dd1959c2c8fadea7717b0e96a5c4	production home	2026-11-19T12:20:35+03:00	docs: record store pricing and duration policy gaps
+3055ecd4798883e941ffd876cfa195df3d19fab2	production home	2026-11-19T12:19:45+03:00	docs: record owner-approved economic phase integration control
+14f661466290492c06c1fca5550c48dada2a888f	production home	2026-11-19T12:19:39+03:00	docs: record owner-approved economic phase integration control
+defa937ec050324b6d2ebb58845e50430810a2a7	production home	2026-11-19T12:19:29+03:00	docs: record owner-approved economic phase integration control
+f3ddd06cca6d3775224526a1e09029d0f43b0cc9	production home	2026-11-19T12:19:23+03:00	docs: record owner-approved economic phase integration control
+432d02b7b3cff1a8205f90c45cf593a37120de6b	production home	2026-11-19T12:18:30+03:00	docs: record source comparisons and replay root cause
+096f25c7dbe0b3ca6c517c76af620bc3811c43b5	production home	2026-11-19T12:16:30+03:00	docs: index legal governance document audit
+b2ab54ee20c00442f45e2e04859694b50ca29482	production home	2026-11-19T12:16:20+03:00	docs: audit legal governance and privacy document controls
+b1505655ce6737ee622fda3199f672561edcae2d	production home	2026-11-19T12:15:08+03:00	docs: record economic integration audit and exact-head evidence
+e34607175f3f59f80447a006059d5b8b3e955114	production home	2026-11-19T12:12:02+03:00	docs: index controlled economic phase execution plan
+a672547230622c668c3085829543fd81fb1cfe7d	production home	2026-11-19T12:11:46+03:00	docs: establish controlled economic phase integration plan

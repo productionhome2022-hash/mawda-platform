@@ -1,0 +1,17 @@
+c5a2d433dc99e1f9f004e91228c150ed6c225294
+100644 b9e44183d627b6568a0833d68c8db759a92c54e0 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 8eeaa562ed01b2e32a85284bdc95fcee4f0f3cc7 3	functions/src/index.ts
+100644 c21c2fd606e507057e26c53fb56ee86d9a27c7de 1	functions/src/room-call-policy.ts
+100644 7941f63dca354599f8a4d88f0f2092d1d674e795 2	functions/src/room-call-policy.ts
+100644 8105298a68d48af8b3014be6f91c7732f112bb32 3	functions/src/room-call-policy.ts
+100644 b5bb04edbabb43163f17ea13856fcefda7ab856a 1	functions/test/room-call-policy.test.js
+100644 f1ee8a870b61db646e8e22cc100e6b59d3ab4d82 2	functions/test/room-call-policy.test.js
+100644 a0f1c8e37c35ae6bb0bd968612266daef8671fdb 3	functions/test/room-call-policy.test.js
+
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/room-call-policy.ts
+CONFLICT (content): Merge conflict in functions/src/room-call-policy.ts
+Auto-merging functions/test/room-call-policy.test.js
+CONFLICT (content): Merge conflict in functions/test/room-call-policy.test.js

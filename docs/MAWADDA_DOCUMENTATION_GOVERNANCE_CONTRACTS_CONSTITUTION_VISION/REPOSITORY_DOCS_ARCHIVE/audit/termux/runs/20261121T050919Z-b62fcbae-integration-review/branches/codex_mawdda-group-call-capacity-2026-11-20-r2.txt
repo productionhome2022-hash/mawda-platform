@@ -1,0 +1,28 @@
+BRANCH: codex/mawdda-group-call-capacity-2026-11-20-r2
+REF: refs/remotes/origin/codex/mawdda-group-call-capacity-2026-11-20-r2
+SHA: c0a14ef27b3c0442c969f872243214e637cdc188
+
+MERGE BASE: 0486afaad1414311c9c9daf136e3ec6ed46b592d
+
+=== DIVERGENCE ===
+179	5
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+=== CHANGE SUMMARY ===
+ functions/src/index.ts                             | 25 +++++--
+ functions/src/room-call-policy.ts                  | 14 ++++
+ .../integration/call-signaling.integration.test.js | 82 ++++++++++++++++++++++
+ functions/test/room-call-policy.test.js            | 13 +++-
+ 4 files changed, 129 insertions(+), 5 deletions(-)
+
+=== UNIQUE COMMITS ===
+c0a14ef2 test: use valid minimum room capacity for small audio groups
+37ebe8c6 test: cover audio group sizes and video participant ceiling
+47e411b7 fix: enforce and transactionally revalidate group call capacity
+ba1282da test: verify room-based audio and four-person video call limits
+e0876b88 fix: derive group call limits from room capacity and video cap

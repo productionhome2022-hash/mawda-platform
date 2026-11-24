@@ -1,0 +1,47 @@
+BRANCH: codex/phase1-scanner-error-callback-test-2026-11-20
+SHA: 20519494a898b19f08bcaf4f22e4af64acff622b
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE target-only / branch-only ===
+223	12
+
+=== BRANCH UNIQUE COMMITS ===
+20519494a898b19f08bcaf4f22e4af64acff622b docs(phase1): avoid overlapping unified status edits in scanner PR
+b12839703aaf65f032963116069273ee31480398 docs(media): record malicious scanner callback emulator evidence
+2a87609c4356e92217f6f351983e27f1e53b6550 test(media): verify malicious scanner callback rejection and cleanup
+9fbecf69ab1a7fc7e23eaad057ab9d85eb083995 test(media): remove unused HTTP wrapper import
+19a0597f9e017d785e15f1cd64dc3b447fcc7f1b fix(media): correct scanner callback wrapper terminator
+be80e047d4b39c1ab931aeb95931e34e92454cbe refactor(media): isolate scanner callback handler dependencies
+cf0287c41346a2b4e781cab3f3d9db54b719a2f4 test(media): exercise scanner callback with injected test config
+640cfecf7fbc829ee6b9e46e6a5f45062da206f2 refactor(media): inject scanner callback config for tests
+d144ec59b5a449382f29393a5df6b11105c93da4 test(media): seed scanner provider for callback emulator
+9359395d2065ff0240f3e575c035e5c3b7c061e3 test(media): configure scanner secret before module initialization
+94b7b6854a293b169a0f7bbac026a65ca55df490 test(media): invoke HTTP callback through request handler
+1b27e3143bd46abe9b87d88f0aa65815cdb55b28 test(media): verify scanner error callback preserves quarantine
+
+=== CHERRY STATUS ===
++ 1b27e3143bd46abe9b87d88f0aa65815cdb55b28 test(media): verify scanner error callback preserves quarantine
++ 94b7b6854a293b169a0f7bbac026a65ca55df490 test(media): invoke HTTP callback through request handler
++ 9359395d2065ff0240f3e575c035e5c3b7c061e3 test(media): configure scanner secret before module initialization
++ d144ec59b5a449382f29393a5df6b11105c93da4 test(media): seed scanner provider for callback emulator
++ 640cfecf7fbc829ee6b9e46e6a5f45062da206f2 refactor(media): inject scanner callback config for tests
++ cf0287c41346a2b4e781cab3f3d9db54b719a2f4 test(media): exercise scanner callback with injected test config
++ be80e047d4b39c1ab931aeb95931e34e92454cbe refactor(media): isolate scanner callback handler dependencies
++ 19a0597f9e017d785e15f1cd64dc3b447fcc7f1b fix(media): correct scanner callback wrapper terminator
++ 9fbecf69ab1a7fc7e23eaad057ab9d85eb083995 test(media): remove unused HTTP wrapper import
++ 2a87609c4356e92217f6f351983e27f1e53b6550 test(media): verify malicious scanner callback rejection and cleanup
++ b12839703aaf65f032963116069273ee31480398 docs(media): record malicious scanner callback emulator evidence
++ 20519494a898b19f08bcaf4f22e4af64acff622b docs(phase1): avoid overlapping unified status edits in scanner PR
+
+=== FILE STATUS ===
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+=== NUMSTAT ===
+30	6	functions/src/media.ts
+160	1	functions/test/integration/media-callables.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

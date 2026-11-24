@@ -1,0 +1,57 @@
+BRANCH: codex/mawdda-economy-selective-port-2026-11-19
+SHA: 7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 946ead61208f5007299802c5293f31c329b7c2d2
+
+=== DIVERGENCE target-only / branch-only ===
+314	10
+
+=== BRANCH UNIQUE COMMITS ===
+7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0 test(economy): isolate store gifting catalog fixture
+16f4eeeb6b40ac5d94cd8409df675d20ebbe6bb4 ci(step1): trigger exact-head validation for PR 43
+21092dbac9a23f700f47ca273a7a8fee88eb04b3 feat(shop): add server-validated store gifting action
+ddbe502c10e08084c4dfa076ac6410d6243a692f ci(economy): run store gifting integration coverage
+a49703b9ec0f4d44f637863abf79b8d98d654ce8 ci(economy): run store gifting integration coverage
+7cd868e28da7ae2fe277a120c8a98d4c8df08792 test(economy): add store gifting emulator test command
+4a5fbd9be951b6f25e51508a7f0018cff2c26b05 test(economy): add store gifting validation and emulator coverage
+0014611f47be4a0e8a712004d24f048a28b56b45 test(economy): add store gifting validation and emulator coverage
+c942341c4bd9f6e6d560fa4da1daa5346b6045fc test(economy): add store gifting validation and emulator coverage
+92351517a18ebeff68ffc584ab5d00f847fbe3d0 feat(economy): add audited store gifting and catalog snapshots
+
+=== CHERRY STATUS ===
++ 92351517a18ebeff68ffc584ab5d00f847fbe3d0 feat(economy): add audited store gifting and catalog snapshots
+- c942341c4bd9f6e6d560fa4da1daa5346b6045fc test(economy): add store gifting validation and emulator coverage
+- 0014611f47be4a0e8a712004d24f048a28b56b45 test(economy): add store gifting validation and emulator coverage
++ 4a5fbd9be951b6f25e51508a7f0018cff2c26b05 test(economy): add store gifting validation and emulator coverage
++ 7cd868e28da7ae2fe277a120c8a98d4c8df08792 test(economy): add store gifting emulator test command
++ a49703b9ec0f4d44f637863abf79b8d98d654ce8 ci(economy): run store gifting integration coverage
++ ddbe502c10e08084c4dfa076ac6410d6243a692f ci(economy): run store gifting integration coverage
+- 21092dbac9a23f700f47ca273a7a8fee88eb04b3 feat(shop): add server-validated store gifting action
++ 16f4eeeb6b40ac5d94cd8409df675d20ebbe6bb4 ci(step1): trigger exact-head validation for PR 43
++ 7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0 test(economy): isolate store gifting catalog fixture
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/src/store-gifting.ts
+A	functions/test/integration/store-gifting.integration.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/shop_screen.dart
+
+=== NUMSTAT ===
+3	0	.github/workflows/mawdda-domain-regression.yml
+1	0	.github/workflows/validate.yml
+7	0	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+2	1	functions/package.json
+204	33	functions/src/index.ts
+75	0	functions/src/store-gifting.ts
+105	0	functions/test/integration/store-gifting.integration.test.js
+77	0	functions/test/store-gifting.test.js
+112	21	lib/screens/shop_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

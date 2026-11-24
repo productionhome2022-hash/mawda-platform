@@ -1,0 +1,59 @@
+BRANCH: codex/mawdda-independent-verification-cycles-dev-2026-11-20
+SHA: 2064bbcc98aa360ac2d46d05d15cbf8f90561817
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: a86fc878a7f5a29d68271bf08bec041a2fb31f80
+
+=== DIVERGENCE target-only / branch-only ===
+258	11
+
+=== BRANCH UNIQUE COMMITS ===
+2064bbcc98aa360ac2d46d05d15cbf8f90561817 test(verification): keep source-boundary assertion aligned with calendar cycle docs
+21599093304893806bad991f3636de067756a272 docs(email-verification): describe calendar-month renewal interval
+650d6eb7162862961a892ae6aeba30bf9942e211 test(email-verification): fix calendar-expired emulator fixture
+b1a80c8f86aa5db5632d95a9d0322556df3b6dff docs(verification): record independent cycle work and remaining biometric blockers
+455acac679d54510becba3b516ec9b24a179df9e ci(verification): clarify independent verification test scopes
+d3448bfab8067bafe12245d7bada4e78524aaa7d test(email-verification): align emulator renewal fixture
+146a4ebe9b0e9b9f0e137c4def66993b67383ac8 test(email-verification): assert three calendar months
+14f32ed874f027879e360ba2ea58b60bf611b256 fix(email-verification): use persisted cycle expiry
+05da6f14376b92d72e45e0b9184c488762a406eb fix(email-verification): use three calendar months
+14eec83b8e5ddfa3962cbc818efdd4147411d746 test(verification): cover independent calendar-month clocks
+9c32dd930103625bea4db2761c19b9f0f02b32bd feat(verification): add independent calendar-month clocks
+
+=== CHERRY STATUS ===
++ 9c32dd930103625bea4db2761c19b9f0f02b32bd feat(verification): add independent calendar-month clocks
++ 14eec83b8e5ddfa3962cbc818efdd4147411d746 test(verification): cover independent calendar-month clocks
++ 05da6f14376b92d72e45e0b9184c488762a406eb fix(email-verification): use three calendar months
++ 14f32ed874f027879e360ba2ea58b60bf611b256 fix(email-verification): use persisted cycle expiry
++ 146a4ebe9b0e9b9f0e137c4def66993b67383ac8 test(email-verification): assert three calendar months
++ d3448bfab8067bafe12245d7bada4e78524aaa7d test(email-verification): align emulator renewal fixture
++ 455acac679d54510becba3b516ec9b24a179df9e ci(verification): clarify independent verification test scopes
++ b1a80c8f86aa5db5632d95a9d0322556df3b6dff docs(verification): record independent cycle work and remaining biometric blockers
++ 650d6eb7162862961a892ae6aeba30bf9942e211 test(email-verification): fix calendar-expired emulator fixture
++ 21599093304893806bad991f3636de067756a272 docs(email-verification): describe calendar-month renewal interval
++ 2064bbcc98aa360ac2d46d05d15cbf8f90561817 test(verification): keep source-boundary assertion aligned with calendar cycle docs
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+A	docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js
+
+=== NUMSTAT ===
+2	2	.github/workflows/validate.yml
+9	0	docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+4	4	functions/src/email-verification-cycle.ts
+3	3	functions/src/index.ts
+17	0	functions/src/verification-calendar.ts
+2	2	functions/test/biometric-reward-security.test.js
+8	7	functions/test/email-verification-cycle.test.js
+6	6	functions/test/integration/email-verification-renewal.integration.test.js
+15	0	functions/test/verification-calendar.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

@@ -1,0 +1,29 @@
+BRANCH: codex/phase1-rented-room-call-gate-2026-11-20
+REF: refs/remotes/origin/codex/phase1-rented-room-call-gate-2026-11-20
+SHA: 41dc2c2fd679f736d48f912c1e248f8615554649
+
+MERGE BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE ===
+222	6
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/room-call-policy.test.js
+
+=== CHANGE SUMMARY ===
+ functions/src/index.ts                             | 27 ++++++-
+ functions/src/room-call-policy.ts                  | 45 ++++++++++++
+ .../integration/call-signaling.integration.test.js | 84 +++++++++++++++++++++-
+ functions/test/room-call-policy.test.js            | 43 +++++++++++
+ 4 files changed, 195 insertions(+), 4 deletions(-)
+
+=== UNIQUE COMMITS ===
+41dc2c2f test(calls): assert inactive rental creates no call record
+a004cbf6 test(calls): cover mismatched rental identity
+c17db171 test(calls): require active private room rental in emulator
+f66bb37f fix(calls): revalidate active room rental before starting calls
+8375e577 test(calls): cover rented room eligibility boundaries
+48fe4df0 feat(calls): add fail-closed rented room eligibility policy

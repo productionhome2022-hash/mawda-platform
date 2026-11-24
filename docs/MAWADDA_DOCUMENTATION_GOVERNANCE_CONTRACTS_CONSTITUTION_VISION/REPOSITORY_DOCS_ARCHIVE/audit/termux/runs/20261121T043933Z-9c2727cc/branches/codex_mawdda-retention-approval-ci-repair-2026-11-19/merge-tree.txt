@@ -1,0 +1,44 @@
+3dfa3b5a520427d7d8b8f7135b7bb1ee699eeb30
+100644 643b25f507eea2d8aa7c10f86ee83998c33f9cdd 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 8b92a414d82c470bf4cd593ba3648736ca5b892a 3	.github/workflows/mawdda-domain-regression.yml
+100644 5b1ebc0ad3801835670c16f924a249caa2aacccc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 c0f1e251058554629ed3d6829fd2cb25eda36816 3	.github/workflows/validate.yml
+100644 3fcd1dc57646e0c3b9e3b73cd2ecc04a7f6d92e1 1	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 716003d5e98b804f2bb6445585c763fe24a9dd3d 2	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 ff7e0f11fd0ab785f2b9d1ad7be8be744084f44a 3	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 79ce868d1bb4ccae987792ea060109d29f22b1ce 1	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 9ee596af6be3ea7633054adae4d1e5557708a587 2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 e2d4bcdd2d79051877be70b3bfb0c506da3764e0 3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 13b1c3e6444909545f676b791749115537e673a6 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 538d6be5d11031d4cd5eca798c27a33a18647397 3	functions/src/index.ts
+100644 93bb6f4397744b2065612f862592ef8965078f41 1	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 5a7c6bca5199f89afab70df4d03352943d202e17 2	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 3d307de2bbda96ea882a819b0bb034451ebf88fd 3	functions/test/integration/owner-entitlement-grants.integration.test.js
+100644 307bed02e46e6f4e150f76e8335f33089e35adcd 1	functions/test/integration/premium-profile.integration.test.js
+100644 9626b34f4a908f8c58a35af88a9af17af2960b9a 2	functions/test/integration/premium-profile.integration.test.js
+100644 d64604be03f08f7f9e9d0b6fe366e0dd1bef4a92 3	functions/test/integration/premium-profile.integration.test.js
+100644 8878cc8fa0b7f87ab368f7329355fb168c41d4a4 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 9da8df2c87539d8e6a4b8a6d8eac478eeba350e4 3	functions/test/integration/wallet-store.integration.test.js
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging docs/IMPLEMENTATION_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/IMPLEMENTATION_TRACEABILITY.md
+Auto-merging docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+Auto-merging docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/integration/featured-ad-finance.integration.test.js
+Auto-merging functions/test/integration/owner-entitlement-grants.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/owner-entitlement-grants.integration.test.js
+Auto-merging functions/test/integration/premium-profile.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/premium-profile.integration.test.js
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js

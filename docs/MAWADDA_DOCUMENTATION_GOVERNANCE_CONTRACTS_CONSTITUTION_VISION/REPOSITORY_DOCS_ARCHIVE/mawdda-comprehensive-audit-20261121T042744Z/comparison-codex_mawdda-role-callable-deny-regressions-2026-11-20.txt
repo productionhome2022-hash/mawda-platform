@@ -1,0 +1,12 @@
+Compared branch: codex/mawdda-role-callable-deny-regressions-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+179	1
+
+=== CHANGE SUMMARY ===
+ .../specialized-role-capacity.integration.test.js  | 43 ++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+=== CHANGED PATHS ===
+M	functions/test/integration/specialized-role-capacity.integration.test.js

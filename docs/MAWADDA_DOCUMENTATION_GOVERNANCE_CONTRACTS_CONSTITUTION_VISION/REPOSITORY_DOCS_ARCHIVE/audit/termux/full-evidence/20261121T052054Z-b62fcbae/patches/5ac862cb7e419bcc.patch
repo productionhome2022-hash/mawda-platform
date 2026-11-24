@@ -1,0 +1,775 @@
+diff --git a/.github/workflows/mawdda-domain-regression.yml b/.github/workflows/mawdda-domain-regression.yml
+index 643b25f5..efd6e56c 100644
+--- a/.github/workflows/mawdda-domain-regression.yml
++++ b/.github/workflows/mawdda-domain-regression.yml
+@@ -1,66 +1,69 @@
+ name: Mawdda domain regression
+ 
+ on:
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-role-capacity-consolidation-2026-11-19
+ 
+ permissions:
+   contents: read
+ 
+ concurrency:
+   group: mawdda-domain-regression-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ jobs:
+   backend-domain-regression:
+     name: Retention and room reservation emulator regression
+     runs-on: ubuntu-latest
+     timeout-minutes: 60
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Install locked backend dependencies
+         run: npm ci --no-audit --no-fund
+       - name: Compile and run backend unit tests
+         run: npm test
+       - name: Run mode-aware chat retention integration tests
+         run: npm run test:retention-integration
+       - name: Run room event seat reservation and cancellation integration tests
+         run: npm run test:room-events-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         run: npm run test:owner-entitlement-grants-integration
++      - name: Run specialized role seat-capacity integration tests
++        run: node --test test/integration/specialized-role-capacity.integration.test.js
+       - name: Run voice and video call lifecycle integration tests
+         run: npm run test:call-signaling-integration
+       - name: Run timed advertising and reward ledger integration tests
+         run: npm run test:engagement-rewards-integration
+ 
+   flutter-domain-regression:
+     name: Flutter UI analysis and widget tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 35
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install locked Flutter dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Analyze Dart
+         run: flutter analyze
+       - name: Run Flutter widget and unit tests
+         run: flutter test
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 5b1ebc0a..5f23662b 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -1,90 +1,91 @@
+ name: Validate Mawda
+ 
+ on:
+   # This workflow is new on the development branch and is not yet present on
+   # main, so pull_request events cannot reliably load it for PR #2. Validate
+   # every development-branch push directly; keep manual dispatch available.
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-role-capacity-consolidation-2026-11-19
+   workflow_dispatch:
+ 
+ concurrency:
+   # Keep only the newest validation for the development branch.
+   group: mawda-validation-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+   flutter:
+     name: Flutter analysis, tests and web build
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install Flutter dependencies from the committed lockfile
+         id: install_flutter_dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Upload resolved dependency lockfile for review
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-pubspec-lock-${{ github.sha }}
+           path: pubspec.lock
+           if-no-files-found: error
+           retention-days: 7
+       - name: Verify production and non-production Firebase project/app identities
+         run: node functions/scripts/validate-firebase-config.cjs
+       - name: Analyze Dart code
+         run: flutter analyze
+       - name: Run Flutter tests
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: flutter test
+       - name: Validate desktop install experience assets
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: |
+           node --check web/install-prompt.js
+           node --check web/firebase-messaging-sw.js
+           node <<'NODE'
+           const fs = require('node:fs');
+           const manifest = JSON.parse(fs.readFileSync('web/manifest.json', 'utf8'));
+           if (manifest.name !== 'Mawdda Platform 2026' || manifest.display !== 'standalone' || !manifest.icons?.length) {
+             throw new Error('PWA manifest identity, standalone display, or icons are invalid');
+           }
+           for (const file of [
+             'web/mawdda-app-icon.svg',
+             'web/icons/mawdda-192.svg',
+             'web/icons/mawdda-512.svg',
+             'web/install-prompt.js',
+             'web/firebase-messaging-sw.js',
+           ]) {
+             if (!fs.existsSync(file)) throw new Error(`Required PWA asset is missing: ${file}`);
+           }
+           const serviceWorker = fs.readFileSync('web/firebase-messaging-sw.js', 'utf8');
+           const iconMatch = serviceWorker.match(/icon:\s*['"]([^'"]+)['"]/);
+           if (!iconMatch) throw new Error('Push notification icon path is missing');
+           const iconPath = iconMatch[1].replace(/^\/+/, '');
+           if (!fs.existsSync(`web/${iconPath}`)) throw new Error(`Push notification icon is missing: ${iconPath}`);
+           console.log('PWA manifest, icons, service worker and install prompt validated');
+           NODE
+       - name: Build web release
+         id: build_web
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_NONPROD_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload validated web build artifact
+         if: ${{ always() && steps.build_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 13b1c3e6..0dc94fa8 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,110 +1,111 @@
+ import { initializeApp } from "firebase-admin/app";
+ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { getStorage } from "firebase-admin/storage";
+ import { validateMemberProfile } from "./member-profile";
+ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
+ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString, defineSecret } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { reconcileWalletLedger } from "./wallet-reconciliation";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
++import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
+ import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+ import {
+   validateFeaturedAdFinancialEvent,
+   applyFeaturedAdFinancialEvent,
+   featuredAdFinancialIdempotencyId,
+   defaultFeaturedAdFinancialSnapshot,
+ } from "./featured-ad-finance";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash, createHmac, randomUUID } from "node:crypto";
+ import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { isGuestSessionActive } from "./guest-sessions";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import {
+   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
+   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+   ADDITIONAL_AUDIT_COLLECTIONS,
+   isOwnerAuditArchiveEligible,
+   validateLockedAuditArchiveBucket,
+   verifyOwnerAuditArchiveChunk,
+   ownerAuditArchiveObjectName,
+   serializeOwnerAuditArchive,
+   auditCollectionArchiveObjectName,
+   serializeAuditCollectionArchive,
+ } from "./audit-archive";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   isStorePurchaseReplayCompatible,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { validateCoinPackages, validateAdPrices, currencyExponentForCode } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+ import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+ import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+ import {
+   applyContractSignature,
+   assertContractStatusTransition,
+   canMakeContractEffective,
+   computeContractContentHash,
+   validateContractDraftInput,
+   validateContractReadyForSignature,
+   type ContractDraftInput,
+   type ContractSignatureEvidence,
+   type ContractSigningState,
+@@ -9319,172 +9320,214 @@ export const reviewOwnerAdvertisingIntake = onCall(
+       correction_requested: ["under_review", "rejected", "closed"],
+       accepted_pending_contract: ["closed"],
+     };
+     if (!(allowedTransitions[data.status] ?? []).includes(nextStatus)) {
+       throw new HttpsError("failed-precondition", "انتقال حالة الطلب غير مسموح من حالته الحالية.");
+     }
+     const head = headSnapshot.data() ?? {};
+     const previousSequence = headSnapshot.exists ? head.sequence : 0;
+     const previousHash = headSnapshot.exists ? head.eventHash : "GENESIS";
+     if (!Number.isSafeInteger(previousSequence) || previousSequence < 0 ||
+         typeof previousHash !== "string" ||
+         !(previousHash === "GENESIS" || /^[a-f0-9]{64}$/.test(previousHash))) {
+       throw new HttpsError("data-loss", "سلسلة تدقيق المالك غير سليمة؛ أوقفت المراجعة لحماية السجل.");
+     }
+     const version = (data.requestVersion as number) + 1;
+     const auditEvent = {
+       actorUid,
+       action: "advertising_intake_reviewed",
+       requestId,
+       status: nextStatus,
+       requestVersion: version,
+       contractRequired: true,
+       note,
+       outcome: "success",
+     };
+     const sequence = previousSequence + 1;
+     const eventHash = calculateOwnerAuditHash(auditEvent, sequence, previousHash);
+     transaction.update(ref, {
+       status: nextStatus,
+       reviewNote: note,
+       reviewedBy: actorUid,
+       requestVersion: version,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     transaction.create(auditRef, {
+       ...auditEvent,
+       auditEvent,
+       auditChainId: "owner-review-v1",
+       auditSequence: sequence,
+       previousAuditHash: previousHash,
+       auditHash: eventHash,
+       createdAt: FieldValue.serverTimestamp(),
+     });
+     transaction.set(OWNER_REVIEW_AUDIT_HEAD, {
+       sequence,
+       eventHash,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     return {
+       requestId, status: nextStatus, requestVersion: version,
+       contractRequired: true, auditLogId: auditRef.id, idempotentReplay: false,
+     };
+   });
+   return result;
+ });
+ 
+ // Owner-controlled specialized advertising/production/legal role grants.
+ // These grants are separate from general platform administration.
+ const SPECIALIZED_ROLE_GRANTS = db.collection("specializedRoleGrants");
+ 
+ export const getOwnerAdvertisingRoleGrants = onCall(async (request) => {
+   requireOwner(request);
+   const snapshot = await SPECIALIZED_ROLE_GRANTS.orderBy("updatedAt", "desc").limit(500).get();
+   return { grants: snapshot.docs.map((doc) => ({ grantId: doc.id, ...doc.data() })) };
+ });
+ 
+ export const setOwnerAdvertisingRoleGrant = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const expectedVersion = request.data?.expectedVersion;
+   if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+     throw new HttpsError("invalid-argument", "إصدار الصلاحية المتوقع غير صالح.");
+   }
+   let grant;
+   try {
+     grant = validateSpecializedRoleGrant({ ...request.data?.grant, version: 1 });
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات تكليف المشرف المتخصص أو نطاق صلاحياته غير صالحة.");
+   }
+   const grantId = specializedRoleGrantId(grant.uid, grant.role);
+   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
++  const limitedRole: NumberedPlatformRole | null =
++    grant.role === "ad_general_supervisor" || grant.role === "production_general_supervisor"
++      ? grant.role
++      : null;
+   const result = await db.runTransaction(async (transaction) => {
+     const previous = await transaction.get(grantRef);
+     const previousVersion = previous.exists ? Number(previous.data()?.version) : 0;
+     if (!Number.isSafeInteger(previousVersion) || previousVersion !== expectedVersion) {
+       throw new HttpsError("aborted", "تغيرت الصلاحية منذ آخر قراءة؛ أعد تحميلها قبل الحفظ.");
+     }
++
++    // Capacity is checked against a transactional query so concurrent owner
++    // assignments cannot both take the fifth seat.
++    let roleSeatCounterRef: DocumentReference | null = null;
++    let roleSeatCountAfterWrite: number | null = null;
++    if (limitedRole !== null) {
++      roleSeatCounterRef = db.collection("specializedRoleSeatCounters").doc(limitedRole);
++      const [roleSnapshot] = await Promise.all([
++        transaction.get(SPECIALIZED_ROLE_GRANTS.where("role", "==", limitedRole)),
++        transaction.get(roleSeatCounterRef),
++      ]);
++      const nowMs = Date.now();
++      const otherActiveAssignments = roleSnapshot.docs.filter((doc) => {
++        if (doc.id === grantId) return false;
++        const data = doc.data();
++        return data.status === "active" &&
++          (data.endsAtMs == null || !Number.isSafeInteger(data.endsAtMs) || data.endsAtMs > nowMs);
++      }).length;
++      const targetConsumesSeat = grant.status === "active" &&
++        (grant.endsAtMs === null || grant.endsAtMs > nowMs);
++      roleSeatCountAfterWrite = otherActiveAssignments + (targetConsumesSeat ? 1 : 0);
++      try {
++        assertPlatformRoleCapacity(limitedRole, roleSeatCountAfterWrite);
++      } catch {
++        throw new HttpsError("resource-exhausted", "اكتمل العدد المسموح لهذه الفئة الإشرافية؛ الحد الأقصى خمسة.");
++      }
++    }
++
+     const version = previousVersion + 1;
+     const now = FieldValue.serverTimestamp();
+     transaction.set(grantRef, {
+       ...grant, version, assignedBy: actorUid, updatedBy: actorUid,
+       createdAt: previous.data()?.createdAt ?? now, updatedAt: now,
+     });
++    if (roleSeatCounterRef !== null && roleSeatCountAfterWrite !== null) {
++      // The shared counter document serializes concurrent seat claims. The
++      // authoritative count is rebuilt from grants inside the same transaction.
++      transaction.set(roleSeatCounterRef, {
++        role: limitedRole,
++        activeCount: roleSeatCountAfterWrite,
++        reconciledAt: now,
++        updatedAt: now,
++      });
++    }
+     return { grantId, version, status: grant.status };
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid, action: "specialized_advertising_role_grant_saved", ...result,
+     targetUid: grant.uid, role: grant.role, permissions: grant.permissions,
+     resourceScopes: grant.resourceScopes, outcome: "success",
+   });
+   return result;
+ });
+ 
+ export const revokeOwnerAdvertisingRoleGrant = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const grantId = request.data?.grantId;
+   const expectedVersion = request.data?.expectedVersion;
+   if (typeof grantId !== "string" || !/^[a-f0-9]{64}$/.test(grantId) ||
+       !Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+     throw new HttpsError("invalid-argument", "معرف الصلاحية أو إصدارها غير صالح.");
+   }
+   const grantRef = SPECIALIZED_ROLE_GRANTS.doc(grantId);
+   const result = await db.runTransaction(async (transaction) => {
+     const previous = await transaction.get(grantRef);
+     if (!previous.exists) throw new HttpsError("not-found", "تكليف الصلاحية غير موجود.");
+     const data = previous.data()!;
+     if (data.version !== expectedVersion) {
+       throw new HttpsError("aborted", "تغيرت الصلاحية؛ أعد تحميلها قبل السحب.");
+     }
+     if (data.status === "revoked") {
+       return { grantId, version: data.version, revoked: true, idempotentReplay: true };
+     }
+     const version = data.version + 1;
+     transaction.update(grantRef, {
+       status: "revoked", version, revokedAt: FieldValue.serverTimestamp(),
+       revokedBy: actorUid, updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+     });
+     return { grantId, version, revoked: true, idempotentReplay: false };
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid, action: "specialized_advertising_role_grant_revoked", ...result, outcome: "success",
+   });
+   return result;
+ });
+ 
+ 
+ // ---------------------------------------------------------------------------
+ // Owner-controlled contract center. Contract content is immutable after send;
+ // all signature evidence is bound to an exact content hash and terms version.
+ // ---------------------------------------------------------------------------
+ const CONTRACT_RECORDS = db.collection("contracts");
+ const CONTRACT_AUDIT_LOGS = db.collection("contractAuditLogs");
+ const CONTRACT_AUDIT_HEAD = db.collection("contractAuditChainHeads").doc("global");
+ 
+ type PreparedContractAuditEvent = {
+   sequence: number;
+   previousHash: string;
+   eventHash: string;
+   eventRef: ReturnType<typeof CONTRACT_AUDIT_LOGS.doc>;
+   event: Record<string, unknown>;
+ };
+ 
+ /** Read the chain head before any transaction writes, then stage the immutable event atomically. */
+ async function prepareContractAuditEvent(
+   transaction: Transaction,
+   event: Record<string, unknown>,
+ ): Promise<PreparedContractAuditEvent> {
+   const headSnapshot = await transaction.get(CONTRACT_AUDIT_HEAD);
+   const head = headSnapshot.data() ?? {};
+   const sequence = headSnapshot.exists ? Number(head.sequence) + 1 : 1;
+   const previousHash = headSnapshot.exists ? String(head.eventHash) : "GENESIS";
+   if (!Number.isSafeInteger(sequence) || sequence < 1 ||
+       !/^(GENESIS|[a-f0-9]{64})$/.test(previousHash)) {
+     throw new HttpsError("data-loss", "سلسلة تدقيق العقود غير سليمة؛ أوقفت العملية لحماية السجل.");
+   }
+   return {
+     sequence,
+     previousHash,
+     eventHash: calculateOwnerAuditHash(event, sequence, previousHash),
+     eventRef: CONTRACT_AUDIT_LOGS.doc(String(sequence).padStart(12, "0")),
+     event,
+   };
+ }
+diff --git a/functions/src/platform-role-identities.ts b/functions/src/platform-role-identities.ts
+new file mode 100644
+index 00000000..fd33a73d
+--- /dev/null
++++ b/functions/src/platform-role-identities.ts
+@@ -0,0 +1,86 @@
++export const PLATFORM_ROLE_IDS = {
++  superOwner: "super_admin",
++  generalAdmin: "platform_admin",
++  mediaAdmin: "ad_general_supervisor",
++  generalProductionSupervisor: "production_general_supervisor",
++  teamProductionSupervisor: "production_supervisor",
++} as const;
++
++/** Stable role IDs deliberately reuse the existing specialized-grant schema. */
++export type NumberedPlatformRole =
++  | "platform_admin"
++  | "ad_general_supervisor"
++  | "production_general_supervisor"
++  | "production_supervisor";
++
++export const PLATFORM_ROLE_CAPACITY: Record<NumberedPlatformRole, number | null> = {
++  platform_admin: null,
++  ad_general_supervisor: 5,
++  production_general_supervisor: 5,
++  production_supervisor: null,
++};
++
++/** Server-side seat guard. Call with the active count read in the same Firestore transaction. */
++export function assertPlatformRoleCapacity(role: NumberedPlatformRole, activeCountAfterWrite: number): void {
++  if (!Number.isSafeInteger(activeCountAfterWrite) || activeCountAfterWrite < 0) {
++    throw new Error("PLATFORM_ROLE_ACTIVE_COUNT_INVALID");
++  }
++  const capacity = PLATFORM_ROLE_CAPACITY[role];
++  if (capacity !== null && activeCountAfterWrite > capacity) {
++    throw new Error("PLATFORM_ROLE_CAPACITY_EXCEEDED");
++  }
++}
++
++export function platformRoleDisplayLabel(
++  role: NumberedPlatformRole,
++  ordinal: number,
++  locale: "ar" | "en" | "fr" | "es" = "en",
++): string {
++  if (!Number.isSafeInteger(ordinal) || ordinal < 1) {
++    throw new Error("PLATFORM_ROLE_ORDINAL_INVALID");
++  }
++  const capacity = PLATFORM_ROLE_CAPACITY[role];
++  if (capacity !== null && ordinal > capacity) {
++    throw new Error("PLATFORM_ROLE_CAPACITY_EXCEEDED");
++  }
++  const labels = {
++    platform_admin: { ar: "أدمن", en: "Admin", fr: "Administrateur", es: "Administrador" },
++    ad_general_supervisor: { ar: "أدمن ميديا", en: "Admin Media", fr: "Admin Média", es: "Admin Media" },
++    production_general_supervisor: {
++      ar: "مشرف إنتاج عام", en: "General Production Supervisor",
++      fr: "Superviseur général de production", es: "Supervisor general de producción",
++    },
++    production_supervisor: {
++      ar: "مشرف إنتاج الفريق", en: "Team Production Supervisor",
++      fr: "Superviseur de production d’équipe", es: "Supervisor de producción del equipo",
++    },
++  } as const;
++  const prefix = labels[role][locale];
++  // Team Production Supervisor is an open-ended role, but its canonical
++  // display title is unnumbered; keep any internal appointment sequence out
++  // of the member-facing label.
++  if (role === "production_supervisor") return prefix;
++  return locale === "ar" ? `${prefix} ${toArabicDigits(ordinal)}` : `${prefix} ${ordinal}`;
++}
++
++function toArabicDigits(value: number): string {
++  return String(value).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[Number(digit)]);
++}
++
++/** Admin N is the only role with an approved permanent, never-reused sequence. */
++export function nextPermanentRoleOrdinal(
++  role: NumberedPlatformRole,
++  existingOrdinals: unknown[],
++): number {
++  if (role !== "platform_admin") {
++    throw new Error("PLATFORM_ROLE_SEQUENCE_POLICY_NOT_APPROVED");
++  }
++  let max = 0;
++  for (const value of existingOrdinals) {
++    if (!Number.isSafeInteger(value) || (value as number) < 1) {
++      throw new Error("PLATFORM_ROLE_HISTORY_INVALID");
++    }
++    max = Math.max(max, value as number);
++  }
++  return max + 1;
++}
+diff --git a/functions/test/integration/specialized-role-capacity.integration.test.js b/functions/test/integration/specialized-role-capacity.integration.test.js
+new file mode 100644
+index 00000000..ad89dfe3
+--- /dev/null
++++ b/functions/test/integration/specialized-role-capacity.integration.test.js
+@@ -0,0 +1,120 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { createHash } = require("node:crypto");
++const { getFirestore } = require("firebase-admin/firestore");
++const { setOwnerAdvertisingRoleGrant } = require("../../lib/index");
++
++const db = getFirestore();
++const ownerUid = "role_capacity_owner_0001";
++const now = Date.now();
++const ownerRequest = (data) => ({
++  data,
++  auth: {
++    uid: ownerUid,
++    token: {
++      platformOwner: true,
++      platformOwnerUid: ownerUid,
++      auth_time: Math.floor(Date.now() / 1000),
++      firebase: { sign_in_second_factor: "phone" },
++    },
++  },
++});
++const grantId = (uid, role) => createHash("sha256")
++  .update("specialized-role-v1|" + uid + "|" + role).digest("hex");
++const grant = (uid, role) => ({
++  uid,
++  role,
++  permissions: role === "production_supervisor" || role === "production_general_supervisor"
++    ? ["production.tasks.manage_assigned"]
++    : ["advertising.requests.view_all"],
++  resourceScopes: ["campaign:capacity-test"],
++  status: "active",
++  startsAtMs: now - 1000,
++  endsAtMs: null,
++  version: 1,
++});
++const seed = async (uid, role) => {
++  const id = grantId(uid, role);
++  await db.collection("specializedRoleGrants").doc(id).set(grant(uid, role));
++  return id;
++};
++const assign = (uid, role) => setOwnerAdvertisingRoleGrant.run(ownerRequest({
++  expectedVersion: 0,
++  grant: { ...grant(uid, role), version: undefined },
++}));
++
++test("Admin Media and general production supervisor assignments enforce five seats independently", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
++  const roles = ["ad_general_supervisor", "production_general_supervisor"];
++  const seeded = [];
++  const attempted = [];
++  try {
++    for (const role of roles) {
++      for (let i = 1; i <= 5; i += 1) {
++        seeded.push(await seed("member_" + role + "_" + tag + "_" + i, role));
++      }
++      const uid = "member_" + role + "_" + tag + "_sixth";
++      await assert.rejects(
++        () => assign(uid, role),
++        (error) => error && error.code === "resource-exhausted",
++      );
++      attempted.push(grantId(uid, role));
++      assert.equal((await db.collection("specializedRoleGrants")
++        .where("role", "==", role).where("status", "==", "active").get()).size, 5);
++    }
++  } finally {
++    await Promise.all([
++      ...[...seeded, ...attempted].map((id) =>
++        db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
++      ...roles.map((role) =>
++        db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined)),
++    ]);
++  }
++});
++
++test("concurrent owner assignments cannot oversubscribe the fifth Admin Media seat", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const role = "ad_general_supervisor";
++  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
++  const seeded = [];
++  const candidates = ["candidate_a_" + tag, "candidate_b_" + tag];
++  const candidateIds = candidates.map((uid) => grantId(uid, role));
++  try {
++    for (let i = 1; i <= 4; i += 1) {
++      seeded.push(await seed("member_four_" + tag + "_" + i, role));
++    }
++    const outcomes = await Promise.allSettled(candidates.map((uid) => assign(uid, role)));
++    assert.equal(outcomes.filter((item) => item.status === "fulfilled").length, 1);
++    assert.equal(outcomes.filter((item) =>
++      item.status === "rejected" && item.reason?.code === "resource-exhausted").length, 1);
++    assert.equal((await db.collection("specializedRoleGrants")
++      .where("role", "==", role).where("status", "==", "active").get()).size, 5);
++  } finally {
++    await Promise.all([
++      ...[...seeded, ...candidateIds].map((id) =>
++        db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)),
++      db.collection("specializedRoleSeatCounters").doc(role).delete().catch(() => undefined),
++    ]);
++  }
++});
++
++test("Team Production Supervisor remains open-ended", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const role = "production_supervisor";
++  const tag = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
++  const ids = [];
++  try {
++    for (let i = 1; i <= 7; i += 1) {
++      const uid = "team_producer_" + tag + "_" + i;
++      const result = await assign(uid, role);
++      assert.equal(result.status, "active");
++      ids.push(grantId(uid, role));
++    }
++    assert.equal((await db.collection("specializedRoleGrants")
++      .where("role", "==", role).where("status", "==", "active").get()).size, 7);
++  } finally {
++    await Promise.all(ids.map((id) =>
++      db.collection("specializedRoleGrants").doc(id).delete().catch(() => undefined)));
++  }
++});
+diff --git a/functions/test/platform-role-identities.test.js b/functions/test/platform-role-identities.test.js
+new file mode 100644
+index 00000000..5e4f2d7a
+--- /dev/null
++++ b/functions/test/platform-role-identities.test.js
+@@ -0,0 +1,50 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const {
++  PLATFORM_ROLE_IDS, PLATFORM_ROLE_CAPACITY, platformRoleDisplayLabel, nextPermanentRoleOrdinal, assertPlatformRoleCapacity,
++} = require("../lib/platform-role-identities");
++
++test("general Admin sequence is open-ended and monotonic", () => {
++  assert.equal(PLATFORM_ROLE_IDS.superOwner, "super_admin");
++  assert.equal(PLATFORM_ROLE_CAPACITY.platform_admin, null);
++  assert.equal(nextPermanentRoleOrdinal("platform_admin", [1, 2, 7]), 8);
++  assert.equal(platformRoleDisplayLabel("platform_admin", 8), "Admin 8");
++  assert.equal(platformRoleDisplayLabel("platform_admin", 2, "ar"), "أدمن ٢");
++});
++
++test("Admin Media and general production each have five independent seats", () => {
++  assert.equal(PLATFORM_ROLE_CAPACITY.ad_general_supervisor, 5);
++  assert.equal(PLATFORM_ROLE_CAPACITY.production_general_supervisor, 5);
++  assert.equal(platformRoleDisplayLabel("ad_general_supervisor", 1), "Admin Media 1");
++  assert.equal(platformRoleDisplayLabel("production_general_supervisor", 5, "ar"), "مشرف إنتاج عام ٥");
++  assert.throws(() => platformRoleDisplayLabel("ad_general_supervisor", 6), /CAPACITY_EXCEEDED/);
++});
++
++test("Team Production Supervisor is open-ended and distinct", () => {
++  assert.equal(PLATFORM_ROLE_CAPACITY.production_supervisor, null);
++  assert.equal(platformRoleDisplayLabel("production_supervisor", 12), "Team Production Supervisor");
++  assert.equal(platformRoleDisplayLabel("production_supervisor", 1, "ar"), "مشرف إنتاج الفريق");
++});
++
++test("role seat capacity guard blocks a sixth Admin Media or general production supervisor", () => {
++  assert.doesNotThrow(() => assertPlatformRoleCapacity("ad_general_supervisor", 5));
++  assert.doesNotThrow(() => assertPlatformRoleCapacity("production_general_supervisor", 5));
++  assert.throws(() => assertPlatformRoleCapacity("ad_general_supervisor", 6), /CAPACITY_EXCEEDED/);
++  assert.throws(() => assertPlatformRoleCapacity("production_general_supervisor", 6), /CAPACITY_EXCEEDED/);
++  assert.doesNotThrow(() => assertPlatformRoleCapacity("platform_admin", 1000));
++  assert.doesNotThrow(() => assertPlatformRoleCapacity("production_supervisor", 1000));
++  assert.throws(() => assertPlatformRoleCapacity("platform_admin", -1), /ACTIVE_COUNT_INVALID/);
++});
++
++test("Admin N sequence is permanent while fixed five-seat numbering reuse remains unresolved", () => {
++  assert.throws(() => nextPermanentRoleOrdinal("platform_admin", [1, 0]), /HISTORY_INVALID/);
++  assert.equal(nextPermanentRoleOrdinal("platform_admin", [1, 2, 4]), 5);
++  assert.throws(
++    () => nextPermanentRoleOrdinal("ad_general_supervisor", [1, 2]),
++    /SEQUENCE_POLICY_NOT_APPROVED/,
++  );
++  assert.throws(
++    () => nextPermanentRoleOrdinal("production_general_supervisor", [1, 2]),
++    /SEQUENCE_POLICY_NOT_APPROVED/,
++  );
++});

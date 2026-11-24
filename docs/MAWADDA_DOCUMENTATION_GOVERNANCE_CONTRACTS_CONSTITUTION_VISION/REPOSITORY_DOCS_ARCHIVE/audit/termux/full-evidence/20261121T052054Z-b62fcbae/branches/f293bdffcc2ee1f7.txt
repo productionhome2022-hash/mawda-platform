@@ -1,0 +1,73 @@
+BRANCH: codex/mawdda-retention-approval-ci-repair-2026-11-19
+SHA: 179ba95fa582082c7ed32c3f3016b899b414b0ca
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE target-only / branch-only ===
+398	17
+
+=== BRANCH UNIQUE COMMITS ===
+179ba95fa582082c7ed32c3f3016b899b414b0ca test: cover store catalog version overflow boundary
+15f14733eb71aafbdae0c97a966906efd3d22826 fix: reject unsafe store catalog version overflow
+6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2 test: assert immutable featured-ad event snapshot fields
+c9d0f68aa11c59a4fe9e20b6129d65f0b23c9965 fix: persist resulting featured-ad snapshot in immutable event
+b93279acbea5b5cd72b88fa5923f3ffeae0cac49 test: seed explicit catalog versions in premium profile purchase fixtures
+9d0cadc4b460b0b540a56503846977593f7994b7 test: configure bounds in custom coin request lifecycle fixture
+63916ade25d9c6d5db640204637053042415fa06 fix: return server catalog version from transactional publish
+94b042126b39731255b8cc45605c16a09a8f4835 test: verify owner catalog versioning enables purchases
+485502ddd567db41ce61f60da14bf30ed63581b5 fix: assign monotonic server versions to store catalog items
+032a66b35b8d31caaa92c50ad7b7dc18317da7b9 fix: persist immutable timed ad campaign versions
+0972405c59daf929e4a9a60e1d03a3f53d62ae6b test: complete store and custom coin request fixtures
+4cf8c090bd4aef72ff0e87891b645f914d02c46b ci: run validation on retention approval repair branch
+7a38396880d7f899b84e2a790c61a9daae682fa0 ci: run validation on retention approval repair branch
+a8c0656b648bfbec3877c86f25838729904bf074 docs: record confirmed retention policy and CI evidence
+5b805dd5ee657a093052f6adff3d340d19d39287 docs: align platform vision with approved chat retention
+7d058c0de0887b025fd8072caa96eccd9bb47e47 docs: record owner-approved 30-day important chat retention
+124731af4e13725fffc8527010531660c42bafaf test: correct purchasable owner entitlement fixture
+
+=== CHERRY STATUS ===
++ 124731af4e13725fffc8527010531660c42bafaf test: correct purchasable owner entitlement fixture
++ 7d058c0de0887b025fd8072caa96eccd9bb47e47 docs: record owner-approved 30-day important chat retention
+- 5b805dd5ee657a093052f6adff3d340d19d39287 docs: align platform vision with approved chat retention
++ a8c0656b648bfbec3877c86f25838729904bf074 docs: record confirmed retention policy and CI evidence
++ 7a38396880d7f899b84e2a790c61a9daae682fa0 ci: run validation on retention approval repair branch
++ 4cf8c090bd4aef72ff0e87891b645f914d02c46b ci: run validation on retention approval repair branch
++ 0972405c59daf929e4a9a60e1d03a3f53d62ae6b test: complete store and custom coin request fixtures
++ 032a66b35b8d31caaa92c50ad7b7dc18317da7b9 fix: persist immutable timed ad campaign versions
++ 485502ddd567db41ce61f60da14bf30ed63581b5 fix: assign monotonic server versions to store catalog items
++ 94b042126b39731255b8cc45605c16a09a8f4835 test: verify owner catalog versioning enables purchases
++ 63916ade25d9c6d5db640204637053042415fa06 fix: return server catalog version from transactional publish
++ 9d0cadc4b460b0b540a56503846977593f7994b7 test: configure bounds in custom coin request lifecycle fixture
++ b93279acbea5b5cd72b88fa5923f3ffeae0cac49 test: seed explicit catalog versions in premium profile purchase fixtures
++ c9d0f68aa11c59a4fe9e20b6129d65f0b23c9965 fix: persist resulting featured-ad snapshot in immutable event
++ 6fb0091d2d8e59e48e58fbf7ce6d414e87e2d8f2 test: assert immutable featured-ad event snapshot fields
++ 15f14733eb71aafbdae0c97a966906efd3d22826 fix: reject unsafe store catalog version overflow
+- 179ba95fa582082c7ed32c3f3016b899b414b0ca test: cover store catalog version overflow boundary
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+
+=== NUMSTAT ===
+1	0	.github/workflows/mawdda-domain-regression.yml
+1	0	.github/workflows/validate.yml
+1	1	docs/IMPLEMENTATION_TRACEABILITY.md
+10	0	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+1	1	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+24	5	functions/src/index.ts
+6	0	functions/test/integration/featured-ad-finance.integration.test.js
+2	2	functions/test/integration/owner-entitlement-grants.integration.test.js
+2	1	functions/test/integration/premium-profile.integration.test.js
+43	10	functions/test/integration/wallet-store.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

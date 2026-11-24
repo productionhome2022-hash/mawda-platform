@@ -1,0 +1,854 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 07a8e88d..8719fd0b 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -95,154 +95,154 @@ jobs:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_PRODUCTION_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload production-configured web release candidate
+         if: ${{ always() && steps.build_production_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-production-candidate-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+   functions:
+     name: Cloud Functions compile and unit tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 90
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - name: Install Cloud Functions dependencies from committed lockfile
+         id: install_functions
+         run: npm ci --no-audit --no-fund
+       - name: Compile and test backend
+         run: npm test
+       - name: Syntax-check live non-production scanner E2E script
+         run: node --check scripts/test-live-media-scanner-e2e.cjs
+       - name: Validate GitHub Actions workflow YAML syntax
+         run: |
+           ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
+       - name: Upload compiled Cloud Functions artifact
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-cloud-functions-${{ github.sha }}
+           path: functions/lib/
+           if-no-files-found: error
+           retention-days: 7
+       - name: Set up Java for Firebase emulators
+         uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Run media callable authorization and audit integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-integration
+       - name: Run mode-aware chat retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:retention-integration
+       - name: Run direct-message deletion authorization and erasure integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-deletion-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-entitlement-grants-integration
+       - name: Run coin transfer and store purchase transactional integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:wallet-store-integration
+       - name: Run featured-ad financial event and replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:featured-ad-finance-integration
+       - name: Run room rental pricing and lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-rental-integration
+       - name: Run room event scheduling and RSVP integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-events-integration
+       - name: Run call signaling Firestore emulator integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:call-signaling-integration
+       - name: Verify Firestore and Storage emulator backup/restore
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:emulator-backup-restore
+       - name: Run FCM token registration and deactivation integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:push-token-integration
+-      - name: Run 30-day biometric reward cycle integration tests
++      - name: Run biometric verification integration security tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:biometric-integration
+       - name: Run attendance and timed-ad reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:engagement-rewards-integration
+-      - name: Run 90-day email verification renewal and reward integration tests
++      - name: Run three-calendar-month email verification renewal and reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:email-renewal-integration
+       - name: Run safety report and appeal lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:safety-integration
+       - name: Run guest and member privacy acknowledgement integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-privacy-integration
+       - name: Run guest session and public-room interaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-session-integration
+       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:seeded-persona-interaction
+       - name: Run owner audit export pagination and redaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-audit-export-integration
+       - name: Run media legal hold and release integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-legal-hold-integration
+       - name: Run avatar and cover lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:profile-media-integration
+       - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:premium-profile-integration
+       - name: Run message legal hold and resumed retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-legal-hold-integration
+       - name: Run Firestore and Storage rules emulator tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:rules
+ 
+   scanner:
+     name: Isolated ClamAV scanner gateway tests and image build
+     runs-on: ubuntu-latest
+     timeout-minutes: 25
+     steps:
+       - uses: actions/checkout@v5
+       - name: Test Android release artifact identity and version validators
+         run: python3 -m unittest discover -s tool -p 'test_android_release*.py' -v
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+       - name: Validate scanner source and security contracts
+         run: |
+           node --check scanner/server.js
+           node --check scanner/security.js
+           node --check scanner/processors.js
+           sh -n scanner/start.sh
+           node --test scanner/test/security.test.js scanner/test/processors.test.js
+       - name: Build isolated ClamAV scanner container
+         run: docker build --tag mawda-clamav-scanner:ci scanner
+       - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+         run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+       - name: Verify ClamAV detects the harmless EICAR test signature
+         run: |
+           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
+             set -eu
+             freshclam --stdout --log=/tmp/freshclam.log
+             printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
+             set +e
+             clamscan --infected --no-summary /tmp/eicar.com
+             result=$?
+             set -e
+             test "$result" -eq 1
+           '
+diff --git a/docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md b/docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+new file mode 100644
+index 00000000..1cd45869
+--- /dev/null
++++ b/docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+@@ -0,0 +1,9 @@
++# Independent verification-cycle progress — development branch
++
++Owner policy: email verification and biometric verification are independent. Neither can complete, renew, gate, expire, reset, extend, delay, approve or reject the other.
++
++This candidate ports the UTC calendar-month date primitive and updates the email cycle to three calendar months. It separately exposes a one-calendar-month biometric due-date calculation. Month-end and leap-year cases have focused unit tests.
++
++This is not the complete biometric feature. The Super Owner manual request/review workflow, server-exclusive decision authorization, three attempts with one-calendar-month retry waits, private evidence lifecycle, exactly-once 1,500 BetaCoins reward, and replacement of the conflicting device-attestation gate remain unimplemented. Keep biometric verification fail-closed until those are complete.
++
++No tests are claimed as passed until the exact-head GitHub Actions checks finish. No production changes or 5,000-persona simulation are included.
+diff --git a/functions/src/email-verification-cycle.ts b/functions/src/email-verification-cycle.ts
+index f435e261..ead43c71 100644
+--- a/functions/src/email-verification-cycle.ts
++++ b/functions/src/email-verification-cycle.ts
+@@ -1,71 +1,71 @@
+ import { createHash } from "node:crypto";
++import { addCalendarMonthsUtc, isCalendarMonthCycleDue } from "./verification-calendar";
+ 
+-export const EMAIL_VERIFICATION_CYCLE_DAYS = 90;
++export const EMAIL_VERIFICATION_CYCLE_MONTHS = 3;
+ export const EMAIL_VERIFICATION_REWARD_COINS = 500;
+-export const EMAIL_VERIFICATION_CYCLE_MS = EMAIL_VERIFICATION_CYCLE_DAYS * 24 * 60 * 60 * 1000;
+ 
+ export type EmailVerificationCycleStatus = "pending" | "rewarded" | "expired" | "revoked";
+ 
+ export interface EmailVerificationCycle {
+   cycleId: string;
+   uid: string;
+   email: string;
+   sequence: number;
+   status: EmailVerificationCycleStatus;
+   startedAtMs: number;
+   expiresAtMs: number;
+ }
+ 
+ /** Deterministic identity prevents duplicate cycles for the same member/email/sequence. */
+ export function createEmailVerificationCycle(input: {
+   uid: string;
+   email: string;
+   sequence: number;
+   serverNowMs: number;
+ }): EmailVerificationCycle {
+   const uid = input.uid.trim();
+   const email = input.email.trim().toLowerCase();
+   if (!uid || uid.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     throw new Error("INVALID_MEMBER_OR_EMAIL");
+   }
+   if (!Number.isSafeInteger(input.sequence) || input.sequence < 1 ||
+       !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0) {
+     throw new Error("INVALID_CYCLE_CLOCK_OR_SEQUENCE");
+   }
+   const cycleId = createHash("sha256")
+     .update("mawda-email-verification-v1|" + uid + "|" + email + "|" + input.sequence)
+     .digest("hex");
+   return {
+     cycleId, uid, email, sequence: input.sequence, status: "pending",
+     startedAtMs: input.serverNowMs,
+-    expiresAtMs: input.serverNowMs + EMAIL_VERIFICATION_CYCLE_MS,
++    expiresAtMs: addCalendarMonthsUtc(input.serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS),
+   };
+ }
+ 
+ export function isEmailVerificationCycleDue(lastVerifiedAtMs: number, serverNowMs: number): boolean {
+   if (!Number.isSafeInteger(lastVerifiedAtMs) || lastVerifiedAtMs < 0 ||
+       !Number.isSafeInteger(serverNowMs) || serverNowMs < 0) {
+     throw new Error("INVALID_VERIFICATION_CLOCK");
+   }
+-  return serverNowMs >= lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS;
++  return isCalendarMonthCycleDue(lastVerifiedAtMs, serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS);
+ }
+ 
+ /** Confirmation requires the same normalized address and a live, unused cycle. */
+ export function canRewardEmailVerificationCycle(input: {
+   cycle: EmailVerificationCycle;
+   currentEmail: string;
+   authEmailVerified: boolean;
+   serverNowMs: number;
+ }): boolean {
+   const { cycle } = input;
+   if (cycle.status !== "pending" || !input.authEmailVerified ||
+       !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0 ||
+       input.serverNowMs >= cycle.expiresAtMs) return false;
+   return typeof input.currentEmail === "string" &&
+     input.currentEmail.trim().toLowerCase() === cycle.email;
+ }
+ 
+ export function emailVerificationRewardLedgerId(cycleId: string): string {
+   if (!/^[a-f0-9]{64}$/.test(cycleId)) throw new Error("INVALID_EMAIL_CYCLE_ID");
+   return "email_verification_" + cycleId;
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 28de4d28..313c9587 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,115 +1,115 @@
+ import {
+   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+ } from "./store-gifting";
+ import { assertPlatformRoleCapacity, type NumberedPlatformRole } from "./platform-role-identities";
+ import { initializeApp } from "firebase-admin/app";
+ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { getStorage } from "firebase-admin/storage";
+ import { validateMemberProfile } from "./member-profile";
+ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
+ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString, defineSecret } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { reconcileWalletLedger } from "./wallet-reconciliation";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
++import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+ import {
+   validateFeaturedAdFinancialEvent,
+   applyFeaturedAdFinancialEvent,
+   featuredAdFinancialIdempotencyId,
+   defaultFeaturedAdFinancialSnapshot,
+ } from "./featured-ad-finance";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash, createHmac, randomUUID } from "node:crypto";
+ import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { isGuestSessionActive } from "./guest-sessions";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import {
+   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
+   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+   ADDITIONAL_AUDIT_COLLECTIONS,
+   isOwnerAuditArchiveEligible,
+   validateLockedAuditArchiveBucket,
+   verifyOwnerAuditArchiveChunk,
+   ownerAuditArchiveObjectName,
+   serializeOwnerAuditArchive,
+   auditCollectionArchiveObjectName,
+   serializeAuditCollectionArchive,
+ } from "./audit-archive";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   isStorePurchaseReplayCompatible,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+ import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+ import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+ import {
+   applyContractSignature,
+   assertContractStatusTransition,
+   canMakeContractEffective,
+   computeContractContentHash,
+   validateContractDraftInput,
+   validateContractReadyForSignature,
+   type ContractDraftInput,
+   type ContractSignatureEvidence,
+   type ContractSigningState,
+   type ContractStatus,
+@@ -2103,211 +2103,211 @@ export const listSafetyCases = onCall(async (request) => {
+   if (typeof status === "string") query = db.collection("safetyCases")
+     .where("status", "==", status).orderBy("createdAt", "desc").limit(limit);
+   const snapshot = await query.get();
+   return {
+     cases: snapshot.docs.map((doc) => ({ caseId: doc.id, ...doc.data() })),
+   };
+ });
+ 
+ /** Owner-only final decision. A reason is mandatory and all decisions are audited. */
+ export const reviewSafetyCase = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const caseId = request.data?.caseId;
+   const decision = request.data?.decision;
+   const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+   if (typeof caseId !== "string" || caseId.length < 8 || caseId.length > 160 ||
+       !["action_taken", "dismissed"].includes(decision) || reason.length < 10 || reason.length > 1000) {
+     throw new HttpsError("invalid-argument", "بيانات قرار البلاغ غير صالحة.");
+   }
+   const caseRef = db.collection("safetyCases").doc(caseId);
+   const subjectUid = await db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(caseRef);
+     if (!snapshot.exists) {
+       throw new HttpsError("not-found", "البلاغ غير موجود.");
+     }
+     const current = snapshot.data()!;
+     if (current.status === decision && current.reviewedBy === actorUid) {
+       return current.subjectUid as string;
+     }
+     if (current.status !== "open") {
+       throw new HttpsError("failed-precondition", "البلاغ غير موجود أو سبق اتخاذ قرار بشأنه.");
+     }
+     transaction.update(caseRef, {
+       status: decision,
+       decisionReason: reason,
+       reviewedBy: actorUid,
+       reviewedAt: FieldValue.serverTimestamp(),
+       updatedAt: FieldValue.serverTimestamp(),
+       appealStatus: decision === "action_taken" ? "available" : "not_available",
+     });
+     return snapshot.data()?.subjectUid as string;
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid,
+     action: "safety_case_reviewed",
+     caseId,
+     subjectUid,
+     decision,
+     outcome: "completed",
+   }, `safety_case_review_${caseId}`);
+   return { caseId, decision };
+ });
+ 
+ /**
+  * Applies the owner-approved local biometric reward policy.
+  *
+  * Trust boundary: local_auth returns a device-local result. The server enforces
+  * the 30-day cycle and atomic wallet ledger, but cannot cryptographically prove
+  * that an unmodified client displayed the OS prompt. The client claim is
+  * therefore explicitly recorded as such and must not be represented as civil
+  * identity verification or hardware attestation.
+  */
+ /**
+  * Fail-closed until a server-verifiable, device-bound biometric attestation
+  * challenge is implemented. A client boolean and attempt ID are not proof:
+  * a modified client can invoke this callable directly and mint the reward.
+  *
+  * Do not restore wallet credits here until Android Play Integrity / iOS
+  * App Attest (or an equivalent cryptographic key attestation) is verified
+  * server-side with a fresh challenge, nonce binding, replay protection and
+  * one-time ledger idempotency.
+  */
+ export const completeBiometricVerificationCycle = onCall(async (request) => {
+   requireAuthenticatedUid(request.auth?.uid);
+   throw new HttpsError(
+     "failed-precondition",
+     "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+   );
+ });
+ 
+ /**
+- * Starts a fresh 90-day email ownership challenge when the current cycle is due.
++ * Starts a fresh email ownership challenge after three calendar months from the last successful verification.
+  * Firebase Auth is temporarily marked unverified so the member must redeem a
+  * fresh provider-issued email action link before the renewal reward is credited.
+  */
+ export const startEmailVerificationRenewal = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const authUser = await getAuth().getUser(uid);
+   if (!authUser.email) {
+     throw new HttpsError("failed-precondition", "لا يوجد بريد إلكتروني مرتبط بالحساب.");
+   }
+   const email = authUser.email.trim().toLowerCase();
+   const userRef = db.collection("users").doc(uid);
+   const nowMs = Date.now();
+ 
+   const cycleResult = await db.runTransaction(async (transaction) => {
+     let expiredPendingId: string | null = null;
+     const userSnapshot = await transaction.get(userRef);
+     if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
+       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+     }
+     const userData = userSnapshot.data()!;
+     const pendingId = userData.emailVerificationRenewalPendingCycleId;
+     if (typeof pendingId === "string" && pendingId.length > 0) {
+       const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
+       const pendingSnapshot = await transaction.get(pendingRef);
+       const pending = pendingSnapshot.data();
+       const expiry = pending?.expiresAt;
+       const expiryMs = expiry instanceof Timestamp
+         ? expiry.toMillis()
+         : typeof expiry?.toMillis === "function" ? expiry.toMillis() : 0;
+       if (pendingSnapshot.exists && pending?.status === "pending" &&
+           pending.email === email && expiryMs > nowMs) {
+         return {
+           cycleId: pendingId,
+           email,
+           alreadyPending: true,
+           authResetAt: pending.authResetAt ?? null,
+         };
+       }
+       if (pendingSnapshot.exists && pending?.status === "pending") {
+         expiredPendingId = pendingId;
+       }
+     }
+ 
+     const priorExpiry = userData.emailVerificationCycleExpiresAt;
+     const priorExpiryMs = priorExpiry instanceof Timestamp
+       ? priorExpiry.toMillis()
+       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
+     if (expiredPendingId === null) {
+       if (!authUser.emailVerified || priorExpiryMs === null ||
+-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
++          priorExpiryMs > nowMs) {
+         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
+       }
+     }
+ 
+     const sequence = (Number.isSafeInteger(userData.emailVerificationSequence)
+       ? userData.emailVerificationSequence as number
+       : 1) + 1;
+     const cycle = createEmailVerificationCycle({
+       uid,
+       email,
+       sequence,
+       serverNowMs: nowMs,
+     });
+     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
+     const existingCycle = await transaction.get(cycleRef);
+     if (existingCycle.exists) {
+       throw new HttpsError("already-exists", "دورة التحقق هذه موجودة مسبقاً.");
+     }
+     if (expiredPendingId !== null) {
+       transaction.update(
+         db.collection("emailVerificationCycles").doc(uid + "_" + expiredPendingId),
+         { status: "expired", expiredAt: FieldValue.serverTimestamp() },
+       );
+     }
+     const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
+     const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
+     transaction.create(cycleRef, {
+       ...cycle,
+       status: "pending",
+       startedAt,
+       expiresAt,
+       authResetAt: null,
+       createdAt: startedAt,
+       updatedAt: startedAt,
+     });
+     transaction.update(userRef, {
+       emailVerified: false,
+       emailVerificationSequence: sequence,
+       emailVerificationRenewalPendingCycleId: cycle.cycleId,
+       emailVerificationRenewalPendingEmail: email,
+       emailVerificationRenewalStartedAt: startedAt,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     return {
+       cycleId: cycle.cycleId,
+       email,
+       alreadyPending: false,
+       authResetAt: null,
+     };
+   });
+ 
+   // Retry-safe: if Auth was reset but recording authResetAt failed, the next
+   // call observes Auth=false and records the marker without invalidating a
+   // subsequently redeemed link.
+   if (cycleResult.authResetAt == null) {
+     if (authUser.emailVerified) {
+       await getAuth().updateUser(uid, { emailVerified: false });
+     }
+     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleResult.cycleId);
+     await db.runTransaction(async (transaction) => {
+       const cycleSnapshot = await transaction.get(cycleRef);
+       if (!cycleSnapshot.exists || cycleSnapshot.data()?.status !== "pending") {
+         throw new HttpsError("failed-precondition", "انتهت دورة التحقق قبل تهيئة البريد.");
+       }
+       if (cycleSnapshot.data()?.authResetAt == null) {
+         transaction.update(cycleRef, { authResetAt: FieldValue.serverTimestamp() });
+       }
+     });
+   }
+ 
+   return {
+     cycleId: cycleResult.cycleId,
+     email: cycleResult.email,
+     alreadyPending: cycleResult.alreadyPending,
+     sendVerificationEmail: true,
+   };
+ });
+ 
+ /**
+  * Finalizes a renewal only after Firebase Auth confirms that the member
+diff --git a/functions/src/verification-calendar.ts b/functions/src/verification-calendar.ts
+new file mode 100644
+index 00000000..bd26b5d3
+--- /dev/null
++++ b/functions/src/verification-calendar.ts
+@@ -0,0 +1,17 @@
++/** UTC calendar-month arithmetic shared only as a pure date primitive. */
++export function addCalendarMonthsUtc(anchorMs: number, months: number): number {
++  if (!Number.isSafeInteger(anchorMs) || anchorMs < 0 || !Number.isSafeInteger(months) || months < 0) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  const source = new Date(anchorMs);
++  if (!Number.isFinite(source.getTime())) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  const monthIndex = source.getUTCMonth() + months;
++  const targetYear = source.getUTCFullYear() + Math.floor(monthIndex / 12);
++  const targetMonth = monthIndex % 12;
++  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
++  return Date.UTC(targetYear, targetMonth, Math.min(source.getUTCDate(), lastDay), source.getUTCHours(), source.getUTCMinutes(), source.getUTCSeconds(), source.getUTCMilliseconds());
++}
++export function isCalendarMonthCycleDue(anchorMs: number, nowMs: number, months: number): boolean {
++  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  return nowMs >= addCalendarMonthsUtc(anchorMs, months);
++}
++export const isEmailVerificationDue = (lastVerifiedAtMs: number, nowMs: number): boolean => isCalendarMonthCycleDue(lastVerifiedAtMs, nowMs, 3);
++export const isBiometricVerificationDue = (lastApprovedAtMs: number, nowMs: number): boolean => isCalendarMonthCycleDue(lastApprovedAtMs, nowMs, 1);
+diff --git a/functions/test/biometric-reward-security.test.js b/functions/test/biometric-reward-security.test.js
+index 2ef78f30..9c5955a9 100644
+--- a/functions/test/biometric-reward-security.test.js
++++ b/functions/test/biometric-reward-security.test.js
+@@ -1,24 +1,24 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const fs = require("node:fs");
+ const path = require("node:path");
+ 
+ test("biometric reward callable fails closed without server-verifiable device attestation", () => {
+   const source = fs.readFileSync(path.join(__dirname, "../src/index.ts"), "utf8");
+   const start = source.indexOf("export const completeBiometricVerificationCycle = onCall(async (request) => {");
+-  const end = source.indexOf("\n\n/**\n * Starts a fresh 90-day email ownership challenge", start);
++  const end = source.indexOf("\n\n/**\n * Starts a fresh email ownership challenge after three calendar months", start);
+   assert.notEqual(start, -1, "biometric reward callable must remain present");
+   assert.notEqual(end, -1, "biometric reward callable boundary must remain identifiable");
+   const callable = source.slice(start, end);
+   assert.match(callable, /failed-precondition/);
+   assert.match(callable, /التحقق التشفيري المرتبط بالجهاز/);
+   assert.doesNotMatch(callable, /runTransaction|walletLedger|rewardCoins|transaction\.update|transaction\.create/);
+ });
+ 
+ test("client booleans and attempt IDs are not accepted as a biometric proof contract", () => {
+   const source = fs.readFileSync(path.join(__dirname, "../src/index.ts"), "utf8");
+   const start = source.indexOf("export const completeBiometricVerificationCycle = onCall(async (request) => {");
+-  const end = source.indexOf("\n\n/**\n * Starts a fresh 90-day email ownership challenge", start);
++  const end = source.indexOf("\n\n/**\n * Starts a fresh email ownership challenge after three calendar months", start);
+   const callable = source.slice(start, end);
+   assert.doesNotMatch(callable, /localAuthenticationSucceeded|clientAttemptId|local_os_biometric_prompt/);
+ });
+diff --git a/functions/test/email-verification-cycle.test.js b/functions/test/email-verification-cycle.test.js
+index c589e61b..ea78a0e6 100644
+--- a/functions/test/email-verification-cycle.test.js
++++ b/functions/test/email-verification-cycle.test.js
+@@ -1,58 +1,59 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+-  EMAIL_VERIFICATION_CYCLE_MS,
++  EMAIL_VERIFICATION_CYCLE_MONTHS,
+   EMAIL_VERIFICATION_REWARD_COINS,
+   createEmailVerificationCycle,
+   isEmailVerificationCycleDue,
+   canRewardEmailVerificationCycle,
+   emailVerificationRewardLedgerId,
+ } = require("../lib/email-verification-cycle");
+ 
+-const NOW = 1_800_000_000_000;
++const NOW = Date.UTC(2026, 0, 31, 12, 0, 0);
+ 
+-test("creates deterministic server-clocked 90-day cycle bound to normalized email", () => {
++test("creates deterministic server-clocked three-calendar-month cycle bound to normalized email", () => {
+   const input = { uid: "member-1", email: " Member@Example.com ", sequence: 2, serverNowMs: NOW };
+   const first = createEmailVerificationCycle(input);
+   assert.deepEqual(first, createEmailVerificationCycle(input));
+   assert.equal(first.email, "member@example.com");
+   assert.equal(first.startedAtMs, NOW);
+-  assert.equal(first.expiresAtMs, NOW + EMAIL_VERIFICATION_CYCLE_MS);
++  assert.equal(first.expiresAtMs, Date.UTC(2026, 3, 30, 12, 0, 0));
++  assert.equal(EMAIL_VERIFICATION_CYCLE_MONTHS, 3);
+   assert.equal(first.status, "pending");
+ });
+ 
+ test("rejects invalid identity, email, sequence and server clock", () => {
+   for (const input of [
+     { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW },
+     { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW },
+     { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW },
+     { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1 },
+   ]) assert.throws(() => createEmailVerificationCycle(input));
+ });
+ 
+-test("renewal becomes due at exactly 90 days using server time", () => {
+-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS - 1), false);
+-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS), true);
++test("renewal becomes due at exactly three calendar months using server time", () => {
++  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 11, 59, 59, 999)), false);
++  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 12, 0, 0)), true);
+ });
+ 
+ test("reward requires pending cycle, verified Auth state, unchanged email and unexpired cycle", () => {
+   const cycle = createEmailVerificationCycle({
+     uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+   });
+   const base = { cycle, currentEmail: "MEMBER@example.com", authEmailVerified: true, serverNowMs: NOW + 1 };
+   assert.equal(canRewardEmailVerificationCycle(base), true);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, currentEmail: "changed@example.com" }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, authEmailVerified: false }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, serverNowMs: cycle.expiresAtMs }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, cycle: { ...cycle, status: "rewarded" } }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, cycle: { ...cycle, status: "revoked" } }), false);
+ });
+ 
+ test("cycle-specific ledger identity prevents reward collisions and validates ids", () => {
+   const cycle = createEmailVerificationCycle({
+     uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+   });
+   assert.equal(emailVerificationRewardLedgerId(cycle.cycleId), "email_verification_" + cycle.cycleId);
+   assert.throws(() => emailVerificationRewardLedgerId("bad-id"));
+   assert.equal(EMAIL_VERIFICATION_REWARD_COINS, 500);
+ });
+diff --git a/functions/test/integration/email-verification-renewal.integration.test.js b/functions/test/integration/email-verification-renewal.integration.test.js
+index 4f477f03..fb1b434e 100644
+--- a/functions/test/integration/email-verification-renewal.integration.test.js
++++ b/functions/test/integration/email-verification-renewal.integration.test.js
+@@ -1,106 +1,106 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getAuth } = require("firebase-admin/auth");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const {
+   startEmailVerificationRenewal,
+   completeEmailVerificationRenewal,
+ } = require("../../lib/index");
+-const { EMAIL_VERIFICATION_CYCLE_MS } = require("../../lib/email-verification-cycle");
++
+ 
+ const db = getFirestore();
+ const auth = getAuth();
+ const request = (uid) => ({
+   data: {},
+   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+ 
+-test("fresh email link renewal credits 500 coins once and starts the next 90-day cycle", async () => {
++test("fresh email link renewal credits 500 coins once and starts the next three-calendar-month cycle", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+   const tag = suffix();
+   const uid = `email_renewal_${tag}`;
+   const email = `renewal_${tag}@example.test`;
+   const userRef = db.collection("users").doc(uid);
+-  const lastVerifiedAtMs = Date.now() - EMAIL_VERIFICATION_CYCLE_MS - 1000;
++  const lastVerifiedAtMs = Date.now() - 1000;
+   const ledgerIdPrefix = "email_verification_";
+   let cycleRef;
+   let ledgerRef;
+   let auditRef;
+ 
+   await auth.createUser({ uid, email, password: "Test-only-password-123!", emailVerified: true });
+   await userRef.set({
+     uid,
+     email,
+     emailVerified: true,
+-    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs),
++    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+     emailVerificationSequence: 1,
+     emailVerificationCycleId: "initial-cycle",
+-    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
+-    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS),
++    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
++    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs - 1),
+     coins: 250,
+     profileCompleted: true,
+     accountStatus: "active",
+   });
+ 
+   try {
+     const started = await startEmailVerificationRenewal.run(request(uid));
+     assert.equal(started.email, email);
+     assert.equal(started.alreadyPending, false);
+     assert.equal(started.sendVerificationEmail, true);
+ 
+     const authAfterStart = await auth.getUser(uid);
+     assert.equal(authAfterStart.emailVerified, false);
+     cycleRef = db.collection("emailVerificationCycles").doc(`${uid}_${started.cycleId}`);
+     const pending = (await cycleRef.get()).data();
+     assert.equal(pending.status, "pending");
+     assert.ok(pending.authResetAt);
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 250);
+ 
+     // Simulate the Firebase Auth action link being redeemed by its owner.
+     await auth.updateUser(uid, { emailVerified: true });
+     const completed = await completeEmailVerificationRenewal.run(request(uid));
+     assert.equal(completed.rewardGranted, true);
+     assert.equal(completed.rewardAmount, 500);
+     assert.equal(completed.newBalance, 750);
+ 
+     const member = (await userRef.get()).data();
+     assert.equal(member.coins, 750);
+     assert.equal(member.emailVerified, true);
+     assert.equal(member.emailVerificationSequence, 2);
+     assert.equal(member.emailVerificationCycleId, started.cycleId);
+     assert.equal(member.emailVerificationRenewalPendingCycleId, undefined);
+     assert.ok(member.emailVerificationCycleExpiresAt.toMillis() > Date.now());
+ 
+     const cycle = (await cycleRef.get()).data();
+     assert.equal(cycle.status, "rewarded");
+     ledgerRef = userRef.collection("walletLedger").doc(ledgerIdPrefix + started.cycleId);
+     auditRef = db.collection("verificationAuditLogs").doc(ledgerIdPrefix + started.cycleId);
+     assert.equal((await ledgerRef.get()).data().amount, 500);
+     assert.equal((await auditRef.get()).data().action, "email_verification_cycle_rewarded");
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => startEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 750);
+   } finally {
+     await Promise.all([
+       cycleRef?.delete().catch(() => undefined),
+       ledgerRef?.delete().catch(() => undefined),
+       auditRef?.delete().catch(() => undefined),
+       userRef.delete().catch(() => undefined),
+       auth.deleteUser(uid).catch(() => undefined),
+     ]);
+   }
+ });
+diff --git a/functions/test/verification-calendar.test.js b/functions/test/verification-calendar.test.js
+new file mode 100644
+index 00000000..0efd78d3
+--- /dev/null
++++ b/functions/test/verification-calendar.test.js
+@@ -0,0 +1,15 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { addCalendarMonthsUtc, isEmailVerificationDue, isBiometricVerificationDue } = require("../lib/verification-calendar");
++test("calendar month arithmetic clamps month-end and preserves UTC time", () => {
++ assert.equal(addCalendarMonthsUtc(Date.UTC(2026,0,31,12),1),Date.UTC(2026,1,28,12));
++ assert.equal(addCalendarMonthsUtc(Date.UTC(2028,0,31,12),1),Date.UTC(2028,1,29,12));
++ assert.equal(addCalendarMonthsUtc(Date.UTC(2026,10,30,8,15),3),Date.UTC(2027,1,28,8,15));
++});
++test("email and biometric renewal clocks remain independent", () => {
++ const anchor=Date.UTC(2026,0,31,12), bio=Date.UTC(2026,1,28,12), email=Date.UTC(2026,3,30,12);
++ assert.equal(isBiometricVerificationDue(anchor,bio-1),false); assert.equal(isBiometricVerificationDue(anchor,bio),true);
++ assert.equal(isEmailVerificationDue(anchor,email-1),false); assert.equal(isEmailVerificationDue(anchor,email),true);
++ assert.equal(isEmailVerificationDue(anchor,bio),false); assert.equal(isBiometricVerificationDue(anchor,email),true);
++});
++test("invalid clocks and offsets are rejected",()=>{assert.throws(()=>addCalendarMonthsUtc(-1,1));assert.throws(()=>addCalendarMonthsUtc(Date.now(),-1));assert.throws(()=>isEmailVerificationDue(0,NaN));});

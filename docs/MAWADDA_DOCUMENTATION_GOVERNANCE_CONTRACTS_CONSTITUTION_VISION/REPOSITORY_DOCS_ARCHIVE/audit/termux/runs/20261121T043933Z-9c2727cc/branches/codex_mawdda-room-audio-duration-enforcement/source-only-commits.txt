@@ -1,0 +1,5 @@
+dc1c1a43f6c8b4cfb198544ad21975612f89ca83	production home	2026-11-15T02:52:32+03:00	test(scanner): lock direct and room audio duration limits
+22998d7cea91190d94699ff7a6dfe4d92e7d96a4	production home	2026-11-15T02:52:28+03:00	fix(scanner): enforce 120-second direct audio ceiling
+3b3f65233ab759e129006c3277377aee6f4f5d5a	production home	2026-11-15T02:52:26+03:00	test(scanner): provide trusted media purpose to processor fixtures
+184473dc85dc7fee6fe536447ce3474ecaa2e7b7	production home	2026-11-14T17:56:58+03:00	test: include trusted media purpose in scanner verdict fixtures
+33afd071dfa42ebb3fca10a8b6b2c8f68a8bb1b4	production home	2026-11-14T17:55:28+03:00	fix: enforce room audio duration in trusted scanner pipeline

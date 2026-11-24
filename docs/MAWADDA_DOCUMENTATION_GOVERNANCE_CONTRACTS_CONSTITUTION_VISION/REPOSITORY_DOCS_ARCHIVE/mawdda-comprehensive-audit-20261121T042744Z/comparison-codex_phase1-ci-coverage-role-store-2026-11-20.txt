@@ -1,0 +1,12 @@
+Compared branch: codex/phase1-ci-coverage-role-store-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+220	1
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+=== CHANGED PATHS ===
+M	.github/workflows/validate.yml

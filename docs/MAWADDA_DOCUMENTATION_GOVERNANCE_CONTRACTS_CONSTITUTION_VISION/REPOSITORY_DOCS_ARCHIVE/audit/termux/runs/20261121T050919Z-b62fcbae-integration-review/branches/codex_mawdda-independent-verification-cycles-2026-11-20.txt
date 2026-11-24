@@ -1,0 +1,45 @@
+BRANCH: codex/mawdda-independent-verification-cycles-2026-11-20
+REF: refs/remotes/origin/codex/mawdda-independent-verification-cycles-2026-11-20
+SHA: 615f9f974ea9e252772bee43339261288b7a2729
+
+MERGE BASE: 0486afaad1414311c9c9daf136e3ec6ed46b592d
+
+=== DIVERGENCE ===
+179	12
+
+=== FILE STATUS ===
+M	.github/workflows/validate.yml
+M	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml                     |  4 +--
+ ...H_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md | 19 ++++++++++++++
+ functions/src/email-verification-cycle.ts          |  8 +++---
+ functions/src/index.ts                             |  6 ++---
+ functions/src/verification-calendar.ts             | 30 ++++++++++++++++++++++
+ functions/test/biometric-reward-security.test.js   |  4 +--
+ functions/test/email-verification-cycle.test.js    | 15 ++++++-----
+ .../email-verification-renewal.integration.test.js | 12 ++++-----
+ functions/test/verification-calendar.test.js       | 27 +++++++++++++++++++
+ 9 files changed, 101 insertions(+), 24 deletions(-)
+
+=== UNIQUE COMMITS ===
+615f9f97 test(verification): keep source-boundary assertion aligned with calendar cycle docs
+c8185ecf docs(email-verification): describe calendar-month renewal interval
+35be6abd test(email-verification): fix calendar-expired emulator fixture
+e71023a1 docs(verification): record isolated calendar-cycle progress and blockers
+eabfd92f ci(verification): clarify independent verification test scopes
+9fce82f4 chore(verification): remove obsolete fixed-cycle import
+c928097b test(email-verification): align emulator renewal fixture to stored expiry
+e02cf53f test(email-verification): assert three-calendar-month renewal
+4f1e8599 fix(email-verification): compare stored calendar expiry directly
+b2427995 fix(email-verification): use three calendar months for renewal
+7867c192 test(verification): cover independent calendar-month renewal clocks
+48460cb0 feat(verification): add independent calendar-month renewal clocks

@@ -1,0 +1,89 @@
+619eab643e2d5849b3b2c055461d53ba2be01753	production home	2026-11-19T08:33:53+03:00	test: keep fixed five-seat ordinal policy unresolved
+a1295f7fb0268c7a4fd351b1516fb0cf2edca10e	production home	2026-11-19T08:33:44+03:00	fix: limit permanent ordinal allocation to Admin N
+4b56fdc54a55e5c66546f77242f815d3a2bc431b	production home	2026-11-19T08:33:22+03:00	docs: clarify unresolved five-seat number reuse policy
+54db10403de1ec20c43e5a837314336125563c7c	production home	2026-11-19T08:30:43+03:00	ci: validate governance branch on every push
+e6d6e03fb8fd70d281a7d76f047a9cb3350252c8	production home	2026-11-19T08:30:40+03:00	ci: validate governance branch on every push
+eca9e14c01ce911c463f7a4670ed09a0a57f65c5	production home	2026-11-19T08:11:21+03:00	docs: record canonical Admin Media permission catalogue
+23e43410ba881056868c58869dc99063c2ee403a	production home	2026-11-19T08:11:13+03:00	test: use canonical Admin Media permission
+78066717b43578864be0e67c6e00460bb98c62f1	production home	2026-11-19T08:11:10+03:00	test: fix role matrix test description
+f052181bee2158b7bb7465b66846fb6f9bc1d6a4	production home	2026-11-19T08:10:55+03:00	test: align Admin Media grants with approved permission catalogue
+0ec3ef32ab65c2346eba17d9f340d0d9ac0f2098	production home	2026-11-19T08:10:33+03:00	security: unify Admin Media permission catalogue
+edfbd98fd9edc78aa38afc7d068972f8d9440a14	production home	2026-11-19T08:10:00+03:00	docs: record fail-closed unconfigured role grants
+3326f7a314d1a386108e9425f4b30691aa45fc52	production home	2026-11-19T08:09:53+03:00	test: deny unconfigured specialized role permission grants
+4e560b0774dc726682c728a217e4614ca2c722f2	production home	2026-11-19T08:09:45+03:00	security: deny unconfigured specialized role grants
+cacacdd7c88a1b1a9a9d76197cb0a1e043cd0bd4	production home	2026-11-19T08:09:12+03:00	docs: record remaining authorization integration gaps
+5b70b6f7f65e154b58d34fdb145f56cbc9bf94f7	production home	2026-11-19T08:09:03+03:00	test: enforce canonical unnumbered team supervisor label
+d419dbeefa8c9f68a8b17e3e607eee48b0628c43	production home	2026-11-19T08:08:57+03:00	fix: keep team production supervisor display unnumbered
+44b76eb7ad362474776dd54c7cd1da2044c1e74e	production home	2026-11-19T08:08:38+03:00	docs: align advertising supervisor traceability labels
+3bc6f2611c821b434a308211fd892cefc6e47871	production home	2026-11-19T08:08:28+03:00	docs: align advertising workspace roles with canonical names
+09a30058028cfe62109ccd5efde988fdecd0f84e	production home	2026-11-19T08:05:47+03:00	docs: record supervisor permission boundary remediation
+880456dc24297b8316de5839f7c96e4d7dfdfe7d	production home	2026-11-19T08:05:39+03:00	docs(ui): remove legacy owner title from model comments
+a68cdeb5ca20d5a72a9f56ac3d4b34209c41aa9b	production home	2026-11-19T07:59:06+03:00	test: cover specialized supervisor permission isolation
+55086f4afae4c021c0202a96e03ee1650cac9d9d	production home	2026-11-19T07:58:58+03:00	security: enforce specialized role permission boundaries
+bacce6208d82a1cd3017681763c414653be8edec	production home	2026-11-19T03:33:06+03:00	test: run biometric evidence lifecycle against Storage Emulator
+418dd2899dc3fd22e10748037c899484a687c364	production home	2026-11-19T03:32:59+03:00	test: verify biometric evidence deletion in Storage Emulator
+964a54d0cc9dbc367d9f9e19f9bde7017ae7fabe	production home	2026-11-19T03:27:47+03:00	test: scope biometric reward security assertions to callable body
+6ce60c126856e0dbc61493640c7e7c67759d332b	production home	2026-11-19T03:27:05+03:00	test: serialize Firestore and Storage rules suites to avoid shared emulator races
+8330111e97808a9971f472dc91a5ff7ffe5c4530	production home	2026-11-19T03:26:56+03:00	test: assert local authentication is not biometric proof
+0d51a3aaa37597a60dd355271e300effe57c904a	production home	2026-11-19T03:26:53+03:00	test: align biometric eligibility fixtures with owner-reviewed records
+a60dc4bc16c4ab515fe0b8a2f83ff58b12b8423e	production home	2026-11-19T03:25:43+03:00	fix: import biometric and role policy helpers into Functions
+1b0ddf5e1c12cdf92de6f95a48ee787344fafe6e	production home	2026-11-19T03:24:31+03:00	ci: rerun validation suites for governance biometric head
+faca18a04f47e91815443f92c5d8caf15a9d7298	production home	2026-11-19T03:16:55+03:00	Test server denial of biometric upload URLs for non-active or foreign requests
+dbc3ef9124d21168eb1c11f9d2d3d1d2643bd66e	production home	2026-11-19T03:16:14+03:00	Guard the legacy owner authorization ID while changing display terminology
+a0a789951a9a0894e1c5fb11044dc244f4204694	production home	2026-11-19T03:16:08+03:00	Keep duplicate-submission test focused on pending-request protection after consent
+d03045997d5fa090e1d03903bb7a73a18597783a	production home	2026-11-19T03:15:50+03:00	Normalize legacy owner title in execution and traceability documents
+ca67d2e74f7a6d2de6dbcb28771364498162048c	production home	2026-11-19T03:15:48+03:00	Normalize legacy owner title in execution and traceability documents
+381dcc48a32fe4c54fbd67ac381fb48634e8d4e6	production home	2026-11-19T03:15:45+03:00	Normalize legacy owner title in execution and traceability documents
+0df394149042a05c343f53d81c910557c7fae6b2	production home	2026-11-19T03:15:35+03:00	Replace legacy owner title in canonical product documentation
+daba8aa47abe2908b3562009f7d03bc07f5f8708	production home	2026-11-19T03:15:33+03:00	Replace legacy owner title in canonical product documentation
+4e5c8e45e4fa5dde29b2b0eb720975f88c9c5a21	production home	2026-11-19T03:15:31+03:00	Replace legacy owner title in canonical product documentation
+4105fdfa4ce4e5ff38973f8816372ce6f5b5bf15	production home	2026-11-19T03:15:28+03:00	Replace legacy owner title in canonical product documentation
+4a6ca9d927506c143379864fd8100acf0b1353a9	production home	2026-11-19T03:14:49+03:00	Update biometric settings UI implementation traceability
+bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef	production home	2026-11-19T03:14:16+03:00	Add owner-controlled biometric settings without inventing limits or phrases
+c2fc0d6e75a44967ae957476d85bb6763c0875fc	production home	2026-11-19T03:13:49+03:00	Bound local biometric recording size and clean temporary evidence files
+8ece689cafe93d330f381c49e828decd695edc65	production home	2026-11-19T03:13:24+03:00	Track governance and biometric integration status and remaining acceptance gates
+0d1d229096d8026750a2565f49c57dfb046d4b40	production home	2026-11-19T03:13:00+03:00	Test calendar-month biometric lockout boundaries
+1c84e6c2fc16948fe109e36c74821d60d96a5372	production home	2026-11-19T03:12:58+03:00	Use exact three-calendar-month biometric lockout semantics
+b94803fe1e0d1ca077309361fecf6b4d36cdc15e	production home	2026-11-19T03:12:29+03:00	Preserve existing super_admin authorization identifier for Super Owner display rename
+f1cbc1741d13475dd17fbdd0c7ef2e77ff35dc70	production home	2026-11-19T03:12:20+03:00	Replace legacy owner label in server-generated chat messages
+7c7e3a30f318a0a13a6a25a2493614830046748d	production home	2026-11-19T03:11:57+03:00	Verify explicit server-enforced consent before biometric submission
+51064dc459c720f0a660282be02efa458dd01f2f	production home	2026-11-19T03:11:38+03:00	Send explicit biometric evidence consent to server
+7b74813276db8f2bfa549f42f0ab3fcd9e190f5f	production home	2026-11-19T03:11:36+03:00	Persist explicit biometric evidence consent and bind deletion to canonical owner paths
+25b2459540a433d3e943c8e48c91009fd25fe4ee	production home	2026-11-19T03:11:11+03:00	Add Super Owner biometric review inbox entry point
+2bb81ad742124c12cbd7319f3d6a79cdef93f2b4	production home	2026-11-19T03:11:09+03:00	Expose member biometric verification workflow in completed profile
+c7fe5a9a3863953acfd7b515408f24ebabfea6cc	production home	2026-11-19T03:10:55+03:00	Issue short-lived member-owned upload URLs for biometric evidence
+844be9a1fc1153fb3f1786ff8a88f9d43a09a2f3	production home	2026-11-19T03:10:44+03:00	Add Super Owner biometric review inbox and decision screen
+cfb5a84851736a8d70c9d36ec45469b01f94904d	production home	2026-11-19T03:10:42+03:00	Add member biometric recording and submission screen
+b02224c068a9c4c52a5cb31c4bb27eb48a3a4826	production home	2026-11-19T03:09:26+03:00	Correct biometric evidence path validation expressions
+8baf6c9174d8cfd2975aab55b00f90fcbfc6a6ec	production home	2026-11-19T03:09:15+03:00	Fail closed when biometric evidence deletion paths are missing or malformed
+9dc2b4885789b4c4faf09f108c6fb9a51a4ed7d8	production home	2026-11-19T03:08:34+03:00	Run validation workflows on governance integration branch
+d01eebad03479ba4c308beb0a234c6edebbf31ae	production home	2026-11-19T03:08:32+03:00	Run validation workflows on governance integration branch
+b17d11bf6b9dc634330b381e04de52791aeb4dc7	production home	2026-11-19T03:08:15+03:00	Link governance and biometric verification specification
+7acc099ede9bd3b59bfaf32d9acdb0957d7cbb86	production home	2026-11-19T03:08:13+03:00	Document biometric review and administrative governance acceptance gates
+66d926550c9e164c562d204cceb263b11aa6ce4e	production home	2026-11-19T03:07:55+03:00	Align product vision and execution plan with approved role terminology
+abfdc05256d5b9d15333e998e659cfd5d3159472	production home	2026-11-19T03:07:53+03:00	Align product vision and execution plan with approved role terminology
+058ef11f9f43a1533241dc008eeecef1ac5ea428	production home	2026-11-19T03:07:45+03:00	Align governance decisions with canonical Super Owner terminology
+1b750c0f100693104e6a9d6b549e61c460144732	production home	2026-11-19T03:07:43+03:00	Align governance decisions with canonical Super Owner terminology
+77489ca76753e89b1d3dd79859ba970339468860	production home	2026-11-19T03:07:31+03:00	Record canonical owner and supervisor display terminology
+52edabb67154da19c8fb53a83eab69a3ef1cce49	production home	2026-11-19T03:07:29+03:00	Link canonical administrative terminology standard
+7a991528d45dd3240289bd16aa6e9e62c7f4562d	production home	2026-11-19T03:07:26+03:00	Add canonical administrative role terminology standard
+e241d7f42bca69ca4def57aa10d202b4832148a9	production home	2026-11-19T03:07:06+03:00	Apply canonical Super Owner display terminology
+2aaf22e9df02193deda8b6284330cd43b438cac2	production home	2026-11-19T03:07:04+03:00	Apply canonical Super Owner display terminology
+7488c435a0207244c27203440427f56ef4b25bc2	production home	2026-11-19T03:07:02+03:00	Apply canonical Super Owner display terminology
+8913885ac4481c48ab7521a4120fbbe249ca9082	production home	2026-11-19T03:06:31+03:00	Test member-owned biometric evidence access and upload rules
+2c64ebe8604d0100e5c91e76f4e2129e2b553ca7	production home	2026-11-19T03:06:28+03:00	Test member-owned biometric evidence access and upload rules
+df461aa7a315957183742fe890db617741883afc	production home	2026-11-19T03:06:20+03:00	Integrate biometric and role policy regression coverage
+aac55fcfc8b2d39501a3246c59762c30e834350a	production home	2026-11-19T03:06:18+03:00	Integrate biometric and role policy regression coverage
+0fe243799b67a02b49c7a5962bea048c03d306f4	production home	2026-11-19T03:06:16+03:00	Integrate biometric and role policy regression coverage
+01048495f624fe97e713a5de9bf350e984807b28	production home	2026-11-19T03:06:13+03:00	Add specialized role capacity emulator tests
+c68823a48b180fc2d759a00592d609c63f55d470	production home	2026-11-19T03:06:11+03:00	Integrate biometric and role policy regression coverage
+ce4ff1b4d3f4b23550ca83c374b27e86d78712bc	production home	2026-11-19T03:05:42+03:00	Add role identity capacity and permanent numbering tests
+8aee9b197740fdbb2bd1ef297f80db3d7cf072a6	production home	2026-11-19T03:05:32+03:00	Add unit coverage for biometric review and canonical role policies
+d6b8b78ca251b8551ed2ef9df05b2df6c1367cb7	production home	2026-11-19T03:05:29+03:00	Add unit coverage for biometric review and canonical role policies
+90ffa5896fd3d7eee663d47e0f2e876724b192a2	production home	2026-11-19T03:05:11+03:00	Require owner-reviewed evidence for active biometric verification
+5f045b834ed699de8a060bae1575bbc5b7c1cadb	production home	2026-11-19T03:05:08+03:00	Add private, bounded biometric evidence upload rules
+90ac7d80c80bab4bf217b0707aa5dd7a9fb04d12	production home	2026-11-19T03:05:06+03:00	Restrict biometric request reads to member-owned upload state
+7aa0bff8854e343d0ae09ad5147ab756b3c12719	production home	2026-11-19T03:05:04+03:00	Integrate owner-reviewed biometric workflow and scoped role capacity checks
+a601b965847a970641c8d11a107923706ba13465	production home	2026-11-19T03:04:42+03:00	Add reviewed biometric and canonical role policy helpers
+cde71c69b4993db91802ebd25bd9ea4a46c048e0	production home	2026-11-19T03:04:40+03:00	Add reviewed biometric and canonical role policy helpers
+20b5df5f1b715fdc4786f024692e91ff98c1c7c4	production home	2026-11-19T03:04:37+03:00	Add reviewed biometric and canonical role policy helpers

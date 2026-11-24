@@ -1,0 +1,61 @@
+Branch: codex/economy-official-port-2026-11-18
+Branch SHA: d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+488	20
+
+--- Merge base ---
+7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+--- Changed files relative to common ancestor ---
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/index.ts
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+
+--- Diff statistics ---
+ docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md |  19 +-
+ functions/src/coin-purchase-requests.ts            |  11 +-
+ functions/src/index.ts                             | 333 ++++++++++++++++++---
+ functions/test/coin-purchase-requests.test.js      |   8 +-
+ .../owner-entitlement-grants.integration.test.js   |  31 +-
+ .../integration/room-rental.integration.test.js    |  23 ++
+ .../integration/wallet-store.integration.test.js   |  63 +++-
+ lib/screens/coin_purchase_screen.dart              |  30 +-
+ lib/screens/owner_coin_purchase_screen.dart        |  13 +-
+ 9 files changed, 478 insertions(+), 53 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+d5db16e3 (origin/codex/economy-official-port-2026-11-18) Document room rental ledger reconciliation on official branch
+3c5b3c67 Cover room rental balance snapshots and missing-ledger replay rejection
+860af0f4 Reconcile room rental renewal replay and persist wallet balance snapshots
+16763bb1 Reconcile room rental replay with immutable debit ledger and room evidence
+f7b7113c Verify transfer IDs and platform coin denomination during replay reconciliation
+4562db29 Cover official transfer balance snapshots and missing platform-ledger replay rejection
+975a8b27 Port wallet transfer ledger reconciliation and balance snapshots to official development line
+6ad37ab0 Document independent official-branch coin and wallet hardening port
+06fd54a0 Test official owner grant replay after expiry and superseding paid purchase
+007f5698 Port owner entitlement grant ledger and audit replay integrity to official development line
+29bed4b5 Cover official store purchase ledger snapshots and missing-ledger replay rejection
+a5f68319 Port store purchase ledger reconciliation and balance snapshots to official development line
+10b7b60d Port expected instruction version unit coverage to official development line
+e26c3cc5 Test official coin approval replay fails closed when audit evidence is missing
+02b1b49c Require immutable wallet ledger and owner audit integrity on official-branch coin approval replay
+35c6f588 Add official-branch integration coverage for member payment report lifecycle
+10ae588f Port member claim-only external payment report UI to official branch
+4bcc4524 Port versioned immutable coin payment instructions to official owner screen
+6e8ce5a5 Port immutable manual coin payment lifecycle to official development line
+ed96e14c Port versioned owner payment instructions validator to official development line
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

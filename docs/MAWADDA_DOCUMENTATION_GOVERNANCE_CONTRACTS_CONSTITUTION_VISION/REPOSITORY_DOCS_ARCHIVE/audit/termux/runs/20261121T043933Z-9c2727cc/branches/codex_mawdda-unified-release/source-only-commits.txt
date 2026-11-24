@@ -1,0 +1,4 @@
+42e11d492584a556e018e70db2eed71de84616fa	production home	2026-11-14T11:07:20+03:00	Connect local biometric prompt to server reward cycle
+5c2f422f299ee882ad59e32dd7e401571a8cb4e6	production home	2026-11-14T11:06:53+03:00	Add server-side biometric reward cycle callable
+1358471763ebe7eeea08f039c6fdfd79c420a66f	production home	2026-11-14T11:06:32+03:00	Test biometric reward cycle policy
+f45589ec9a4595b5575286e91b6e8ebdbdc7cd76	production home	2026-11-14T11:06:31+03:00	Add server-clocked biometric reward cycles

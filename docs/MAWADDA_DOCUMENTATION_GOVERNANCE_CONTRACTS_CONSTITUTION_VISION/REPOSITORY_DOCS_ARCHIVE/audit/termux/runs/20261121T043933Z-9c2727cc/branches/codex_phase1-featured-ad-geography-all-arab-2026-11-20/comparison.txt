@@ -1,0 +1,29 @@
+Branch: codex/phase1-featured-ad-geography-all-arab-2026-11-20
+Branch SHA: ac22ff635c41e4a36603c8864af53942e22e3fcb
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+198	2
+
+--- Merge base ---
+fff04a165cde85a33a75bca104024f1691cfc913
+
+--- Changed files relative to common ancestor ---
+M	functions/src/featured-advertising.ts
+M	functions/test/featured-advertising.test.js
+
+--- Diff statistics ---
+ functions/src/featured-advertising.ts       |  3 ++-
+ functions/test/featured-advertising.test.js | 33 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+ac22ff63 (origin/codex/phase1-featured-ad-geography-all-arab-2026-11-20) test(ads): cover all-Arab campaign geography without overdelivery
+41a0fbea fix(ads): honor all-Arab campaign geographic targeting
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

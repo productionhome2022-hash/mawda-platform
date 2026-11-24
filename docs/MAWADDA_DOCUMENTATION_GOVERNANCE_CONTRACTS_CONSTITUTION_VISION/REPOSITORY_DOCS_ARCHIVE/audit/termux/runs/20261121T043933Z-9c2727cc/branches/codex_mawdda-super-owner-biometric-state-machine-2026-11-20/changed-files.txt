@@ -1,0 +1,4 @@
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+A	functions/src/biometric-review-state.ts
+A	functions/test/biometric-review-state.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js

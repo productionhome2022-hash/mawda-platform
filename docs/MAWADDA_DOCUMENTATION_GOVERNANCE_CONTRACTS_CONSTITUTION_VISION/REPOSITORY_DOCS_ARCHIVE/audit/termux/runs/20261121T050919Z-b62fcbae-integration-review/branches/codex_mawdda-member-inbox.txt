@@ -1,0 +1,30 @@
+BRANCH: codex/mawdda-member-inbox
+REF: refs/remotes/origin/codex/mawdda-member-inbox
+SHA: f55e1d15423abee81dc125315e95a9acea199fdf
+
+MERGE BASE: c74258382e35630b4220d4886e3660ad18b01b93
+
+=== DIVERGENCE ===
+1524	5
+
+=== FILE STATUS ===
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+=== CHANGE SUMMARY ===
+ firestore.indexes.json                             |  14 ++
+ functions/src/index.ts                             | 105 +++++++++++
+ .../direct-message-deletion.integration.test.js    |  83 +++++++++
+ lib/screens/conversations_screen.dart              | 204 +++++++++++++++++++++
+ lib/screens/main_user_screen.dart                  |  20 ++
+ 5 files changed, 426 insertions(+)
+
+=== UNIQUE COMMITS ===
+f55e1d15 feat: expose member inbox and stories from the home dashboard
+841ac54d feat: add member conversations inbox screen
+3bb36a64 test: cover member inbox unread state and block privacy
+2f3a88ce db: add index for member direct-message inbox
+8f8f4e8a feat: add secure member inbox and enforce block privacy on reads

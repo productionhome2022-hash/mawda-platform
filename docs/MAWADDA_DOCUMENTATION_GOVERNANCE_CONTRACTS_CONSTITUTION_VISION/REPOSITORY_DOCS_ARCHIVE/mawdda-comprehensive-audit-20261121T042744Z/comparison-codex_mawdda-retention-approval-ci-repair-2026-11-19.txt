@@ -1,0 +1,30 @@
+Compared branch: codex/mawdda-retention-approval-ci-repair-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	17
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |  1 +
+ .github/workflows/validate.yml                     |  1 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  2 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md | 10 ++++
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |  2 +-
+ functions/src/index.ts                             | 29 ++++++++++--
+ .../featured-ad-finance.integration.test.js        |  6 +++
+ .../owner-entitlement-grants.integration.test.js   |  4 +-
+ .../premium-profile.integration.test.js            |  3 +-
+ .../integration/wallet-store.integration.test.js   | 53 ++++++++++++++++++----
+ 10 files changed, 91 insertions(+), 20 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js

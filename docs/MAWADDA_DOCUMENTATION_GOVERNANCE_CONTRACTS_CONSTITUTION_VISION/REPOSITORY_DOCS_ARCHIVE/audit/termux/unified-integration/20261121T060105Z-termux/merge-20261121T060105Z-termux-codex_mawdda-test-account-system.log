@@ -1,0 +1,17 @@
+Auto-merging .github/workflows/mawdda-test-center.yml
+CONFLICT (add/add): Merge conflict in .github/workflows/mawdda-test-center.yml
+Auto-merging .gitignore
+CONFLICT (content): Merge conflict in .gitignore
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/test/feature-coverage-matrix.test.js
+CONFLICT (add/add): Merge conflict in functions/test/feature-coverage-matrix.test.js
+Auto-merging functions/test/fixtures/feature-coverage-matrix.json
+CONFLICT (add/add): Merge conflict in functions/test/fixtures/feature-coverage-matrix.json
+Auto-merging functions/test/fixtures/test-account-personas.json
+CONFLICT (add/add): Merge conflict in functions/test/fixtures/test-account-personas.json
+Auto-merging functions/test/integration/test-persona-interaction.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/test-persona-interaction.integration.test.js
+Auto-merging functions/test/test-account-personas.test.js
+CONFLICT (add/add): Merge conflict in functions/test/test-account-personas.test.js
+Automatic merge failed; fix conflicts and then commit the result.

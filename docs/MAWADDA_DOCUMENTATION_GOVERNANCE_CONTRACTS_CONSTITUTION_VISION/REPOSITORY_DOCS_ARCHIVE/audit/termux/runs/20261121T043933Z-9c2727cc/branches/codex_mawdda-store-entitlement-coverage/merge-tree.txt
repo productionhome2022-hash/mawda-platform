@@ -1,0 +1,12 @@
+74af45605ee612c1f519c0485315e72e23432752
+100644 8078fbf1bb9d8a3e0195005318d0fd3c2cd73078 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 54369d915c8f6f0e1ed2edab65062983b6e24b54 3	functions/test/integration/wallet-store.integration.test.js
+100644 5e9586998911d067c9f24d4c6864d17e6043f295 1	lib/screens/shop_screen.dart
+100644 b6dde4a0155e9c370f2113f35f4f72e2964ebebe 2	lib/screens/shop_screen.dart
+100644 24992f90c57e5b1b9abb8a4ff7b60a83be232de3 3	lib/screens/shop_screen.dart
+
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js
+Auto-merging lib/screens/shop_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/shop_screen.dart

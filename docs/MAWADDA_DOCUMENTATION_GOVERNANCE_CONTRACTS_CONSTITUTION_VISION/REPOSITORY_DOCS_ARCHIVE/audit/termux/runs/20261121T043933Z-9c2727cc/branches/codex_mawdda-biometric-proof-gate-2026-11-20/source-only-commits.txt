@@ -1,0 +1,12 @@
+73b53918e2de76d97d9f9cf7dff1706cc9d124b5	production home	2026-11-20T15:49:16+03:00	docs: clarify initial biometric PR commit reference
+bf8bcfedc5592c72330b8860571d87c85d1e88b8	production home	2026-11-20T15:48:23+03:00	docs: record Media Saver and call entitlement port blockers
+c08b0cc0b3b21e33e636fb971b52d7c8c47328d2	production home	2026-11-20T15:46:41+03:00	docs: record P0 biometric, role, media and call lifecycle audit
+fb1a54fd66b568e0bf781ab2b6de174a9abf2267	production home	2026-11-20T15:45:44+03:00	docs: define fail-closed biometric proof gate contract
+e2d78907dc28c986806739765e85ebf4d16f60b2	production home	2026-11-20T15:45:01+03:00	test: enforce account-bound biometric proof for profile links
+e5ae0ef4c8cbf934613b6afd93978de4e98ec7d6	production home	2026-11-20T15:44:49+03:00	security: bind biometric proof checks to authenticated account
+1bd2f5497de6b9b8814d932ad862a15f17cd7205	production home	2026-11-20T15:44:29+03:00	security: require account-bound server biometric proof
+47f7d138fb2bb19ef9ced5c14824cf022d8e1551	production home	2026-11-20T15:44:26+03:00	security: require account-bound server biometric proof
+f8662ca7fa6b41f5f9b8d9e313e45d33ace92273	production home	2026-11-20T15:44:23+03:00	security: require account-bound server biometric proof
+b201bd75f2bc9ef92dfd27d5ecbe02d34ded937f	production home	2026-11-20T15:44:20+03:00	security: require account-bound server biometric proof
+147fb4a33c7bf0c63468dcac876fe29c205bc175	production home	2026-11-20T15:44:17+03:00	security: require account-bound server biometric proof
+da1dc672d4026de4eec3f61de5e672f496aed935	production home	2026-11-20T15:44:14+03:00	security: require account-bound server biometric proof

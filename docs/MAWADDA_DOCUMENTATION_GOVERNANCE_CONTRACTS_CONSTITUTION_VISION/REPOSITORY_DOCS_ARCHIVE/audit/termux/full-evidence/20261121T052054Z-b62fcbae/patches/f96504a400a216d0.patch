@@ -1,0 +1,3235 @@
+diff --git a/docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md b/docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+index 1fcad778..36fb7d83 100644
+--- a/docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
++++ b/docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+@@ -1,93 +1,108 @@
+ # Owner live-stream links, video playback, and manual coin requests
+ 
+ **Status:** approved requirements; implementation and acceptance remain open  
+ **Applies to:** Phase 1 communication/economy and Phase 2 secure message delivery  
+ **Authority:** owner-approved Mawda product decisions
+ 
+ ## 1. Owner-originated live-stream links
+ 
+ The platform owner may send an HTTPS live-stream or video URL to:
+ - Any existing one-to-one conversation between the owner and a member.
+ - Any active public room.
+ - Any active rented private room.
+ 
+ The owner must be authorized by the server-side `platformOwner` claim and recent MFA/step-up session. Client role flags are never sufficient. Room delivery must not require the owner to become an ordinary room member, and the owner must not be able to post to a room that is closed, expired, or otherwise inactive.
+ 
+ Each message is an auditable, idempotent `live_stream` message with:
+ - Canonical URL and hostname.
+ - Sender UID and verified owner context.
+ - Scope and conversation/room ID.
+ - Creation timestamp and client request ID.
+ - Optional human-readable title/description, with bounded length.
+ 
+ Only HTTPS URLs are accepted. Reject credentials, malformed hosts, control characters, unsafe schemes, localhost/private/link-local IP destinations, non-standard ports, and known redirect shorteners. Do not fetch or resolve arbitrary user URLs from the backend; this avoids SSRF and redirect-based trust bypass. The owner may use legitimate official sports, news, event and streaming sites, subject to the same safe URL syntax checks.
+ 
+ ## 2. Recipient playback experience
+ 
+ Tapping a supported live-stream/video link opens an in-app playback panel occupying approximately the upper half of the available conversation viewport. The original direct conversation, public room, or rented private room remains visible and usable below it. The recipient can close the panel at any time without leaving the conversation.
+ 
+ The player must:
+ - Prefer the provider's official embed/player interface and preserve the original canonical URL.
+ - Support provider-specific adapters where officially permitted (initial candidates: YouTube, YouTube Shorts, Facebook Reels, Instagram Reels and TikTok).
+ - Respect provider embedding, login, geographic, age, copyright and access restrictions.
+ - Never scrape, proxy, download, restream, bypass DRM, defeat paywalls, or circumvent provider restrictions.
+ - Show a clear unsupported/unavailable message and an explicit “open original link” action when embedding is blocked or unavailable.
+ - Avoid autoplay with sound; playback starts only after the recipient taps.
+ - Keep the panel state local to the current screen and release player resources when closed/disposed.
+ 
+ Generic live-stream links may use an official HTML5 HLS/DASH or provider embed only where the source explicitly supports it and the client has a compatible, safe player. Do not claim universal compatibility.
+ 
+ ## 3. Existing member link permissions
+ 
+ Existing biometric/member link entitlements remain governed by server-side link policy. The owner-only live-stream sending path is separate from ordinary member link permissions. Do not broaden member privileges merely to implement owner broadcasts. The owner may send a wider set of safe HTTPS destinations; recipients can only play them when the source officially permits embedding.
+ 
+ ## 4. Manual coin purchase request workflow
+ 
+ ### 4A. One owner identity
+ 
+ The labels **Owner** and **Super Admin** refer to one person and one canonical owner UID. There must not be a separate Super Admin account belonging to another person. Internal legacy claims may be normalized as aliases, but every privileged operation resolves to the same owner identity, with recent MFA/step-up and audit logging. Scoped moderators are not owners and cannot approve coin issuance or change owner-only payment settings.
+ 
+ ### 4B. Two configurable payment channels
+ 
+ The purchase experience must be designed for future owner-controlled channel selection:
+ 
+ - **Direct/manual contact (available default):** the owner enables this channel and members can request a published package or a custom quantity. The custom-quantity path always creates a request and opens/links the member's one-to-one conversation with the owner. The owner can negotiate the amount and send the agreed payment method/instructions directly in that conversation. The request remains pending until the owner records external payment verification and explicitly approves it.
+ - **Automated checkout (future, disabled by default):** the owner may later configure one or more contracted payment providers and enable checkout for selected fixed packages. The architecture must use a provider adapter and server-to-server signed payment confirmation. Only verified, captured/settled payment events can trigger one idempotent coin-credit transaction. A browser success redirect or member-uploaded receipt is not proof of payment.
+ 
+ The owner can configure channel availability and package availability independently. If automated checkout is unavailable or disabled, the UI must not show a dead payment button; it offers the manual owner-contact route instead. A member's custom quantity request is always manually negotiated unless the owner approves a separate future product amendment.
+ 
+ Before enabling any automated provider, require owner-supplied provider/contract details, secure secret provisioning, webhook signature and replay tests, refund/chargeback handling, reconciliation, fraud/risk controls, tax and legal review, and explicit owner activation. Never store card or bank login credentials in Mawda. Never issue coins from an unverified client event.
+ 
+ 
+ 
+ Real-money coin acquisition is a manual, owner-approved process; no payment gateway or automatic payment collection is enabled.
+ 
+ 1. A member submits either an owner-configured coin package or a custom positive integer quantity.
+ 2. The server creates a pending request with a unique request ID, member UID, quantity, selected package/price snapshot (if applicable), timestamps and idempotency key. Submission never credits coins.
+ 3. The owner sees the request in the owner console and contacts the member through the platform to agree the payment method/instructions.
+ 4. The owner records the agreed instructions and later marks the payment as externally verified based on the owner's own payment records. This is an explicit privileged action requiring recent MFA and an audit reason/reference; the platform does not assert it independently verified a bank/card transaction.
+ 5. Only the owner approval callable may atomically change the request to approved, credit the member balance, create the wallet ledger entry and immutable audit record. The same transaction enforces exactly-once issuance and rejects replay or a changed quantity.
+-6. Owner may reject/cancel a pending request with a reason. A member may withdraw a still-pending request. Approved requests cannot be silently edited or re-approved.
++6. Owner may reject/cancel a request with a reason while it is awaiting owner action. A member may withdraw only before the owner issues payment instructions. Once instructions are issued, the agreed terms are immutable and the member cannot withdraw directly; the owner must close/reject the request if correction or cancellation is needed. Approved requests cannot be silently edited or re-approved.
++7. A member may report that an external transfer was initiated. This only moves the request to `awaiting_payment_verification`; it is a claim-only signal, not proof of receipt, and creates no coin credit. Owner approval remains the only issuance authority. Repeated reports for the same instruction version are idempotent.
+ 7. No coins are issued while pending, awaiting instructions, awaiting external verification, rejected, cancelled, or withdrawn.
+ 
+ Prices and packages are owner-editable server configuration. Seed prices are illustrative defaults, not final contractual prices. Custom quantity requests must be subject to owner-configured minimum/maximum bounds and the owner must confirm the final agreed amount before issuance.
+ 
+ ## 5. Logout
+ 
+ A visible sign-out action must be reachable for ordinary members and the platform owner. It must unregister the current push token where possible, call Firebase Authentication `signOut()`, clear local privileged/player state, and return through the auth-state gate to the login/guest entry screen. A UI-only navigation or hiding privileged controls is not logout. If token unregistration fails, Firebase sign-out must still proceed.
+ 
+ ## 6. Acceptance tests required before closure
+ 
+ - Owner can send a live-stream message to an owner/member direct chat, public room and active rented private room.
+ - Non-owner, forged client owner flags, stale MFA and unauthenticated callers are denied and audited where applicable.
+ - Owner can send to an active room without ordinary membership; inactive/expired/closed rooms reject delivery.
+ - HTTPS URL validation rejects unsafe schemes, credentials, localhost/private/link-local addresses, malformed hostnames, nonstandard ports and redirect shorteners; no backend network fetch occurs.
+ - Direct and room message reads preserve message type, canonical URL, sender and audit metadata.
+ - Flutter player panel uses approximately the top 50% of the available conversation viewport; chat remains visible below; close restores the full conversation.
+ - Provider-specific embedding success and failure are tested; blocked embedding always offers original-link fallback and never bypasses provider restrictions.
+-- Manual coin request tests cover package/custom requests, duplicate submission, pending/no-credit, owner instructions, external-verification state, owner approval, atomic balance+ledger, concurrent/replayed approval, changed quantity, reject, member withdrawal, audit failure and unauthorized callers.
++- Manual coin request tests cover package/custom requests, duplicate submission, pending/no-credit, versioned owner instructions, member claim-only payment report, no-credit until owner approval, instruction immutability, withdrawal lock after instructions, owner approval, atomic balance+ledger, replay/audit integrity, changed quantity, reject, pre-instruction member withdrawal and unauthorized callers.
+ - Logout tests cover member and owner Firebase sign-out, token-unregister failure, auth-gate transition and clearing privileged state.
+ 
+ ## 7. Current implementation boundary
+ 
+ The repository already has an owner link allowance in text-message policy and a Firebase sign-out service/action in the main member shell. That is not the requested integrated live-stream player, room-wide owner broadcast path, or manual coin-request lifecycle. Those remain implementation work and must not be represented as complete until the acceptance tests above pass on an exact CI-tested commit.
++
++
++## 8. Official development branch follow-up — 2026-11-18
++
++The separate port branch `codex/economy-official-port-2026-11-18` is based on `codex/mawda-full-platform-implementation`, not the unified test branch. The following source changes have been ported independently against that branch's current code:
++
++- Coin purchase requests snapshot the manual channel and policy version; the manual path is not disabled solely because a future automated path may be enabled independently.
++- Owner instruction issuance is version-checked and terms are immutable after first issuance.
++- Member payment reporting is a claim-only transition to `awaiting_payment_verification`; it does not credit coins. Member withdrawal is locked after instructions issue. Owner approval is accepted from either instructions-sent or awaiting-verification state.
++- Owner approval replay now requires the corresponding immutable audit record and checks wallet-ledger balance arithmetic and key owner/payment fields.
++- Store purchase records and ledgers now capture balance-before/after values; replay validates receipt/ledger arithmetic and fails closed if the ledger is missing.
++- Room rental creation and renewal records/ledgers now capture balance-before/after values. Creation replay validates the original room/member and debit ledger; renewal replay validates the immutable renewal receipt and ledger. Missing or inconsistent financial evidence fails closed.
++- Owner entitlement grant replay verifies the grant, grant-ledger and audit evidence, and does not overwrite a newer paid entitlement after the original grant has expired or been superseded.
++- Unit and emulator test source has been updated. No build, test, emulator or Flutter analysis was run; final validation remains deferred until internal implementation is complete.
+diff --git a/functions/src/coin-purchase-requests.ts b/functions/src/coin-purchase-requests.ts
+index a85bc96e..3f1892a7 100644
+--- a/functions/src/coin-purchase-requests.ts
++++ b/functions/src/coin-purchase-requests.ts
+@@ -1,74 +1,77 @@
+ export type CoinPurchaseRequestKind = "package" | "custom";
+ export type CoinPurchaseRequestStatus =
+   | "pending_owner_contact" | "payment_instructions_sent"
+   | "awaiting_payment_verification" | "approved" | "rejected" | "withdrawn";
+ 
+ export function validateCoinPurchaseRequestInput(value: unknown): {
+   requestId: string; kind: CoinPurchaseRequestKind; packageId?: string; requestedCoins?: number;
+ } {
+   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_REQUEST");
+   const data = value as Record<string, unknown>;
+   if (Object.keys(data).some((key) => !["requestId", "kind", "packageId", "requestedCoins"].includes(key))) throw new Error("INVALID_REQUEST");
+   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId)) {
+     throw new Error("INVALID_REQUEST_ID");
+   }
+   if (data.kind === "package") {
+     if (typeof data.packageId !== "string" || !/^[a-z0-9][a-z0-9_-]{2,40}$/.test(data.packageId)) {
+       throw new Error("INVALID_PACKAGE_ID");
+     }
+     return { requestId: data.requestId, kind: "package", packageId: data.packageId };
+   }
+   if (data.kind === "custom") {
+     if (!Number.isSafeInteger(data.requestedCoins) ||
+         (data.requestedCoins as number) < 1 || (data.requestedCoins as number) > 1000000000) {
+       throw new Error("INVALID_CUSTOM_AMOUNT");
+     }
+     return { requestId: data.requestId, kind: "custom", requestedCoins: data.requestedCoins as number };
+   }
+   throw new Error("INVALID_REQUEST_KIND");
+ }
+ 
+ export function validateOwnerPaymentInstructionInput(value: unknown): {
+-  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number; currency: "EUR";
++  requestId: string; instructions: string; agreedCoins: number; agreedPriceMinor: number;
++  currency: "EUR"; expectedInstructionsVersion: number;
+ } {
+   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_INSTRUCTIONS");
+   const data = value as Record<string, unknown>;
+-  if (Object.keys(data).some((key) => !["requestId", "instructions", "agreedCoins", "agreedPriceMinor", "currency"].includes(key))) throw new Error("INVALID_INSTRUCTIONS");
++  if (Object.keys(data).some((key) => !["requestId", "instructions", "agreedCoins", "agreedPriceMinor", "currency", "expectedInstructionsVersion"].includes(key))) throw new Error("INVALID_INSTRUCTIONS");
+   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId) ||
+       typeof data.instructions !== "string" || data.instructions.trim().length < 5 ||
+       data.instructions.trim().length > 2000 ||
+       !Number.isSafeInteger(data.agreedCoins) || (data.agreedCoins as number) < 1 ||
+       (data.agreedCoins as number) > 1000000000 ||
+       !Number.isSafeInteger(data.agreedPriceMinor) || (data.agreedPriceMinor as number) < 1 ||
+-      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR") {
++      (data.agreedPriceMinor as number) > 100000000 || data.currency !== "EUR" ||
++      !Number.isSafeInteger(data.expectedInstructionsVersion) ||
++      (data.expectedInstructionsVersion as number) < 0) {
+     throw new Error("INVALID_INSTRUCTIONS");
+   }
+   return {
+     requestId: data.requestId, instructions: data.instructions.trim(),
+     agreedCoins: data.agreedCoins as number, agreedPriceMinor: data.agreedPriceMinor as number,
+-    currency: "EUR",
++    currency: "EUR", expectedInstructionsVersion: data.expectedInstructionsVersion as number,
+   };
+ }
+ 
+ export function validateExternalPaymentVerification(value: unknown): {
+   requestId: string; externalPaymentReference: string; verificationNote: string;
+ } {
+   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("INVALID_VERIFICATION");
+   const data = value as Record<string, unknown>;
+   if (Object.keys(data).some((key) => !["requestId", "externalPaymentVerified", "externalPaymentReference", "verificationNote"].includes(key))) throw new Error("INVALID_VERIFICATION");
+   if (typeof data.requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(data.requestId) ||
+       data.externalPaymentVerified !== true ||
+       typeof data.externalPaymentReference !== "string" ||
+       data.externalPaymentReference.trim().length < 3 ||
+       data.externalPaymentReference.trim().length > 120 ||
+       typeof data.verificationNote !== "string" ||
+       data.verificationNote.trim().length < 5 ||
+       data.verificationNote.trim().length > 500) {
+     throw new Error("INVALID_VERIFICATION");
+   }
+   return {
+     requestId: data.requestId,
+     externalPaymentReference: data.externalPaymentReference.trim(),
+     verificationNote: data.verificationNote.trim(),
+   };
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index f996aee7..338fa438 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -266,273 +266,323 @@ async function requireOwnerForReview(
+       } catch (auditError) {
+         logger.error("Owner review denial audit write failed", { actorUid, action, auditError });
+         throw new HttpsError("internal", "تعذر توثيق محاولة الوصول؛ تم رفض العملية.");
+       }
+     }
+     throw error;
+   }
+ }
+ 
+ function requireRequestId(value: unknown): string {
+   if (
+     typeof value !== "string" ||
+     value.length < 8 ||
+     value.length > 80 ||
+     !/^[A-Za-z0-9_-]+$/.test(value)
+   ) {
+     throw new HttpsError("invalid-argument", "معرف الطلب غير صالح.");
+   }
+   return value;
+ }
+ 
+ function readSafeInteger(value: unknown, field: string): number {
+   if (typeof value !== "number" || !Number.isSafeInteger(value)) {
+     throw new HttpsError("invalid-argument", `قيمة ${field} يجب أن تكون عدداً صحيحاً صالحاً.`);
+   }
+   return value;
+ }
+ 
+ /**
+  * تحويل ذري للكوينز:
+  * - يخصم المبلغ الإجمالي من المرسل.
+  * - يضيف صافي المبلغ للمستلم.
+  * - يسجل عمولة المنصة في دفتر مستقل.
+  * - ينشئ قيدي محفظة مترابطين ومعرف تحويل موحد.
+  *
+  * كل الأرصدة والقيود تُكتب داخل Firestore transaction واحدة.
+  */
+ export const transferCoins = onCall(async (request) => {
+   const senderUid = requireAuthenticatedUid(request.auth?.uid);
+   // Anonymous preview guests must never reach wallet/coin operations. Reject
+   // from the verified Firebase Auth provider claim before any Firestore reads,
+   // so a guest receives an explicit authorization denial rather than a
+   // misleading missing-user error (guest profiles are intentionally separate
+   // from member wallet documents).
+   const firebaseIdentity = request.auth?.token.firebase;
+   const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+       !Array.isArray(firebaseIdentity)
+     ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+     : undefined;
+   if (signInProvider === "anonymous") {
+     throw new HttpsError("permission-denied", "التحويلات المالية متاحة للأعضاء فقط.");
+   }
+   const data = (request.data ?? {}) as TransferRequest;
+   const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
+   const amount = readSafeInteger(data.amount, "amount");
+   const requestId = requireRequestId(data.requestId);
+   const expectedCommissionBps = readSafeInteger(
+     data.expectedCommissionBps,
+     "expectedCommissionBps",
+   );
+ 
+   if (!recipientUid || recipientUid.length > 128) {
+     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
+   }
+   if (recipientUid === senderUid) {
+     throw new HttpsError("failed-precondition", "لا يمكن تحويل الكوينز إلى حسابك نفسه.");
+   }
+   if (amount <= 0) {
+     throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
+   }
+ 
+   const transferId = `${senderUid}_${requestId}`;
+   const transferRef = db.collection("coinTransfers").doc(transferId);
+   const senderRef = db.collection("users").doc(senderUid);
+   const recipientRef = db.collection("users").doc(recipientUid);
+   const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
+   const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
+   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
+ 
+   const result = await db.runTransaction(async (transaction) => {
+-    const [existing, settings, senderSnapshot, recipientSnapshot] = await Promise.all([
++    const [existing, settings, senderSnapshot, recipientSnapshot,
++      senderLedgerSnapshot, recipientLedgerSnapshot, platformLedgerSnapshot] = await Promise.all([
+       transaction.get(transferRef),
+       transaction.get(TRANSFER_SETTINGS),
+       transaction.get(senderRef),
+       transaction.get(recipientRef),
++      transaction.get(senderLedgerRef),
++      transaction.get(recipientLedgerRef),
++      transaction.get(platformLedgerRef),
+     ]);
+ 
+     if (existing.exists) {
+       const prior = existing.data()!;
+       if (prior.senderUid !== senderUid) {
+         throw new HttpsError("permission-denied", "معرف التحويل مستخدم لعملية أخرى.");
+       }
+       if (
+         prior.recipientUid !== recipientUid ||
+         prior.grossAmount !== amount
+       ) {
+         throw new HttpsError("already-exists", "أعيد استخدام معرف طلب التحويل مع بيانات مختلفة.");
+       }
++      let expectedBreakdown;
++      try {
++        expectedBreakdown = calculateTransferBreakdown(prior.grossAmount, prior.commissionBps);
++      } catch {
++        throw new HttpsError("failed-precondition", "بيانات التحويل التاريخية غير صالحة؛ يلزم تدقيق مالي.");
++      }
++      const senderLedger = senderLedgerSnapshot.data() ?? {};
++      const recipientLedger = recipientLedgerSnapshot.data() ?? {};
++      const platformLedger = platformLedgerSnapshot.data() ?? {};
++      const senderBalanceSnapshotValid =
++        senderLedger.balanceBefore === undefined && senderLedger.balanceAfter === undefined ||
++        Number.isSafeInteger(senderLedger.balanceBefore) &&
++        Number.isSafeInteger(senderLedger.balanceAfter) &&
++        senderLedger.balanceBefore >= 0 &&
++        senderLedger.balanceAfter === senderLedger.balanceBefore - prior.grossAmount;
++      const recipientBalanceSnapshotValid =
++        recipientLedger.balanceBefore === undefined && recipientLedger.balanceAfter === undefined ||
++        Number.isSafeInteger(recipientLedger.balanceBefore) &&
++        Number.isSafeInteger(recipientLedger.balanceAfter) &&
++        recipientLedger.balanceBefore >= 0 &&
++        recipientLedger.balanceAfter === recipientLedger.balanceBefore + prior.netAmount;
++      if (prior.status !== "completed" ||
++          prior.commissionAmount !== expectedBreakdown.commissionAmount ||
++          prior.netAmount !== expectedBreakdown.netAmount ||
++          !senderLedgerSnapshot.exists || senderLedger.type !== "coin_transfer_sent" ||
++          senderLedger.direction !== "debit" || senderLedger.amount !== -prior.grossAmount ||
++          senderLedger.grossAmount !== prior.grossAmount ||
++          senderLedger.commissionAmount !== prior.commissionAmount ||
++          senderLedger.commissionBps !== prior.commissionBps ||
++          senderLedger.recipientUid !== recipientUid ||
++          senderLedger.recipientNetAmount !== prior.netAmount ||
++          senderLedger.transferId !== transferId || !senderBalanceSnapshotValid ||
++          !recipientLedgerSnapshot.exists || recipientLedger.type !== "coin_transfer_received" ||
++          recipientLedger.direction !== "credit" || recipientLedger.amount !== prior.netAmount ||
++          recipientLedger.senderUid !== senderUid || recipientLedger.transferId !== transferId ||
++          !recipientBalanceSnapshotValid ||
++          !platformLedgerSnapshot.exists || platformLedger.type !== "coin_transfer_commission" ||
++          platformLedger.direction !== "credit" || platformLedger.amount !== prior.commissionAmount ||
++          platformLedger.transferId !== transferId || platformLedger.currency !== "coin" ||
++          platformLedger.grossAmount !== prior.grossAmount ||
++          platformLedger.commissionBps !== prior.commissionBps ||
++          platformLedger.senderUid !== senderUid || platformLedger.recipientUid !== recipientUid) {
++        throw new HttpsError("failed-precondition", "سجل التحويل لا يطابق قيود المحافظ ودفتر عمولة المنصة؛ يلزم تدقيق مالي.");
++      }
+       return {
+-        transferId,
+-        senderUid: prior.senderUid,
+-        recipientUid: prior.recipientUid,
+-        grossAmount: prior.grossAmount,
+-        commissionBps: prior.commissionBps,
+-        commissionPercent: prior.commissionPercent,
+-        commissionAmount: prior.commissionAmount,
+-        netAmount: prior.netAmount,
+-        status: prior.status,
+-        idempotentReplay: true,
++        transferId, senderUid: prior.senderUid, recipientUid: prior.recipientUid,
++        grossAmount: prior.grossAmount, commissionBps: prior.commissionBps,
++        commissionPercent: prior.commissionPercent, commissionAmount: prior.commissionAmount,
++        netAmount: prior.netAmount, status: prior.status, idempotentReplay: true,
+       };
+     }
+ 
+     if (!senderSnapshot.exists || !recipientSnapshot.exists) {
+       throw new HttpsError("not-found", "تعذر العثور على حساب المرسل أو المستلم.");
+     }
+ 
+     if (!settings.exists) {
+       throw new HttpsError("failed-precondition", "لم تضبط الإدارة نسبة العمولة بعد.");
+     }
+     const settingsData = settings.data() ?? {};
+     if (settingsData.enabled === false) {
+       throw new HttpsError("failed-precondition", "التحويلات متوقفة مؤقتاً من الإدارة.");
+     }
+ 
+     const commissionBps = readSafeInteger(settingsData.commissionBps, "commissionBps");
+ 
+     if (commissionBps < 0 || commissionBps >= 10000) {
+       throw new HttpsError("failed-precondition", "إعداد نسبة العمولة غير صالح.");
+     }
+     if (expectedCommissionBps !== undefined && expectedCommissionBps !== commissionBps) {
+       throw new HttpsError("failed-precondition", "تغيرت نسبة العمولة. حدّث عرض التحويل قبل التأكيد.");
+     }
+ 
+     const senderData = senderSnapshot.data()!;
+     const recipientData = recipientSnapshot.data()!;
+     if (!isMemberAccountInGoodStanding(senderData) ||
+         !isMemberAccountInGoodStanding(recipientData)) {
+       throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الكوينز حالياً.");
+     }
+     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
+     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
+     if (senderBalance < 0 || recipientBalance < 0) {
+       throw new HttpsError("failed-precondition", "أحد الأرصدة يحتوي على قيمة غير صالحة.");
+     }
+ 
+     if (senderBalance < amount) {
+       throw new HttpsError("failed-precondition", "رصيدك من الكوينز غير كافٍ.");
+     }
+ 
+     // Basis points: 2,000 = 20%. Exact integer arithmetic avoids floating-point drift.
+     const breakdown = calculateTransferBreakdown(amount, commissionBps);
+     const fee = breakdown.commissionAmount;
+     const netAmount = breakdown.netAmount;
+     if (!Number.isSafeInteger(senderBalance - amount) ||
+         !Number.isSafeInteger(recipientBalance + netAmount)) {
+       throw new HttpsError("out-of-range", "الرصيد الناتج يتجاوز الحد الرقمي الآمن.");
+     }
+ 
+     const createdAt = FieldValue.serverTimestamp();
+     const transfer = {
+       transferId,
+       senderUid,
+       recipientUid,
+       grossAmount: amount,
+       commissionBps,
+       commissionPercent: commissionBps / 100,
+       commissionAmount: fee,
+       netAmount,
++      senderBalanceBefore: senderBalance,
++      senderBalanceAfter: senderBalance - amount,
++      recipientBalanceBefore: recipientBalance,
++      recipientBalanceAfter: recipientBalance + netAmount,
+       status: "completed",
+       createdAt,
+     };
+ 
+     transaction.update(senderRef, { coins: senderBalance - amount });
+     transaction.update(recipientRef, { coins: recipientBalance + netAmount });
+     transaction.create(transferRef, transfer);
+ 
+     transaction.create(senderLedgerRef, {
+       type: "coin_transfer_sent",
+       direction: "debit",
+       amount: -amount,
++      balanceBefore: senderBalance,
++      balanceAfter: senderBalance - amount,
+       grossAmount: amount,
+       commissionAmount: fee,
+       commissionBps,
+       recipientUid,
+       recipientNetAmount: netAmount,
+       transferId,
+       createdAt,
+     });
+ 
+     transaction.create(recipientLedgerRef, {
+       type: "coin_transfer_received",
+       direction: "credit",
+       amount: netAmount,
++      balanceBefore: recipientBalance,
++      balanceAfter: recipientBalance + netAmount,
+       senderUid,
+       transferId,
+       createdAt,
+     });
+ 
+     transaction.create(platformLedgerRef, {
+       type: "coin_transfer_commission",
+       direction: "credit",
+       amount: fee,
+       currency: "coin",
+       senderUid,
+       recipientUid,
+       grossAmount: amount,
+       commissionBps,
+       transferId,
+       createdAt,
+     });
+ 
+     return {
+       transferId,
+       senderUid,
+       recipientUid,
+       grossAmount: amount,
+       commissionBps,
+       commissionPercent: commissionBps / 100,
+       commissionAmount: fee,
+       netAmount,
+       status: "completed",
+       idempotentReplay: false,
+     };
+   });
+ 
+   const transferLog = {
+     amount,
+     commissionAmount: result.commissionAmount,
+     netAmount: result.netAmount,
+     idempotentReplay: result.idempotentReplay,
+   };
+   if (result.idempotentReplay) {
+     logger.debug("Coin transfer idempotent replay", transferLog);
+   } else {
+     logger.info("Coin transfer processed", transferLog);
+   }
+ 
+   return result;
+ });
+ 
+ /**
+  * يغير مالك المنصة نسبة العمولة بوحدات basis points:
+  * 2,000 = 20%. لا يُسمح للعميل العادي بتغيير إعدادات العمولة.
+  * يجب منح custom claim platformOwner من بيئة موثوقة فقط.
+  */
+ /** Returns a server-calculated quote so the client can show the fee before confirmation. */
+ export const getTransferQuote = onCall(async (request) => {
+   requireAuthenticatedUid(request.auth?.uid);
+   const amount = readSafeInteger(request.data?.amount, "amount");
+   if (amount <= 0) {
+     throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
+   }
+ 
+   const settings = await TRANSFER_SETTINGS.get();
+   if (!settings.exists) {
+     throw new HttpsError("failed-precondition", "لم تضبط الإدارة نسبة العمولة بعد.");
+   }
+   const data = settings.data() ?? {};
+   if (data.enabled === false) {
+     throw new HttpsError("failed-precondition", "التحويلات متوقفة مؤقتاً من الإدارة.");
+   }
+   const commissionBps = readSafeInteger(data.commissionBps, "commissionBps");
+ 
+   let breakdown;
+   try {
+     breakdown = calculateTransferBreakdown(amount, commissionBps);
+   } catch {
+     throw new HttpsError("failed-precondition", "إعداد العمولة أو مبلغ التحويل غير صالح.");
+   }
+ 
+   return {
+     ...breakdown,
+     commissionPercent: commissionBps / 100,
+@@ -6246,322 +6296,358 @@ export const listMemberRooms = onCall(async (request) => {
+       expiresAt: room.data()?.expiresAt instanceof Timestamp ? room.data()!.expiresAt.toMillis() : null,
+     }));
+ 
+   const joinedIds = new Set(joined.map((room) => room.roomId));
+   const publicSnapshots = await db.collection("rooms")
+     .where("status", "==", "active")
+     .limit(100)
+     .get();
+   const discoverable = publicSnapshots.docs
+     .filter((room) => !joinedIds.has(room.id))
+     .filter((room) => {
+       const data = room.data();
+       return data.kind === "public" && canJoinRoom({
+         memberAge: age,
+         roomAudience: data.audience,
+         roomKind: "public",
+         invited: false,
+       });
+     })
+     .map((room) => {
+       const data = room.data();
+       return {
+         roomId: room.id,
+         name: data.name ?? "غرفة مودة",
+         kind: "public",
+         audience: data.audience ?? "unknown",
+         memberCount: data.memberCount ?? 0,
+         capacity: data.capacity ?? 0,
+         isMember: false,
+       };
+     });
+ 
+   return { joined, discoverable };
+ });
+ 
+ 
+ /** Read-only published catalog. Purchase and entitlement changes remain separate trusted flows. */
+ export const getStoreCatalog = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const member = await db.collection("users").doc(uid).get();
+   if (!member.exists || member.data()?.profileCompleted !== true ||
+       !isMemberAccountInGoodStanding(member.data())) {
+     throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتصفح المتجر حالياً.");
+   }
+   const snapshot = await db.collection("storeCatalog").limit(100).get();
+   const items = snapshot.docs
+     .map((document) => projectStoreCatalogItem(document.id, document.data()))
+     .filter((item): item is NonNullable<typeof item> => item !== null)
+     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId))
+     .map(({ sortOrder: _sortOrder, ...item }) => item);
+   return { items };
+ });
+ 
+ 
+ /**
+  * Purchases a published store item with existing coins.
+  * Balance debit, immutable ledger entry, purchase receipt, and entitlement
+  * are committed atomically. Real-money top-ups are a separate unimplemented flow.
+  */
+ export const purchaseStoreItem = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const itemId = request.data?.itemId;
+   const requestId = request.data?.requestId;
+   const expectedPriceCoins = request.data?.expectedPriceCoins;
+   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+       typeof requestId !== "string" || requestId.length < 8 ||
+       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+       expectedPriceCoins <= 0) {
+     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
+   }
+ 
+   const userRef = db.collection("users").doc(uid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const purchaseId = `${uid}_${requestId}`;
+   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
+   const entitlementRef = userRef.collection("entitlements").doc(itemId);
+ 
+   return db.runTransaction(async (transaction) => {
+-    const [member, itemSnapshot, priorPurchase, priorEntitlement] = await Promise.all([
++    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
+       transaction.get(userRef),
+       transaction.get(itemRef),
+       transaction.get(purchaseRef),
+       transaction.get(entitlementRef),
++      transaction.get(ledgerRef),
+     ]);
+     if (priorPurchase.exists) {
+       const prior = priorPurchase.data() ?? {};
+       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
+       }
++      const ledger = priorLedger.data() ?? {};
++      const balanceSnapshotValid =
++        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
++        Number.isSafeInteger(ledger.balanceBefore) &&
++        Number.isSafeInteger(ledger.balanceAfter) &&
++        ledger.balanceBefore >= 0 &&
++        ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
++        ledger.balanceAfter === prior.newBalance &&
++        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
++      if (!priorLedger.exists || prior.status !== "completed" ||
++          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
++          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
++          ledger.type !== "store_purchase" || ledger.direction !== "debit" ||
++          ledger.amount !== -prior.priceCoins || ledger.purchaseId !== purchaseId ||
++          ledger.itemId !== itemId || !balanceSnapshotValid) {
++        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم أو مطابقة الرصيد؛ يلزم تدقيق السجل.");
++      }
+       return {
+-        purchaseId,
+-        itemId,
+-        priceCoins: prior.priceCoins,
+-        newBalance: prior.newBalance,
+-        expiresAt: prior.expiresAt?.toMillis?.() ?? null,
+-        idempotentReplay: true,
++        purchaseId, itemId, priceCoins: prior.priceCoins, newBalance: prior.newBalance,
++        expiresAt: prior.expiresAt?.toMillis?.() ?? null, idempotentReplay: true,
+       };
+     }
+     if (!member.exists || member.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(member.data())) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإجراء المشتريات.");
+     }
+     if (!itemSnapshot.exists) {
+       throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+     }
+     const itemData = itemSnapshot.data() ?? {};
+     const item = projectStoreCatalogItem(itemId, itemData);
+     if (!item) {
+       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
+     }
+     if (!isStoreItemPurchasable(item)) {
+       throw new HttpsError(
+         "failed-precondition",
+         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
+       );
+     }
+     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+       throw new HttpsError(
+         "failed-precondition",
+         "تغير سعر العنصر منذ تحميل الكتالوج. حدّث المتجر وراجع السعر قبل تأكيد الشراء.",
+       );
+     }
+     if (priorEntitlement.exists && isStoreEntitlementActive(priorEntitlement.data())) {
+       throw new HttpsError("already-exists", "لديك هذا الاستحقاق فعالاً بالفعل.");
+     }
+ 
+     const memberData = member.data() ?? {};
+     const currentBalance = memberData.coins ?? 0;
+     const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
+     if (newBalance === null) {
+       throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ أو يحتوي على قيمة غير صالحة.");
+     }
+ 
+     const createdAt = FieldValue.serverTimestamp();
+     const nowMs = Date.now();
+     const previousExpiry = priorEntitlement.data()?.expiresAt;
+     const previousExpiryMs = previousExpiry instanceof Timestamp
+       ? previousExpiry.toMillis()
+       : typeof previousExpiry?.toMillis === "function" ? previousExpiry.toMillis() : 0;
+     const boostExpiry = memberData.discoveryBoostExpiresAt;
+     const boostExpiryMs = boostExpiry instanceof Timestamp
+       ? boostExpiry.toMillis()
+       : typeof boostExpiry?.toMillis === "function" ? boostExpiry.toMillis() : 0;
+     const expiryBaseMs = Math.max(
+       nowMs,
+       previousExpiryMs,
+       item.category === "boost" ? boostExpiryMs : 0,
+     );
+     const expiresAt = item.durationDays
+       ? Timestamp.fromMillis(expiryBaseMs + item.durationDays * 24 * 60 * 60 * 1000)
+       : null;
+     const memberUpdate: Record<string, unknown> = {
+       coins: newBalance,
+       updatedAt: createdAt,
+     };
+     if (item.category === "boost" && expiresAt) {
+       memberUpdate.discoveryBoostExpiresAt = expiresAt;
+       memberUpdate.discoveryBoostPurchaseId = purchaseId;
+     }
+     if (item.itemId === "profile_pin_30d" && typeof memberData.pinnedProfileSection !== "string") {
+       memberUpdate.pinnedProfileSection = "interests";
+     }
+     transaction.update(userRef, memberUpdate);
+     transaction.create(purchaseRef, {
+       purchaseId,
+       memberUid: uid,
+       itemId,
+       itemName: item.name,
+       category: item.category,
+       priceCoins: item.priceCoins,
+       durationDays: item.durationDays ?? null,
++      balanceBefore: currentBalance,
+       newBalance,
+       expiresAt,
+       status: "completed",
+       createdAt,
+     });
+     transaction.create(ledgerRef, {
+       type: "store_purchase",
+       direction: "debit",
+       amount: -item.priceCoins,
++      balanceBefore: currentBalance,
++      balanceAfter: newBalance,
+       itemId,
+       itemName: item.name,
+       purchaseId,
+       createdAt,
+     });
+     transaction.set(entitlementRef, {
+       itemId,
+       itemName: item.name,
+       category: item.category,
+       status: "active",
+       purchaseId,
+       purchasedAt: createdAt,
+       expiresAt,
+     });
+     return {
+       purchaseId,
+       itemId,
+       priceCoins: item.priceCoins,
+       newBalance,
+       expiresAt: expiresAt?.toMillis() ?? null,
+       idempotentReplay: false,
+     };
+   });
+ });
+ 
+ 
+ /**
+  * Grants a free store entitlement to one member. Each target/request pair is
+  * idempotent; a new request deliberately extends an existing timed entitlement.
+  */
+ async function executeOwnerEntitlementGrant(
+   actorUid: string,
+   targetUid: string,
+   itemId: string,
+   durationHours: 24 | 168 | 720,
+   requestId: string,
+   reason: string,
+ ): Promise<Record<string, unknown>> {
+   const grantId = createHash("sha256").update(`mawdda-owner-grant-v1:${requestId}:${targetUid}`).digest("hex");
+   const memberRef = db.collection("users").doc(targetUid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+   const grantRef = db.collection("ownerEntitlementGrants").doc(grantId);
+   const ledgerRef = memberRef.collection("entitlementGrantLedger").doc(grantId);
+   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
+ 
+   return db.runTransaction(async (transaction) => {
+-    const [member, itemSnapshot, priorGrant, priorEntitlement] = await Promise.all([
++    const [member, itemSnapshot, priorGrant, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
+       transaction.get(memberRef),
+       transaction.get(itemRef),
+       transaction.get(grantRef),
+       transaction.get(entitlementRef),
++      transaction.get(ledgerRef),
++      transaction.get(auditRef),
+     ]);
+     if (priorGrant.exists) {
+       const prior = priorGrant.data() ?? {};
+-      if (prior.actorUid !== actorUid || prior.targetUid !== targetUid ||
+-          prior.itemId !== itemId || prior.durationHours !== durationHours ||
+-          prior.requestId !== requestId) {
+-        throw new HttpsError("already-exists", "مفتاح طلب المنح مستخدم لعملية مختلفة.");
++      const ledger = priorLedger.data() ?? {};
++      const audit = priorAudit.data() ?? {};
++      const priorExpiryMs = prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null;
++      const ledgerExpiryMs = ledger.expiresAt instanceof Timestamp ? ledger.expiresAt.toMillis() : null;
++      const sameGrant = prior.actorUid === actorUid && prior.targetUid === targetUid &&
++        prior.itemId === itemId && prior.durationHours === durationHours &&
++        prior.requestId === requestId && prior.reason === reason && prior.status === "granted";
++      const sameLedger = priorLedger.exists && ledger.type === "owner_entitlement_grant" &&
++        ledger.grantId === grantId && ledger.requestId === requestId &&
++        ledger.actorUid === actorUid && ledger.targetUid === targetUid &&
++        ledger.itemId === itemId && ledger.durationHours === durationHours &&
++        ledger.reason === reason && ledgerExpiryMs === priorExpiryMs;
++      const sameAudit = priorAudit.exists && audit.action === "owner_entitlement_granted" &&
++        audit.grantId === grantId && audit.requestId === requestId &&
++        audit.actorUid === actorUid && audit.targetUid === targetUid &&
++        audit.itemId === itemId && audit.durationHours === durationHours &&
++        audit.reason === reason;
++      if (!sameGrant || !sameLedger || !sameAudit) {
++        throw new HttpsError("failed-precondition", "سجل المنح أو دفتره أو سجل التدقيق غير متطابق؛ يلزم تدقيق المالك.");
+       }
++      // A later purchase or grant may supersede the current entitlement. Replays
++      // validate immutable grant evidence and never overwrite the newer state.
+       return {
+         grantId, targetUid, itemId, status: "granted",
+         expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+         idempotentReplay: true,
+       };
+     }
+     if (!member.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
+     if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر الاستحقاق غير موجود في الكتالوج.");
+     const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+     if (!item || item.active !== true || item.fulfillmentReady !== true) {
+       throw new HttpsError("failed-precondition", "لا يمكن منح عنصر غير نشط أو لم يكتمل تنفيذ استحقاقه.");
+     }
+ 
+     const nowMs = Date.now();
+     const prior = priorEntitlement.data() ?? {};
+     const priorExpiry = prior.expiresAt;
+     const priorExpiryMs = priorExpiry instanceof Timestamp
+       ? priorExpiry.toMillis()
+       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : 0;
+     const permanentExisting = priorEntitlement.exists &&
+       prior.status === "active" && (prior.expiresAt === null || prior.expiresAt === undefined);
+     const nextExpiry = permanentExisting
+       ? null
+       : Timestamp.fromMillis(Math.max(nowMs, priorExpiryMs) + durationHours * 60 * 60 * 1000);
+     const createdAt = FieldValue.serverTimestamp();
+ 
+     transaction.set(entitlementRef, {
+       itemId,
+       itemName: item.name,
+       category: item.category,
+       status: "active",
+       grantSource: "platform_owner",
+       grantId,
+       grantedBy: actorUid,
+       grantedAt: createdAt,
+       grantReason: reason,
+       expiresAt: nextExpiry,
+       updatedAt: createdAt,
+     });
+     transaction.create(grantRef, {
+       grantId, requestId, actorUid, targetUid, itemId,
+       itemName: item.name, category: item.category, durationHours, reason,
+       previousExpiresAt: priorExpiry instanceof Timestamp ? priorExpiry : null,
+       expiresAt: nextExpiry,
+       status: "granted",
+       createdAt,
+     });
+     transaction.create(ledgerRef, {
+       type: "owner_entitlement_grant",
+       grantId, requestId, actorUid, targetUid, itemId,
+       itemName: item.name, category: item.category, durationHours, reason,
+       expiresAt: nextExpiry,
+       createdAt,
+     });
+     transaction.create(auditRef, {
+       actorUid, targetUid, action: "owner_entitlement_granted",
+       grantId, requestId, itemId, category: item.category,
+       durationHours, reason, createdAt,
+     });
+     return {
+       grantId, targetUid, itemId, status: "granted",
+       expiresAt: nextExpiry?.toMillis() ?? null,
+       idempotentReplay: false,
+     };
+   });
+ }
+ 
+ function validateOwnerEntitlementGrantRequest(data: Record<string, unknown>): {
+   itemId: string; durationHours: 24 | 168 | 720; requestId: string; reason: string;
+ } {
+   const itemId = data.itemId;
+   const durationHours = data.durationHours;
+   const reason = typeof data.reason === "string" ? data.reason.trim() : "";
+   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+       ![24, 168, 720].includes(durationHours as number) ||
+       reason.length < 5 || reason.length > 500) {
+     throw new HttpsError("invalid-argument", "العنصر أو المدة أو سبب المنح غير صالح.");
+   }
+   let requestId: string;
+   try { requestId = requireRequestId(data.requestId); }
+@@ -6763,292 +6849,339 @@ export {
+   getOwnerMediaInspectionUrl,
+   ownerMediaInspectionStream,
+   ownerMediaPreview,
+   cleanupExpiredMediaUploadIntents,
+   enqueueMediaSecurityScan,
+   dispatchMediaSecurityScan,
+   receiveMediaScanVerdict,
+   getTimedAdCreativeUrl,
+ } from "./media";
+ 
+ export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+ 
+ 
+ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
+ 
+ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
+   const snapshot = await ROOM_RENTAL_SETTINGS.get();
+   const raw = snapshot.data()?.plans;
+   if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+   try {
+     return validateRoomRentalPlans(raw);
+   } catch {
+     throw new HttpsError("failed-precondition", "إعدادات أسعار استئجار الغرف غير صالحة؛ راجع لوحة المالك.");
+   }
+ }
+ 
+ /** Public plan list: published plan prices are server-authored and versioned. */
+ export const getRoomRentalPlans = onCall(async (request) => {
+   requireAuthenticatedUid(request.auth?.uid);
+   const snapshot = await ROOM_RENTAL_SETTINGS.get();
+   const plans = snapshot.exists ? await readRoomRentalPlans() : DEFAULT_ROOM_RENTAL_PLANS;
+   const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
+   return { plans: plans.filter((plan) => plan.active), version };
+ });
+ 
+ /** Owner/MFA controls all room rental prices; every edit is versioned and audited. */
+ export const setRoomRentalPlans = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let plans;
+   try {
+     plans = validateRoomRentalPlans(request.data?.plans);
+   } catch {
+     throw new HttpsError("invalid-argument", "خطط الغرف أو الأسعار أو المدد غير صالحة.");
+   }
+   const result = await db.runTransaction(async (transaction) => {
+     const previous = await transaction.get(ROOM_RENTAL_SETTINGS);
+     const version = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+     const now = FieldValue.serverTimestamp();
+     transaction.set(ROOM_RENTAL_SETTINGS, { plans, version, updatedAt: now, updatedBy: actorUid });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid, action: "room_rental_pricing_updated", version,
+       plans: plans.map((plan) => ({ ...plan })),
+       createdAt: now,
+     });
+     return version;
+   });
+   return { saved: true, version: result };
+ });
+ 
+ /** A member creates and rents a private room in one atomic coin debit + room creation. */
+ export const createRentedRoom = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const name = typeof request.data?.name === "string" ? request.data.name.trim() : "";
+   const capacity = request.data?.capacity;
+   const planId = request.data?.planId;
+   const expectedPriceCoins = request.data?.expectedPriceCoins;
+   const requestId = requireRequestId(request.data?.requestId);
+   if (name.length < 3 || name.length > 60 || !Number.isSafeInteger(capacity) ||
+       capacity < 5 || capacity > 1000 || typeof planId !== "string" ||
+       !Number.isSafeInteger(expectedPriceCoins)) {
+     throw new HttpsError("invalid-argument", "بيانات الغرفة أو خطة الاستئجار غير صالحة.");
+   }
+   const roomRef = db.collection("rooms").doc();
+   const userRef = db.collection("users").doc(uid);
+   const memberRef = roomRef.collection("members").doc(uid);
+   const rentalRef = db.collection("roomRentals").doc(`${uid}_${requestId}`);
+   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
+   const nowMs = Date.now();
+   const result = await db.runTransaction(async (transaction) => {
+-    const [user, settings, prior] = await Promise.all([
+-      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS), transaction.get(rentalRef),
++    const [user, settings, prior, priorLedger] = await Promise.all([
++      transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
++      transaction.get(rentalRef), transaction.get(ledgerRef),
+     ]);
+     if (prior.exists) {
+       const data = prior.data()!;
+       if (data.ownerUid !== uid || data.planId !== planId ||
+           data.requestedName !== name || data.requestedCapacity !== capacity ||
+           data.requestedPriceCoins !== expectedPriceCoins ||
+           typeof data.roomId !== "string" || !data.roomId ||
+           !(data.expiresAt instanceof Timestamp)) {
+         throw new HttpsError("already-exists", "معرف طلب الاستئجار مستخدم لعملية أخرى أو ببيانات مختلفة.");
+       }
++      const priorRoomRef = db.collection("rooms").doc(data.roomId);
++      const priorMemberRef = priorRoomRef.collection("members").doc(uid);
++      const [priorRoom, priorMember] = await Promise.all([
++        transaction.get(priorRoomRef), transaction.get(priorMemberRef),
++      ]);
++      const ledger = priorLedger.data() ?? {};
++      const balanceSnapshotValid =
++        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
++        Number.isSafeInteger(ledger.balanceBefore) &&
++        Number.isSafeInteger(ledger.balanceAfter) &&
++        ledger.balanceBefore >= 0 &&
++        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
++        ledger.balanceAfter === data.newBalance &&
++        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
++      const roomData = priorRoom.data() ?? {};
++      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
++          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
++          ledger.type !== "room_rental" || ledger.direction !== "debit" ||
++          ledger.amount !== -data.priceCoins || ledger.roomId !== data.roomId ||
++          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
++          !balanceSnapshotValid || !priorRoom.exists || !priorMember.exists ||
++          roomData.roomId !== data.roomId || roomData.name !== name ||
++          roomData.capacity !== capacity || roomData.isRented !== true) {
++        throw new HttpsError("failed-precondition", "طلب الاستئجار لا يطابق الغرفة أو قيد الخصم؛ يلزم تدقيق مالي.");
++      }
+       return { roomId: data.roomId, rentalId: rentalRef.id, priceCoins: data.priceCoins,
+         expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
+     }
+     if (!user.exists || user.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(user.data())) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح باستئجار غرفة.");
+     }
+     const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+     const plan = plans.find((entry) => entry.planId === planId && entry.active);
+     if (!plan || plan.priceCoins !== expectedPriceCoins) {
+       throw new HttpsError("failed-precondition", "تغير سعر الخطة أو لم تعد متاحة؛ حدّث الأسعار قبل التأكيد.");
+     }
+     const userData = user.data()!;
+     const newBalance = calculateRoomRentalBalance(userData.coins ?? 0, plan.priceCoins);
+     if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للاستئجار.");
+     let audience;
+     try { audience = audienceForAge(userData.age); }
+     catch { throw new HttpsError("failed-precondition", "أكمل ملفك العمري قبل إنشاء غرفة."); }
+     const expiresAtMs = roomRentalExpiry(nowMs, plan.durationDays);
+     const expiresAt = Timestamp.fromMillis(expiresAtMs);
+     const now = FieldValue.serverTimestamp();
+     transaction.update(userRef, { coins: newBalance, updatedAt: now });
+     transaction.create(roomRef, {
+       roomId: roomRef.id, name, kind: "private", capacity, audience, ownerUid: uid,
+       memberCount: 1, status: "active", isRented: true, rentalId: rentalRef.id,
+       rentalPlanId: plan.planId, rentalPriceCoins: plan.priceCoins,
+       rentalDurationDays: plan.durationDays, expiresAt, invitedUids: [],
+       createdAt: now, updatedAt: now,
+     });
+     transaction.create(memberRef, { uid, role: "owner", joinedAt: now });
+     transaction.create(rentalRef, {
+       rentalId: rentalRef.id, roomId: roomRef.id, ownerUid: uid, planId: plan.planId,
+       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+       requestedName: name, requestedCapacity: capacity, requestedPriceCoins: expectedPriceCoins,
++      balanceBefore: userData.coins ?? 0, newBalance,
+       startsAt: Timestamp.fromMillis(nowMs), expiresAt, createdAt: now,
+     });
+     transaction.create(ledgerRef, {
+       type: "room_rental", direction: "debit", amount: -plan.priceCoins,
++      balanceBefore: userData.coins ?? 0, balanceAfter: newBalance,
+       roomId: roomRef.id, rentalId: rentalRef.id, planId: plan.planId,
+       durationDays: plan.durationDays, createdAt: now,
+     });
+     return { roomId: roomRef.id, rentalId: rentalRef.id, priceCoins: plan.priceCoins,
+       expiresAt: expiresAtMs, newBalance, idempotentReplay: false };
+   });
+   return result;
+ });
+ 
+ /** Extends the current room rental using the current catalog price, never a client-supplied price. */
+ export const renewRoomRental = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+   const planId = request.data?.planId;
+   const expectedPriceCoins = request.data?.expectedPriceCoins;
+   const requestId = requireRequestId(request.data?.requestId);
+   if (!roomId || typeof planId !== "string" || !Number.isSafeInteger(expectedPriceCoins)) {
+     throw new HttpsError("invalid-argument", "بيانات تجديد الغرفة غير صالحة.");
+   }
+   const roomRef = db.collection("rooms").doc(roomId);
+   const userRef = db.collection("users").doc(uid);
+   const rentalRef = db.collection("roomRentals").doc(`${uid}_${requestId}`);
+   const ledgerRef = userRef.collection("walletLedger").doc(`room_${uid}_${requestId}`);
+   const nowMs = Date.now();
+   return db.runTransaction(async (transaction) => {
+-    const [room, user, settings, prior] = await Promise.all([
++    const [room, user, settings, prior, priorLedger] = await Promise.all([
+       transaction.get(roomRef), transaction.get(userRef), transaction.get(ROOM_RENTAL_SETTINGS),
+-      transaction.get(rentalRef),
++      transaction.get(rentalRef), transaction.get(ledgerRef),
+     ]);
+     if (prior.exists) {
+       const data = prior.data()!;
+       if (data.roomId !== roomId || data.ownerUid !== uid ||
+           data.planId !== planId || data.requestedPriceCoins !== expectedPriceCoins ||
+           !(data.expiresAt instanceof Timestamp)) {
+         throw new HttpsError("already-exists", "معرف طلب التجديد مستخدم لعملية أخرى أو ببيانات مختلفة.");
+       }
++      const ledger = priorLedger.data() ?? {};
++      const balanceSnapshotValid =
++        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
++        Number.isSafeInteger(ledger.balanceBefore) &&
++        Number.isSafeInteger(ledger.balanceAfter) &&
++        ledger.balanceBefore >= 0 &&
++        ledger.balanceAfter === ledger.balanceBefore - data.priceCoins &&
++        ledger.balanceAfter === data.newBalance &&
++        (data.balanceBefore === undefined || data.balanceBefore === ledger.balanceBefore);
++      if (!priorLedger.exists || !Number.isSafeInteger(data.priceCoins) || data.priceCoins <= 0 ||
++          !Number.isSafeInteger(data.newBalance) || data.newBalance < 0 ||
++          ledger.type !== "room_rental_renewal" || ledger.direction !== "debit" ||
++          ledger.amount !== -data.priceCoins || ledger.roomId !== roomId ||
++          ledger.rentalId !== rentalRef.id || ledger.planId !== planId ||
++          !balanceSnapshotValid) {
++        throw new HttpsError("failed-precondition", "طلب التجديد لا يطابق قيد الخصم؛ يلزم تدقيق مالي.");
++      }
+       return { renewed: true, expiresAt: data.expiresAt.toMillis(), idempotentReplay: true };
+     }
+     if (!room.exists || room.data()?.ownerUid !== uid || room.data()?.isRented !== true ||
+         !["active", "frozen"].includes(room.data()?.status)) {
+       throw new HttpsError("permission-denied", "تجديد الغرفة متاح لمالك غرفة مستأجرة فقط.");
+     }
+     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالتجديد.");
+     }
+     const plans = settings.exists ? validateRoomRentalPlans(settings.data()?.plans) : DEFAULT_ROOM_RENTAL_PLANS;
+     const plan = plans.find((entry) => entry.planId === planId && entry.active);
+     if (!plan || plan.priceCoins !== expectedPriceCoins) {
+       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
+     }
+     const balance = calculateRoomRentalBalance(user.data()?.coins ?? 0, plan.priceCoins);
+     if (balance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للتجديد.");
+     const previousExpiry = room.data()?.expiresAt instanceof Timestamp
+       ? room.data()!.expiresAt.toMillis() : nowMs;
+     const previousRentalId = room.data()?.rentalId;
+     const previousRentalRef = typeof previousRentalId === "string"
+       ? db.collection("roomRentals").doc(previousRentalId) : null;
+     const previousRental = previousRentalRef ? await transaction.get(previousRentalRef) : null;
+     const startMs = Math.max(nowMs, previousExpiry);
+     const expiresAt = Timestamp.fromMillis(roomRentalExpiry(startMs, plan.durationDays));
+     const now = FieldValue.serverTimestamp();
+     if (previousRentalRef && previousRental?.exists &&
+         ["active", "grace_period"].includes(previousRental.data()?.status)) {
+       transaction.update(previousRentalRef, {
+         status: "renewed", supersededByRentalId: rentalRef.id, supersededAt: now,
+         updatedAt: now,
+       });
+     }
+     transaction.update(userRef, { coins: balance, updatedAt: now });
+     transaction.update(roomRef, {
+       status: "active", expiresAt, rentalId: rentalRef.id, rentalPlanId: plan.planId,
+       rentalPriceCoins: plan.priceCoins, rentalDurationDays: plan.durationDays,
+       frozenAt: FieldValue.delete(), freezeExpiresAt: FieldValue.delete(), updatedAt: now,
+     });
+     transaction.create(rentalRef, {
+       rentalId: rentalRef.id, roomId, ownerUid: uid, planId: plan.planId,
+       priceCoins: plan.priceCoins, durationDays: plan.durationDays, status: "active",
+       requestedPriceCoins: expectedPriceCoins,
++      balanceBefore: user.data()?.coins ?? 0, newBalance: balance,
+       startsAt: Timestamp.fromMillis(startMs), expiresAt, createdAt: now,
+     });
+     transaction.create(ledgerRef, {
+       type: "room_rental_renewal", direction: "debit", amount: -plan.priceCoins,
++      balanceBefore: user.data()?.coins ?? 0, balanceAfter: balance,
+       roomId, rentalId: rentalRef.id, planId: plan.planId,
+       durationDays: plan.durationDays, createdAt: now,
+     });
+     return { renewed: true, expiresAt: expiresAt.toMillis(), newBalance: balance, idempotentReplay: false };
+   });
+ });
+ 
+ /** A room member may leave; ownership must be transferred or closed first. */
+ export const leaveRoom = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+   if (!roomId) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+   const roomRef = db.collection("rooms").doc(roomId);
+   const memberRef = roomRef.collection("members").doc(uid);
+   const moderatorRef = roomRef.collection("moderators").doc(uid);
+   await db.runTransaction(async (transaction) => {
+     const [room, member] = await Promise.all([transaction.get(roomRef), transaction.get(memberRef)]);
+     if (!room.exists || !member.exists) throw new HttpsError("not-found", "عضوية الغرفة غير موجودة.");
+     if (room.data()?.ownerUid === uid) {
+       throw new HttpsError("failed-precondition", "مالك الغرفة لا يمكنه المغادرة قبل نقل الملكية أو إغلاق الغرفة.");
+     }
+     const count = Number.isSafeInteger(room.data()?.memberCount) ? room.data()!.memberCount : 1;
+     transaction.delete(memberRef);
+     transaction.delete(moderatorRef);
+     transaction.update(roomRef, { memberCount: Math.max(0, count - 1), invitedUids: FieldValue.arrayRemove(uid),
+       updatedAt: FieldValue.serverTimestamp() });
+     const auditRef = db.collection("roomAuditLogs").doc();
+     transaction.create(auditRef, { roomId, actorUid: uid, action: "room_member_left",
+       createdAt: FieldValue.serverTimestamp() });
+   });
+   return { roomId, left: true };
+ });
+ 
+ /** Room ownership transfer is atomic and cannot transfer an expired or frozen rental. */
+ export const transferRoomOwnership = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+   const newOwnerUid = typeof request.data?.newOwnerUid === "string" ? request.data.newOwnerUid.trim() : "";
+   if (!roomId || !newOwnerUid || newOwnerUid === uid) throw new HttpsError("invalid-argument", "بيانات نقل الملكية غير صالحة.");
+   const roomRef = db.collection("rooms").doc(roomId);
+   const oldMemberRef = roomRef.collection("members").doc(uid);
+   const newMemberRef = roomRef.collection("members").doc(newOwnerUid);
+   await db.runTransaction(async (transaction) => {
+     const [room, newUser, oldMember, newMember] = await Promise.all([
+       transaction.get(roomRef), transaction.get(db.collection("users").doc(newOwnerUid)),
+       transaction.get(oldMemberRef), transaction.get(newMemberRef),
+     ]);
+     if (!room.exists || room.data()?.ownerUid !== uid || !oldMember.exists ||
+         room.data()?.status !== "active") throw new HttpsError("permission-denied", "لا يمكن نقل ملكية هذه الغرفة.");
+     if (!newUser.exists || newUser.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(newUser.data())) throw new HttpsError("failed-precondition", "المالك الجديد غير مؤهل.");
+     if (!newMember.exists) throw new HttpsError("failed-precondition", "يجب أن ينضم المالك الجديد إلى الغرفة أولاً.");
+     transaction.update(roomRef, { ownerUid: newOwnerUid, updatedAt: FieldValue.serverTimestamp() });
+     transaction.update(newMemberRef, { role: "owner", ownershipTransferredAt: FieldValue.serverTimestamp() });
+     transaction.update(oldMemberRef, { role: "member", ownershipTransferredAt: FieldValue.serverTimestamp() });
+     const auditRef = db.collection("roomAuditLogs").doc();
+     transaction.create(auditRef, { roomId, actorUid: uid, targetUid: newOwnerUid,
+       action: "room_ownership_transferred", createdAt: FieldValue.serverTimestamp() });
+   });
+   return { roomId, ownerUid: newOwnerUid, transferred: true };
+ });
+ 
+ /** Owner may close their room; closure is audited and does not refund past rental charges. */
+ export const closeOwnedRoom = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const roomId = typeof request.data?.roomId === "string" ? request.data.roomId.trim() : "";
+   if (!roomId) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+   const roomRef = db.collection("rooms").doc(roomId);
+   await db.runTransaction(async (transaction) => {
+     const room = await transaction.get(roomRef);
+     if (!room.exists || room.data()?.ownerUid !== uid ||
+         !["active", "frozen"].includes(room.data()?.status)) {
+       throw new HttpsError("permission-denied", "إغلاق الغرفة متاح لمالكها فقط.");
+     }
+     const rentalId = room.data()?.rentalId;
+     const rentalRef = typeof rentalId === "string" ? db.collection("roomRentals").doc(rentalId) : null;
+     const rental = rentalRef ? await transaction.get(rentalRef) : null;
+     const now = FieldValue.serverTimestamp();
+     transaction.update(roomRef, { status: "closed", closedAt: now,
+       closedBy: uid, updatedAt: now });
+@@ -7087,418 +7220,544 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
+       const notificationRef = db.collection("notifications").doc();
+       transaction.create(notificationRef, {
+         userId: data.ownerUid, title: "انتهت مدة استئجار الغرفة",
+         body: "تم إيقاف الغرفة مؤقتاً لمدة 24 ساعة. يمكنك تجديدها من داخل التطبيق.",
+         timestamp: FieldValue.serverTimestamp(), read: false,
+       });
+       return true;
+     });
+     if (frozen && typeof data.ownerUid === "string") {
+       await sendPushToMember(data.ownerUid, "انتهت مدة استئجار الغرفة",
+         "تم إيقاف الغرفة مؤقتاً لمدة 24 ساعة. يمكنك تجديدها من داخل التطبيق.",
+         { type: "room_rental_frozen", roomId: document.id });
+     }
+   }
+   const graceExpired = await db.collection("rooms").where("isRented", "==", true)
+     .where("status", "==", "frozen").where("freezeExpiresAt", "<=", now).limit(100).get();
+   for (const document of graceExpired.docs) {
+     const ownerUid = await db.runTransaction(async (transaction) => {
+       const fresh = await transaction.get(document.ref);
+       if (!fresh.exists || fresh.data()?.status !== "frozen" ||
+           !(fresh.data()?.freezeExpiresAt instanceof Timestamp) ||
+           fresh.data()!.freezeExpiresAt.toMillis() > Date.now()) return null;
+       const rentalId = fresh.data()?.rentalId;
+       const rentalRef = typeof rentalId === "string" ? db.collection("roomRentals").doc(rentalId) : null;
+       const rental = rentalRef ? await transaction.get(rentalRef) : null;
+       const now = FieldValue.serverTimestamp();
+       transaction.update(document.ref, { status: "closed", closedAt: now,
+         closeReason: "rental_expired", updatedAt: now });
+       if (rentalRef && rental?.exists) transaction.update(rentalRef, { status: "expired", closedAt: now, updatedAt: now });
+       const notificationRef = db.collection("notifications").doc();
+       transaction.create(notificationRef, {
+         userId: fresh.data()?.ownerUid, title: "أغلقت الغرفة لانتهاء الاستئجار",
+         body: "انتهت مهلة التجديد الإضافية. يمكنك التواصل مع الدعم عند الحاجة.",
+         timestamp: FieldValue.serverTimestamp(), read: false,
+       });
+       return typeof fresh.data()?.ownerUid === "string" ? fresh.data()!.ownerUid : null;
+     });
+     if (ownerUid) {
+       await sendPushToMember(ownerUid, "أغلقت الغرفة لانتهاء الاستئجار",
+         "انتهت مهلة التجديد الإضافية. يمكنك التواصل مع الدعم عند الحاجة.",
+         { type: "room_rental_closed", roomId: document.id });
+     }
+   }
+ });
+ 
+ 
+ 
+ /** Public member-facing package catalogue; returns prices only, never payment or credit authority. */
+ export const getAvailableCoinPackages = onCall(async () => {
+   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
+   const data = snapshot.data() ?? {};
+   if (data.manualCoinPurchasesEnabled === false) return { packages: [], manualPurchasesEnabled: false };
+   let packages;
+   try { packages = validateCoinPackages(data.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+   catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+   return {
+     packages: packages.filter((item) => item.active),
+     manualPurchasesEnabled: true,
+     automatedCheckoutEnabled: false,
+   };
+ });
+ 
+ /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
+ export const createCoinPurchaseRequest = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   let input;
+   try { input = validateCoinPurchaseRequestInput(request.data); }
+   catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
+   const userRef = db.collection("users").doc(uid);
+   const settingsRef = db.doc("platformSettings/economyPricing");
+   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
+   const result = await db.runTransaction(async (transaction) => {
+     const [user, settings, existing] = await Promise.all([
+       transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
+     ]);
+     if (!user.exists || user.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(user.data())) {
+       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
+     }
+     const economy = settings.data() ?? {};
+-    if (economy.manualCoinPurchasesEnabled === false || economy.automatedCoinCheckoutEnabled === true) {
++    if (economy.manualCoinPurchasesEnabled === false) {
+       throw new HttpsError("failed-precondition", "طلبات الشراء اليدوية غير متاحة حالياً.");
+     }
+     let packageSnapshot: Record<string, unknown> | null = null;
+     let requestedCoins: number | null = null;
+     if (input.kind === "package") {
+       let packages;
+       try { packages = validateCoinPackages(economy.coinPackages ?? DEFAULT_COIN_PACKAGES); }
+       catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
+       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
+       packageSnapshot = { ...selected };
+       requestedCoins = selected.coins;
+     } else {
+       requestedCoins = input.requestedCoins ?? null;
+     }
+     if (existing.exists) {
+       const prior = existing.data() ?? {};
+       if (prior.requesterUid !== uid || prior.kind !== input.kind ||
+           prior.packageId !== (input.packageId ?? null) ||
+           prior.requestedCoins !== requestedCoins) {
+         throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
+       }
+       return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
+     }
+     transaction.create(requestRef, {
+       requestId: input.requestId, requesterUid: uid, kind: input.kind,
+       packageId: input.packageId ?? null, packageSnapshot,
+       requestedCoins, status: "pending_owner_contact",
+       paymentChannel: "manual_owner_contact", currency: "EUR",
++      paymentPolicySnapshot: {
++        manualEnabled: true, automatedEnabled: false,
++        policyVersion: Number.isSafeInteger(economy.version) ? economy.version : 0,
++        capturedAt: FieldValue.serverTimestamp(),
++      },
+       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+     });
+     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
+   });
+   return result;
+ });
+ 
+ /** Member can inspect only their own manual purchase requests. */
+ export const getMyCoinPurchaseRequests = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const snapshot = await db.collection("coinPurchaseRequests")
+     .where("requesterUid", "==", uid).orderBy("createdAt", "desc").limit(50).get();
+   return { requests: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+ });
+ 
+ /** Owner-only bounded inbox for manual coin purchase requests. */
+ export const listOwnerCoinPurchaseRequests = onCall(async (request) => {
+   requireOwner(request);
+   const status = request.data?.status;
+   const allowed = ["pending_owner_contact", "payment_instructions_sent",
+-    "approved", "rejected", "withdrawn"];
++    "awaiting_payment_verification", "approved", "rejected", "withdrawn"];
+   if (status !== undefined && !allowed.includes(status)) {
+     throw new HttpsError("invalid-argument", "حالة الطلب غير صالحة.");
+   }
+   let query = db.collection("coinPurchaseRequests").orderBy("createdAt", "desc").limit(100);
+   if (typeof status === "string") query = db.collection("coinPurchaseRequests")
+     .where("status", "==", status).orderBy("createdAt", "desc").limit(100);
+   const snapshot = await query.get();
+   return { requests: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+ });
+ 
+ /** Owner records negotiated amount and sends manual payment instructions; this never credits coins. */
+ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let input;
+   try { input = validateOwnerPaymentInstructionInput({
+     requestId: request.data?.requestId, instructions: request.data?.instructions,
+     agreedCoins: request.data?.agreedCoins, agreedPriceMinor: request.data?.agreedPriceMinor,
+     currency: request.data?.currency,
++    expectedInstructionsVersion: request.data?.expectedInstructionsVersion,
+   }); }
+   catch { throw new HttpsError("invalid-argument", "تعليمات الدفع أو الكمية أو السعر غير صالحة."); }
+   const requesterUid = request.data?.requesterUid;
+   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+   const ref = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
+   const chatId = createDirectChatId(actorUid, requesterUid);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const notificationId = `coin_payment_${input.requestId}`;
+   const notificationRef = db.collection("users").doc(requesterUid).collection("notifications").doc(notificationId);
+   let messageId = "";
+   await db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(ref);
+     if (!snapshot.exists || snapshot.data()?.requesterUid !== requesterUid) {
+       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+     }
+     const prior = snapshot.data()!;
+-    if (["approved", "rejected", "withdrawn"].includes(String(prior.status))) {
+-      throw new HttpsError("failed-precondition", "لا يمكن تعديل طلب منتهٍ.");
++    if (prior.status !== "pending_owner_contact") {
++      throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
++    }
++    if (prior.paymentChannel !== "manual_owner_contact" ||
++        (prior.paymentPolicySnapshot !== undefined &&
++         prior.paymentPolicySnapshot?.manualEnabled !== true)) {
++      throw new HttpsError("failed-precondition", "مسار الدفع اليدوي غير مثبت في لقطة الطلب.");
++    }
++    const currentInstructionsVersion = Number.isSafeInteger(prior.instructionsVersion)
++      ? prior.instructionsVersion : 0;
++    if (currentInstructionsVersion !== input.expectedInstructionsVersion) {
++      throw new HttpsError("aborted", "تغير إصدار الطلب؛ أعد تحميله قبل إصدار التعليمات.");
+     }
+-    const nextVersion = (Number.isSafeInteger(prior.instructionsVersion) ? prior.instructionsVersion : 0) + 1;
++    const nextVersion = currentInstructionsVersion + 1;
+     messageId = createHash("sha256").update(`coin-purchase:${requesterUid}:${input.requestId}:${nextVersion}`).digest("hex");
+     const messageRef = chatRef.collection("messages").doc(messageId);
+     const [chatSnapshot, existingMessage] = await Promise.all([
+       transaction.get(chatRef), transaction.get(messageRef),
+     ]);
+     if (chatSnapshot.exists) {
+       const participants = chatSnapshot.data()?.participantUids;
+       if (!Array.isArray(participants) || !participants.includes(actorUid) || !participants.includes(requesterUid)) {
+         throw new HttpsError("permission-denied", "تعذر ربط تعليمات الدفع بالمحادثة الثنائية.");
+       }
+     }
+     const now = FieldValue.serverTimestamp();
+     transaction.set(chatRef, {
+       participantUids: [actorUid, requesterUid].sort(),
+       createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
+       lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
+       lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
+     }, { merge: true });
+     if (!existingMessage.exists) {
+       transaction.create(messageRef, {
+         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
+         text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
+           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
+           "\nالسعر: " + (input.agreedPriceMinor / 100).toFixed(2) + " EUR" +
+           "\nالتعليمات: " + input.instructions,
+         type: "text", isPlatformOwnerMessage: true,
+         senderLabel: "إدارة منصة مودة", adminMessageType: "coin_purchase_payment_instructions",
+         createdAt: now,
+       });
+     }
+     transaction.set(notificationRef, {
+       notificationId, type: "coin_purchase_payment_instructions", senderUid: actorUid,
+       chatId, messageId, title: "تعليمات دفع من مالك مودة",
+       body: "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+       isRead: false, createdAt: now,
+     });
+     transaction.update(ref, {
+       status: "payment_instructions_sent", chatId, agreedCoins: input.agreedCoins,
+       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+       paymentInstructions: input.instructions, instructionsVersion: nextVersion,
++      paymentPolicySnapshot: prior.paymentPolicySnapshot ?? {
++        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
++        legacyRequestSnapshot: true, capturedAt: now,
++      },
+       instructionsSetBy: actorUid, instructionsSetAt: now, updatedAt: now,
+     });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid, targetUid: requesterUid, action: "coin_purchase_payment_instructions_set",
+       requestId: input.requestId, agreedCoins: input.agreedCoins,
+       agreedPriceMinor: input.agreedPriceMinor, currency: input.currency,
+       chatId, messageId, instructionsVersion: nextVersion, createdAt: now,
+     });
+   });
+   await sendPushToMember(requesterUid, "تعليمات دفع من مالك مودة",
+     "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+     { type: "coin_purchase_payment_instructions", chatId, messageId });
+   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
+ });
+ 
++/**
++ * Member report that an external transfer was initiated. This is a claim-only
++ * workflow signal and never proves receipt or credits the wallet.
++ */
++export const requestCoinPurchasePaymentVerification = onCall(async (request) => {
++  const uid = requireAuthenticatedUid(request.auth?.uid);
++  const requestId = request.data?.requestId;
++  const expectedInstructionsVersion = request.data?.expectedInstructionsVersion;
++  if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
++      !Number.isSafeInteger(expectedInstructionsVersion) ||
++      (expectedInstructionsVersion as number) < 1) {
++    throw new HttpsError("invalid-argument", "معرف الطلب أو إصدار التعليمات غير صالح.");
++  }
++  const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
++  const memberRef = db.collection("users").doc(uid);
++  const auditRef = db.collection("adminAuditLogs").doc(
++    `coin_purchase_payment_report_${uid}_${requestId}_${expectedInstructionsVersion}`,
++  );
++  return db.runTransaction(async (transaction) => {
++    const [purchase, member, audit] = await Promise.all([
++      transaction.get(requestRef), transaction.get(memberRef), transaction.get(auditRef),
++    ]);
++    if (!member.exists || member.data()?.profileCompleted !== true ||
++        !isMemberAccountInGoodStanding(member.data())) {
++      throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتحديث طلب الدفع.");
++    }
++    if (!purchase.exists || purchase.data()?.requesterUid !== uid) {
++      throw new HttpsError("not-found", "طلب الشراء غير موجود.");
++    }
++    const data = purchase.data() ?? {};
++    if (data.paymentChannel !== "manual_owner_contact" ||
++        (data.paymentPolicySnapshot !== undefined && data.paymentPolicySnapshot?.manualEnabled !== true)) {
++      throw new HttpsError("failed-precondition", "هذا الطلب لا يستخدم مسار الدفع اليدوي.");
++    }
++    if (data.status === "awaiting_payment_verification" &&
++        data.instructionsVersion === expectedInstructionsVersion &&
++        data.paymentReportedInstructionVersion === expectedInstructionsVersion) {
++      if (!audit.exists) transaction.create(auditRef, {
++        actorUid: uid, targetUid: uid,
++        action: "coin_purchase_member_reported_external_payment",
++        requestId, instructionVersion: expectedInstructionsVersion,
++        authority: "member_claim_only_not_payment_proof",
++        createdAt: FieldValue.serverTimestamp(),
++      });
++      return { requestId, status: "awaiting_payment_verification", idempotentReplay: true };
++    }
++    if (data.status !== "payment_instructions_sent" ||
++        data.instructionsVersion !== expectedInstructionsVersion || audit.exists) {
++      throw new HttpsError("failed-precondition", "حالة الطلب أو إصدار التعليمات لا يسمح بالإبلاغ عن الدفع.");
++    }
++    transaction.update(requestRef, {
++      status: "awaiting_payment_verification",
++      paymentPolicySnapshot: data.paymentPolicySnapshot ?? {
++        manualEnabled: true, automatedEnabled: false, policyVersion: 0,
++        legacyRequestSnapshot: true, capturedAt: FieldValue.serverTimestamp(),
++      },
++      paymentReportedBy: uid,
++      paymentReportedAt: FieldValue.serverTimestamp(),
++      paymentReportedInstructionVersion: expectedInstructionsVersion,
++      updatedAt: FieldValue.serverTimestamp(),
++    });
++    transaction.create(auditRef, {
++      actorUid: uid, targetUid: uid,
++      action: "coin_purchase_member_reported_external_payment",
++      requestId, instructionVersion: expectedInstructionsVersion,
++      authority: "member_claim_only_not_payment_proof",
++      createdAt: FieldValue.serverTimestamp(),
++    });
++    return { requestId, status: "awaiting_payment_verification", idempotentReplay: false };
++  });
++});
++
+ /** Only the owner can attest to external receipt; approval atomically credits coins and ledger. */
+ export const approveCoinPurchaseRequest = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let input;
+   try { input = validateExternalPaymentVerification({
+     requestId: request.data?.requestId,
+     externalPaymentVerified: request.data?.externalPaymentVerified,
+     externalPaymentReference: request.data?.externalPaymentReference,
+     verificationNote: request.data?.verificationNote,
+   }); }
+   catch { throw new HttpsError("invalid-argument", "إثبات الدفع الخارجي غير مكتمل."); }
+   const requesterUid = request.data?.requesterUid;
+   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+   const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
+   const userRef = db.collection("users").doc(requesterUid);
+   const ledgerId = `coin_purchase_${input.requestId}`;
+   const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
+   const result = await db.runTransaction(async (transaction) => {
+-    const [purchase, user, ledger] = await Promise.all([
++    const [purchase, user, ledger, approvalAudit] = await Promise.all([
+       transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
++      transaction.get(auditRef),
+     ]);
+     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
+       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+     }
+     const data = purchase.data()!;
+-    if (data.status === "approved") return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
+-    if (data.status !== "payment_instructions_sent") {
++    if (data.status === "approved") {
++      const ledgerData = ledger.data() ?? {};
++      const auditData = approvalAudit.data() ?? {};
++      if (!ledger.exists || !approvalAudit.exists ||
++          ledgerData.type !== "coin_purchase_manual_credit" ||
++          ledgerData.amount !== data.creditedCoins ||
++          ledgerData.purchaseRequestId !== input.requestId ||
++          ledgerData.externalPaymentReference !== input.externalPaymentReference ||
++          ledgerData.priceMinor !== data.agreedPriceMinor ||
++          ledgerData.currency !== (data.currency ?? "EUR") ||
++          ledgerData.actorUid !== data.verifiedBy ||
++          !Number.isSafeInteger(ledgerData.balanceBefore) ||
++          !Number.isSafeInteger(ledgerData.balanceAfter) ||
++          ledgerData.balanceBefore < 0 ||
++          ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
++          data.externalPaymentVerified !== true ||
++          data.externalPaymentReference !== input.externalPaymentReference ||
++          !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
++          auditData.action !== "coin_purchase_manually_verified_and_approved" ||
++          auditData.actorUid !== data.verifiedBy ||
++          auditData.targetUid !== requesterUid ||
++          auditData.requestId !== input.requestId ||
++          auditData.externalPaymentReference !== input.externalPaymentReference ||
++          auditData.creditedCoins !== data.creditedCoins ||
++          auditData.priceMinor !== data.agreedPriceMinor ||
++          auditData.currency !== (data.currency ?? "EUR")) {
++        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
++      }
++      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
++    }
++    if (data.paymentChannel !== "manual_owner_contact" ||
++        (data.paymentPolicySnapshot !== undefined && data.paymentPolicySnapshot?.manualEnabled !== true)) {
++      throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
++    }
++    if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
+       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
+     }
+     if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
+       throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام الكوينز.");
+     }
+     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
+     const coins = data.agreedCoins;
+     if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
+       throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
+     }
+     const oldBalance = user.data()?.coins ?? 0;
+     if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 || oldBalance + coins > 2000000000) {
+       throw new HttpsError("failed-precondition", "رصيد العضو لا يسمح بإتمام العملية.");
+     }
+     const now = FieldValue.serverTimestamp();
+     transaction.update(userRef, { coins: oldBalance + coins, walletUpdatedAt: now });
+     transaction.create(ledgerRef, {
+       type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
+       balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
+       externalPaymentReference: input.externalPaymentReference,
+       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR",
+       actorUid, createdAt: now,
+     });
+     transaction.update(requestRef, {
+       status: "approved", externalPaymentVerified: true,
+       externalPaymentReference: input.externalPaymentReference,
+       verificationNote: input.verificationNote, verifiedBy: actorUid,
+       verifiedAt: now, creditedCoins: coins, updatedAt: now,
+     });
+     transaction.create(auditRef, {
+       actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
+       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
+       verificationNote: input.verificationNote, creditedCoins: coins,
+       priceMinor: data.agreedPriceMinor, currency: data.currency ?? "EUR", createdAt: now,
+     });
+     return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
+   });
+   return result;
+ });
+ 
+ /** Owner rejection requires a bounded reason and never modifies a wallet. */
+ export const rejectCoinPurchaseRequest = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const requesterUid = request.data?.requesterUid;
+   const requestId = request.data?.requestId;
+   const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+       requesterUid === actorUid || typeof requestId !== "string" ||
+       !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) || reason.length < 5 || reason.length > 500) {
+     throw new HttpsError("invalid-argument", "سبب الرفض أو معرف الطلب غير صالح.");
+   }
+   const ref = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${requestId}`);
+   await db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(ref);
+     if (!snapshot.exists || snapshot.data()?.requesterUid !== requesterUid) {
+       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+     }
+     if (snapshot.data()?.status === "approved") throw new HttpsError("failed-precondition", "لا يمكن رفض طلب معتمد.");
+     if (["rejected", "withdrawn"].includes(String(snapshot.data()?.status))) return;
+     transaction.update(ref, { status: "rejected", rejectionReason: reason,
+       rejectedBy: actorUid, rejectedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, { actorUid, targetUid: requesterUid,
+       action: "coin_purchase_request_rejected", requestId, reason, createdAt: FieldValue.serverTimestamp() });
+   });
+   return { requestId, status: "rejected" };
+ });
+ 
+ /** Members may withdraw their own request before approval. */
+ export const withdrawCoinPurchaseRequest = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const requestId = request.data?.requestId;
+   if (typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId)) {
+     throw new HttpsError("invalid-argument", "معرف الطلب غير صالح.");
+   }
+   const ref = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+   await db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(ref);
+     if (!snapshot.exists || snapshot.data()?.requesterUid !== uid) {
+       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+     }
+-    if (["approved", "rejected"].includes(String(snapshot.data()?.status))) {
+-      throw new HttpsError("failed-precondition", "لا يمكن سحب طلب منتهٍ.");
++    if (["payment_instructions_sent", "awaiting_payment_verification", "approved", "rejected"].includes(String(snapshot.data()?.status))) {
++      throw new HttpsError("failed-precondition", "لا يمكن سحب الطلب بعد إصدار تعليمات الدفع؛ تواصل مع المالك لإغلاق الاتفاق.");
+     }
+     if (snapshot.data()?.status === "withdrawn") return;
+     transaction.update(ref, { status: "withdrawn", withdrawnAt: FieldValue.serverTimestamp(),
+       updatedAt: FieldValue.serverTimestamp() });
+   });
+   return { requestId, status: "withdrawn" };
+ });
+ 
+ const ECONOMY_PRICING_SETTINGS = db.doc("platformSettings/economyPricing");
+ 
+ /** Owner-only view and safe first-run seeding for editable coin and advertising prices. */
+ export const getOwnerEconomyPricing = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
+   if (!snapshot.exists) {
+     await db.runTransaction(async (transaction) => {
+       const current = await transaction.get(ECONOMY_PRICING_SETTINGS);
+       if (current.exists) return;
+       transaction.create(ECONOMY_PRICING_SETTINGS, {
+         coinPackages: DEFAULT_COIN_PACKAGES,
+         adPrices: DEFAULT_AD_PRICES,
+         version: 1,
+         realMoneyCheckoutEnabled: false,
+         manualCoinPurchasesEnabled: true,
+         automatedCoinCheckoutEnabled: false,
+         createdAt: FieldValue.serverTimestamp(),
+         updatedAt: FieldValue.serverTimestamp(),
+         updatedBy: actorUid,
+       });
+     });
+   }
+   const data = (await ECONOMY_PRICING_SETTINGS.get()).data() ?? {};
+   let coinPackages, adPrices;
+   try {
+     coinPackages = validateCoinPackages(data.coinPackages);
+     adPrices = validateAdPrices(data.adPrices);
+   } catch {
+     throw new HttpsError("failed-precondition", "إعدادات اقتصاد المنصة غير صالحة؛ راجع الدعم التقني.");
+   }
+   return {
+     coinPackages, adPrices,
+     version: Number.isSafeInteger(data.version) ? data.version : 0,
+     realMoneyCheckoutEnabled: false,
+     manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled !== false,
+     automatedCoinCheckoutEnabled: false,
+   };
+ });
+ 
+ /** Owner/MFA-only economy price updates. This configures prices, not payment processing. */
+ export const setOwnerEconomyPricing = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let coinPackages, adPrices;
+   try {
+     coinPackages = validateCoinPackages(request.data?.coinPackages);
+     adPrices = validateAdPrices(request.data?.adPrices);
+   } catch {
+     throw new HttpsError("invalid-argument", "أسعار باقات الكوينز أو الإعلانات غير صالحة.");
+   }
+   const version = await db.runTransaction(async (transaction) => {
+     const previous = await transaction.get(ECONOMY_PRICING_SETTINGS);
+     const nextVersion = (Number.isSafeInteger(previous.data()?.version) ? previous.data()!.version : 0) + 1;
+     const now = FieldValue.serverTimestamp();
+     transaction.set(ECONOMY_PRICING_SETTINGS, {
+       coinPackages, adPrices, version: nextVersion,
+       manualCoinPurchasesEnabled: request.data?.manualCoinPurchasesEnabled !== false,
+       automatedCoinCheckoutEnabled: false,
+       realMoneyCheckoutEnabled: false,
+       updatedAt: now, updatedBy: actorUid,
+       createdAt: previous.data()?.createdAt ?? now,
+     });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid, action: "economy_pricing_updated", version: nextVersion,
+       coinPackageCount: coinPackages.length, adPlacementCount: adPrices.length,
+       realMoneyCheckoutEnabled: false, createdAt: now,
+     });
+     return nextVersion;
+   });
+   return { saved: true, version, realMoneyCheckoutEnabled: false };
+ });
+diff --git a/functions/test/coin-purchase-requests.test.js b/functions/test/coin-purchase-requests.test.js
+index 5ef3eb63..099fb066 100644
+--- a/functions/test/coin-purchase-requests.test.js
++++ b/functions/test/coin-purchase-requests.test.js
+@@ -1,44 +1,50 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+   validateCoinPurchaseRequestInput,
+   validateOwnerPaymentInstructionInput,
+   validateExternalPaymentVerification,
+ } = require("../lib/coin-purchase-requests");
+ 
+ test("validates fixed package and custom coin requests without accepting client-set prices", () => {
+   assert.deepEqual(validateCoinPurchaseRequestInput({
+     requestId: "request_123", kind: "package", packageId: "coins_1000",
+   }), { requestId: "request_123", kind: "package", packageId: "coins_1000" });
+   assert.deepEqual(validateCoinPurchaseRequestInput({
+     requestId: "request_456", kind: "custom", requestedCoins: 7500,
+   }), { requestId: "request_456", kind: "custom", requestedCoins: 7500 });
+   assert.throws(() => validateCoinPurchaseRequestInput({
+     requestId: "request_456", kind: "custom", requestedCoins: 7500, priceMinor: 1,
+   }), /INVALID_REQUEST/);
+   assert.throws(() => validateCoinPurchaseRequestInput({
+     requestId: "request_456", kind: "custom", requestedCoins: 0,
+   }), /INVALID_CUSTOM_AMOUNT/);
+ });
+ 
+ test("owner payment instructions require bounded negotiated terms", () => {
+   assert.equal(validateOwnerPaymentInstructionInput({
+     requestId: "request_123", instructions: "تواصل مع المالك لإتمام التحويل",
+     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+-  }).agreedPriceMinor, 999);
++    expectedInstructionsVersion: 0,
++  }).expectedInstructionsVersion, 0);
+   assert.throws(() => validateOwnerPaymentInstructionInput({
+     requestId: "request_123", instructions: "ok",
+     agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
+   }), /INVALID_INSTRUCTIONS/);
++  assert.throws(() => validateOwnerPaymentInstructionInput({
++    requestId: "request_123", instructions: "تعليمات صحيحة",
++    agreedCoins: 1000, agreedPriceMinor: 999, currency: "EUR",
++    expectedInstructionsVersion: -1,
++  }), /INVALID_INSTRUCTIONS/);
+ });
+ 
+ test("coin approval requires owner-recorded external payment proof reference and note", () => {
+   assert.equal(validateExternalPaymentVerification({
+     requestId: "request_123", externalPaymentVerified: true,
+     externalPaymentReference: "bank-ref-123", verificationNote: "تحقق المالك من وصول المبلغ",
+   }).externalPaymentReference, "bank-ref-123");
+   assert.throws(() => validateExternalPaymentVerification({
+     requestId: "request_123", externalPaymentVerified: false,
+     externalPaymentReference: "bank-ref-123", verificationNote: "تحقق",
+   }), /INVALID_VERIFICATION/);
+ });
+diff --git a/functions/test/integration/owner-entitlement-grants.integration.test.js b/functions/test/integration/owner-entitlement-grants.integration.test.js
+index 82ecc3e2..93bb6f43 100644
+--- a/functions/test/integration/owner-entitlement-grants.integration.test.js
++++ b/functions/test/integration/owner-entitlement-grants.integration.test.js
+@@ -1,181 +1,210 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { createHash } = require("node:crypto");
+ const { getFirestore } = require("firebase-admin/firestore");
+ const {
+   grantStoreEntitlement,
+   bulkGrantStoreEntitlements,
+   getMyEntitlementGrantHistory,
++  purchaseStoreItem,
+ } = require("../../lib/index");
+ 
+ const db = getFirestore();
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+-const memberRequest = (uid) => ({ data: {}, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
++const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+ const ownerRequest = (uid, data) => ({
+   data,
+   auth: { uid, token: {
+     platformOwner: true,
+     platformOwnerUid: uid,
+     auth_time: Math.floor(Date.now() / 1000),
+     firebase: { sign_in_second_factor: "phone" },
+   } },
+ });
+ const makeGrantId = (requestId, uid) =>
+   createHash("sha256").update(`mawdda-owner-grant-v1:${requestId}:${uid}`).digest("hex");
+ 
+ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repeatable", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `grant_owner_${tag}`;
+   const memberUid = `grant_member_${tag}`;
+   const itemId = "vip_monthly";
+   const requestId = `owner_grant_${tag}`;
+   const grantId = makeGrantId(requestId, memberUid);
+   const secondRequestId = `owner_grant_again_${tag}`;
+   const secondGrantId = makeGrantId(secondRequestId, memberUid);
+   const memberRef = db.collection("users").doc(memberUid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+   const grantRef = db.collection("ownerEntitlementGrants").doc(grantId);
+   const ledgerRef = memberRef.collection("entitlementGrantLedger").doc(grantId);
+   const auditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${grantId}`);
+   const secondGrantRef = db.collection("ownerEntitlementGrants").doc(secondGrantId);
+   const secondLedgerRef = memberRef.collection("entitlementGrantLedger").doc(secondGrantId);
+   const secondAuditRef = db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${secondGrantId}`);
+ 
+   await Promise.all([
+     memberRef.set({ uid: memberUid, profileCompleted: true, accountStatus: "active", coins: 4321 }),
+     itemRef.set({
+       itemId, name: "VIP", description: "Owner free-grant integration fixture",
+       category: "vip", priceCoins: 900, durationDays: 30, sortOrder: 1,
+       active: true, purchaseEnabled: false, fulfillmentReady: true,
+     }),
+   ]);
+ 
+   try {
+     const before = Date.now();
+     const input = {
+       memberUid, itemId, requestId, durationHours: 24,
+       reason: "Approved owner goodwill grant",
+     };
+     const first = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+     assert.equal(first.status, "granted");
+     assert.equal(first.idempotentReplay, false);
+     assert.ok(first.expiresAt >= before + 24 * 60 * 60 * 1000 - 5000);
+     assert.ok(first.expiresAt <= Date.now() + 24 * 60 * 60 * 1000 + 5000);
+ 
+     const [member, entitlement, grant, ledger, audit] = await Promise.all([
+       memberRef.get(), entitlementRef.get(), grantRef.get(), ledgerRef.get(), auditRef.get(),
+     ]);
+     assert.equal(member.data().coins, 4321, "free entitlement grants never debit coins");
+     assert.equal(entitlement.data().status, "active");
+     assert.equal(entitlement.data().grantSource, "platform_owner");
+     assert.equal(entitlement.data().grantId, grantId);
+     assert.equal(grant.data().status, "granted");
+     assert.equal(ledger.data().type, "owner_entitlement_grant");
+     assert.equal(audit.data().action, "owner_entitlement_granted");
+     assert.equal((await memberRef.collection("walletLedger").get()).size, 0);
+ 
+     const replay = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal(replay.expiresAt, first.expiresAt);
+     assert.equal((await entitlementRef.get()).data().expiresAt.toMillis(), first.expiresAt);
+ 
+     const second = await grantStoreEntitlement.run(ownerRequest(ownerUid, {
+       ...input, requestId: secondRequestId, durationHours: 24,
+     }));
+     assert.equal(second.idempotentReplay, false);
+     assert.ok(second.expiresAt >= first.expiresAt + 24 * 60 * 60 * 1000 - 1000);
+     assert.equal((await memberRef.get()).data().coins, 4321);
+ 
++    // Expire the current grant and purchase the same item. Replaying the first
++    // grant must not overwrite the newer paid entitlement.
++    await entitlementRef.update({ expiresAt: new Date(Date.now() - 1000) });
++    await itemRef.update({ purchaseEnabled: true });
++    const purchaseRequestId = `purchase_after_grant_${tag}`;
++    const purchaseId = `${memberUid}_${purchaseRequestId}`;
++    const purchaseLedgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
++    const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
++      itemId, requestId: purchaseRequestId, expectedPriceCoins: 900,
++    }));
++    assert.equal(purchase.idempotentReplay, false);
++    assert.equal(purchase.newBalance, 3421);
++    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
++
++    const replayAfterPurchase = await grantStoreEntitlement.run(ownerRequest(ownerUid, input));
++    assert.equal(replayAfterPurchase.idempotentReplay, true);
++    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
++    assert.equal((await memberRef.get()).data().coins, 3421);
++
++    await auditRef.delete();
++    await assert.rejects(
++      () => grantStoreEntitlement.run(ownerRequest(ownerUid, input)),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await entitlementRef.get()).data().purchaseId, purchaseId);
++
+     const history = await getMyEntitlementGrantHistory.run(memberRequest(memberUid));
+     assert.equal(history.entries.length, 2);
+     assert.ok(history.entries.every((entry) => entry.itemId === itemId));
+     assert.ok(history.entries.every((entry) => !("reason" in entry) && !("actorUid" in entry)));
+   } finally {
+     await Promise.all([
+       db.recursiveDelete(memberRef).catch(() => undefined),
+       itemRef.delete().catch(() => undefined),
+       grantRef.delete().catch(() => undefined),
+       ledgerRef.delete().catch(() => undefined),
+       auditRef.delete().catch(() => undefined),
++      db.collection("storePurchases").doc(`${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
++      memberRef.collection("walletLedger").doc(`store_${memberUid}_purchase_after_grant_${tag}`).delete().catch(() => undefined),
+       secondGrantRef.delete().catch(() => undefined),
+       secondLedgerRef.delete().catch(() => undefined),
+       secondAuditRef.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ test("bulk owner grants report partial failures and safely replay successful targets", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `bulk_grant_owner_${tag}`;
+   const memberA = `bulk_grant_a_${tag}`;
+   const memberB = `bulk_grant_b_${tag}`;
+   const missing = `bulk_grant_missing_${tag}`;
+   const itemId = "title_custom";
+   const requestId = `bulk_grant_${tag}`;
+   const memberRefs = [db.collection("users").doc(memberA), db.collection("users").doc(memberB)];
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const targetUids = [memberA, memberB, missing];
+   const grantIds = targetUids.map((uid) => makeGrantId(requestId, uid));
+ 
+   await Promise.all([
+     memberRefs[0].set({ uid: memberA, accountStatus: "active", coins: 100 }),
+     memberRefs[1].set({ uid: memberB, accountStatus: "active", coins: 200 }),
+     itemRef.set({
+       itemId, name: "Custom title", description: "Bulk owner free-grant fixture",
+       category: "title", priceCoins: 100, durationDays: 30, sortOrder: 2,
+       active: true, purchaseEnabled: false, fulfillmentReady: true,
+     }),
+   ]);
+ 
+   try {
+     const input = {
+       targetUids, itemId, requestId, durationHours: 168,
+       reason: "Approved bulk owner grant",
+     };
+     const first = await bulkGrantStoreEntitlements.run(ownerRequest(ownerUid, input));
+     assert.equal(first.total, 3);
+     assert.equal(first.granted, 2);
+     assert.equal(first.failed, 1);
+     assert.equal(first.replayed, 0);
+     assert.deepEqual(first.results.map((result) => result.status), ["granted", "granted", "failed"]);
+     assert.equal(first.results[2].errorCode, "not-found");
+ 
+     const replay = await bulkGrantStoreEntitlements.run(ownerRequest(ownerUid, input));
+     assert.equal(replay.granted, 2);
+     assert.equal(replay.replayed, 2);
+     assert.equal(replay.failed, 1);
+     assert.equal((await memberRefs[0].get()).data().coins, 100);
+     assert.equal((await memberRefs[1].get()).data().coins, 200);
+     assert.equal((await memberRefs[0].collection("entitlementGrantLedger").get()).size, 1);
+     assert.equal((await memberRefs[1].collection("entitlementGrantLedger").get()).size, 1);
+   } finally {
+     await Promise.all([
+       ...memberRefs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)),
+       itemRef.delete().catch(() => undefined),
+       ...grantIds.map((id) => db.collection("ownerEntitlementGrants").doc(id).delete().catch(() => undefined)),
+       ...grantIds.map((id) => db.collection("adminAuditLogs").doc(`owner_entitlement_grant_${id}`).delete().catch(() => undefined)),
+     ]);
+   }
+ });
+ 
+ test("bulk owner grant rejects duplicate target IDs and unsupported duration values", async () => {
+   const ownerUid = `bulk_validation_owner_${suffix()}`;
+   const base = {
+     itemId: "vip_monthly", requestId: `invalid_grant_${suffix()}`,
+     durationHours: 24, reason: "Approved test reason",
+   };
+   await assert.rejects(
+     () => bulkGrantStoreEntitlements.run(ownerRequest(ownerUid, { ...base, targetUids: ["same", "same"] })),
+     (error) => error && error.code === "invalid-argument",
+   );
+   await assert.rejects(
+     () => grantStoreEntitlement.run(ownerRequest(ownerUid, { ...base, memberUid: "member", durationHours: 48 })),
+     (error) => error && error.code === "invalid-argument",
+   );
+   await assert.rejects(
+     () => grantStoreEntitlement.run(ownerRequest(ownerUid, { ...base, memberUid: "bad/member" })),
+     (error) => error && error.code === "invalid-argument",
+   );
+diff --git a/functions/test/integration/room-rental.integration.test.js b/functions/test/integration/room-rental.integration.test.js
+index a3dcb742..97997a8b 100644
+--- a/functions/test/integration/room-rental.integration.test.js
++++ b/functions/test/integration/room-rental.integration.test.js
+@@ -1,188 +1,211 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getFirestore } = require("firebase-admin/firestore");
+ const { createRentedRoom, renewRoomRental, transferRoomOwnership, closeOwnedRoom, inviteMemberToRoom, getRoomRentalPlans, setRoomRentalPlans } = require("../../lib/index");
+ 
+ const db = getFirestore();
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+ const memberRequest = (uid, data) => ({
+   data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const ownerRequest = (uid, data) => ({
+   data, auth: { uid, token: { platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now()/1000),
+     firebase: { sign_in_second_factor: "phone" } } },
+ });
+ 
+ test("room rental plans are editable only by MFA owner and expose versioned published prices", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const uid = `room_pricing_owner_${suffix()}`;
+   const plans = [
+     { planId: "room_30d", name: "30 days", durationDays: 30, priceCoins: 1000, active: true },
+     { planId: "room_90d", name: "90 days", durationDays: 90, priceCoins: 2500, active: true },
+   ];
+   const result = await setRoomRentalPlans.run(ownerRequest(uid, { plans }));
+   assert.equal(result.saved, true);
+   const published = await getRoomRentalPlans.run(memberRequest(uid, {}));
+   assert.equal(published.version, result.version);
+   assert.equal(published.plans.length, 2);
+   assert.equal(published.plans[1].priceCoins, 2500);
+   await assert.rejects(
+     () => setRoomRentalPlans.run(memberRequest(uid, { plans })),
+     (error) => error && error.code === "permission-denied",
+   );
+   await assert.rejects(
+     () => setRoomRentalPlans.run(ownerRequest(uid, { plans: [{ ...plans[0], priceCoins: -1 }] })),
+     (error) => error && error.code === "invalid-argument",
+   );
+ });
+ 
+ test("member room rental debits atomically, renews idempotently, transfers and closes with audit trail", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `room_owner_${tag}`;
+   const newOwnerUid = `room_new_owner_${tag}`;
+   const userRef = db.collection("users").doc(ownerUid);
+   const newUserRef = db.collection("users").doc(newOwnerUid);
+   const settingsRef = db.doc("platformSettings/roomRentals");
+   const oldSettings = await settingsRef.get();
+   const oldSettingsData = oldSettings.exists ? oldSettings.data() : null;
+   const plans = [
+     { planId: "room_30d", name: "30 days", durationDays: 30, priceCoins: 1000, active: true },
+   ];
+   const requestId = `rent_${tag}`;
+   let roomId;
+   const seededAuditIds = [];
+   await Promise.all([
+     userRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active", age: 25 }),
+     newUserRef.set({ coins: 100, profileCompleted: true, accountStatus: "active", age: 25 }),
+     settingsRef.set({ plans, version: 1 }),
+   ]);
+   try {
+     const request = memberRequest(ownerUid, {
+       name: "Test rented room", capacity: 50, planId: "room_30d",
+       expectedPriceCoins: 1000, requestId,
+     });
+     const created = await createRentedRoom.run(request);
+     roomId = created.roomId;
+     assert.equal(created.priceCoins, 1000);
+     assert.equal(created.newBalance, 4000);
+     assert.equal((await userRef.get()).data().coins, 4000);
+     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "active");
++    const createLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_${requestId}`);
++    const createLedger = (await createLedgerRef.get()).data();
++    const createReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_${requestId}`).get()).data();
++    assert.equal(createLedger.balanceBefore, 5000);
++    assert.equal(createLedger.balanceAfter, 4000);
++    assert.equal(createReceipt.balanceBefore, 5000);
++    assert.equal(createReceipt.newBalance, 4000);
++    const createReplay = await createRentedRoom.run(request);
++    assert.equal(createReplay.idempotentReplay, true);
++    assert.equal((await userRef.get()).data().coins, 4000);
+     await assert.rejects(
+       () => createRentedRoom.run(memberRequest(ownerUid, {
+         ...request.data, capacity: 51,
+       })),
+       (error) => error && error.code === "already-exists",
+       "reusing a creation request ID with different room details must be rejected",
+     );
+     assert.equal((await userRef.get()).data().coins, 4000,
+       "a conflicting idempotency replay must not debit coins again");
+ 
+     const ledgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_${requestId}`);
+     assert.equal((await ledgerRef.get()).data().amount, -1000);
+ 
+     const renewRequest = memberRequest(ownerUid, {
+       roomId, planId: "room_30d", expectedPriceCoins: 1000, requestId: `renew_${tag}`,
+     });
+     const renewed = await renewRoomRental.run(renewRequest);
+     assert.equal(renewed.renewed, true);
++    const renewLedgerRef = userRef.collection("walletLedger").doc(`room_${ownerUid}_renew_${tag}`);
++    const renewLedger = (await renewLedgerRef.get()).data();
++    const renewReceipt = (await db.collection("roomRentals").doc(`${ownerUid}_renew_${tag}`).get()).data();
++    assert.equal(renewLedger.balanceBefore, 4000);
++    assert.equal(renewLedger.balanceAfter, 3000);
++    assert.equal(renewReceipt.balanceBefore, 4000);
++    assert.equal(renewReceipt.newBalance, 3000);
+     const replay = await renewRoomRental.run(renewRequest);
+     assert.equal(replay.idempotentReplay, true);
+     await assert.rejects(
+       () => renewRoomRental.run(memberRequest(ownerUid, {
+         ...renewRequest.data, planId: "room_90d",
+       })),
+       (error) => error && error.code === "already-exists",
+       "reusing a renewal request ID with a different plan must be rejected",
+     );
+     assert.equal((await userRef.get()).data().coins, 3000,
+       "a conflicting renewal replay must not debit coins again");
+     const supersededRental = await db.collection("roomRentals").doc(`${ownerUid}_${requestId}`).get();
+     assert.equal(supersededRental.data().status, "renewed");
+     assert.equal(supersededRental.data().supersededByRentalId, `${ownerUid}_renew_${tag}`);
+ 
+     await db.collection("rooms").doc(roomId).collection("members").doc(newOwnerUid).set({
+       uid: newOwnerUid, role: "member",
+     });
+     const transfer = await transferRoomOwnership.run(memberRequest(ownerUid, { roomId, newOwnerUid }));
+     assert.equal(transfer.transferred, true);
+     assert.equal((await db.collection("rooms").doc(roomId).get()).data().ownerUid, newOwnerUid);
+     await closeOwnedRoom.run(memberRequest(newOwnerUid, { roomId }));
+     assert.equal((await db.collection("rooms").doc(roomId).get()).data().status, "closed");
+     await assert.rejects(
+       () => inviteMemberToRoom.run(memberRequest(newOwnerUid, {
+         roomId, memberUid: ownerUid,
+       })),
+       (error) => error && error.code === "failed-precondition",
+       "closed rooms must reject new invitations",
+     );
+     const closedReceipt = await db.collection("roomRentals").doc(`${ownerUid}_renew_${tag}`).get();
+     assert.equal(closedReceipt.data().status, "closed_by_owner");
+     const ledger = await db.collection("users").doc(ownerUid).collection("walletLedger").get();
+     assert.equal(ledger.size, 2);
++    await createLedgerRef.delete();
++    await assert.rejects(
++      () => createRentedRoom.run(request),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await userRef.get()).data().coins, 3000);
+     const audit = await db.collection("roomAuditLogs").where("roomId", "==", roomId).get();
+     assert.ok(audit.docs.some((doc) => doc.data().action === "room_ownership_transferred"));
+     assert.ok(audit.docs.some((doc) => doc.data().action === "room_closed"));
+   } finally {
+     if (roomId) {
+       const roomRef = db.collection("rooms").doc(roomId);
+       const [members, moderators] = await Promise.all([
+         roomRef.collection("members").get(), roomRef.collection("moderators").get(),
+       ]);
+       await Promise.all([...members.docs, ...moderators.docs].map((doc) => doc.ref.delete()));
+       await roomRef.delete().catch(() => undefined);
+     await db.collection("roomRentals").doc(`expiry_rental_${tag}`).delete().catch(() => undefined);
+       const rentals = await db.collection("roomRentals").where("roomId", "==", roomId).get();
+       await Promise.all(rentals.docs.map((doc) => doc.ref.delete()));
+       const audit = await db.collection("roomAuditLogs").where("roomId", "==", roomId).get();
+       await Promise.all(audit.docs.map((doc) => doc.ref.delete()));
+     }
+     const ledger = await userRef.collection("walletLedger").get();
+     await Promise.all(ledger.docs.map((doc) => doc.ref.delete()));
+     await Promise.all([userRef.delete(), newUserRef.delete()]);
+     if (oldSettingsData) await settingsRef.set(oldSettingsData);
+     else await settingsRef.delete().catch(() => undefined);
+   }
+ });
+ 
+ 
+ test("scheduled rental expiry freezes for grace period then closes without deleting records", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const roomId = `expiry_room_${tag}`;
+   const ownerUid = `expiry_owner_${tag}`;
+   const roomRef = db.collection("rooms").doc(roomId);
+   const notificationQuery = db.collection("notifications").where("userId", "==", ownerUid);
+   const seededNotifications = await notificationQuery.get();
+   const oldNotificationIds = new Set(seededNotifications.docs.map((doc) => doc.id));
+   const { processExpiredRoomRentals } = require("../../lib/index");
+   try {
+     const rentalRef = db.collection("roomRentals").doc(`expiry_rental_${tag}`);
+     await rentalRef.set({ rentalId: rentalRef.id, roomId, ownerUid, status: "active" });
+     await roomRef.set({
+       roomId, ownerUid, isRented: true, rentalId: rentalRef.id, status: "active",
+       expiresAt: require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000),
+     });
+     await processExpiredRoomRentals.run();
+     let room = (await roomRef.get()).data();
+     assert.equal(room.status, "frozen");
+     assert.ok(room.freezeExpiresAt.toMillis() > Date.now());
+     assert.equal((await rentalRef.get()).data().status, "grace_period");
+     await roomRef.update({
+       freezeExpiresAt: require("firebase-admin/firestore").Timestamp.fromMillis(Date.now() - 1000),
+     });
+     await processExpiredRoomRentals.run();
+     room = (await roomRef.get()).data();
+     assert.equal(room.status, "closed");
+     assert.equal(room.closeReason, "rental_expired");
+     assert.equal((await rentalRef.get()).data().status, "expired");
+     const notifications = await notificationQuery.get();
+     assert.ok(notifications.docs.some((doc) => !oldNotificationIds.has(doc.id)));
+     assert.ok((await roomRef.get()).exists);
+   } finally {
+     const notifications = await notificationQuery.get();
+     await Promise.all(notifications.docs.filter((doc) => !oldNotificationIds.has(doc.id))
+       .map((doc) => doc.ref.delete()));
+     await roomRef.delete().catch(() => undefined);
+   }
+ });
+diff --git a/functions/test/integration/wallet-store.integration.test.js b/functions/test/integration/wallet-store.integration.test.js
+index 1985df93..4dea8546 100644
+--- a/functions/test/integration/wallet-store.integration.test.js
++++ b/functions/test/integration/wallet-store.integration.test.js
+@@ -1,470 +1,527 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getFirestore } = require("firebase-admin/firestore");
+ const {
+   transferCoins, purchaseStoreItem, getOwnerStoreCatalog, setStoreCatalogItem, getOwnerEconomyPricing,
+   setOwnerEconomyPricing, createCoinPurchaseRequest, getMyCoinPurchaseRequests,
+-  setCoinPurchasePaymentInstructions, approveCoinPurchaseRequest,
++  setCoinPurchasePaymentInstructions, requestCoinPurchasePaymentVerification, approveCoinPurchaseRequest,
+   rejectCoinPurchaseRequest, withdrawCoinPurchaseRequest, listOwnerCoinPurchaseRequests,
+   sendOwnerLiveStream,
+   deleteDirectMessageForEveryone, deleteRoomMessage,
+ } = require("../../lib/index");
+ const { createDirectChatId } = require("../../lib/direct-chat-id");
+ 
+ const db = getFirestore();
+ const memberRequest = (uid, data) => ({
+   data,
+   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+ const ownerRequest = (uid = "store-catalog-owner", data = {}) => ({
+   data,
+   auth: { uid, token: {
+     platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now() / 1000),
+     firebase: { sign_in_second_factor: "phone" },
+   } },
+ });
+ 
+ test("coin transfer atomically writes both wallet ledgers and platform commission; retries are idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const senderUid = `sender_${tag}`;
+   const recipientUid = `recipient_${tag}`;
+   const requestId = `transfer_${tag}`;
+   const transferId = `${senderUid}_${requestId}`;
+   const senderRef = db.collection("users").doc(senderUid);
+   const recipientRef = db.collection("users").doc(recipientUid);
+   const settingsRef = db.doc("platformSettings/coinTransfers");
+   const transferRef = db.collection("coinTransfers").doc(transferId);
+   const senderLedgerRef = senderRef.collection("walletLedger").doc(transferId);
+   const recipientLedgerRef = recipientRef.collection("walletLedger").doc(transferId);
+   const platformLedgerRef = db.collection("platformWalletLedger").doc(transferId);
+ 
+   await Promise.all([
+     senderRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
+     recipientRef.set({ coins: 200, profileCompleted: true, accountStatus: "active" }),
+     settingsRef.set({ enabled: true, commissionBps: 2000, version: 1 }),
+   ]);
+ 
+   try {
+     const request = memberRequest(senderUid, {
+       recipientUid, amount: 1000, requestId, expectedCommissionBps: 2000,
+     });
+     const concurrentResults = await Promise.all([
+       transferCoins.run(request),
+       transferCoins.run(request),
+     ]);
+     assert.equal(concurrentResults.filter((value) => value.idempotentReplay === false).length, 1);
+     assert.equal(concurrentResults.filter((value) => value.idempotentReplay === true).length, 1);
+     const result = concurrentResults.find((value) => value.idempotentReplay === false);
+     assert.ok(result);
+     assert.equal(result.grossAmount, 1000);
+     assert.equal(result.commissionAmount, 200);
+     assert.equal(result.netAmount, 800);
+ 
+     const [sender, recipient, senderLedger, recipientLedger, platformLedger, transfer] =
+       await Promise.all([
+         senderRef.get(), recipientRef.get(), senderLedgerRef.get(),
+         recipientLedgerRef.get(), platformLedgerRef.get(), transferRef.get(),
+       ]);
+     assert.equal(sender.data().coins, 4000);
+     assert.equal(recipient.data().coins, 1000);
+     assert.equal(senderLedger.data().amount, -1000);
++    assert.equal(senderLedger.data().balanceBefore, 5000);
++    assert.equal(senderLedger.data().balanceAfter, 4000);
++    assert.equal(recipientLedger.data().balanceBefore, 200);
++    assert.equal(recipientLedger.data().balanceAfter, 1000);
++    assert.equal(transfer.data().senderBalanceBefore, 5000);
++    assert.equal(transfer.data().senderBalanceAfter, 4000);
++    assert.equal(transfer.data().recipientBalanceBefore, 200);
++    assert.equal(transfer.data().recipientBalanceAfter, 1000);
+     assert.equal(senderLedger.data().commissionAmount, 200);
+     assert.equal(senderLedger.data().recipientUid, recipientUid);
+     assert.equal(senderLedger.data().recipientNetAmount, 800);
+     assert.equal(recipientLedger.data().amount, 800);
+     assert.equal(recipientLedger.data().senderUid, senderUid);
+     assert.equal(recipientLedger.data().transferId, transferId);
+     assert.equal(platformLedger.data().amount, 200);
+     assert.equal(platformLedger.data().transferId, transferId);
+     assert.equal(transfer.data().status, "completed");
+ 
+     const replay = await transferCoins.run(request);
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await senderRef.get()).data().coins, 4000);
+     assert.equal((await recipientRef.get()).data().coins, 1000);
++    await platformLedgerRef.delete();
++    await assert.rejects(
++      () => transferCoins.run(request),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await senderRef.get()).data().coins, 4000);
++    assert.equal((await recipientRef.get()).data().coins, 1000);
+ 
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(senderUid, {
+         recipientUid, amount: 1000, requestId: `other_${tag}`, expectedCommissionBps: 1500,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     await Promise.all([
+       senderLedgerRef.delete().catch(() => undefined),
+       recipientLedgerRef.delete().catch(() => undefined),
+       platformLedgerRef.delete().catch(() => undefined),
+       transferRef.delete().catch(() => undefined),
+       senderRef.delete().catch(() => undefined),
+       recipientRef.delete().catch(() => undefined),
+       // Restore shared test setting to a disabled state, not a production value.
+       settingsRef.set({ enabled: false, commissionBps: 0, version: 0 }),
+     ]);
+   }
+ });
+ 
+ test("coin transfer rejects a suspended account and leaves both balances unchanged", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const senderUid = `suspended_sender_${tag}`;
+   const recipientUid = `active_recipient_${tag}`;
+   const senderRef = db.collection("users").doc(senderUid);
+   const recipientRef = db.collection("users").doc(recipientUid);
+   await Promise.all([
+     senderRef.set({ coins: 1000, isSuspended: true }),
+     recipientRef.set({ coins: 100 }),
+     db.doc("platformSettings/coinTransfers").set({ enabled: true, commissionBps: 1000 }),
+   ]);
+   try {
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(senderUid, {
+         recipientUid, amount: 100, requestId: `suspended_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+     assert.equal((await senderRef.get()).data().coins, 1000);
+     assert.equal((await recipientRef.get()).data().coins, 100);
+   } finally {
+     await Promise.all([
+       senderRef.delete().catch(() => undefined),
+       recipientRef.delete().catch(() => undefined),
+       db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
+     ]);
+   }
+ });
+ 
+ test("coin transfer rejects an ineligible recipient and insufficient sender balance without partial writes", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const senderUid = `eligible_sender_${tag}`;
+   const blockedRecipientUid = `blocked_recipient_${tag}`;
+   const poorSenderUid = `poor_sender_${tag}`;
+   const eligibleRecipientUid = `eligible_recipient_${tag}`;
+   const refs = [
+     db.collection("users").doc(senderUid),
+     db.collection("users").doc(blockedRecipientUid),
+     db.collection("users").doc(poorSenderUid),
+     db.collection("users").doc(eligibleRecipientUid),
+   ];
+   await Promise.all([
+     refs[0].set({ coins: 1000, accountStatus: "active" }),
+     refs[1].set({ coins: 100, accountStatus: "disabled" }),
+     refs[2].set({ coins: 10, accountStatus: "active" }),
+     refs[3].set({ coins: 50, accountStatus: "active" }),
+     db.doc("platformSettings/coinTransfers").set({ enabled: true, commissionBps: 1000 }),
+   ]);
+   try {
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(senderUid, {
+         recipientUid: blockedRecipientUid, amount: 100,
+         requestId: `blocked_recipient_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => transferCoins.run(memberRequest(poorSenderUid, {
+         recipientUid: eligibleRecipientUid, amount: 100,
+         requestId: `insufficient_${tag}`, expectedCommissionBps: 1000,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await refs[0].get()).data().coins, 1000);
+     assert.equal((await refs[1].get()).data().coins, 100);
+     assert.equal((await refs[2].get()).data().coins, 10);
+     assert.equal((await refs[3].get()).data().coins, 50);
+     const failedTransfers = await db.collection("coinTransfers")
+       .where("senderUid", "in", [senderUid, poorSenderUid]).get();
+     assert.equal(failedTransfers.empty, true);
+   } finally {
+     await Promise.all([
+       ...refs.map((ref) => ref.delete().catch(() => undefined)),
+       db.doc("platformSettings/coinTransfers").set({ enabled: false, commissionBps: 0, version: 0 }),
+     ]);
+   }
+ });
+ 
+ test("store purchase atomically charges, records receipt and ledger, grants entitlement, and is idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `store_member_${tag}`;
+   const itemId = "vip_monthly";
+   const requestId = `purchase_${tag}`;
+   const purchaseId = `${uid}_${requestId}`;
+   const memberRef = db.collection("users").doc(uid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+   const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
+   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
+ 
+   await Promise.all([
+     memberRef.set({ coins: 5000, profileCompleted: true, accountStatus: "active" }),
+     itemRef.set({
+       name: "VIP test item", description: "Emulator-only entitlement test",
+       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
+       active: true, purchaseEnabled: true, fulfillmentReady: true,
+     }),
+   ]);
+   try {
+     const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+     const result = await purchaseStoreItem.run(request);
+     assert.equal(result.priceCoins, 1250);
+     assert.equal(result.newBalance, 3750);
+     assert.equal(result.idempotentReplay, false);
+ 
+     const [member, purchase, ledger, entitlement] = await Promise.all([
+       memberRef.get(), purchaseRef.get(), ledgerRef.get(), entitlementRef.get(),
+     ]);
+     assert.equal(member.data().coins, 3750);
+     assert.equal(purchase.data().status, "completed");
+     assert.equal(purchase.data().priceCoins, 1250);
+     assert.equal(ledger.data().amount, -1250);
++    assert.equal(ledger.data().balanceBefore, 5000);
++    assert.equal(ledger.data().balanceAfter, 3750);
++    assert.equal(purchase.data().balanceBefore, 5000);
++    assert.equal(purchase.data().newBalance, 3750);
+     assert.equal(ledger.data().purchaseId, purchaseId);
+     assert.equal(entitlement.data().status, "active");
+     assert.equal(entitlement.data().category, "vip");
+     assert.ok(entitlement.data().expiresAt.toMillis() > Date.now());
+ 
+     const replay = await purchaseStoreItem.run(request);
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await memberRef.get()).data().coins, 3750);
++    await ledgerRef.delete();
++    await assert.rejects(
++      () => purchaseStoreItem.run(request),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await memberRef.get()).data().coins, 3750);
+ 
+     await assert.rejects(
+       () => purchaseStoreItem.run(memberRequest(uid, {
+         itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     await Promise.all([
+       ledgerRef.delete().catch(() => undefined),
+       purchaseRef.delete().catch(() => undefined),
+       entitlementRef.delete().catch(() => undefined),
+       itemRef.delete().catch(() => undefined),
+       memberRef.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ 
+ test("owner catalog seeds approved features as ready while keeping purchases disabled", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const result = await getOwnerStoreCatalog.run(ownerRequest());
+   const items = result.items;
+   const expected = new Map([
+     ["vip_monthly", 5000], ["title_custom", 800], ["badge_special", 1200],
+     ["avatar_frame_30d", 2500], ["username_color_30d", 1200],
+     ["username_animated_30d", 3000], ["profile_analytics_30d", 1800],
+     ["profile_layout_30d", 3500], ["profile_pin_30d", 900],
+     ["discovery_boost_7d", 1500], ["profile_theme_30d", 2000],
+     ["visitor_greeting_30d", 1000], ["hide_coins_30d", 1000], ["ghost_mode_7d", 1800],
+   ]);
+   for (const [itemId, price] of expected) {
+     const item = items.find((entry) => entry.itemId === itemId);
+     assert.ok(item, `missing starter catalog item: ${itemId}`);
+     assert.equal(item.priceCoins, price);
+     const implemented = !["hide_coins_30d", "ghost_mode_7d"].includes(itemId);
+     assert.equal(item.active, implemented);
+     assert.equal(item.purchaseEnabled, false);
+     assert.equal(item.fulfillmentReady, implemented);
+   }
+ });
+ 
+ 
+ test("owner economy prices seed safely and can be edited without enabling real-money checkout", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const settingsRef = db.doc("platformSettings/economyPricing");
+   const previous = await settingsRef.get();
+   const previousData = previous.exists ? previous.data() : null;
+   try {
+     const seeded = await getOwnerEconomyPricing.run(ownerRequest());
+     assert.equal(seeded.realMoneyCheckoutEnabled, false);
+     assert.equal(seeded.coinPackages.length, 5);
+     assert.equal(seeded.adPrices.length, 4);
+     assert.equal(seeded.coinPackages[0].priceMinor, 99);
+     const updatedPackages = seeded.coinPackages.map((p) =>
+       p.packageId === "coins_1000" ? { ...p, priceMinor: 109 } : p);
+     const saved = await setOwnerEconomyPricing.run(ownerRequest("store-catalog-owner", {
+       coinPackages: updatedPackages, adPrices: seeded.adPrices,
+     }));
+     assert.equal(saved.saved, true);
+     assert.equal(saved.realMoneyCheckoutEnabled, false);
+     const readback = await getOwnerEconomyPricing.run(ownerRequest());
+     assert.equal(readback.version, saved.version);
+     assert.equal(readback.coinPackages.find((p) => p.packageId === "coins_1000").priceMinor, 109);
+     await assert.rejects(
+       () => setOwnerEconomyPricing.run(memberRequest("not_owner", {
+         coinPackages: updatedPackages, adPrices: seeded.adPrices,
+       })),
+       (error) => error && error.code === "permission-denied",
+     );
+   } finally {
+     if (previousData) await settingsRef.set(previousData);
+     else await settingsRef.delete().catch(() => undefined);
+   }
+ });
+ 
+ 
+ test("owner authority is bound to the single canonical owner UID", async () => {
+   const mismatched = ownerRequest("different-owner", {});
+   mismatched.auth.token.platformOwnerUid = "canonical-owner";
+   await assert.rejects(
+     () => listOwnerCoinPurchaseRequests.run(mismatched),
+     (error) => error && error.code === "permission-denied",
+   );
+   const missing = ownerRequest("legacy-owner", {});
+   delete missing.auth.token.platformOwnerUid;
+   await assert.rejects(
+     () => listOwnerCoinPurchaseRequests.run(missing),
+     (error) => error && error.code === "permission-denied",
+   );
+ });
+ 
+ test("manual coin package request issues no coins until owner verifies external payment; approval is atomic and idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `manual_coin_member_${tag}`;
+   const requestId = `manual_${tag}`;
+   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+   const userRef = db.collection("users").doc(uid);
+   const ledgerRef = userRef.collection("walletLedger").doc(`coin_purchase_${requestId}`);
++  const approvalAuditRef = db.collection("adminAuditLogs")
++    .doc(`coin_purchase_approval_${uid}_${requestId}`);
+   const settingsRef = db.doc("platformSettings/economyPricing");
+   await Promise.all([
+     userRef.set({ coins: 40, profileCompleted: true, accountStatus: "active" }),
+     settingsRef.set({
+       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+         priceMinor: 500, currency: "EUR", active: true }],
+       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+         priceMinor: 100, currency: "EUR", active: true }],
+       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+     }),
+   ]);
+   try {
+     const member = memberRequest(uid, { requestId, kind: "package", packageId: "test_pack" });
+     const created = await createCoinPurchaseRequest.run(member);
+     assert.equal(created.status, "pending_owner_contact");
+     const memberRequests = await getMyCoinPurchaseRequests.run(member);
+     assert.equal(memberRequests.requests.length, 1);
+     assert.equal(memberRequests.requests[0].requestId, requestId);
+     assert.equal((await userRef.get()).data().coins, 40);
+     assert.equal((await requestDoc.get()).data().status, "pending_owner_contact");
+ 
+     const instructionResult = await setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
+       requesterUid: uid, requestId, instructions: "يرجى التواصل مع المالك لإتمام التحويل البنكي",
+       agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
++      expectedInstructionsVersion: 0,
+     }));
+     assert.equal((await requestDoc.get()).data().status, "payment_instructions_sent");
++    assert.equal((await requestDoc.get()).data().paymentPolicySnapshot.manualEnabled, true);
++    await assert.rejects(
++      () => withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId })),
++      (error) => error && error.code === "failed-precondition",
++    );
++    await assert.rejects(
++      () => setCoinPurchasePaymentInstructions.run(ownerRequest("manual-owner", {
++        requesterUid: uid, requestId, instructions: "تعديل ممنوع بعد الإصدار",
++        agreedCoins: 900, agreedPriceMinor: 500, currency: "EUR",
++        expectedInstructionsVersion: 0,
++      })),
++      (error) => error && error.code === "failed-precondition",
++    );
++    const reported = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
++      requestId, expectedInstructionsVersion: 1,
++    }));
++    assert.equal(reported.status, "awaiting_payment_verification");
++    assert.equal(reported.idempotentReplay, false);
++    assert.equal((await userRef.get()).data().coins, 40);
++    const reportReplay = await requestCoinPurchasePaymentVerification.run(memberRequest(uid, {
++      requestId, expectedInstructionsVersion: 1,
++    }));
++    assert.equal(reportReplay.idempotentReplay, true);
+     assert.ok(instructionResult.chatId);
+     const chatMessages = await db.collection("directChats").doc(instructionResult.chatId)
+       .collection("messages").get();
+     assert.equal(chatMessages.size, 1);
+     assert.equal(chatMessages.docs[0].data().isPlatformOwnerMessage, true);
+     assert.match(chatMessages.docs[0].data().text, /تعليمات الدفع/);
+     assert.equal((await userRef.get()).data().coins, 40);
+ 
+     const approvalInput = {
+       requesterUid: uid, requestId, externalPaymentVerified: true,
+       externalPaymentReference: `verified-${tag}`,
+       verificationNote: "تحقق المالك يدوياً من وصول المبلغ إلى الحساب الخارجي",
+     };
+     const approved = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+     assert.equal(approved.status, "approved");
+     assert.equal(approved.newBalance, 940);
+     assert.equal(approved.idempotentReplay, false);
+     const [user, ledger, purchase] = await Promise.all([
+       userRef.get(), ledgerRef.get(), requestDoc.get(),
+     ]);
+     assert.equal(user.data().coins, 940);
+     assert.equal(ledger.data().amount, 900);
+     assert.equal(ledger.data().type, "coin_purchase_manual_credit");
+     assert.equal(ledger.data().externalPaymentReference, `verified-${tag}`);
+     assert.equal(purchase.data().status, "approved");
+ 
+     const replay = await approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput));
+     assert.equal(replay.idempotentReplay, true);
+     assert.equal((await userRef.get()).data().coins, 940);
+-    assert.equal((await db.collection("adminAuditLogs")
+-      .doc(`coin_purchase_approval_${uid}_${requestId}`).get()).exists, true);
++    assert.equal((await approvalAuditRef.get()).exists, true);
++    await approvalAuditRef.delete();
++    await assert.rejects(
++      () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", approvalInput)),
++      (error) => error && error.code === "failed-precondition",
++    );
++    assert.equal((await userRef.get()).data().coins, 940);
+   } finally {
+     await Promise.all([
+       ledgerRef.delete().catch(() => undefined),
++      approvalAuditRef.delete().catch(() => undefined),
+       requestDoc.delete().catch(() => undefined),
+       userRef.delete().catch(() => undefined),
+       settingsRef.delete().catch(() => undefined),
+     ]);
+   }
+ });
+ 
+ test("custom coin request is negotiated manually and a withdrawn request cannot be credited", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const uid = `manual_custom_member_${tag}`;
+   const requestId = `custom_${tag}`;
+   const requestDoc = db.collection("coinPurchaseRequests").doc(`${uid}_${requestId}`);
+   const userRef = db.collection("users").doc(uid);
+   await Promise.all([
+     userRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" }),
+     db.doc("platformSettings/economyPricing").set({
+       coinPackages: [{ packageId: "test_pack", name: "Test package", coins: 900,
+         priceMinor: 500, currency: "EUR", active: true }],
+       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
+         priceMinor: 100, currency: "EUR", active: true }],
+       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+     }),
+   ]);
+   try {
+     await createCoinPurchaseRequest.run(memberRequest(uid, {
+       requestId, kind: "custom", requestedCoins: 12345,
+     }));
+     assert.equal((await requestDoc.get()).data().requestedCoins, 12345);
+     assert.equal((await userRef.get()).data().coins, 25);
+     await withdrawCoinPurchaseRequest.run(memberRequest(uid, { requestId }));
+     assert.equal((await requestDoc.get()).data().status, "withdrawn");
+     await assert.rejects(
+       () => approveCoinPurchaseRequest.run(ownerRequest("manual-owner", {
+         requesterUid: uid, requestId, externalPaymentVerified: true,
+         externalPaymentReference: "external-ref-123",
+         verificationNote: "تم التحقق يدوياً من التحويل",
+       })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 25);
+     assert.equal((await db.collection("users").doc(uid).collection("walletLedger").get()).empty, true);
+   } finally {
+     await Promise.all([requestDoc.delete().catch(() => undefined), userRef.delete().catch(() => undefined), db.doc("platformSettings/economyPricing").delete().catch(() => undefined)]);
+   }
+ });
+ 
+ 
+ test("owner live streams are scoped to owner direct chats or active rooms and are idempotent", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const tag = suffix();
+   const ownerUid = `live_owner_${tag}`;
+   const memberUid = `live_member_${tag}`;
+   const chatId = createDirectChatId(ownerUid, memberUid);
+   const chatRef = db.collection("directChats").doc(chatId);
+   const memberRef = db.collection("users").doc(memberUid);
+   const directRequestId = `live_direct_${tag}`;
+   const directMessageId = require("node:crypto").createHash("sha256")
+     .update("owner-live-stream:" + ownerUid + ":direct:" + chatId + ":" + directRequestId).digest("hex");
+   await Promise.all([
+     chatRef.set({ participantUids: [ownerUid, memberUid].sort(), createdAt: new Date() }),
+     memberRef.set({ profileCompleted: true, accountStatus: "active", coins: 0 }),
+   ]);
+   try {
+     const directInput = {
+       requestId: directRequestId, scope: "direct", targetId: chatId,
+       url: "https://www.youtube.com/watch?v=abc123", title: "بث المباراة",
+       description: "رابط بث رسمي",
+     };
+     const sent = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+     assert.equal(sent.idempotentReplay, false);
+     assert.equal(sent.provider, "youtube");
+     const messageRef = chatRef.collection("messages").doc(directMessageId);
+     const message = await messageRef.get();
+     assert.equal(message.data().type, "live_stream");
+     assert.equal(message.data().isPlatformOwnerMessage, true);
+     assert.equal(message.data().liveStream.hostname, "www.youtube.com");
+     const replay = await sendOwnerLiveStream.run(ownerRequest(ownerUid, directInput));
+     assert.equal(replay.idempotentReplay, true);
+     await deleteDirectMessageForEveryone.run(ownerRequest(ownerUid, { chatId, messageId: directMessageId }));
+diff --git a/lib/screens/coin_purchase_screen.dart b/lib/screens/coin_purchase_screen.dart
+index 321b28ab..56f103c4 100644
+--- a/lib/screens/coin_purchase_screen.dart
++++ b/lib/screens/coin_purchase_screen.dart
+@@ -1,168 +1,196 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ import 'direct_chat_screen.dart';
+ 
+ class CoinPurchaseScreen extends StatefulWidget {
+   const CoinPurchaseScreen({super.key});
+   @override
+   State<CoinPurchaseScreen> createState() => _CoinPurchaseScreenState();
+ }
+ 
+ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
+   final _functions = FirebaseFunctions.instance;
+   final _customCoins = TextEditingController();
+   List<Map<String, dynamic>> _packages = [];
+   List<Map<String, dynamic>> _requests = [];
+   bool _loading = true, _sending = false;
+   String? _error;
+ 
+   @override
+   void initState() { super.initState(); _load(); }
+   @override
+   void dispose() { _customCoins.dispose(); super.dispose(); }
+ 
+   Future<void> _load() async {
+     setState(() { _loading = true; _error = null; });
+     try {
+       final results = await Future.wait([
+         _functions.httpsCallable('getAvailableCoinPackages').call(),
+         _functions.httpsCallable('getMyCoinPurchaseRequests').call(),
+       ]);
+       final catalogue = Map<String, dynamic>.from(results[0].data as Map);
+       final requests = Map<String, dynamic>.from(results[1].data as Map);
+       if (!mounted) return;
+       setState(() {
+         _packages = (catalogue['packages'] as List<dynamic>? ?? const [])
+             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+         _requests = (requests['requests'] as List<dynamic>? ?? const [])
+             .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+       });
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الشراء.');
+     } finally { if (mounted) setState(() => _loading = false); }
+   }
+ 
+   Future<void> _submitRequest(Map<String, dynamic> details) async {
+     if (_sending) return;
+     setState(() { _sending = true; _error = null; });
+     try {
+       await _functions.httpsCallable('createCoinPurchaseRequest').call({
+         ...details, 'requestId': const Uuid().v4().replaceAll('-', '_'),
+       });
+       _customCoins.clear();
+       await _load();
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
+         'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف كوينز بعد.',
+       )));
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() => _error = e.message ?? 'تعذر تسجيل الطلب.');
+     } finally { if (mounted) setState(() => _sending = false); }
+   }
+ 
+   Future<void> _requestCustom() async {
+     final coins = int.tryParse(_customCoins.text.trim());
+     if (coins == null || coins < 1 || coins > 1000000000) {
+       setState(() => _error = 'أدخل كمية كوينز صحيحة بين 1 و1,000,000,000.');
+       return;
+     }
+     await _submitRequest({'kind': 'custom', 'requestedCoins': coins});
+   }
+ 
++  Future<void> _reportPaymentSent(Map<String, dynamic> item) async {
++    if (_sending) return;
++    final requestId = item['requestId'] as String? ?? '';
++    final version = (item['instructionsVersion'] as num?)?.toInt() ?? 0;
++    if (requestId.isEmpty || version < 1) return;
++    setState(() { _sending = true; _error = null; });
++    try {
++      await _functions.httpsCallable('requestCoinPurchasePaymentVerification').call({
++        'requestId': requestId, 'expectedInstructionsVersion': version,
++      });
++      await _load();
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
++        'تم إبلاغ المالك. هذا الإبلاغ ليس إثباتاً لوصول المبلغ، ولن تُضاف الكوينز حتى يتحقق المالك ويعتمد الطلب.',
++      )));
++    } on FirebaseFunctionsException catch (error) {
++      if (mounted) setState(() => _error = error.message ?? 'تعذر إبلاغ المالك.');
++    } finally {
++      if (mounted) setState(() => _sending = false);
++    }
++  }
++
+   Future<void> _withdraw(String requestId) async {
+     try {
+       await _functions.httpsCallable('withdrawCoinPurchaseRequest').call({'requestId': requestId});
+       await _load();
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(e.message ?? 'تعذر سحب الطلب.')),
+       );
+     }
+   }
+ 
+   String _status(String? value) => switch (value) {
+     'pending_owner_contact' => 'بانتظار تواصل المالك',
+     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
++    'awaiting_payment_verification' => 'الدفع قيد التحقق من المالك',
+     'approved' => 'تم الاعتماد وإضافة الكوينز',
+     'rejected' => 'مرفوض',
+     'withdrawn' => 'مسحوب',
+     _ => 'قيد المعالجة',
+   };
+ 
+   @override
+   Widget build(BuildContext context) => Scaffold(
+     appBar: AppBar(title: const Text('شراء الكوينز يدوياً'),
+       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))]),
+     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
+       padding: const EdgeInsets.all(16), children: [
+         const Card(child: Padding(padding: EdgeInsets.all(14), child: Text(
+           'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي كوينز عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
+         ))),
+         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+         Text('الباقات المتاحة', style: Theme.of(context).textTheme.titleLarge),
+         if (_packages.isEmpty) const Text('لا توجد باقات متاحة حالياً. يمكنك إرسال طلب كمية مخصصة.'),
+         ..._packages.map((item) => Card(child: ListTile(
+           title: Text(item['name'] as String? ?? 'باقة كوينز'),
+           subtitle: Text((item['coins'] ?? 0).toString() + ' كوين • ' +
+               (((item['priceMinor'] as num?) ?? 0).toDouble() / 100).toStringAsFixed(2) + ' EUR'),
+           trailing: FilledButton(
+             onPressed: _sending ? null : () => _submitRequest({
+               'kind': 'package', 'packageId': item['packageId'],
+             }),
+             child: const Text('طلب الباقة'),
+           ),
+         ))),
+         const Divider(height: 28),
+         Text('طلب كمية مخصصة', style: Theme.of(context).textTheme.titleLarge),
+         Row(children: [
+           Expanded(child: TextField(controller: _customCoins, enabled: !_sending,
+             keyboardType: TextInputType.number, decoration: const InputDecoration(
+               labelText: 'عدد الكوينز المطلوب', border: OutlineInputBorder(),
+             ))),
+           const SizedBox(width: 10),
+           FilledButton(onPressed: _sending ? null : _requestCustom, child: const Text('إرسال الطلب')),
+         ]),
+         const Divider(height: 28),
+         Text('طلباتي السابقة', style: Theme.of(context).textTheme.titleLarge),
+         if (_requests.isEmpty) const Text('لا توجد طلبات سابقة.'),
+         ..._requests.map((item) {
+           final status = item['status'] as String?;
+           final id = item['requestId'] as String? ?? '';
+           final coins = item['agreedCoins'] ?? item['requestedCoins'] ??
+               (item['packageSnapshot'] is Map ? item['packageSnapshot']['coins'] : null) ?? 'قيد التحديد';
+           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start, children: [
+               Text('الكمية: ' + coins.toString() + ' كوين'),
+               Text(_status(status)),
+               if (item['agreedPriceMinor'] is num)
+                 Text('السعر المتفق عليه: ' +
+                     (((item['agreedPriceMinor'] as num).toDouble() / 100).toStringAsFixed(2)) + ' EUR'),
+               if (item['paymentInstructions'] is String)
+                 SelectableText('تعليمات المالك: ' + (item['paymentInstructions'] as String)),
++              if (status == 'payment_instructions_sent')
++                Align(alignment: Alignment.centerLeft, child: FilledButton.tonal(
++                  onPressed: _sending ? null : () => _reportPaymentSent(item),
++                  child: const Text('أبلغت المالك بإرسال الدفعة'),
++                )),
+               if (item['chatId'] is String && FirebaseAuth.instance.currentUser?.uid != null)
+                 Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                     builder: (_) => DirectChatScreen(
+                       chatId: item['chatId'] as String,
+                       currentUserId: FirebaseAuth.instance.currentUser!.uid,
+                       peerName: 'إدارة منصة مودة',
+                     ),
+                   )),
+                   icon: const Icon(Icons.chat_outlined),
+                   label: const Text('فتح المحادثة مع مالك المنصة'),
+                 )),
+               if (item['rejectionReason'] is String)
+                 Text('سبب الرفض: ' + (item['rejectionReason'] as String)),
+-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
++              if (status == 'pending_owner_contact')
+                 Align(alignment: Alignment.centerLeft, child: TextButton(
+                   onPressed: _sending ? null : () => _withdraw(id), child: const Text('سحب الطلب'),
+                 )),
+             ],
+           )));
+         }),
+       ],
+     ),
+   );
+ }
+diff --git a/lib/screens/owner_coin_purchase_screen.dart b/lib/screens/owner_coin_purchase_screen.dart
+index 5de33c59..2b271c05 100644
+--- a/lib/screens/owner_coin_purchase_screen.dart
++++ b/lib/screens/owner_coin_purchase_screen.dart
+@@ -1,186 +1,191 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:flutter/material.dart';
+ import 'owner_chat_participation_screen.dart';
+ 
+ class OwnerCoinPurchaseScreen extends StatefulWidget {
+   const OwnerCoinPurchaseScreen({super.key});
+   @override
+   State<OwnerCoinPurchaseScreen> createState() => _OwnerCoinPurchaseScreenState();
+ }
+ 
+ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
+   final _functions = FirebaseFunctions.instance;
+   List<Map<String, dynamic>> _requests = [];
+   bool _loading = true, _busy = false;
+   String? _error;
+ 
+   @override
+   void initState() { super.initState(); _load(); }
+ 
+   Future<void> _load() async {
+     setState(() { _loading = true; _error = null; });
+     try {
+       final result = await _functions.httpsCallable('listOwnerCoinPurchaseRequests').call();
+       final data = Map<String, dynamic>.from(result.data as Map);
+       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
+           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
+     } on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الكوينز.');
+     } finally { if (mounted) setState(() => _loading = false); }
+   }
+ 
+   Future<void> _instructions(Map<String, dynamic> item) async {
+     final uid = item['requesterUid'] as String? ?? '';
+     final id = item['requestId'] as String? ?? '';
+     final requested = (item['requestedCoins'] as num?)?.toInt() ??
+         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
+     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
+     final price = TextEditingController(text: item['packageSnapshot'] is Map
+         ? ((item['packageSnapshot']['priceMinor'] ?? '').toString()) : '');
+     final instructions = TextEditingController();
+     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+       title: const Text('تعليمات الدفع والاتفاق'),
+       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+         Text('العضو: ' + uid),
+         TextField(controller: coins, keyboardType: TextInputType.number,
+           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
+         TextField(controller: price, keyboardType: TextInputType.number,
+           decoration: const InputDecoration(labelText: 'السعر بالسنت EUR')),
+         TextField(controller: instructions, minLines: 2, maxLines: 5,
+           decoration: const InputDecoration(labelText: 'تعليمات الدفع اليدوي')),
+       ])),
+       actions: [
+         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إرسال التعليمات')),
+       ],
+     ));
+     if (accepted != true || !mounted) {
+       coins.dispose(); price.dispose(); instructions.dispose(); return;
+     }
+     final coinAmount = int.tryParse(coins.text.trim());
+     final priceMinor = int.tryParse(price.text.trim());
+     if (coinAmount == null || priceMinor == null || instructions.text.trim().length < 5) {
+       setState(() => _error = 'أدخل كمية وسعراً وتعليمات صحيحة.');
+       coins.dispose(); price.dispose(); instructions.dispose(); return;
+     }
+     await _runAction(() => _functions.httpsCallable('setCoinPurchasePaymentInstructions').call({
+       'requesterUid': uid, 'requestId': id, 'agreedCoins': coinAmount,
+       'agreedPriceMinor': priceMinor, 'currency': 'EUR',
++      'expectedInstructionsVersion': (item['instructionsVersion'] as num?)?.toInt() ?? 0,
+       'instructions': instructions.text.trim(),
+     }));
+     coins.dispose(); price.dispose(); instructions.dispose();
+   }
+ 
+   Future<void> _approve(Map<String, dynamic> item) async {
+     final uid = item['requesterUid'] as String? ?? '';
+     final id = item['requestId'] as String? ?? '';
+     final reference = TextEditingController();
+     final note = TextEditingController();
+     bool confirmed = false;
+     final accepted = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(
+       builder: (ctx, setDialog) => AlertDialog(
+         title: const Text('تأكيد استلام الدفعة الخارجية'),
+         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+           const Text('لا تعتمد الطلب إلا بعد التحقق بنفسك من وصول المبلغ فعلياً إلى حساب الاستلام الخارجي.'),
+           TextField(controller: reference, decoration: const InputDecoration(labelText: 'مرجع التحويل/الإيصال')),
+           TextField(controller: note, minLines: 2, maxLines: 4,
+             decoration: const InputDecoration(labelText: 'ملاحظة التحقق')),
+           CheckboxListTile(value: confirmed, onChanged: (v) => setDialog(() => confirmed = v == true),
+             title: const Text('أؤكد أنني تحققت بنفسي من وصول المبلغ'), controlAffinity: ListTileControlAffinity.leading),
+         ])),
+         actions: [
+           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
+               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
+             child: const Text('اعتماد وإضافة الكوينز')),
+         ],
+       ),
+     ));
+     if (accepted == true && mounted) {
+       await _runAction(() => _functions.httpsCallable('approveCoinPurchaseRequest').call({
+         'requesterUid': uid, 'requestId': id, 'externalPaymentVerified': true,
+         'externalPaymentReference': reference.text.trim(), 'verificationNote': note.text.trim(),
+       }));
+     }
+     reference.dispose(); note.dispose();
+   }
+ 
+   Future<void> _reject(Map<String, dynamic> item) async {
+     final reason = TextEditingController();
+     final accepted = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+       title: const Text('رفض طلب الشراء'),
+       content: TextField(controller: reason, minLines: 2, maxLines: 4,
+         decoration: const InputDecoration(labelText: 'سبب الرفض')),
+       actions: [
+         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+         FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأكيد الرفض')),
+       ],
+     ));
+     if (accepted == true && mounted && reason.text.trim().length >= 5) {
+       await _runAction(() => _functions.httpsCallable('rejectCoinPurchaseRequest').call({
+         'requesterUid': item['requesterUid'], 'requestId': item['requestId'],
+         'reason': reason.text.trim(),
+       }));
+     }
+     reason.dispose();
+   }
+ 
+   Future<void> _runAction(Future<dynamic> Function() action) async {
+     if (_busy) return;
+     setState(() { _busy = true; _error = null; });
+     try { await action(); await _load(); }
+     on FirebaseFunctionsException catch (e) {
+       if (mounted) setState(() => _error = e.message ?? 'تعذر تنفيذ العملية.');
+     } finally { if (mounted) setState(() => _busy = false); }
+   }
+ 
+   @override
+   Widget build(BuildContext context) => Scaffold(
+     appBar: AppBar(title: const Text('طلبات شراء الكوينز اليدوية'),
+       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
+         icon: const Icon(Icons.refresh))]),
+     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
+       padding: const EdgeInsets.all(16), children: [
+         const Card(child: Padding(padding: EdgeInsets.all(12), child: Text(
+           'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف الكوينز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
+         ))),
+         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+         if (_requests.isEmpty) const Text('لا توجد طلبات شراء حالياً.'),
+         ..._requests.map((item) {
+           final status = item['status'] as String? ?? '';
+           final id = item['requestId'] as String? ?? '';
+           final amount = item['requestedCoins'] ?? item['agreedCoins'] ??
+               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
+           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start, children: [
+               Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
+               Text('الطلب: ' + id),
+               Text('الكمية: ' + amount.toString() + ' كوين'),
+               Text('الحالة: ' + status),
+               if (item['paymentInstructions'] is String)
+                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),
+               if (item['chatId'] is String)
+                 Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                   onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                     builder: (_) => OwnerChatParticipationScreen(chatId: item['chatId'] as String),
+                   )),
+                   icon: const Icon(Icons.chat_outlined),
+                   label: const Text('فتح المحادثة الثنائية مع العضو'),
+                 )),
+-              if (status == 'pending_owner_contact' || status == 'payment_instructions_sent')
++              if (status == 'pending_owner_contact' ||
++                  status == 'payment_instructions_sent' ||
++                  status == 'awaiting_payment_verification')
+                 Wrap(spacing: 8, children: [
+-                  OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
+-                    child: const Text('إرسال/تعديل تعليمات الدفع')),
+-                  if (status == 'payment_instructions_sent')
++                  if (status == 'pending_owner_contact')
++                    OutlinedButton(onPressed: _busy ? null : () => _instructions(item),
++                      child: const Text('إرسال تعليمات الدفع')),
++                  if (status == 'payment_instructions_sent' ||
++                      status == 'awaiting_payment_verification')
+                     FilledButton(onPressed: _busy ? null : () => _approve(item),
+                       child: const Text('تحقق واعتمد')),
+                   TextButton(onPressed: _busy ? null : () => _reject(item),
+                     child: const Text('رفض')),
+                 ]),
+             ],
+           )));
+         }),
+       ],
+     ),
+   );
+ }

@@ -1,0 +1,17 @@
+ddf9594ea6029036512ace621f513d6edf58a068	production home	2026-11-14T11:13:32+03:00	Validate recurring email verification rewards in CI
+4e424d8ff597b2048fdd18855f43fd2dca35f667	production home	2026-11-14T11:13:27+03:00	Add email renewal emulator integration command
+80d815a04b8352cc71eed44feeaec64707aacc6f	production home	2026-11-14T11:13:23+03:00	Add email renewal reward integration test
+1d473eb1f43387b1f83095afe51cb934d5b58a40	production home	2026-11-14T11:13:05+03:00	Implement recurring 90-day email verification and reward
+d28b6f05e6ba1899a55d06b86e337b7bace41073	production home	2026-11-14T11:11:36+03:00	Clarify biometric reward cooldown feedback
+2e7f9a61dddd9a190bca27be63debe8454de834d	production home	2026-11-14T11:11:28+03:00	Call canonical biometric reward cycle endpoint
+18c0b3e08e171a7f3be035aa963c4f67a7c466c5	production home	2026-11-14T11:11:21+03:00	Remove duplicate biometric cycle helper tests
+c2ea9f478decef6f0d1c16dcc29844f3e64e9935	production home	2026-11-14T11:11:18+03:00	Remove duplicate biometric cycle helper
+31f37b5b35b3484bcb78e4d42b87801f84274b6b	production home	2026-11-14T11:11:16+03:00	Use canonical biometric reward cycle callable
+cff845b3a002acb0795d62abb7425585be77fc58	production home	2026-11-14T11:10:42+03:00	Add member email renewal and reward UI
+2fd653dbf8aa7fa3dbf87cf9fd9084e58eef2c46	production home	2026-11-14T11:10:24+03:00	Use deterministic reference for expired email cycle cleanup
+9e031a48a160859051c28ca5b98a39f213d1c863	production home	2026-11-14T11:10:14+03:00	Harden email renewal transaction and retry behavior
+2c1a8584920acd5cdf583a36098a7389ffd7ab84	production home	2026-11-14T11:09:55+03:00	Implement recurring 90-day email verification rewards
+61acbca18d43a53dab1cf9eac937af255f2d8b44	production home	2026-11-14T11:08:52+03:00	Connect local biometric prompt to server reward cycle
+abfc375e9b2d75f7da078b94fdcfb36d140166e0	production home	2026-11-14T11:08:40+03:00	Add server-side biometric reward cycle callable
+4786250299c205c56ec70cb3e1668e85dca972e9	production home	2026-11-14T11:08:15+03:00	Test biometric reward cycle policy
+d06e108c05778b1e406555405d4acacebcbb2bfc	production home	2026-11-14T11:08:13+03:00	Add server-clocked biometric reward cycles

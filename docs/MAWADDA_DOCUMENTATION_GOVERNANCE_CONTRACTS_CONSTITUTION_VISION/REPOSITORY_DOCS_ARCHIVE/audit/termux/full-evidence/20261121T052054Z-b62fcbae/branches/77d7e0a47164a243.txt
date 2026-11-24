@@ -1,0 +1,25 @@
+BRANCH: codex/phase1-store-gift-permanent-entitlement-2026-11-20
+SHA: b4546e69543b70a08b4e50c678316ac848c70c06
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: b691d13dc5d74ab185f46e76bedd9c42d52cfa74
+
+=== DIVERGENCE target-only / branch-only ===
+195	2
+
+=== BRANCH UNIQUE COMMITS ===
+b4546e69543b70a08b4e50c678316ac848c70c06 test(economy): exercise permanent duration on approved VIP SKU
+fde49a451ca233a2693ac384fd7407de8be98498 test(economy): verify permanent gift entitlement and recipient eligibility
+
+=== CHERRY STATUS ===
++ fde49a451ca233a2693ac384fd7407de8be98498 test(economy): verify permanent gift entitlement and recipient eligibility
++ b4546e69543b70a08b4e50c678316ac848c70c06 test(economy): exercise permanent duration on approved VIP SKU
+
+=== FILE STATUS ===
+M	functions/test/integration/store-gifting.integration.test.js
+
+=== NUMSTAT ===
+98	0	functions/test/integration/store-gifting.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

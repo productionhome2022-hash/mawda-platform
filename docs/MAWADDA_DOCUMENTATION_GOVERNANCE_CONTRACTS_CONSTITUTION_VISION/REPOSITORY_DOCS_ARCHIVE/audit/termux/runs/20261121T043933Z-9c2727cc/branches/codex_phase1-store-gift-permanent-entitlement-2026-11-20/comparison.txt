@@ -1,0 +1,27 @@
+Branch: codex/phase1-store-gift-permanent-entitlement-2026-11-20
+Branch SHA: b4546e69543b70a08b4e50c678316ac848c70c06
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+193	2
+
+--- Merge base ---
+b691d13dc5d74ab185f46e76bedd9c42d52cfa74
+
+--- Changed files relative to common ancestor ---
+M	functions/test/integration/store-gifting.integration.test.js
+
+--- Diff statistics ---
+ .../integration/store-gifting.integration.test.js  | 98 ++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+b4546e69 (origin/codex/phase1-store-gift-permanent-entitlement-2026-11-20) test(economy): exercise permanent duration on approved VIP SKU
+fde49a45 test(economy): verify permanent gift entitlement and recipient eligibility
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CLEAN

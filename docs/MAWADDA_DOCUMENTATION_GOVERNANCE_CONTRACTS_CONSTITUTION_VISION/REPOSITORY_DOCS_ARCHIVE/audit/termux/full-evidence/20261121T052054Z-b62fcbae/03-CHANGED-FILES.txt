@@ -1,0 +1,926 @@
+
+### archive/development-pre-unification-2026-11-15 (f068a8b2e3ad91551c2b27c9f554de04bbfc609e)
+
+### archive/main-pre-unification-2026-11-15 (460a79a7dc2e16f4ad146af22aab58e152ad1e8c)
+
+### codex/biometric-final-owner-policy-2026-11-20 (08ffcf8d9435cdc1b295aba35ff6b3bc7eac4d23)
+
+### codex/biometric-final-policy-drift-closure-2026-11-20 (0089c556a7e241454cfbfb3223fff500cc8763bb)
+
+### codex/biometric-manual-review-gate-2026-11-20 (a82a0614f7526bfb56c6bcc93764a5b907406e95)
+
+### codex/biometric-server-lifecycle-2026-11-20 (f79f146e96b9a4ae1210a1fcc37a861ebebcd294)
+M	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+M	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+M	functions/package.json
+A	functions/src/biometric-evidence.ts
+A	functions/src/biometric-lifecycle.ts
+M	functions/src/biometric-media.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/test/biometric-evidence.test.js
+M	functions/test/biometric-media.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+M	lib/services/member_media_upload_service.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js
+
+### codex/biometric-video-duration-validation-2026-11-20 (be9b8109c8ae4b62a0b17e9b70a851307a3294f6)
+
+### codex/canonical-role-terminology-owner-confirmation-2026-11-19 (64ccc7b20445e7be15d6ec4d0be0e329f0250f11)
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+M	docs/RELEASE_READINESS_CHECKLIST.md
+
+### codex/economic-phase-completion-2026-11-18 (0914885232ff8bcfb64536c6655e7bff01b78361)
+A	.github/workflows/economic-phase-verification.yml
+M	.github/workflows/flutter-ci.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	firestore.indexes.json
+A	functions/src/call-usage-policy.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/featured-ad-finance.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+A	functions/src/wallet-reconciliation.ts
+A	functions/test/call-usage-policy.test.js
+M	functions/test/coin-purchase-requests.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/featured-ad-finance.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/integration/featured-ad-finance.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/room-call-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/call_usage_policy_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+
+### codex/economic-phase-controlled-integration-2026-11-19 (beec6e424ccdb1f1df24d44b2893212983508f7e)
+A	docs/ECONOMIC_PHASE_EXECUTION_AND_INTEGRATION_PLAN_2026-11-19.md
+A	docs/ECONOMIC_PHASE_EXECUTION_CHECKLIST_AND_STAGE_CLOSURE_2026-11-19.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+A	docs/LEGAL_GOVERNANCE_DOCUMENT_CONTROL_AUDIT_2026-11-19.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+
+### codex/economic-phase1-closeout-2026-11-18 (10564784494310761bb4249d703d646020209e35)
+A	docs/CALLS_EXECUTION_AUDIT_AND_REMEDIATION_2026-11-18.md
+A	docs/ECONOMIC_PHASE_COMPLETE_AUDIT_2026-11-18.md
+A	docs/ECONOMIC_PHASE_REMAINING_WORK_REGISTER_2026-11-18.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	functions/src/call-signaling.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/member-profile-view.ts
+A	functions/src/room-call-policy.ts
+A	functions/src/store-gifting.ts
+A	functions/test/call-signaling-policy.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/member-profile-view.test.js
+A	functions/test/room-call-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/member_entitlement_history_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+M	lib/screens/owner_entitlement_grants_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/rooms_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+
+### codex/economy-official-port-2026-11-18 (d5db16e3700abafa95ea5f114bfbe3c0be8c3b7c)
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/index.ts
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+
+### codex/economy-recovery-2026-11-18 (67adbaeccc02128f5e5a86ea01b0c4f63c09106f)
+A	.github/workflows/economy-regression.yml
+M	.github/workflows/flutter-ci.yml
+M	.github/workflows/resolve-flutter-lock.yml
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/OWNER_LIVE_STREAM_AND_MANUAL_COIN_REQUESTS.md
+A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/src/advertising-intake.ts
+A	functions/src/capacity-media-management.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/creator-proposals.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/email-verification-cycle.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+A	functions/src/wallet-reconciliation.ts
+M	functions/test/advertising-intake.test.js
+M	functions/test/biometric-reward-security.test.js
+A	functions/test/capacity-media-management.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/creator-proposals.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/email-verification-cycle.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+A	functions/test/integration/featured-ad-reward-policy.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/room-rental.integration.test.js
+A	functions/test/integration/store-catalog.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-policy.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+A	lib/screens/gift_coins_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+A	lib/screens/member_gift_history_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	lib/services/super_admin_security_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	pubspec.lock
+M	pubspec.yaml
+M	scanner/README.md
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+M	test/media_workspace_screen_test.dart
+
+### codex/featured-ads-secure-lifecycle-20261118 (b15b643f14bc6c1196bf914190778e053e2ac9b1)
+M	.github/workflows/mawdda-domain-regression.yml
+A	docs/CALL_ENTITLEMENT_IMPLEMENTATION_RECORD.md
+A	docs/FEATURED_ADVERTISING_SECURE_LIFECYCLE_IMPLEMENTATION.md
+M	docs/MAWDDA_ADVERTISING_AND_REWARDS_SPEC.md
+A	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+M	docs/RELEASE_READINESS_CHECKLIST.md
+A	docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+M	firestore.indexes.json
+M	functions/package.json
+A	functions/src/call-entitlements.ts
+A	functions/src/capacity-media-management.ts
+M	functions/src/chat-media-policy.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/test/call-entitlements.test.js
+A	functions/test/capacity-media-management.test.js
+M	functions/test/chat-media-policy.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+M	functions/test/rules/firestore.rules.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+A	lib/screens/owner_featured_ads_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/services/member_media_upload_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+
+### codex/featured-ads-serving-foundation (0fe15db693eb0a36a73c11a6e563e189069e74ba)
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	firestore.indexes.json
+M	functions/src/default-store-catalog.ts
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/src/store-catalog.ts
+M	functions/test/fixtures/feature-coverage-matrix.json
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/store-catalog.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/services/member_media_upload_service.dart
+M	pubspec.yaml
+M	test/featured_ads_screen_test.dart
+
+### codex/governance-biometric-integration-2026-11-19 (619eab643e2d5849b3b2c055461d53ba2be01753)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/models/app_models.dart
+A	lib/screens/biometric_verification_screen.dart
+M	lib/screens/main_user_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules
+
+### codex/mawda-phase2-hardening (f8abd722ececc988c555f0400cc7b558e762ae5a)
+M	.github/workflows/validate.yml
+M	docs/SECURE_MEDIA_INTAKE.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/scripts/test-signed-urls-http.cjs
+M	functions/src/index.ts
+M	functions/src/media-controls.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+A	functions/test/media-cleanup.test.js
+M	functions/test/media-controls.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+A	scanner/Dockerfile
+A	scanner/README.md
+A	scanner/clamd.conf
+A	scanner/entrypoint.sh
+A	scanner/freshclam.conf
+A	scanner/package.json
+A	scanner/server.mjs
+A	scanner/test/server.test.mjs
+
+### codex/mawda-unified-constitution-vision-2026-11-19 (53bf236076d617f625b1b4225eb014e5c90e17fb)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+A	docs/MAWADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+A	docs/MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md
+M	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+A	docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md
+M	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+A	functions/src/call-entitlements.ts
+A	functions/src/call-usage-policy.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+A	functions/test/call-entitlements.test.js
+A	functions/test/call-usage-policy.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/guest-session.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	lib/screens/biometric_verification_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/services/super_admin_security_service.dart
+M	storage.rules
+
+### codex/mawdda-audit-archive (6a94a078695bd8d70884a843efb7cf9d3bfc740a)
+A	functions/src/audit-archive.ts
+M	functions/src/index.ts
+A	functions/test/audit-archive.test.js
+A	infra/audit-archive/README.md
+A	infra/audit-archive/main.tf
+A	infra/audit-archive/variables.tf
+
+### codex/mawdda-audit-archive-full (5fb2b28dd8e37c933fc0be722d7f6b5bfa276a47)
+
+### codex/mawdda-biometric-owner-review-policy-2026-11-20 (693dc110a931107f2fcc1f829e08974932ab65db)
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md
+
+### codex/mawdda-biometric-proof-gate-2026-11-20 (73b53918e2de76d97d9f9cf7dff1706cc9d124b5)
+M	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+A	docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+M	functions/src/member-social-links-access.ts
+M	functions/src/member-social-links.ts
+M	functions/test/biometric-verification.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+
+### codex/mawdda-deep-audit-profile-store (4ed7394235ea531e4b4abbb24431731da15eaf47)
+
+### codex/mawdda-deep-governance-audit-2026-11-19 (ae21101e7e76001b64b43b6bf515c85ea028f34e)
+A	docs/DEEP_GOVERNANCE_AND_IMPLEMENTATION_AUDIT_2026-11-19.md
+
+### codex/mawdda-economy-selective-port-2026-11-19 (7d93d4c097f2079668b1dc25b0a4fb1fc1afb8d0)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/src/store-gifting.ts
+A	functions/test/integration/store-gifting.integration.test.js
+A	functions/test/store-gifting.test.js
+M	lib/screens/shop_screen.dart
+
+### codex/mawdda-final-archive-v2 (f79b112c628c8a1709f860a8d25c1f975eddcace)
+
+### codex/mawdda-group-call-capacity-2026-11-20 (2f67e4a6cdaeedf5190cbd2e3acdb0ece4747c0a)
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+### codex/mawdda-group-call-capacity-2026-11-20-r2 (c0a14ef27b3c0442c969f872243214e637cdc188)
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js
+
+### codex/mawdda-independent-verification-cycles-2026-11-20 (615f9f974ea9e252772bee43339261288b7a2729)
+M	.github/workflows/validate.yml
+M	docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js
+
+### codex/mawdda-independent-verification-cycles-dev-2026-11-20 (2064bbcc98aa360ac2d46d05d15cbf8f90561817)
+M	.github/workflows/validate.yml
+A	docs/phase1/INDEPENDENT_VERIFICATION_CYCLE_PROGRESS_2026-11-20.md
+M	functions/src/email-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/src/verification-calendar.ts
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/email-verification-cycle.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+A	functions/test/verification-calendar.test.js
+
+### codex/mawdda-member-inbox (f55e1d15423abee81dc125315e95a9acea199fdf)
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+### codex/mawdda-member-inbox-rebased (4933e76a38501ac533c37fbac2fc9c7078f5c597)
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+### codex/mawdda-mfa-signin (607647ec0325eaf56bd58a4c2283aedaa47e7e68)
+
+### codex/mawdda-native-platform-scaffold (d556a9990ffe4472fe86ab48acc696adc9c109f6)
+
+### codex/mawdda-phase1-phase2-hardening (cacdc51f22f7146145a81c5e4d0729aee5f5063d)
+A	docs/PHASE1_PHASE2_CLOSURE_MATRIX.md
+
+### codex/mawdda-phase1-unified-2026-11-19 (e12897ad7dc5f383501d997117fb1211c67632e7)
+
+### codex/mawdda-pr3-port (6e11d5a631d61f9e92b37fd64c827f37ec8e9c11)
+
+### codex/mawdda-premium-effects (5203d25ab38df8ae2a2bd700537e2f0d14bfbde3)
+M	lib/screens/guest_session_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/services/auth_service.dart
+A	lib/widgets/premium_profile_effects.dart
+
+### codex/mawdda-premium-features (f3884061a5d7be3836adc6d6b94de10e534625ab)
+
+### codex/mawdda-retention-approval-ci-repair-2026-11-19 (179ba95fa582082c7ed32c3f3016b899b414b0ca)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+
+### codex/mawdda-role-callable-deny-regressions-2026-11-20 (ce899717f77ad3c76d676903aa0c026ba7596490)
+M	functions/test/integration/specialized-role-capacity.integration.test.js
+
+### codex/mawdda-role-capacity-after-retention-2026-11-19 (5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+### codex/mawdda-role-capacity-consolidation-2026-11-19 (7a134c6d5adf02f8e2bbd3b931deb5ef592fbf1c)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+### codex/mawdda-role-capacity-final-2026-11-19 (138d9b5d6624d111d61b6b71bf0cb60a8b17050d)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/advertising-governance.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+### codex/mawdda-room-audio-duration-enforcement (dc1c1a43f6c8b4cfb198544ad21975612f89ca83)
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/media-scanner.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/guest_room_chat_screen.dart
+M	lib/widgets/chat_audio_controls.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js
+
+### codex/mawdda-room-events (b0b5214ab3b3b31f2c4ff494ce6ffe3536ae1615)
+M	functions/src/audit-archive.ts
+M	functions/src/index.ts
+M	functions/test/audit-archive.test.js
+M	infra/audit-archive/README.md
+
+### codex/mawdda-safety-ui (1e4c6aa97a679d0eaa88708571341e79e9e06c68)
+
+### codex/mawdda-step1-role-reconcile-2026-11-19 (ea6b05253ab702e773611ec48d31518a50943acd)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+A	docs/STEP1_ROLE_PR42_VALIDATION_TRIGGER_2026-11-19.md
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+### codex/mawdda-store-entitlement-coverage (7b53ad8e3418d3e9494517862ade66a010871564)
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/shop_screen.dart
+
+### codex/mawdda-store-entitlement-hardening (bca089273f4c3652eeb01d27f5cc2788c386c060)
+M	functions/test/integration/room-events.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+
+### codex/mawdda-store-entitlement-hardening-v2 (7506f5d4034b58477fe0bfbc28ab90ead4f77eb0)
+M	functions/test/integration/wallet-store.integration.test.js
+
+### codex/mawdda-store-wallet-entitlement-closure (201f5bfc8d73a982e9edab9be6858b085c2b2eb8)
+M	functions/test/integration/premium-profile.integration.test.js
+M	lib/screens/shop_screen.dart
+M	lib/screens/user_profile_screen.dart
+
+### codex/mawdda-super-owner-biometric-state-machine-2026-11-20 (40845f2de04106081640b9e83bb8d0fa983fbf49)
+A	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+A	functions/src/biometric-review-state.ts
+A	functions/test/biometric-review-state.test.js
+M	functions/test/integration/email-verification-renewal.integration.test.js
+
+### codex/mawdda-test-account-system (d89d30a623369e5b687525297b97257192a27462)
+A	.github/workflows/mawdda-test-center.yml
+M	.gitignore
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	functions/package.json
+A	functions/scripts/seed-test-accounts.cjs
+A	functions/test/feature-coverage-matrix.test.js
+A	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/fixtures/test-account-personas.json
+A	functions/test/integration/test-persona-interaction.integration.test.js
+A	functions/test/test-account-personas.test.js
+
+### codex/mawdda-unified-final (ddf9594ea6029036512ace621f513d6edf58a068)
+M	.github/workflows/validate.yml
+M	functions/package.json
+M	functions/src/index.ts
+A	functions/test/integration/email-verification-renewal.integration.test.js
+M	lib/screens/profile_screen.dart
+
+### codex/mawdda-unified-final-v2 (e249c664f9a48dd8a198e274b38033a7cbba0a3d)
+
+### codex/mawdda-unified-final-v3 (ab5e37e6d7f437a491e85883b91e8bcde76d438e)
+
+### codex/mawdda-unified-release (42e11d492584a556e018e70db2eed71de84616fa)
+A	functions/src/biometric-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/test/biometric-verification-cycle.test.js
+M	lib/screens/profile_screen.dart
+
+### codex/mawdda-unified-test-2026-11-18 (b62fcbae7ea3cd0c2b473f730cb625b35335de67)
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+A	docs/BRANCH_UNIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMIC_PHASE_VERIFICATION_REGISTER_2026-11-18.md
+A	docs/ECONOMY_PHASE1_EXECUTION_CLOSEOUT.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+A	docs/UNIFIED_BRANCH_INTEGRATION_REGISTER_2026-11-18.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.indexes.json
+M	functions/package.json
+A	functions/src/capacity-media-management.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/default-store-catalog.ts
+M	functions/src/economy-pricing.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/room-call-policy.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+A	functions/test/capacity-media-management.test.js
+M	functions/test/coin-purchase-requests.test.js
+M	functions/test/economy-pricing.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/integration/member-profile-media.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/featured_ads_screen.dart
+A	lib/screens/gift_coins_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/media_workspace_screen.dart
+A	lib/screens/member_gift_history_screen.dart
+M	lib/screens/owner_advertising_intake_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+A	lib/screens/owner_featured_ads_dashboard_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/screens/reward_center_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/screens/wallet_screen.dart
+M	lib/services/member_media_upload_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	pubspec.yaml
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+
+### codex/phase1-advertising-callable-auth-2026-11-20 (d857497c50eca8d7dcf105e938c8060402ae85e3)
+
+### codex/phase1-branch-governance-audit-2026-11-20 (a48e93aa04d024f27c8877df42555050b95f9f71)
+A	docs/phase1/GITHUB_BRANCH_GOVERNANCE_AUDIT_2026-11-20.md
+
+### codex/phase1-ci-coverage-role-store-2026-11-20 (d46cd7095915bf98480ef38574356c62d72e6a95)
+M	.github/workflows/validate.yml
+
+### codex/phase1-ci-evidence-2026-11-20 (6ad595cf10964ab54a39f3b0629efd5f8ef6e043)
+M	docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md
+
+### codex/phase1-direct-call-transaction-revalidation-2026-11-20 (b78817d0e6d7a73398fcce1d54c7df4f6707d045)
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/room-call-policy.test.js
+
+### codex/phase1-featured-ad-geography-all-arab-2026-11-20 (ac22ff635c41e4a36603c8864af53942e22e3fcb)
+M	functions/src/featured-advertising.ts
+M	functions/test/featured-advertising.test.js
+
+### codex/phase1-group-call-remainder-to-initiator-2026-11-20 (99639a6c7adf25c32eca6b93c0cc393d130f8e8f)
+M	functions/src/group-call-economy.ts
+M	functions/test/group-call-economy.test.js
+
+### codex/phase1-integration-batch-01-inventory-2026-11-19 (2fff6276055de44bc488cc123cec16491421a8e6)
+
+### codex/phase1-media-direct-delivery-denials-2026-11-20 (b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e)
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+### codex/phase1-media-hold-delete-race-2026-11-20 (43471705e469f09e55658660b8b9f921401a00d4)
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+### codex/phase1-media-scanner-replay-regression-2026-11-20 (87ff3963868a4431948274695c83dce255aaa350)
+M	functions/test/integration/media-callables.integration.test.js
+
+### codex/phase1-media-scanner-verdict-tests-2026-11-20 (6da140cbcd359c17805477e81401bfacef7268f0)
+M	functions/test/media-scanner.test.js
+
+### codex/phase1-rented-room-call-gate-2026-11-20 (41dc2c2fd679f736d48f912c1e248f8615554649)
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/room-call-policy.test.js
+
+### codex/phase1-scanner-error-callback-test-2026-11-20 (20519494a898b19f08bcaf4f22e4af64acff622b)
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+### codex/phase1-specialist-callable-auth-2026-11-20 (c1edba1432b5ef783c7eb5fb4493128c7a595cb1)
+A	docs/PHASE1_SPECIALIZED_CALLABLE_AUTH_AUDIT_2026-11-20.md
+
+### codex/phase1-specialized-callable-auth-inventory-2026-11-20 (315c8d53dc4b7e6df0af1803191df7bf5786adcc)
+A	docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md
+
+### codex/phase1-store-gift-concurrency-2026-11-20 (2f175165ed17a1a02b47439bacfbb187b1e00d6e)
+M	.github/workflows/validate.yml
+M	functions/test/integration/store-gifting.integration.test.js
+
+### codex/phase1-store-gift-permanent-entitlement-2026-11-20 (b4546e69543b70a08b4e50c678316ac848c70c06)
+M	functions/test/integration/store-gifting.integration.test.js
+
+### codex/phase1-store-gifting-catalog-version-regressions-2026-11-20 (3c8ab48d320e3a4b827d4c3eca558691d6c01c75)
+M	functions/test/integration/store-gifting.integration.test.js
+
+### codex/production-readiness-tests (424599a34acc9ec33b4e759ba166dc6d0a9df04d)
+
+### codex/structural-governance-biometric-roles-2026-11-19 (e71f3eb559e7f86edecd97fb366ad9c69b5817c5)
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/platform-terminology-docs.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/screens/main_user_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules
+
+### main (460a79a7dc2e16f4ad146af22aab58e152ad1e8c)

@@ -1,0 +1,1568 @@
+diff --git a/.github/workflows/mawdda-domain-regression.yml b/.github/workflows/mawdda-domain-regression.yml
+index 643b25f5..858b55c8 100644
+--- a/.github/workflows/mawdda-domain-regression.yml
++++ b/.github/workflows/mawdda-domain-regression.yml
+@@ -1,66 +1,69 @@
+ name: Mawdda domain regression
+ 
+ on:
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-economy-selective-port-2026-11-19
+ 
+ permissions:
+   contents: read
+ 
+ concurrency:
+   group: mawdda-domain-regression-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ jobs:
+   backend-domain-regression:
+     name: Retention and room reservation emulator regression
+     runs-on: ubuntu-latest
+     timeout-minutes: 60
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Install locked backend dependencies
+         run: npm ci --no-audit --no-fund
+       - name: Compile and run backend unit tests
+         run: npm test
+       - name: Run mode-aware chat retention integration tests
+         run: npm run test:retention-integration
+       - name: Run room event seat reservation and cancellation integration tests
+         run: npm run test:room-events-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         run: npm run test:owner-entitlement-grants-integration
++      - name: Run store gifting wallet and entitlement integration tests
++        run: npm run test:store-gifting-integration
+       - name: Run voice and video call lifecycle integration tests
+         run: npm run test:call-signaling-integration
+       - name: Run timed advertising and reward ledger integration tests
+         run: npm run test:engagement-rewards-integration
+ 
+   flutter-domain-regression:
+     name: Flutter UI analysis and widget tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 35
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install locked Flutter dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Analyze Dart
+         run: flutter analyze
+       - name: Run Flutter widget and unit tests
+         run: flutter test
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 5b1ebc0a..d56006cb 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -1,90 +1,91 @@
+ name: Validate Mawda
+ 
+ on:
+   # This workflow is new on the development branch and is not yet present on
+   # main, so pull_request events cannot reliably load it for PR #2. Validate
+   # every development-branch push directly; keep manual dispatch available.
+   push:
+     branches:
+       - codex/mawda-full-platform-implementation
+       - codex/governance-biometric-integration-2026-11-19
++      - codex/mawdda-economy-selective-port-2026-11-19
+   workflow_dispatch:
+ 
+ concurrency:
+   # Keep only the newest validation for the development branch.
+   group: mawda-validation-${{ github.ref_name }}
+   cancel-in-progress: true
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+   flutter:
+     name: Flutter analysis, tests and web build
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     steps:
+       - uses: actions/checkout@v5
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install Flutter dependencies from the committed lockfile
+         id: install_flutter_dependencies
+         run: flutter pub get --enforce-lockfile
+       - name: Upload resolved dependency lockfile for review
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-pubspec-lock-${{ github.sha }}
+           path: pubspec.lock
+           if-no-files-found: error
+           retention-days: 7
+       - name: Verify production and non-production Firebase project/app identities
+         run: node functions/scripts/validate-firebase-config.cjs
+       - name: Analyze Dart code
+         run: flutter analyze
+       - name: Run Flutter tests
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: flutter test
+       - name: Validate desktop install experience assets
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         run: |
+           node --check web/install-prompt.js
+           node --check web/firebase-messaging-sw.js
+           node <<'NODE'
+           const fs = require('node:fs');
+           const manifest = JSON.parse(fs.readFileSync('web/manifest.json', 'utf8'));
+           if (manifest.name !== 'Mawdda Platform 2026' || manifest.display !== 'standalone' || !manifest.icons?.length) {
+             throw new Error('PWA manifest identity, standalone display, or icons are invalid');
+           }
+           for (const file of [
+             'web/mawdda-app-icon.svg',
+             'web/icons/mawdda-192.svg',
+             'web/icons/mawdda-512.svg',
+             'web/install-prompt.js',
+             'web/firebase-messaging-sw.js',
+           ]) {
+             if (!fs.existsSync(file)) throw new Error(`Required PWA asset is missing: ${file}`);
+           }
+           const serviceWorker = fs.readFileSync('web/firebase-messaging-sw.js', 'utf8');
+           const iconMatch = serviceWorker.match(/icon:\s*['"]([^'"]+)['"]/);
+           if (!iconMatch) throw new Error('Push notification icon path is missing');
+           const iconPath = iconMatch[1].replace(/^\/+/, '');
+           if (!fs.existsSync(`web/${iconPath}`)) throw new Error(`Push notification icon is missing: ${iconPath}`);
+           console.log('PWA manifest, icons, service worker and install prompt validated');
+           NODE
+       - name: Build web release
+         id: build_web
+         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
+         env:
+           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_NONPROD_FCM_VAPID_KEY }}
+         run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+       - name: Upload validated web build artifact
+         if: ${{ always() && steps.build_web.outcome == 'success' }}
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+diff --git a/docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md b/docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+new file mode 100644
+index 00000000..22642793
+--- /dev/null
++++ b/docs/STEP1_ECONOMY_PR43_VALIDATION_TRIGGER_2026-11-19.md
+@@ -0,0 +1,7 @@
++# Step 1 exact-head validation trigger
++
++Date: 2026-11-19
++Purpose: trigger the branch-scoped GitHub Actions push workflows on the selective store-gifting PR head.
++Target branch: codex/mawdda-economy-selective-port-2026-11-19
++Expected workflows: Validate Mawda; Mawdda domain regression.
++This marker is not a test result or acceptance record. Record actual workflow run IDs, tested SHA, job outcomes, and remediation separately.
+diff --git a/functions/package.json b/functions/package.json
+index 2ec84bf9..91ab6c14 100644
+--- a/functions/package.json
++++ b/functions/package.json
+@@ -1,55 +1,56 @@
+ {
+   "name": "mawda-platform-functions",
+   "private": true,
+   "main": "lib/index.js",
+   "engines": {
+     "node": "22"
+   },
+   "scripts": {
+     "build": "tsc",
+     "build:watch": "tsc --watch",
+     "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js",
+     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
+     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
+     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs",
+     "test:retention-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-retention \"node --test test/integration/chat-retention.integration.test.js\"",
+     "test:message-deletion-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-message-deletion \"node --test test/integration/direct-message-deletion.integration.test.js\"",
+     "test:retention-gcs": "npm run build && node scripts/test-retention-storage.cjs",
+     "test:owner-audit-export-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-audit \"node --test test/integration/owner-audit-export.integration.test.js\"",
+     "test:media-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-legal-hold \"node --test test/integration/media-legal-hold.integration.test.js\"",
+     "test:media-scanner-live-e2e": "npm run build && node scripts/test-live-media-scanner-e2e.cjs",
+     "test:profile-media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-profile-media \"node --test test/integration/member-profile-media.integration.test.js\"",
+     "test:message-legal-hold-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-message-hold \"node --test test/integration/message-legal-hold.integration.test.js\"",
+     "test:wallet-store-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-wallet-store \"node --test test/integration/wallet-store.integration.test.js\"",
+     "test:guest-privacy-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-guest-privacy \"node --test test/integration/guest-privacy.integration.test.js\"",
+     "test:safety-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-safety \"node --test test/integration/safety-cases.integration.test.js\"",
+     "test:push-token-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-push-tokens \"node --test test/integration/push-token.integration.test.js\"",
+     "test:room-rental-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-rental \"node --test test/integration/room-rental.integration.test.js\"",
+     "test:biometric-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-biometric \"node --test test/integration/biometric-verification.integration.test.js\"",
+     "test:email-renewal-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-email-renewal \"node --test test/integration/email-verification-renewal.integration.test.js\"",
+     "test:premium-profile-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-premium-profile \"node --test test/integration/premium-profile.integration.test.js\"",
+     "test:room-events-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-room-events \"node --test test/integration/room-events.integration.test.js\"",
+     "test:emulator-backup-restore": "node scripts/test-emulator-backup-restore.cjs",
+     "test:guest-session-integration": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-guest-session \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/guest-session.integration.test.js\"",
+     "test:seeded-persona-interaction": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-personas \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs && node --test test/integration/test-persona-interaction.integration.test.js\"",
+     "test:persona-load": "node scripts/generate-persona-load-fixtures.cjs --count=5000 --output=mawdda-load-artifacts/personas.json && firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-persona-load 'MAWDDA_LOAD_FIXTURE=mawdda-load-artifacts/personas.json MAWDDA_LOAD_REPORT=mawdda-load-artifacts/report.json node --test test/integration/persona-load.integration.test.js'",
+     "test:engagement-rewards-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-engagement-rewards \"node --test test/integration/engagement-rewards.integration.test.js\"",
+     "test:seed-accounts": "firebase emulators:exec --config ../firebase.json --only auth,firestore --project demo-mawda-test-accounts \"MAWDDA_ALLOW_TEST_SEED=1 node scripts/seed-test-accounts.cjs\"",
+     "test:all": "npm test && npm run test:seed-accounts && npm run test:seeded-persona-interaction && npm run test:rules && npm run test:media-integration && npm run test:retention-integration && npm run test:message-deletion-integration && npm run test:owner-entitlement-grants-integration && npm run test:wallet-store-integration && npm run test:featured-ad-finance-integration && npm run test:room-rental-integration && npm run test:room-events-integration && npm run test:call-signaling-integration && npm run test:emulator-backup-restore && npm run test:push-token-integration && npm run test:biometric-integration && npm run test:engagement-rewards-integration && npm run test:email-renewal-integration && npm run test:safety-integration && npm run test:guest-privacy-integration && npm run test:guest-session-integration && npm run test:owner-audit-export-integration && npm run test:media-legal-hold-integration && npm run test:profile-media-integration && npm run test:premium-profile-integration && npm run test:message-legal-hold-integration",
+     "test:owner-entitlement-grants-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-owner-entitlement-grants \"node --test test/integration/owner-entitlement-grants.integration.test.js\"",
+     "test:call-signaling-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-calls \"node --test test/integration/call-signaling.integration.test.js\"",
+-    "test:featured-ad-finance-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-featured-ad-finance \"node --test test/integration/featured-ad-finance.integration.test.js\""
++    "test:featured-ad-finance-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-featured-ad-finance \"node --test test/integration/featured-ad-finance.integration.test.js\"",
++    "test:store-gifting-integration": "firebase emulators:exec --config ../firebase.json --only firestore --project demo-mawda-store-gifting \"node --test test/integration/store-gifting.integration.test.js\""
+   },
+   "dependencies": {
+     "firebase-admin": "^13.0.0",
+     "firebase-functions": "^6.0.0"
+   },
+   "devDependencies": {
+     "typescript": "^5.7.2",
+     "@firebase/rules-unit-testing": "^4.0.1",
+     "firebase": "^11.0.0",
+     "firebase-tools": "^14.0.0"
+   }
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 0872a94f..0bf91be9 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,80 +1,83 @@
++import {
++  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
++} from "./store-gifting";
+ import { initializeApp } from "firebase-admin/app";
+ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { getStorage } from "firebase-admin/storage";
+ import { validateMemberProfile } from "./member-profile";
+ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
+ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString, defineSecret } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { reconcileWalletLedger } from "./wallet-reconciliation";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+ import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+ import {
+   validateFeaturedAdFinancialEvent,
+   applyFeaturedAdFinancialEvent,
+   featuredAdFinancialIdempotencyId,
+   defaultFeaturedAdFinancialSnapshot,
+ } from "./featured-ad-finance";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash, createHmac, randomUUID } from "node:crypto";
+ import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { isGuestSessionActive } from "./guest-sessions";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import {
+   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
+   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+   ADDITIONAL_AUDIT_COLLECTIONS,
+   isOwnerAuditArchiveEligible,
+   validateLockedAuditArchiveBucket,
+   verifyOwnerAuditArchiveChunk,
+   ownerAuditArchiveObjectName,
+   serializeOwnerAuditArchive,
+   auditCollectionArchiveObjectName,
+   serializeAuditCollectionArchive,
+ } from "./audit-archive";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+@@ -6377,160 +6380,337 @@ export const listMemberRooms = onCall(async (request) => {
+   );
+   const joinedSnapshots = joinedRoomRefs.length > 0
+     ? await db.getAll(...joinedRoomRefs)
+     : [];
+   const joined = joinedSnapshots
+     .filter((room) => room.exists && (room.data()?.status === "active" ||
+       (room.data()?.ownerUid === uid && room.data()?.status === "frozen")))
+     .map((room) => ({
+       roomId: room.id,
+       name: room.data()?.name ?? "غرفة مودة",
+       kind: room.data()?.kind ?? "public",
+       audience: room.data()?.audience ?? "unknown",
+       memberCount: room.data()?.memberCount ?? 0,
+       capacity: room.data()?.capacity ?? 0,
+       isMember: true,
+       isRoomOwner: room.data()?.ownerUid === uid,
+       isModerator: membershipByRoom.get(room.id)?.role === "moderator",
+       isSuperAdmin: isPlatformOwner,
+       status: room.data()?.status ?? "unknown",
+       isRented: room.data()?.isRented === true,
+       rentalPlanId: room.data()?.rentalPlanId ?? null,
+       expiresAt: room.data()?.expiresAt instanceof Timestamp ? room.data()!.expiresAt.toMillis() : null,
+     }));
+ 
+   const joinedIds = new Set(joined.map((room) => room.roomId));
+   const publicSnapshots = await db.collection("rooms")
+     .where("status", "==", "active")
+     .limit(100)
+     .get();
+   const discoverable = publicSnapshots.docs
+     .filter((room) => !joinedIds.has(room.id))
+     .filter((room) => {
+       const data = room.data();
+       return data.kind === "public" && canJoinRoom({
+         memberAge: age,
+         roomAudience: data.audience,
+         roomKind: "public",
+         invited: false,
+       });
+     })
+     .map((room) => {
+       const data = room.data();
+       return {
+         roomId: room.id,
+         name: data.name ?? "غرفة مودة",
+         kind: "public",
+         audience: data.audience ?? "unknown",
+         memberCount: data.memberCount ?? 0,
+         capacity: data.capacity ?? 0,
+         isMember: false,
+       };
+     });
+ 
+   return { joined, discoverable };
+ });
+ 
+ 
+ /** Read-only published catalog. Purchase and entitlement changes remain separate trusted flows. */
+ export const getStoreCatalog = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const member = await db.collection("users").doc(uid).get();
+   if (!member.exists || member.data()?.profileCompleted !== true ||
+       !isMemberAccountInGoodStanding(member.data())) {
+     throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بتصفح المتجر حالياً.");
+   }
+   const snapshot = await db.collection("storeCatalog").limit(100).get();
+   const items = snapshot.docs
+     .map((document) => projectStoreCatalogItem(document.id, document.data()))
+     .filter((item): item is NonNullable<typeof item> => item !== null)
+     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId))
+     .map(({ sortOrder: _sortOrder, ...item }) => item);
+   return { items };
+ });
+ 
+ 
+ /**
+  * Purchases a published store item with existing coins.
+  * Balance debit, immutable ledger entry, purchase receipt, and entitlement
+  * are committed atomically. Real-money top-ups are a separate unimplemented flow.
+  */
++export const giftStoreItem = onCall(async (request) => {
++  const senderUid = requireAuthenticatedUid(request.auth?.uid);
++  const rawRecipientUid = request.data?.recipientUid;
++  const recipientUsername = request.data?.recipientUsername;
++  const itemId = request.data?.itemId;
++  const requestId = request.data?.requestId;
++  const expectedPriceCoins = request.data?.expectedPriceCoins;
++  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
++  let recipientUid = typeof rawRecipientUid === "string" ? rawRecipientUid : null;
++  let usernameRef: FirebaseFirestore.DocumentReference | null = null;
++  if (typeof recipientUsername === "string") {
++    const normalizedUsername = recipientUsername.trim();
++    if (normalizedUsername.length < 1 || normalizedUsername.length > 64 ||
++        normalizedUsername.includes("/") || /\s/.test(normalizedUsername)) {
++      throw new HttpsError("invalid-argument", "اسم المستلم غير صالح.");
++    }
++    usernameRef = db.collection("usernameRegistry").doc(normalizedUsername);
++    const usernameSnapshot = await usernameRef.get();
++    const registeredUid = usernameSnapshot.data()?.uid;
++    if (!usernameSnapshot.exists || typeof registeredUid !== "string") {
++      throw new HttpsError("not-found", "اسم المستخدم غير موجود.");
++    }
++    if (recipientUid !== null && recipientUid !== registeredUid) {
++      throw new HttpsError("invalid-argument", "معرف المستلم لا يطابق اسم المستخدم.");
++    }
++    recipientUid = registeredUid;
++  }
++  if (typeof recipientUid !== "string" || recipientUid.trim() !== recipientUid ||
++      recipientUid.length < 1 || recipientUid.length > 128 || recipientUid.includes("/") ||
++      recipientUid === senderUid || (usernameRef === null && typeof rawRecipientUid !== "string") ||
++      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
++      typeof requestId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(requestId) ||
++      !Number.isSafeInteger(expectedPriceCoins) || expectedPriceCoins < 1 ||
++      !Number.isSafeInteger(expectedCatalogVersion) || expectedCatalogVersion < 1) {
++    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
++  }
++  const senderRef = db.collection("users").doc(senderUid);
++  const recipientRef = db.collection("users").doc(recipientUid);
++  const itemRef = db.collection("storeCatalog").doc(itemId);
++  const giftId = createHash("sha256").update(
++    `mawdda-store-gift-v1:${senderUid}:${requestId}`,
++  ).digest("hex");
++  const giftRef = db.collection("storeGifts").doc(giftId);
++  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
++  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
++  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
++  return db.runTransaction(async (transaction) => {
++    const [sender, recipient, itemSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
++      transaction.get(senderRef), transaction.get(recipientRef),
++      transaction.get(itemRef), transaction.get(giftRef), transaction.get(entitlementRef),
++      transaction.get(ledgerRef), transaction.get(auditRef),
++      usernameRef ? transaction.get(usernameRef) : Promise.resolve(null),
++    ]);
++    if (usernameRef && (!usernameSnapshot?.exists || usernameSnapshot.data()?.uid !== recipientUid)) {
++      throw new HttpsError("aborted", "تغير سجل اسم المستخدم؛ أعد المحاولة.");
++    }
++    if (priorGift.exists) {
++      const prior = priorGift.data() ?? {};
++      const ledger = priorLedger.data() ?? {};
++      const audit = priorAudit.data() ?? {};
++      if (!isStoreGiftReplayCompatible(prior, {
++        senderUid, recipientUid, itemId, expectedPriceCoins, expectedCatalogVersion,
++      })) {
++        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أو مستلم أو سعر مختلف.");
++      }
++      if (!priorLedger.exists || !priorAudit.exists ||
++          ledger.type !== "store_gift_purchase" || ledger.giftId !== giftId ||
++          ledger.amount !== -prior.priceCoins || ledger.recipientUid !== recipientUid ||
++          ledger.catalogVersion !== expectedCatalogVersion ||
++          !Number.isSafeInteger(ledger.balanceBefore) ||
++          !Number.isSafeInteger(ledger.balanceAfter) ||
++          ledger.balanceBefore - prior.priceCoins !== ledger.balanceAfter ||
++          audit.action !== "store_item_gifted" || audit.giftId !== giftId ||
++          audit.actorUid !== senderUid || audit.targetUid !== recipientUid) {
++        throw new HttpsError("data-loss", "إيصال الإهداء لا يطابق قيد المحفظة وسجل التدقيق.");
++      }
++      return {
++        giftId, itemId, recipientUid, priceCoins: prior.priceCoins,
++        newBalance: prior.newBalance,
++        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
++        idempotentReplay: true,
++      };
++    }
++    if (!sender.exists || sender.data()?.profileCompleted !== true ||
++        !isMemberAccountInGoodStanding(sender.data())) {
++      throw new HttpsError("permission-denied", "حالة حساب المرسل لا تسمح بالإهداء.");
++    }
++    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data())) {
++      throw new HttpsError("failed-precondition", "المستلم غير مؤهل لاستلام هدية من المتجر.");
++    }
++    if (!itemSnapshot.exists) throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
++    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
++    if (!item || !isStoreItemPurchasable(item)) {
++      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن استحقاقه غير جاهز للإهداء.");
++    }
++    if (item.version !== expectedCatalogVersion ||
++        !isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
++      throw new HttpsError("failed-precondition", "تغير سعر العنصر أو إصداره؛ حدّث المتجر قبل الإهداء.");
++    }
++    const prior = priorEntitlement.data() ?? {};
++    if (prior.status === "active" &&
++        (prior.expiresAt === null || prior.expiresAt === undefined)) {
++      throw new HttpsError("already-exists", "يمتلك المستلم هذا الاستحقاق الدائم بالفعل.");
++    }
++    const nowMs = Date.now();
++    let expiresAtMs: number | null;
++    try {
++      let durationBase: Record<string, unknown> = prior;
++      if (item.category === "boost") {
++        const readExpiry = (value: unknown): number => {
++          if (value instanceof Timestamp) return value.toMillis();
++          if (value && typeof value === "object" &&
++              typeof (value as { toMillis?: unknown }).toMillis === "function") {
++            try { return (value as { toMillis: () => number }).toMillis(); } catch { return 0; }
++          }
++          return 0;
++        };
++        const baseExpiry = Math.max(
++          prior.status === "active" ? readExpiry(prior.expiresAt) : 0,
++          readExpiry(recipient.data()?.discoveryBoostExpiresAt),
++        );
++        durationBase = baseExpiry > 0 ? { status: "active", expiresAt: baseExpiry } : {};
++      }
++      expiresAtMs = calculateStoreGiftExpiryMs(durationBase, item.durationDays, nowMs);
++    } catch {
++      throw new HttpsError("failed-precondition", "سجل استحقاق المستلم غير صالح؛ أوقفنا الإهداء.");
++    }
++    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
++    const senderBalance = readSafeInteger(sender.data()?.coins ?? 0, "coins");
++    const newBalance = calculateStorePurchaseBalance(senderBalance, item.priceCoins);
++    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد المرسل غير كافٍ أو غير صالح.");
++    const now = FieldValue.serverTimestamp();
++    transaction.update(senderRef, { coins: newBalance, walletUpdatedAt: now });
++    transaction.create(giftRef, {
++      giftId, senderUid, recipientUid, itemId, itemName: item.name,
++      category: item.category, priceCoins: item.priceCoins,
++      durationDays: item.durationDays ?? null, catalogVersion: item.version,
++      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
++      balanceBefore: senderBalance, newBalance, expiresAt, status: "completed", createdAt: now,
++    });
++    transaction.create(ledgerRef, {
++      type: "store_gift_purchase", direction: "debit", amount: -item.priceCoins,
++      giftId, recipientUid, itemId, itemName: item.name,
++      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
++      catalogVersion: item.version,
++      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
++      balanceBefore: senderBalance, balanceAfter: newBalance, createdAt: now,
++    });
++    transaction.set(entitlementRef, {
++      itemId, itemName: item.name, category: item.category, status: "active",
++      giftId, giftedByUid: senderUid, catalogVersion: item.version,
++      catalogVersionPath: `storeCatalogVersions/${itemId}/versions/${item.version}`,
++      purchasedAt: now, expiresAt,
++    });
++    const recipientUpdate: Record<string, unknown> = {};
++    if (item.category === "boost" && expiresAt) {
++      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
++      recipientUpdate.discoveryBoostGiftId = giftId;
++    }
++    if (item.itemId === "profile_pin_30d" &&
++        typeof recipient.data()?.pinnedProfileSection !== "string") {
++      recipientUpdate.pinnedProfileSection = "interests";
++    }
++    if (Object.keys(recipientUpdate).length > 0) transaction.update(recipientRef, recipientUpdate);
++    transaction.create(auditRef, {
++      actorUid: senderUid, targetUid: recipientUid,
++      action: "store_item_gifted", giftId, itemId, itemName: item.name,
++      priceCoins: item.priceCoins, catalogVersion: item.version,
++      createdAt: now,
++    });
++    return {
++      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
++      newBalance, expiresAt: expiresAtMs, idempotentReplay: false,
++    };
++  });
++});
++
+ export const purchaseStoreItem = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const itemId = request.data?.itemId;
+   const requestId = request.data?.requestId;
+   const expectedPriceCoins = request.data?.expectedPriceCoins;
+   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+       typeof requestId !== "string" || requestId.length < 8 ||
+       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+       expectedPriceCoins <= 0) {
+     throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
+   }
+ 
+   const userRef = db.collection("users").doc(uid);
+   const itemRef = db.collection("storeCatalog").doc(itemId);
+   const purchaseId = `${uid}_${requestId}`;
+   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
+   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
+   const entitlementRef = userRef.collection("entitlements").doc(itemId);
+ 
+   return db.runTransaction(async (transaction) => {
+     const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
+       transaction.get(userRef),
+       transaction.get(itemRef),
+       transaction.get(purchaseRef),
+       transaction.get(entitlementRef),
+       transaction.get(ledgerRef),
+     ]);
+     if (priorPurchase.exists) {
+       const prior = priorPurchase.data() ?? {};
+       if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
+         throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
+       }
+       const ledger = priorLedger.data() ?? {};
+       const balanceSnapshotValid =
+         ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+         Number.isSafeInteger(ledger.balanceBefore) &&
+         Number.isSafeInteger(ledger.balanceAfter) &&
+         ledger.balanceBefore >= 0 &&
+         ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
+         ledger.balanceAfter === prior.newBalance &&
+         (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
+       if (!priorLedger.exists || prior.status !== "completed" ||
+           !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+           !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+           ledger.type !== "store_purchase" || ledger.direction !== "debit" ||
+           ledger.amount !== -prior.priceCoins || ledger.purchaseId !== purchaseId ||
+           ledger.itemId !== itemId || !balanceSnapshotValid) {
+         throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم أو مطابقة الرصيد؛ يلزم تدقيق السجل.");
+       }
+       return {
+         purchaseId, itemId, priceCoins: prior.priceCoins, newBalance: prior.newBalance,
+         expiresAt: prior.expiresAt?.toMillis?.() ?? null, idempotentReplay: true,
+       };
+     }
+     if (!member.exists || member.data()?.profileCompleted !== true ||
+         !isMemberAccountInGoodStanding(member.data())) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بإجراء المشتريات.");
+     }
+     if (!itemSnapshot.exists) {
+       throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+     }
+     const itemData = itemSnapshot.data() ?? {};
+     const item = projectStoreCatalogItem(itemId, itemData);
+     if (!item) {
+       throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو أن بيانات سعره غير صالحة.");
+     }
+     if (!isStoreItemPurchasable(item)) {
+       throw new HttpsError(
+         "failed-precondition",
+         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
+       );
+     }
+     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+       throw new HttpsError(
+         "failed-precondition",
+         "تغير سعر العنصر منذ تحميل الكتالوج. حدّث المتجر وراجع السعر قبل تأكيد الشراء.",
+       );
+     }
+     if (priorEntitlement.exists && isStoreEntitlementActive(priorEntitlement.data())) {
+@@ -6783,203 +6963,194 @@ export const bulkGrantStoreEntitlements = onCall(async (request) => {
+   const targetUids = request.data?.targetUids;
+   if (!Array.isArray(targetUids) || targetUids.length < 1 || targetUids.length > 500 ||
+       targetUids.some((uid: unknown) => typeof uid !== "string" || uid.length < 1 ||
+         uid.length > 128 || uid.trim() !== uid || uid.includes("/")) ||
+       new Set(targetUids).size !== targetUids.length) {
+     throw new HttpsError("invalid-argument", "قائمة الأعضاء غير صالحة؛ أرسل حتى 500 معرف فريد في كل دفعة.");
+   }
+   const itemSnapshot = await db.collection("storeCatalog").doc(input.itemId).get();
+   const item = itemSnapshot.exists ? projectStoreCatalogItem(input.itemId, itemSnapshot.data() ?? {}) : null;
+   if (!item || item.active !== true || item.fulfillmentReady !== true) {
+     throw new HttpsError("failed-precondition", "لا يمكن منح عنصر غير نشط أو لم يكتمل تنفيذ استحقاقه.");
+   }
+ 
+   const results: Record<string, unknown>[] = [];
+   for (let offset = 0; offset < targetUids.length; offset += 10) {
+     const chunk = targetUids.slice(offset, offset + 10) as string[];
+     const settled = await Promise.all(chunk.map(async (targetUid) => {
+       try {
+         return await executeOwnerEntitlementGrant(
+           actorUid, targetUid, input.itemId, input.durationHours, input.requestId, input.reason,
+         );
+       } catch (error) {
+         return {
+           targetUid,
+           itemId: input.itemId,
+           status: "failed",
+           errorCode: error instanceof HttpsError ? error.code : "internal",
+           idempotentReplay: false,
+         };
+       }
+     }));
+     results.push(...settled);
+   }
+   return {
+     requestId: input.requestId,
+     itemId: input.itemId,
+     total: results.length,
+     granted: results.filter((result) => result.status === "granted").length,
+     failed: results.filter((result) => result.status === "failed").length,
+     replayed: results.filter((result) => result.idempotentReplay === true).length,
+     results,
+   };
+ });
+ 
+ /** Members can read a privacy-projected history of their own free entitlement grants. */
+ export const getMyEntitlementGrantHistory = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const memberRef = db.collection("users").doc(uid);
+   const member = await memberRef.get();
+   if (!member.exists) throw new HttpsError("not-found", "ملف العضوية غير موجود.");
+   const snapshot = await memberRef.collection("entitlementGrantLedger")
+     .orderBy("createdAt", "desc")
+     .limit(50)
+     .get();
+   return {
+     entries: snapshot.docs.map((document) => {
+       const data = document.data();
+       return {
+         grantId: data.grantId,
+         itemId: data.itemId,
+         itemName: data.itemName,
+         category: data.category,
+         durationHours: data.durationHours,
+         expiresAtMs: data.expiresAt instanceof Timestamp ? data.expiresAt.toMillis() : null,
+         createdAtMs: data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : null,
+       };
+     }),
+   };
+ });
+ 
+ /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
+ export const setStoreCatalogItem = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let item;
+   try {
+     item = validateStoreCatalogItemInput(request.data);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
+   }
+   const itemRef = db.collection("storeCatalog").doc(item.itemId);
+-  const result = await db.runTransaction(async (transaction) => {
++  let savedVersion = 0;
++  await db.runTransaction(async (transaction) => {
+     const previousSnapshot = await transaction.get(itemRef);
+-    const previousVersion = previousSnapshot.exists
+-      ? (previousSnapshot.data()?.version ?? 0)
+-      : 0;
+-    if (!Number.isSafeInteger(previousVersion) || previousVersion < 0 ||
+-        previousVersion >= Number.MAX_SAFE_INTEGER) {
+-      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر السابق غير صالح؛ أوقفنا التحديث.");
++    const previous = previousSnapshot.data() ?? {};
++    if (previousSnapshot.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1)) {
++      throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
+     }
+-    const version = previousVersion + 1;
++    savedVersion = previousSnapshot.exists ? previous.version + 1 : 1;
++    if (!Number.isSafeInteger(savedVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لعنصر المتجر.");
+     const now = FieldValue.serverTimestamp();
+-    transaction.set(itemRef, {
+-      itemId: item.itemId,
+-      version,
+-      name: item.name,
+-      description: item.description,
+-      category: item.category,
+-      priceCoins: item.priceCoins,
+-      durationDays: item.durationDays ?? null,
+-      sortOrder: item.sortOrder,
+-      active: item.active,
+-      purchaseEnabled: item.purchaseEnabled,
+-      fulfillmentReady: item.fulfillmentReady,
+-      createdAt: previousSnapshot.data()?.createdAt ?? now,
+-      updatedAt: now,
+-      updatedBy: actorUid,
+-    });
++    const nextItem = {
++      itemId: item.itemId, name: item.name, description: item.description,
++      category: item.category, priceCoins: item.priceCoins,
++      durationDays: item.durationDays ?? null, sortOrder: item.sortOrder,
++      active: item.active, purchaseEnabled: item.purchaseEnabled,
++      fulfillmentReady: item.fulfillmentReady, version: savedVersion,
++      createdAt: previous.createdAt ?? now, updatedAt: now, updatedBy: actorUid,
++    };
++    const versionRef = db.collection("storeCatalogVersions").doc(item.itemId)
++      .collection("versions").doc(String(savedVersion));
++    transaction.create(versionRef, { ...nextItem, createdBy: actorUid });
++    transaction.set(itemRef, { ...nextItem, currentVersionPath: versionRef.path });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid,
+       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
+-      itemId: item.itemId,
+-      version,
+-      active: item.active,
+-      priceCoins: item.priceCoins,
+-      category: item.category,
+-      purchaseEnabled: item.purchaseEnabled,
+-      fulfillmentReady: item.fulfillmentReady,
++      itemId: item.itemId, version: savedVersion,
++      active: item.active, priceCoins: item.priceCoins,
++      category: item.category, purchaseEnabled: item.purchaseEnabled,
++      fulfillmentReady: item.fulfillmentReady, durationDays: item.durationDays ?? null,
+       createdAt: now,
+     });
+-    return { version };
+   });
+-  return { itemId: item.itemId, version: result.version, active: item.active };
++  return { itemId: item.itemId, active: item.active, version: savedVersion };
+ });
+ 
+ /** Returns only display-safe catalog fields to the authenticated owner. */
+ export const getOwnerStoreCatalog = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   // Seed only missing catalogue entries. Existing owner-edited prices are never overwritten.
+   await db.runTransaction(async (transaction) => {
+     const refs = DEFAULT_STORE_CATALOG.map((item) => db.collection("storeCatalog").doc(item.itemId));
+     const snapshots = await Promise.all(refs.map((ref) => transaction.get(ref)));
+     refs.forEach((ref, index) => {
+       if (snapshots[index].exists) return;
+       const item = DEFAULT_STORE_CATALOG[index];
+       const fulfillmentReady = projectStoreCatalogItem(item.itemId, {
+         ...item,
+         active: true,
+         fulfillmentReady: true,
+       })?.fulfillmentReady ?? false;
+       transaction.create(ref, {
+         ...item,
+         // Publish approved, implemented profile features for discovery in the
+         // shop, but leave charging disabled until the owner confirms prices.
+         active: fulfillmentReady,
+         purchaseEnabled: false,
+         fulfillmentReady,
+         createdAt: FieldValue.serverTimestamp(),
+         updatedAt: FieldValue.serverTimestamp(),
+         updatedBy: actorUid,
+       });
+     });
+   });
+   const snapshot = await db.collection("storeCatalog").limit(100).get();
+   const items = snapshot.docs
+     .map((document) => {
+       const data = document.data();
+       const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
+       return projected ? { ...projected, active: data.active === true } : null;
+     })
+     .filter((item): item is NonNullable<typeof item> => item !== null)
+     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
+   return { items };
+ });
+ 
+ 
+ export {
+   createMediaUploadIntent,
+   finalizeMediaUpload,
+   sendChatImageAttachment,
+   getChatImageAttachmentUrl,
+   sendChatMediaAttachment,
+   getChatMediaAttachmentUrl,
+   getMemberProfileMediaUrl,
+   listMemberProfileGallery,
+   getMyMediaUploadStatus,
+   getMemberStoryMediaUrl,
+   listOwnerMediaAssets,
+   getOwnerMediaSafePreview,
+   getOwnerMediaInspectionUrl,
+   ownerMediaInspectionStream,
+   ownerMediaPreview,
+   cleanupExpiredMediaUploadIntents,
+   enqueueMediaSecurityScan,
+   dispatchMediaSecurityScan,
+   receiveMediaScanVerdict,
+   getTimedAdCreativeUrl,
+ } from "./media";
+ 
+ export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+ 
+ 
+ const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
+ 
+ async function readRoomRentalPlans(): Promise<ReturnType<typeof validateRoomRentalPlans>> {
+   const snapshot = await ROOM_RENTAL_SETTINGS.get();
+   const raw = snapshot.data()?.plans;
+   if (raw === undefined) return DEFAULT_ROOM_RENTAL_PLANS;
+   try {
+     return validateRoomRentalPlans(raw);
+   } catch {
+     throw new HttpsError("failed-precondition", "إعدادات أسعار استئجار الغرف غير صالحة؛ راجع لوحة المالك.");
+   }
+diff --git a/functions/src/store-gifting.ts b/functions/src/store-gifting.ts
+new file mode 100644
+index 00000000..4afa20df
+--- /dev/null
++++ b/functions/src/store-gifting.ts
+@@ -0,0 +1,75 @@
++export type StoreGiftIdentity = {
++  senderUid: string;
++  recipientUid: string;
++  itemId: string;
++  expectedPriceCoins: number;
++  expectedCatalogVersion: number;
++};
++
++/** Bind a replay to the exact sender, recipient, item and confirmed price. */
++export function isStoreGiftReplayCompatible(
++  priorInput: unknown,
++  identity: StoreGiftIdentity,
++): boolean {
++  if (priorInput === null || typeof priorInput !== "object" || Array.isArray(priorInput)) return false;
++  const prior = priorInput as Record<string, unknown>;
++  return prior.senderUid === identity.senderUid &&
++    prior.recipientUid === identity.recipientUid &&
++    prior.itemId === identity.itemId &&
++    prior.priceCoins === identity.expectedPriceCoins &&
++    Number.isSafeInteger(prior.priceCoins) &&
++    prior.catalogVersion === identity.expectedCatalogVersion &&
++    Number.isSafeInteger(prior.catalogVersion) &&
++    (prior.status === "completed" || prior.status === "fulfilled");
++}
++
++/** Conservative server-side member profile gate; guest identity is checked separately via guest records/Auth. */
++export function isEligibleStoreGiftMemberRecord(value: unknown): boolean {
++  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
++  const member = value as Record<string, unknown>;
++  if (member.profileCompleted !== true || member.isBanned === true || member.isSuspended === true) return false;
++  if (member.accountStatus !== undefined && member.accountStatus !== "active") return false;
++  if (member.accountType === "guest" || member.isGuest === true || member.profileType === "guest") return false;
++  return true;
++}
++
++function readExpiryMs(value: unknown): number | null {
++  let result: unknown;
++  if (value instanceof Date) result = value.getTime();
++  else if (typeof value === "number") result = value;
++  else if (value !== null && typeof value === "object" &&
++      typeof (value as { toMillis?: unknown }).toMillis === "function") {
++    try { result = (value as { toMillis: () => number }).toMillis(); } catch { return null; }
++  } else return null;
++  return typeof result === "number" && Number.isSafeInteger(result) && result >= 0
++    ? result : null;
++}
++
++/**
++ * Timed gifts stack from max(server-now, current expiry). A permanent active
++ * entitlement remains permanent and is never shortened by a timed gift.
++ */
++export function calculateStoreGiftExpiryMs(
++  currentEntitlement: unknown,
++  durationDays: number | undefined,
++  nowMs: number,
++): number | null {
++  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("INVALID_SERVER_TIME");
++  if (durationDays !== undefined &&
++      (!Number.isSafeInteger(durationDays) || durationDays < 1 || durationDays > 3650)) {
++    throw new Error("INVALID_GIFT_DURATION");
++  }
++  const current = currentEntitlement !== null && typeof currentEntitlement === "object" &&
++    !Array.isArray(currentEntitlement) ? currentEntitlement as Record<string, unknown> : {};
++  const active = current.status === "active";
++  const currentExpiry = current.expiresAt;
++  if (active && (currentExpiry === null || currentExpiry === undefined)) return null;
++  if (durationDays === undefined) return null;
++  const existingExpiryMs = active ? readExpiryMs(currentExpiry) : 0;
++  if (active && existingExpiryMs === null) throw new Error("INVALID_CURRENT_ENTITLEMENT_EXPIRY");
++  if (active && existingExpiryMs !== null && existingExpiryMs <= nowMs) {
++    // Expired records do not contribute time to a new gift.
++    return nowMs + durationDays * 24 * 60 * 60 * 1000;
++  }
++  return Math.max(nowMs, existingExpiryMs ?? 0) + durationDays * 24 * 60 * 60 * 1000;
++}
+diff --git a/functions/test/integration/store-gifting.integration.test.js b/functions/test/integration/store-gifting.integration.test.js
+new file mode 100644
+index 00000000..baabcfb3
+--- /dev/null
++++ b/functions/test/integration/store-gifting.integration.test.js
+@@ -0,0 +1,105 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { getFirestore } = require("firebase-admin/firestore");
++const { createHash } = require("node:crypto");
++const { setStoreCatalogItem, giftStoreItem } = require("../../lib/index");
++
++const db = getFirestore();
++const ownerRequest = (uid, data) => ({
++  data, auth: { uid, token: {
++    platformOwner: true, platformOwnerUid: uid,
++    auth_time: Math.floor(Date.now() / 1000),
++    firebase: { sign_in_second_factor: "phone" },
++  } },
++});
++const memberRequest = (uid, data) => ({
++  data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
++});
++const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
++
++test("store gift debits sender and grants recipient once with immutable terms", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const tag = suffix();
++  const senderUid = `gift_sender_${tag}`;
++  const recipientUid = `gift_recipient_${tag}`;
++  const recipientUsername = `giftuser_${tag}`;
++  const itemId = `vip_gift_${tag}`;
++  const requestId = `gift_req_${tag}`;
++  const itemRef = db.collection("storeCatalog").doc(itemId);
++  const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
++  const previousItem = await itemRef.get();
++  const previousVersions = await versionsRef.get();
++  const usernameRef = db.collection("usernameRegistry").doc(recipientUsername);
++  const previousUsername = await usernameRef.get();
++  const senderRef = db.collection("users").doc(senderUid);
++  const recipientRef = db.collection("users").doc(recipientUid);
++  const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
++  const giftId = createHash("sha256").update(
++    `mawdda-store-gift-v1:${senderUid}:${requestId}`,
++  ).digest("hex");
++  const giftRef = db.collection("storeGifts").doc(giftId);
++  const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
++  const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
++
++  await Promise.all([
++    senderRef.set({ profileCompleted: true, accountStatus: "active", coins: 2000 }),
++    recipientRef.set({
++      profileCompleted: true, accountStatus: "active", username: recipientUsername, coins: 300,
++    }),
++    usernameRef.set({ uid: recipientUid, username: recipientUsername }),
++  ]);
++  try {
++    const saved = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
++      itemId, name: "عضوية VIP", description: "استحقاق تجريبي للإهداء.",
++      category: "vip", priceCoins: 500, durationDays: 7,
++      sortOrder: 1, active: true, purchaseEnabled: true,
++    }));
++    const giftInput = {
++      recipientUsername, itemId, requestId,
++      expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
++    };
++    const first = await giftStoreItem.run(memberRequest(senderUid, giftInput));
++    assert.equal(first.idempotentReplay, false);
++    assert.equal(first.priceCoins, 500);
++    assert.equal((await senderRef.get()).data().coins, 1500);
++    assert.equal((await recipientRef.get()).data().coins, 300,
++      "gift recipient is not charged");
++    const entitlement = await entitlementRef.get();
++    assert.equal(entitlement.data().giftedByUid, senderUid);
++    assert.equal(entitlement.data().catalogVersion, saved.version);
++    assert.equal(entitlement.data().expiresAt.toMillis(), first.expiresAt);
++    const ledger = await ledgerRef.get();
++    assert.equal(ledger.data().type, "store_gift_purchase");
++    assert.equal(ledger.data().amount, -500);
++
++    const replay = await giftStoreItem.run(memberRequest(senderUid, giftInput));
++    assert.equal(replay.idempotentReplay, true);
++    assert.equal((await senderRef.get()).data().coins, 1500);
++    await assert.rejects(
++      () => giftStoreItem.run(memberRequest(senderUid, {
++        ...giftInput, recipientUsername: "different_username",
++      })),
++      (error) => error && error.code === "already-exists",
++    );
++  } finally {
++    await Promise.all([
++      giftRef.delete().catch(() => undefined),
++      ledgerRef.delete().catch(() => undefined),
++      auditRef.delete().catch(() => undefined),
++      entitlementRef.delete().catch(() => undefined),
++      senderRef.delete().catch(() => undefined),
++      recipientRef.delete().catch(() => undefined),
++      (async () => {
++        await itemRef.delete().catch(() => undefined);
++        const versions = await versionsRef.get();
++        await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
++        if (previousItem.exists) await itemRef.set(previousItem.data());
++        await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
++      })(),
++      (async () => {
++        await usernameRef.delete().catch(() => undefined);
++        if (previousUsername.exists) await usernameRef.set(previousUsername.data());
++      })(),
++    ]);
++  }
++});
+diff --git a/functions/test/store-gifting.test.js b/functions/test/store-gifting.test.js
+new file mode 100644
+index 00000000..758c1ccd
+--- /dev/null
++++ b/functions/test/store-gifting.test.js
+@@ -0,0 +1,77 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const {
++  isStoreGiftReplayCompatible,
++  isEligibleStoreGiftMemberRecord,
++  calculateStoreGiftExpiryMs,
++} = require("../lib/store-gifting");
++
++const NOW = 1_800_000_000_000;
++
++test("gift replay is bound to sender, recipient, item, price and completed state", () => {
++  const prior = {
++    senderUid: "sender-a", recipientUid: "recipient-b",
++    itemId: "vip_monthly", priceCoins: 2500, catalogVersion: 3, status: "completed",
++  };
++  const identity = {
++    senderUid: "sender-a", recipientUid: "recipient-b",
++    itemId: "vip_monthly", expectedPriceCoins: 2500, expectedCatalogVersion: 3,
++  };
++  assert.equal(isStoreGiftReplayCompatible(prior, identity), true);
++  assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, recipientUid: "recipient-c" }), false);
++  assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, itemId: "other_item" }), false);
++  assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, expectedPriceCoins: 3000 }), false);
++  assert.equal(isStoreGiftReplayCompatible(prior, { ...identity, expectedCatalogVersion: 4 }), false);
++  assert.equal(isStoreGiftReplayCompatible({ ...prior, status: "pending" }, identity), false);
++  assert.equal(isStoreGiftReplayCompatible(null, identity), false);
++});
++
++test("gift recipient eligibility requires a completed active non-guest member profile", () => {
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true }), true);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true, accountStatus: "active" }), true);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: false }), false);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true, accountStatus: "suspended" }), false);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true, accountType: "guest" }), false);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true, isGuest: true }), false);
++  assert.equal(isEligibleStoreGiftMemberRecord({ profileCompleted: true, profileType: "guest" }), false);
++  assert.equal(isEligibleStoreGiftMemberRecord(null), false);
++});
++
++test("timed gifts extend from the later of server now and active expiry", () => {
++  assert.equal(
++    calculateStoreGiftExpiryMs({ status: "active", expiresAt: { toMillis: () => NOW + 10_000 } }, 7, NOW),
++    NOW + 10_000 + 7 * 24 * 60 * 60 * 1000,
++  );
++  assert.equal(
++    calculateStoreGiftExpiryMs({ status: "active", expiresAt: { toMillis: () => NOW - 1 } }, 1, NOW),
++    NOW + 24 * 60 * 60 * 1000,
++  );
++  assert.equal(
++    calculateStoreGiftExpiryMs({ status: "expired", expiresAt: { toMillis: () => NOW + 50_000 } }, 1, NOW),
++    NOW + 24 * 60 * 60 * 1000,
++  );
++});
++
++test("a permanent active entitlement cannot be shortened by a timed gift", () => {
++  assert.equal(
++    calculateStoreGiftExpiryMs({ status: "active", expiresAt: null }, 30, NOW),
++    null,
++  );
++});
++
++test("permanent catalog items stay permanent and invalid durations fail closed", () => {
++  assert.equal(calculateStoreGiftExpiryMs({ status: "expired" }, undefined, NOW), null);
++  assert.throws(() => calculateStoreGiftExpiryMs({}, 0, NOW), /INVALID_GIFT_DURATION/);
++  assert.throws(() => calculateStoreGiftExpiryMs({}, 7, -1), /INVALID_SERVER_TIME/);
++});
++
++test("malformed active entitlement expiry fails closed instead of granting guessed time", () => {
++  assert.throws(
++    () => calculateStoreGiftExpiryMs({ status: "active", expiresAt: "not-a-timestamp" }, 7, NOW),
++    /INVALID_CURRENT_ENTITLEMENT_EXPIRY/,
++  );
++  assert.throws(
++    () => calculateStoreGiftExpiryMs({ status: "active", expiresAt: { toMillis: () => Number.NaN } }, 7, NOW),
++    /INVALID_CURRENT_ENTITLEMENT_EXPIRY/,
++  );
++});
+diff --git a/lib/screens/shop_screen.dart b/lib/screens/shop_screen.dart
+index 0838c057..b6dde4a0 100644
+--- a/lib/screens/shop_screen.dart
++++ b/lib/screens/shop_screen.dart
+@@ -35,160 +35,242 @@ class _ShopScreenState extends State<ShopScreen> {
+ 
+   void _refresh() => setState(() => _catalogFuture = _loadCatalog());
+ 
+   Future<void> _purchase(Map<String, dynamic> item) async {
+     final itemId = item['itemId'] as String?;
+     final name = item['name'] as String? ?? 'عنصر مودة';
+     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+     final category = item['category'] as String? ?? '';
+     final callPackageNotice = category == 'voice_call'
+         ? 'تمنحك الباقة 5 مكالمات صوتية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة الصوتية المفتوحة 120 كوينز للدقيقة إجمالاً: 60 من كل طرف إذا استنفد الطرفان حصتيهما، أو 120 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
+         : category == 'video_call'
+             ? 'تمنحك الباقة 3 مكالمات مرئية عادية في كل 24 ساعة طوال مدة صلاحيتها. بعد استنفاد حصتك، يكون سعر المكالمة المرئية المفتوحة 400 كوينز للدقيقة إجمالاً: 200 من كل طرف إذا استنفد الطرفان حصتيهما، أو 400 من المتصل وحده إذا كان المستقبل لا يزال يملك محاولات.'
+             : null;
+     final confirmed = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('تأكيد شراء العنصر'),
+         content: Column(
+           mainAxisSize: MainAxisSize.min,
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+             if (callPackageNotice != null) ...[
+               const SizedBox(height: 12),
+               Text(callPackageNotice),
+               const SizedBox(height: 8),
+               const Text('يشترط امتلاك الطرفين اشتراكاً سارياً من نوع المكالمة نفسه. هذه الأسعار هي الأسعار المعتمدة حالياً، ويجب عرض أي تغيير يقرره مالك المنصة من إعدادات الخادم قبل الشراء والاستخدام.'),
+             ],
+           ],
+         ),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('إلغاء'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: const Text('تأكيد الشراء'),
+           ),
+         ],
+       ),
+     );
+     if (confirmed != true || !mounted) return;
+     setState(() => _purchasingItemId = itemId);
+     try {
+       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
+         'itemId': itemId,
+         'requestId': const Uuid().v4(),
+         'expectedPriceCoins': price,
+       });
+       final result = Map<String, dynamic>.from(response.data as Map);
+       final purchaseId = result['purchaseId'] as String?;
+       final confirmedItemId = result['itemId'] as String?;
+       final balance = (result['newBalance'] as num?)?.toInt();
+       if (purchaseId == null || confirmedItemId != itemId || balance == null) {
+         throw StateError('STORE_PURCHASE_RECEIPT_INCOMPLETE');
+       }
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(
+           'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance كوين. رقم الإيصال: $purchaseId',
+         )),
+       );
+       _refresh();
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر إتمام الشراء.')),
+       );
+     } catch (_) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+       );
+     } finally {
+       if (mounted) setState(() => _purchasingItemId = null);
+     }
+   }
+ 
++
++  Future<void> _gift(Map<String, dynamic> item) async {
++    final itemId = item['itemId'] as String?;
++    final name = item['name'] as String? ?? 'عنصر مودة';
++    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
++    final catalogVersion = (item['version'] as num?)?.toInt() ?? 0;
++    if (itemId == null || itemId.isEmpty || price <= 0 ||
++        catalogVersion < 1 || _purchasingItemId != null) return;
++    final usernameController = TextEditingController();
++    final username = await showDialog<String>(
++      context: context,
++      builder: (dialogContext) => AlertDialog(
++        title: Text('إهداء "$name"'),
++        content: TextField(
++          controller: usernameController,
++          autofocus: true,
++          textInputAction: TextInputAction.done,
++          decoration: const InputDecoration(
++            labelText: 'اسم المستخدم للمستلم',
++            helperText: 'أدخل اسم المستخدم المسجل كما هو.',
++          ),
++        ),
++        actions: [
++          TextButton(onPressed: () => Navigator.pop(dialogContext),
++            child: const Text('إلغاء')),
++          FilledButton(onPressed: () =>
++            Navigator.pop(dialogContext, usernameController.text.trim()),
++            child: const Text('متابعة')),
++        ],
++      ),
++    );
++    usernameController.dispose();
++    if (username == null || username.isEmpty || !mounted) return;
++    final confirmed = await showDialog<bool>(
++      context: context,
++      builder: (dialogContext) => AlertDialog(
++        title: const Text('تأكيد الإهداء'),
++        content: Text('سيتم خصم $price كوين من محفظتك وإضافة "$name" إلى حساب @$username.'),
++        actions: [
++          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
++            child: const Text('إلغاء')),
++          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
++            child: const Text('تأكيد الإهداء')),
++        ],
++      ),
++    );
++    if (confirmed != true || !mounted) return;
++    setState(() => _purchasingItemId = itemId);
++    try {
++      final response = await FirebaseFunctions.instance.httpsCallable('giftStoreItem').call({
++        'recipientUsername': username,
++        'itemId': itemId,
++        'requestId': const Uuid().v4(),
++        'expectedPriceCoins': price,
++        'expectedCatalogVersion': catalogVersion,
++      });
++      final result = Map<String, dynamic>.from(response.data as Map);
++      final giftId = result['giftId'] as String?;
++      final balance = (result['newBalance'] as num?)?.toInt();
++      if (giftId == null || balance == null) {
++        throw StateError('STORE_GIFT_RECEIPT_INCOMPLETE');
++      }
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
++        'تم إهداء "$name" إلى @$username. رصيدك الجديد: $balance كوين.',
++      )));
++      _refresh();
++    } on FirebaseFunctionsException catch (error) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text(error.message ?? 'تعذر إتمام الإهداء.')),
++      );
++    } catch (_) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text('تعذر تأكيد الإهداء؛ لم يتم اعتماد العملية.')),
++      );
++    } finally {
++      if (mounted) setState(() => _purchasingItemId = null);
++    }
++  }
++
+   String _categoryLabel(String category) => switch (category) {
+     'avatar' || 'frame' => 'إطارات الصور',
+     'username_style' => 'أنماط الأسماء',
+     'theme' => 'الثيمات والخلفيات',
+     'title' => 'متجر الألقاب',
+     'badge' => 'متجر الأوسمة',
+     'vip' => 'عضوية VIP',
+     'analytics' => 'تحليلات الملف',
+     'profile_layout' => 'تطوير الملف الشخصي',
+     'boost' => 'تعزيز الظهور',
+     'greeting' => 'ترحيب الزوار',
+     'voice_call' => 'المكالمات الصوتية',
+     'video_call' => 'المكالمات المرئية',
+     'privacy' => 'الخصوصية - قيد التجهيز',
+     _ => 'ميزات خاصة',
+   };
+ 
+   String _storeGroup(Map<String, dynamic> item) {
+     final category = item['category'] as String? ?? 'feature';
+     return switch (category) {
+       'voice_call' || 'video_call' => 'features',
+       'vip' => 'vip',
+       'title' => 'titles',
+       'badge' => 'badges',
+       'privacy' => 'privacy',
+       _ => 'features',
+     };
+   }
+ 
+   String _storeGroupLabel(String group) => switch (group) {
+     'all' => 'كل المتاجر',
+     'features' => 'المميزات الخاصة',
+     'badges' => 'الأوسمة',
+     'titles' => 'الألقاب',
+     'vip' => 'VIP',
+     'privacy' => 'الخصوصية',
+     _ => 'المتجر',
+   };
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('متجر مودة'),
+         actions: [
+           IconButton(
+             tooltip: 'سجل الاستحقاقات المجانية',
+             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+               builder: (_) => const MemberEntitlementHistoryScreen(),
+             )),
+             icon: const Icon(Icons.card_giftcard_outlined),
+           ),
+           IconButton(
+             tooltip: 'تحديث الكتالوج',
+             onPressed: _refresh,
+             icon: const Icon(Icons.refresh),
+           ),
+         ],
+       ),
+       body: FutureBuilder<List<Map<String, dynamic>>>(
+         future: _catalogFuture,
+         builder: (context, snapshot) {
+           if (snapshot.connectionState == ConnectionState.waiting) {
+             return const Center(child: CircularProgressIndicator());
+           }
+           if (snapshot.hasError) {
+             return Center(
+               child: Padding(
+                 padding: const EdgeInsets.all(24),
+                 child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     const Icon(Icons.storefront_outlined, size: 48),
+                     const SizedBox(height: 12),
+                     const Text(
+                       'تعذر تحميل كتالوج المتجر. لم يتم تنفيذ أي عملية شراء أو خصم.',
+                       textAlign: TextAlign.center,
+                     ),
+                     TextButton(onPressed: _refresh, child: const Text('إعادة المحاولة')),
+                   ],
+@@ -231,116 +313,125 @@ class _ShopScreenState extends State<ShopScreen> {
+             children: [
+               Wrap(
+                 spacing: 8,
+                 runSpacing: 8,
+                 children: [
+                   'all',
+                   'features',
+                   'badges',
+                   'titles',
+                   'vip',
+                   'privacy',
+                 ].map((group) {
+                   return ChoiceChip(
+                     label: Text(_storeGroupLabel(group)),
+                     selected: _selectedStore == group,
+                     onSelected: (selected) {
+                       if (selected) setState(() => _selectedStore = group);
+                     },
+                   );
+                 }).toList(growable: false),
+               ),
+               const SizedBox(height: 12),
+               const Card(
+                 child: Padding(
+                   padding: EdgeInsets.all(14),
+                   child: Text(
+                     'العناصر وأسعارها مصدرها كتالوج الخادم. عند إتاحة الشراء، ينفّذ الخادم خصم الكوينز وتسجيل الإيصال وقيد المحفظة ومنح الاستحقاق في معاملة واحدة. العناصر غير الجاهزة تبقى غير قابلة للشراء.',
+                     textAlign: TextAlign.center,
+                   ),
+                 ),
+               ),
+               const SizedBox(height: 12),
+               const Card(
+                 child: Padding(
+                   padding: EdgeInsets.all(14),
+                   child: Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                       Text('تنبيه أسعار المكالمات المفتوحة', style: TextStyle(fontWeight: FontWeight.bold)),
+                       SizedBox(height: 8),
+                       Text('الصوتية: 120 كوينز للدقيقة إجمالاً (60 من كل طرف إذا استنفد الطرفان حصتيهما).'),
+                       Text('المرئية: 400 كوينز للدقيقة إجمالاً (200 من كل طرف إذا استنفد الطرفان حصتيهما).'),
+                       SizedBox(height: 6),
+                       Text('إذا استنفد المتصل حصته وبقيت لدى المستقبل محاولات عادية، يتحمل المتصل السعر الإجمالي وحده، ولا يُخصم من المستقبل ولا تُستهلك محاولاته. تُتاح المكالمات المفتوحة بعد استنفاد حصة المتصل اليومية، ومع سريان اشتراك النوع نفسه لدى الطرفين.'),
+                     ],
+                   ),
+                 ),
+               ),
+               const SizedBox(height: 12),
+               if (visibleItems.isEmpty)
+                 Padding(
+                   padding: const EdgeInsets.all(24),
+                   child: Text(
+                     'لا توجد عناصر منشورة في ${_storeGroupLabel(_selectedStore)} حالياً.',
+                     textAlign: TextAlign.center,
+                   ),
+                 ),
+               ...visibleItems.map((item) {
+                 final name = item['name'] as String? ?? 'عنصر من مودة';
+                 final description = item['description'] as String? ?? '';
+                 final category = item['category'] as String? ?? 'feature';
+                 final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+                 final duration = (item['durationDays'] as num?)?.toInt();
+                 final canPurchase = item['purchaseEnabled'] == true &&
+                     item['fulfillmentReady'] == true;
+                 return Card(
+                   child: Padding(
+                     padding: const EdgeInsets.all(16),
+                     child: Column(
+                       crossAxisAlignment: CrossAxisAlignment.start,
+                       children: [
+                         Text(name, style: Theme.of(context).textTheme.titleMedium),
+                         const SizedBox(height: 5),
+                         Text(_categoryLabel(category),
+                           style: Theme.of(context).textTheme.labelMedium),
+                         if (description.isNotEmpty) ...[
+                           const SizedBox(height: 8),
+                           Text(description),
+                         ],
+                         const SizedBox(height: 12),
+-                        Row(
++                        Column(
++                          crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+-                            const Icon(Icons.monetization_on_outlined),
+-                            const SizedBox(width: 6),
+-                            Text('$price كوين'),
+-                            if (duration != null) ...[
+-                              const SizedBox(width: 12),
+-                              Text('المدة: $duration يوماً'),
+-                            ],
+-                            const Spacer(),
+-                            FilledButton(
+-                              onPressed: canPurchase && _purchasingItemId == null
+-                                  ? () => _purchase(item)
+-                                  : null,
+-                              child: _purchasingItemId == item['itemId']
+-                                  ? const SizedBox(
+-                                      width: 18,
+-                                      height: 18,
+-                                      child: CircularProgressIndicator(strokeWidth: 2),
+-                                    )
+-                                  : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
+-                            ),
++                            Row(children: [
++                              const Icon(Icons.monetization_on_outlined),
++                              const SizedBox(width: 6),
++                              Text('$price كوين'),
++                              if (duration != null) ...[
++                                const SizedBox(width: 12),
++                                Text('المدة: $duration يوماً'),
++                              ],
++                            ]),
++                            const SizedBox(height: 8),
++                            Wrap(spacing: 8, runSpacing: 8, children: [
++                              FilledButton(
++                                onPressed: canPurchase && _purchasingItemId == null
++                                    ? () => _purchase(item) : null,
++                                child: _purchasingItemId == item['itemId']
++                                    ? const SizedBox(
++                                        width: 18, height: 18,
++                                        child: CircularProgressIndicator(strokeWidth: 2),
++                                      )
++                                    : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
++                              ),
++                              OutlinedButton.icon(
++                                onPressed: canPurchase && _purchasingItemId == null
++                                    ? () => _gift(item) : null,
++                                icon: const Icon(Icons.card_giftcard_outlined),
++                                label: const Text('إهداء'),
++                              ),
++                            ]),
+                           ],
+                         ),
+                       ],
+                     ),
+                   ),
+                 );
+               }),
+             ],
+           );
+         },
+       ),
+     );
+   }
+ }

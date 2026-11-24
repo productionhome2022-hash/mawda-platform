@@ -1,0 +1,2 @@
+docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md:3: trailing whitespace.
++**Decision date:** 2026-11-19  

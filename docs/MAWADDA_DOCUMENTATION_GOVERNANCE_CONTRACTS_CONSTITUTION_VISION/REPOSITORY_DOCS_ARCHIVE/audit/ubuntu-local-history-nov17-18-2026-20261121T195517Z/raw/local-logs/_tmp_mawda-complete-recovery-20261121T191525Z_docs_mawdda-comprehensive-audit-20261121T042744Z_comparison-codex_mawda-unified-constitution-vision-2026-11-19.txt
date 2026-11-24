@@ -1,0 +1,140 @@
+SOURCE: /tmp/mawda-complete-recovery-20261121T191525Z/docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_mawda-unified-constitution-vision-2026-11-19.txt
+MODIFIED: 2026-11-21 22:15:34.738225343 +0300
+Compared branch: codex/mawda-unified-constitution-vision-2026-11-19
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+395	142
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |    3 +
+ .github/workflows/validate.yml                     |    5 +
+ ...IC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md |   58 +
+ docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md |   54 +
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |   35 +
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        |    2 +-
+ ...WADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md |   19 +-
+ ...WADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md |  187 +++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   29 +-
+ ...ER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md |   10 +
+ docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md    |   17 +-
+ docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md    |  179 +++
+ docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md          |   43 +-
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   18 +-
+ docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md |    6 +-
+ ...RNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md |  149 +++
+ docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md         |   59 +
+ docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md         |   84 ++
+ firestore.rules                                    |    6 +
+ functions/package.json                             |    8 +-
+ functions/src/advertising-governance.ts            |   77 +-
+ functions/src/biometric-media.ts                   |   97 ++
+ functions/src/biometric-review.ts                  |  146 +++
+ functions/src/biometric-verification.ts            |   46 +-
+ functions/src/call-entitlements.ts                 |   42 +
+ functions/src/call-usage-policy.ts                 |   65 +
+ functions/src/group-call-economy.ts                |  142 +++
+ functions/src/index.ts                             | 1300 +++++++++++++++++++-
+ functions/src/platform-role-identities.ts          |   86 ++
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/store-gifting.ts                     |   75 ++
+ functions/src/store-purchase.ts                    |    2 +
+ functions/test/advertising-governance.test.js      |   71 +-
+ functions/test/biometric-media.test.js             |   61 +
+ functions/test/biometric-review.test.js            |   93 ++
+ functions/test/biometric-reward-security.test.js   |    4 +-
+ functions/test/biometric-verification.test.js      |   62 +-
+ functions/test/call-entitlements.test.js           |   42 +
+ functions/test/call-usage-policy.test.js           |   64 +
+ functions/test/group-call-economy.test.js          |   97 ++
+ .../biometric-verification.integration.test.js     |  122 +-
+ .../integration/call-signaling.integration.test.js |   87 ++
+ .../featured-ad-finance.integration.test.js        |    3 +
+ .../integration/guest-session.integration.test.js  |    1 +
+ .../owner-entitlement-grants.integration.test.js   |   26 +-
+ .../premium-profile.integration.test.js            |   40 +-
+ .../specialized-role-capacity.integration.test.js  |  120 ++
+ .../integration/store-gifting.integration.test.js  |  103 ++
+ .../integration/wallet-store.integration.test.js   |   48 +-
+ functions/test/member-social-links-access.test.js  |   28 +-
+ functions/test/member-social-links.test.js         |   13 +-
+ functions/test/platform-role-identities.test.js    |   50 +
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/room-rental-catalog.test.js         |   14 +
+ functions/test/store-gifting.test.js               |   77 ++
+ functions/test/store-purchase.test.js              |   15 +-
+ lib/screens/biometric_verification_screen.dart     |  293 +++++
+ lib/screens/owner_biometric_review_screen.dart     |  276 +++++
+ lib/screens/owner_chat_participation_screen.dart   |    2 +-
+ lib/screens/shop_screen.dart                       |    8 +-
+ lib/screens/super_admin_screen.dart                |   18 +-
+ lib/services/super_admin_security_service.dart     |    2 +
+ storage.rules                                      |   28 +-
+ 64 files changed, 4761 insertions(+), 261 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+A	docs/MAWADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+A	docs/MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md
+M	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+A	docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md
+M	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+A	functions/src/call-entitlements.ts
+A	functions/src/call-usage-policy.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+A	functions/test/call-entitlements.test.js
+A	functions/test/call-usage-policy.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/guest-session.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	lib/screens/biometric_verification_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/services/super_admin_security_service.dart
+M	storage.rules

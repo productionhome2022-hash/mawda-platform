@@ -1,0 +1,23 @@
+BRANCH: codex/phase1-store-gifting-catalog-version-regressions-2026-11-20
+SHA: 3c8ab48d320e3a4b827d4c3eca558691d6c01c75
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 5b7179978ebf6ac9acd0ad558a4aed306bab45f0
+
+=== DIVERGENCE target-only / branch-only ===
+197	1
+
+=== BRANCH UNIQUE COMMITS ===
+3c8ab48d320e3a4b827d4c3eca558691d6c01c75 test(economy): cover missing and stale store catalog gift versions
+
+=== CHERRY STATUS ===
+- 3c8ab48d320e3a4b827d4c3eca558691d6c01c75 test(economy): cover missing and stale store catalog gift versions
+
+=== FILE STATUS ===
+M	functions/test/integration/store-gifting.integration.test.js
+
+=== NUMSTAT ===
+42	0	functions/test/integration/store-gifting.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

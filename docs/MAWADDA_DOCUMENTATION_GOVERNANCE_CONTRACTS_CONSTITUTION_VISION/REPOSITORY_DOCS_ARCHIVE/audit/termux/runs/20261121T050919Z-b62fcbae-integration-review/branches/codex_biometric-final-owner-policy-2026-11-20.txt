@@ -1,0 +1,14 @@
+BRANCH: codex/biometric-final-owner-policy-2026-11-20
+REF: refs/remotes/origin/codex/biometric-final-owner-policy-2026-11-20
+SHA: 08ffcf8d9435cdc1b295aba35ff6b3bc7eac4d23
+
+MERGE BASE: 08ffcf8d9435cdc1b295aba35ff6b3bc7eac4d23
+
+=== DIVERGENCE ===
+172	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

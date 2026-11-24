@@ -1,0 +1,124 @@
+10564784494310761bb4249d703d646020209e35	production home	2026-11-18T13:35:16+03:00	Record partial call reservation remediation and remaining blockers
+6ef8fc34262d3ea8c947cf6839b0070995ecc5d2	production home	2026-11-18T13:34:58+03:00	Align group-call economy tests with approved participant caps
+6d54df1b251033aecbc7ee8c25e162ce6676b87f	production home	2026-11-18T13:34:51+03:00	Add local unit coverage for pending call invitation reservations
+53d6a038a60158ba57ef8f4d3f968d37ef921aeb	production home	2026-11-18T13:34:44+03:00	Allow room members to decline or ignore pending call invitations without being treated as busy
+7bf65b812c2f456ab4a4187f6257cb20ac42324f	production home	2026-11-18T13:34:36+03:00	Fix pending call invitees not reserving active-call slots
+56bb24f451bcf897e5b33e0275cedb295ac22aa3	production home	2026-11-18T13:30:51+03:00	docs(calls): verify missing economy wiring and local test blockers
+9b768aeaf4db6373140a2b015b8dae445f09ade0	production home	2026-11-18T13:29:18+03:00	docs(calls): preserve approved five-person group audio cap
+98a9d7cfe802110abbf13282d593999f490c658b	production home	2026-11-18T13:24:27+03:00	docs(calls): record verified invitation and settlement gaps
+519894e20ded3c91f7e31456768498ba08fd9ef5	production home	2026-11-18T13:21:26+03:00	docs: refresh call economy audit from current branch sources
+ba31587c49e6420600ba3031d64959d3cc4be01b	production home	2026-11-18T13:21:02+03:00	docs: record owner execution and local-test constraints for economic closeout
+24fb901684d851108d47c476b7030695cd01194c	production home	2026-11-18T11:58:28+03:00	fix(economy): correct BetaCoins label typo in profile
+43111a8f84d2859647c6c7263fea492135fd166c	production home	2026-11-18T11:49:56+03:00	docs(calls): update economic work register with source audit
+21ee564ca99cdc060878eacfdf48067a31abc38c	production home	2026-11-18T11:49:46+03:00	docs(calls): record implementation audit and critical remediation plan
+b0ddd12c4b7675e34fe7b69faa18bc533ac69e6d	production home	2026-11-18T11:49:07+03:00	test(calls): align room signaling fixture with rented private-room policy
+e75c15e913aec676930c279fbcbedf4f53016513	production home	2026-11-18T11:46:25+03:00	docs(calls): define interaction tile for three-way video
+1c36876678d2be389c48c2078aa6379338cf4416	production home	2026-11-18T11:44:14+03:00	docs(calls): specify balanced group video layouts
+c0678aa82be1dc8e905d13053e4f91673b708d56	production home	2026-11-18T11:42:34+03:00	docs(calls): clarify group audio admission and video cap
+6bbd5b477c981cf5d28b4370648d88b1883bf53f	production home	2026-11-18T11:31:53+03:00	docs(economy): reconcile call execution audit against current HEAD
+3a459cf3847b3335ba58a35ca78a28ce3ae05df9	production home	2026-11-18T11:28:44+03:00	Update economic closeout register with room-call security progress
+91c5e16e009c1d99b63046b73760d0770ff53648	production home	2026-11-18T11:28:35+03:00	Record room-call rented-private security gate and remaining gaps
+860d3b4a5e537ef25fc1f97c470d67f76422cd01	production home	2026-11-18T11:28:17+03:00	Reject room calls outside active rented private rooms
+2381f4df090e6163b31cca49c01e7470057b4904	production home	2026-11-18T11:27:59+03:00	Test fail-closed rented private room call eligibility
+d615d32cd6b0ac31d2081182b66c3eb648621282	production home	2026-11-18T11:27:44+03:00	Add fail-closed eligibility guard for rented private room calls
+000029b59f84d9898f9366381f987b1c9e725aed	production home	2026-11-18T11:24:17+03:00	Document prioritized economic phase closeout register
+11d1488ca5f9dcb056153345eb7227441936f2bd	production home	2026-11-18T11:20:42+03:00	Document owner-approved integer group-call remainder policy
+4a12dbdf3b21c41f2957246557c3f852b722a9c3	production home	2026-11-18T11:20:39+03:00	Document owner-approved integer group-call remainder policy
+10dedd9b1e088412e24f2777309ab16a36f8fb7a	production home	2026-11-18T11:20:31+03:00	Test initiator-paid group-call rounding remainder
+d327e382be456de92abd79bb5fcb3326fdfad89a	production home	2026-11-18T11:20:29+03:00	Charge group-call fractional remainder to initiator using integer shares
+0b41b5ef1763030869a7b24703b684b2c3aae73d	production home	2026-11-18T11:19:49+03:00	Test exact deterministic group call coin allocation
+ca5aa45c243eaebb8fa872cb0de23311af2ca94f	production home	2026-11-18T11:19:40+03:00	Add exact integer allocation for group call coin splits
+cc3cd71916b02a80e8030e82cde48c6b5c7c3381	production home	2026-11-18T11:17:26+03:00	Record group call pricing and capacity gaps in economic audit
+fdaf53e1f5dff682fce212380ca598322fd66a65	production home	2026-11-18T11:17:23+03:00	Document owner-approved group call policy amendment
+c392a0f499e699ff09739ea678db4336aae593ce	production home	2026-11-18T11:03:32+03:00	Reconcile economic audit with completed gifting work and exact BetaCoins spelling
+112aaea91893dd1ce09d5368f2d9721cdabb0c4e	production home	2026-11-18T11:02:53+03:00	Standardize server messages and notifications to BetaCoins
+6ead5db860f519a0cd268cb22f49f705ad7b615c	production home	2026-11-18T11:02:37+03:00	Finish replacing legacy currency labels with BetaCoins
+3c4fcc8cbb4edde80fb3517c5d2af433b14536d4	production home	2026-11-18T11:02:34+03:00	Finish replacing legacy currency labels with BetaCoins
+726edaeb868d4226ee11babf3ad95f31f76281d8	production home	2026-11-18T11:02:31+03:00	Finish replacing legacy currency labels with BetaCoins
+e4f81e135b0626f5c2839702621fea1770e0cc76	production home	2026-11-18T11:02:26+03:00	Finish replacing legacy currency labels with BetaCoins
+6ebbd924bb37f432b7937a2c5a0e7a34824b0fbd	production home	2026-11-18T11:01:57+03:00	Enforce exact BetaCoins branding across currency labels and decisions
+5180ae6728fc9e07d5662636db0f478e9334e0e6	production home	2026-11-18T11:01:54+03:00	Enforce exact BetaCoins branding across currency labels and decisions
+5b3ceb13088f6708625af6a72fba1f98a21ece3d	production home	2026-11-18T11:01:51+03:00	Enforce exact BetaCoins branding across currency labels and decisions
+615d7e2a0e6612c5f385b1d63ec5a317ee778346	production home	2026-11-18T11:01:48+03:00	Enforce exact BetaCoins branding across currency labels and decisions
+06bc6cea957518af6bb7e1a82b5f536119317fd0	production home	2026-11-18T11:01:35+03:00	Standardize user-facing currency label to BetaCoins
+294d1b3e2a2a259b8884f49c07b0559b18d8bfe2	production home	2026-11-18T11:01:32+03:00	Standardize user-facing currency label to BetaCoins
+1677c8be7f5e47ac83e1ca94f3fe51be5c558342	production home	2026-11-18T11:01:28+03:00	Standardize user-facing currency label to BetaCoins
+3a9442ccfdeb86e8530ae77d08a4cc8a4006c245	production home	2026-11-18T11:01:26+03:00	Standardize user-facing currency label to BetaCoins
+a1aa3099aa091f9f7ce85601ddbfa2f4aa47fcd2	production home	2026-11-18T11:01:23+03:00	Standardize user-facing currency label to BetaCoins
+3357773c8330b6efef6d5614e4da59453e2b7c4d	production home	2026-11-18T11:01:21+03:00	Standardize user-facing currency label to BetaCoins
+2b73e1ef11908c25b63220e70439672a924776cd	production home	2026-11-18T11:01:11+03:00	Standardize user-facing currency label to BetaCoins
+9b999710836e7922c45fed7774bcf500646fc5e7	production home	2026-11-18T11:01:08+03:00	Standardize user-facing currency label to BetaCoins
+1808a3aab8619743b76721fefd0be801874d7df0	production home	2026-11-18T11:01:06+03:00	Standardize user-facing currency label to BetaCoins
+ef7027ff3d077b4a915c1443beebf54ec663859b	production home	2026-11-18T11:01:03+03:00	Standardize user-facing currency label to BetaCoins
+d0838b23b30d0ef9339d0f126f0cd9ebe4acc433	production home	2026-11-18T10:54:40+03:00	Reject anonymous guest senders from coin package purchase and gifting
+01a1f3655e13335ad97c989768c3beb5868ecf9f	production home	2026-11-18T10:54:12+03:00	Make optional transaction reads explicit and type-safe
+37f850fd07a905d5fb5213c76cafa87d71786b27	production home	2026-11-18T10:53:54+03:00	Keep owner package-gift payment terms read-only
+07dcac012ae8887d72d14b26af12bd9f3a990dd1	production home	2026-11-18T10:53:47+03:00	Lock gifted package fulfillment to owner-configured package terms
+d98442d9b99f0b3bcf3b1aa117aa91ffb855aee5	production home	2026-11-18T10:53:34+03:00	Preserve idempotent replay for already approved coin package gifts
+b804e024e29b81b3adfc13335b622d1b54c6e751	production home	2026-11-18T10:53:26+03:00	Move recipient Auth preflight outside package approval transaction
+abb5c19c3ea08707b85ab6986b87c05cadccab3a	production home	2026-11-18T10:53:15+03:00	Move external Auth preflight outside coin package request transaction
+b11ea77a414d914d278128a4f49aee103bbc086a	production home	2026-11-18T10:52:44+03:00	Document Beta Coins package and balance gifting flows
+0e1a7c02c389e56d73c3cca752c71943bf639650	production home	2026-11-18T10:52:41+03:00	Record two-method Beta Coins gifting clarification
+d2f73ca5bfa6eaab6c6b951c62b4d7bd4faa47dc	production home	2026-11-18T10:52:18+03:00	Keep committed coin gift settlement successful if push delivery fails
+b142b9aaff7ff0be1067dae3736c8e1c05df613f	production home	2026-11-18T10:52:05+03:00	Expose recipient details in owner coin package gift queue
+8cf1433799f76615475885fc1054343312a520dc	production home	2026-11-18T10:52:02+03:00	Show package gift fulfillment status to purchaser
+167207078c20c72d6e88c761a274a848dfcf0637	production home	2026-11-18T10:51:54+03:00	Display received coin package gifts in member history
+1e77bacf0e28ef0b8e16ec7e6483ef00ecbbf394	production home	2026-11-18T10:51:44+03:00	Include gifted coin packages in member gift history
+442cc5e0e0b7f24c159f3de3fe939cb20522bdc8	production home	2026-11-18T10:51:31+03:00	Test recipient-bound package gift request validation
+05d6344af82fe99403196b4fff7b2684e13ac0c9	production home	2026-11-18T10:51:23+03:00	Use Firestore document identity for package gift recipient
+8d23f14ff1ff63cffd291958f28c73d4d5f390ab	production home	2026-11-18T10:51:09+03:00	Add coin gift choice for admin packages or sender wallet balance
+dc3a609c5dca89271e9fc043d1303b933033522a	production home	2026-11-18T10:50:53+03:00	Credit verified gifted coin packages to recipient atomically
+8837c51e6510f6f2d7ef5abde55200f9c875ce86	production home	2026-11-18T10:50:32+03:00	Bind coin package gift requests to eligible recipient
+7c0eeb43d2535f1acad8d24b06aa78b62770d725	production home	2026-11-18T10:50:12+03:00	Validate recipient-bound coin package gift requests
+630431051e09c80d9276065ee372396cd5bde82f	production home	2026-11-18T10:49:10+03:00	Document profile-scoped gifting UX and remove shop gifting
+05f26e299b5c788bb7137a4383323e9c78f04e67	production home	2026-11-18T10:49:07+03:00	Record recipient-profile-only gifting UX decision
+92a4d5d653a5a4d3de90cea15eba96a558567bf6	production home	2026-11-18T10:48:57+03:00	Remove obsolete username gift lookup endpoint
+0a25e3a0dc9c60c26f9550cef685fd3f2eed5e53	production home	2026-11-18T10:48:40+03:00	Remove store-originated gifting entry point
+67951103a9a376a15c12637dd8cb60c221a75566	production home	2026-11-18T10:48:35+03:00	Use catalog fulfillment contract and recipient display name
+061a330be675aafd6655782d4f993abf667ea00f	production home	2026-11-18T10:48:24+03:00	Move member gifting entry point to recipient profile
+9728cd2128b8acdd06f687caa0ae64f0117535f5	production home	2026-11-18T10:44:49+03:00	Bind gift recipient lookup to canonical member identity
+3fa9124532e809e1e23f23724b5fabac7e529fcd	production home	2026-11-18T10:44:36+03:00	Preserve purchasedAt contract for gifted entitlements
+31fb52d927773f88138a7a8d8e4ae374242ef1a9	production home	2026-11-18T10:43:54+03:00	Update economic audit with store gifting UI integration
+314e3789a36e91310a4569821f0cd9f1fa40877d	production home	2026-11-18T10:43:52+03:00	Update ECON-007 UI integration status
+f1209455d779cd0214a71455f93b4637ac60052b	production home	2026-11-18T10:43:43+03:00	Keep internal sender identifiers out of gift history UI
+46a90d841437ddc0a0c7411e0fa8d6dec9225622	production home	2026-11-18T10:43:38+03:00	Reject disabled accounts in gift recipient lookup
+7fc27c09ca1fe17baf8e3457dc44dc1587c77e11	production home	2026-11-18T10:43:32+03:00	Harden gift recipient Auth checks and typing
+958c4b882a2b3b443b02417f38ad50e0acc5185e	production home	2026-11-18T10:43:12+03:00	Show received store gifts alongside owner grants
+4c4cce6aa92b3152c3035ae837c2173efe578409	production home	2026-11-18T10:43:00+03:00	Add recipient-owned store gift history endpoint
+8be0879e4c722f9b467c43abdecbbd4a6b5bd8f2	production home	2026-11-18T10:42:49+03:00	Connect store item gifting to member lookup and callable
+ab77650bfc32835c9dcbd7c774a3d651e2cc865b	production home	2026-11-18T10:42:34+03:00	Add privacy-safe eligible gift recipient lookup
+27490b4c6953a0a7078b3c22c8b83ea18e8e63e4	production home	2026-11-18T10:42:05+03:00	Document atomic store gifting backend and remaining gates
+61a524a43a50ca3667e5a79402a98ccdfbef5216	production home	2026-11-18T10:42:03+03:00	Record store gifting implementation status
+0458747da9cee015c6e614fb822dde6e068ffc2c	production home	2026-11-18T10:41:38+03:00	Remove unused gift settlement variable
+90041f905669ebc86436cf842bb1b93c68145ad1	production home	2026-11-18T10:41:32+03:00	Add store gifting domain regression tests
+1d2f1ca363ab0b96657e4102e5906a602de3a211	production home	2026-11-18T10:41:21+03:00	Implement atomic member-to-member store gifting
+a5d53f40713c824308b92d5cf8c37facf02c30ac	production home	2026-11-18T10:40:55+03:00	Add store gifting domain guards and expiry stacking
+a078e6c14906caa3956fd6342bc01432dcbabe50	production home	2026-11-18T10:38:38+03:00	Document approved store renewal and gifting lifecycle
+53576b77318953d4c14fffb174a9109e9924f3cc	production home	2026-11-18T10:38:32+03:00	Record store renewal and member gifting rules
+b1d4c72e58a6a4cc67f49cb3f14d95033899a91e	production home	2026-11-18T10:33:15+03:00	Record no-op Hide Coins SKU constraint under approved privacy rule
+ee08abd87a68a7a38748658788e9a65537d07549	production home	2026-11-18T10:32:49+03:00	Document fail-closed correction for redundant Hide Coins SKU
+83a86742a1212d93f3b328d2467a6843ccd86771	production home	2026-11-18T10:32:43+03:00	Prevent charging for redundant Hide Coins entitlement
+3fd0af8c29b3165a77c3adf2dd77f3f2fc293266	production home	2026-11-18T10:32:36+03:00	Keep redundant hide-coins SKU fail-closed until it has distinct fulfillment
+e373dd59cbdc697b174eb46f1d5776934e5f76d1	production home	2026-11-18T10:32:02+03:00	Document testable transactional daily reward cap guard
+486d8243a81e61e771dab3d1fb3704c7de739b02	production home	2026-11-18T10:31:51+03:00	Add exact-boundary tests for timed-ad daily reward caps
+49261c8fc6dfe290e09ac5cef22663aebeedbe06	production home	2026-11-18T10:31:44+03:00	Remove superseded timed-ad cap constant imports
+46e41f28e3bbb97ad0f50ab064a3f374e92d462c	production home	2026-11-18T10:31:38+03:00	Use shared tested guard for transactional timed-ad daily caps
+6073c81fdc47844aa67196c215701a1e294f56b3	production home	2026-11-18T10:31:31+03:00	Extract timed-ad daily cap decision for testable enforcement
+c9fd052b1572e401bc1e747cfa3007f26cf68199	production home	2026-11-18T10:24:57+03:00	docs(economy): document call billing and Media Saver source gaps
+6eca9a36edd861b75881d5a1a04649111b39397b	production home	2026-11-18T10:24:06+03:00	fix(economy): import timed-ad reward safety limits
+a1138c6985c31fde3c48a7d52d17e567d09702c7	production home	2026-11-18T09:45:05+03:00	docs(economy): record server-enforced ad reward caps
+9ee5debaf5fd718b0209558314a2b2952a3088d8	production home	2026-11-18T09:44:57+03:00	test(economy): cover timed-ad reward caps
+af9b8a8c38036baaa3e13c7a2b144837c965357f	production home	2026-11-18T09:44:50+03:00	feat(economy): persist daily timed-ad reward counter
+ed4b455036fee32d1a0f44bb294b306d78f60edb	production home	2026-11-18T09:44:38+03:00	feat(economy): enforce daily timed-ad reward limits
+07520643d65874a897a147195e5cc59dc703b4ac	production home	2026-11-18T09:44:25+03:00	feat(economy): enforce experimental timed-ad reward caps
+c51431a6f42322292f440bd2505091923527fc0c	production home	2026-11-18T09:33:49+03:00	test(economy): cover Hide Coins fulfillment
+b627102ee04ab13eb5aa401b96713ed54db6aa4a	production home	2026-11-18T09:33:42+03:00	docs(economy): record approved Beta Coins and economic phase amendments
+492f86ab8e13af8bae721697604c614744b90546	production home	2026-11-18T09:33:31+03:00	docs(economy): record Beta Coins and 60/40 owner amendments
+8d8526f9a40223719497d806096a7623f42eb44c	production home	2026-11-18T09:33:22+03:00	docs(economy): define comprehensive economic phase closeout gates
+cd581fb0d03c63f9c0e2337134163a6a52d53644	production home	2026-11-18T09:32:58+03:00	feat(economy): standardize featured-ad rewards as Beta Coins
+ac170450967001f3c44cb46696f0762e319703ee	production home	2026-11-18T09:32:52+03:00	fix(economy): normalize Beta Coins labels
+a322bb5975253a28686b8d5a8ca9b8ebea6b133f	production home	2026-11-18T09:32:42+03:00	feat(economy): show server-authorized Beta Coins balance privacy
+f904920fc2c1999373af60851db067d0b448d620	production home	2026-11-18T09:32:26+03:00	feat(economy): enforce coin visibility at profile projection
+4ac9b409bc58ece92609dfc4d1eeacd502901269	production home	2026-11-18T09:32:15+03:00	test(economy): cover coin privacy matrix
+9bb6c47dec80a9d05f17fb81cc09c5554b68606b	production home	2026-11-18T09:32:12+03:00	feat(economy): add server coin-visibility projection
+68c538f971ac73c8cb043581389afce323481487	production home	2026-11-18T09:32:09+03:00	feat(economy): enable server fulfillment contract for hide coins

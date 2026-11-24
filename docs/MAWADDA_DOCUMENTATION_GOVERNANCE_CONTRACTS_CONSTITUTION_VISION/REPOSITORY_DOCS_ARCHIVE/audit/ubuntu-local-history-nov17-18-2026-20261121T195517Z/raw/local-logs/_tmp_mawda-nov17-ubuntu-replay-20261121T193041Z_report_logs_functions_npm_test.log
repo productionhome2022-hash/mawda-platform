@@ -1,0 +1,11 @@
+SOURCE: /tmp/mawda-nov17-ubuntu-replay-20261121T193041Z/report/logs/functions_npm_test.log
+MODIFIED: 2026-11-21 22:40:53.810225433 +0300
+
+> test
+> npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --check scripts/test-retention-storage.cjs && node --test test/*.test.js
+
+
+> build
+> tsc
+
+sh: 1: tsc: not found

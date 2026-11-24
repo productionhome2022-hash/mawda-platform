@@ -1,0 +1,311 @@
+b62fcbae7ea3cd0c2b473f730cb625b35335de67	production home	2026-11-18T17:46:25+03:00	test: seed server-attested featured ad evidence
+af746792dbdf8b592f81aa7d135493bfc7a46fb0	production home	2026-11-18T17:43:29+03:00	test: use UUIDs for featured ad viewing sessions
+46fffb60e5bf8265c6264fc8a025e3f1f6cdf85b	production home	2026-11-18T17:38:38+03:00	test: seed direct chat for call connection ceiling
+94973f2355b5ffd9da7708d4482f856148b95803	production home	2026-11-18T17:25:08+03:00	test: use UUID for featured ad viewing session fixture
+b4cb0e151d74b323f0269ed311cad787d4c6fc6c	production home	2026-11-18T17:18:05+03:00	fix(media): safely narrow callable auth token
+0cc045b32dc6f5b07f21b1ea758bf59fa0e8971b	production home	2026-11-18T17:18:02+03:00	fix(ads): avoid duplicate creative type in session response
+3fa816a4079bb1daa9d4a3f90a2c7cf73f55c53f	production home	2026-11-18T17:13:47+03:00	test(store): align ready catalog fixtures with privacy fail-closed policy
+d895f3499c9b2f8860d5d239bba7675d8328b615	production home	2026-11-18T17:13:45+03:00	fix(store): keep hide-coins purchase disabled until fulfillment ships
+6da0a48c137edf2528bba28dba95a4b9281ea0ab	production home	2026-11-18T17:13:42+03:00	test(media): import safe derivative policy helper
+6b8de8fd89bc0da1e2597c141460532cd909fe7e	production home	2026-11-18T17:13:39+03:00	test(calls): align remainder test with five-person cap
+ad866255e8843d6cd18cceeb3fe2835fa95c40d3	production home	2026-11-18T17:12:57+03:00	fix(media): close delivery URL helper correctly
+11398a5f4eff2750c14973302e31f441c84e1f0a	production home	2026-11-18T15:54:10+03:00	docs: record economic phase source recheck and blockers
+71cff419c917455cc2e1dbdec20770fc8f2e7cc6	production home	2026-11-18T15:46:08+03:00	docs(economy): record verified state and remaining release gates
+685b8100536b572ed68fb6e3c3be0ccb519eb14f	production home	2026-11-18T15:40:37+03:00	docs: close out current economic execution record
+3685cd7d8ea06012799fb6b8427cd3c275502814	production home	2026-11-18T15:40:12+03:00	fix(economy): allow owner to remove ad price rows
+d3edc82b76028a80cac03bd889be47ce17d4df2c	production home	2026-11-18T15:39:43+03:00	docs: record local validation environment blocker
+906c427b1dcdfac3239f2226c9c2a2835e4eb839	production home	2026-11-18T15:39:09+03:00	docs: record economic execution follow-up and remaining gates
+beab3dd2f1d4b31e90232269bc8bb36181b68498	production home	2026-11-18T15:38:22+03:00	test(economy): validate owner-authored prices without production defaults
+a1ee706220173a8268c6a30388c7741a2d2c9b71	production home	2026-11-18T15:38:11+03:00	refactor(economy): remove unapproved hardcoded package and ad prices
+2a679301c0824482276c20fc73af612e848fe9a4	production home	2026-11-18T15:38:02+03:00	test(economy): verify empty owner pricing and versioned explicit activation
+aa4733f75411609b4bb63a84c5db1ce763b7fe43	production home	2026-11-18T15:37:24+03:00	feat(economy): add owner-authored pricing rows without defaults
+0f05d6c4c248b35a7402b52ea2a9e0e794d4a6e6	production home	2026-11-18T15:36:57+03:00	fix(economy): remove unapproved starter prices and version owner updates
+899ee1042baa198ec80a7b2cab42d987c3e35b27	production home	2026-11-18T15:36:06+03:00	test(wallet): verify coin gift history and recipient notification
+e79860fdfd312b29e9786799607effa9fa7f960a	production home	2026-11-18T15:35:57+03:00	fix(wallet): label coin transfers as gifts in wallet history
+7c7e00ff9d61c83df397bdf9c20b8877fdf12e2d	production home	2026-11-18T15:35:50+03:00	feat(wallet): display balance-based coin gifts in member history
+1f2718ee1e9052e71ada442ddd5d0483c1765239	production home	2026-11-18T15:35:41+03:00	feat(wallet): record coin gifts in recipient history and notifications
+070a156806e5698092bb9e6de385bf189b905beb	production home	2026-11-18T15:35:13+03:00	test(wallet): reject transfers to guest-profile recipients
+af031c279008b11662cd5083d6fa67604009589a	production home	2026-11-18T15:34:57+03:00	fix(wallet): reject guest profiles from coin transfer endpoints
+3424cc9d6fa11fc69afa267940053981d7a64547	production home	2026-11-18T15:34:25+03:00	fix(ads): disclose reward settlement safety gate in owner console
+0c247997a7a6381f22caf041b2bec8276f390ff0	production home	2026-11-18T15:34:11+03:00	test(ads): prevent rewards from client-forged playback telemetry
+57befb791471abcafc3be0e59927af4cb8cd7236	production home	2026-11-18T15:33:56+03:00	fix(ads): fail closed on client-reported reward evidence
+0688a535e0be51c9086b6431eaf0db2f41a962df	production home	2026-11-18T15:33:26+03:00	test(ads): cover shared all-Arab geography eligibility
+82a99cac1bb4669b539e847bcc3565212dba3fe8	production home	2026-11-18T15:33:10+03:00	fix(ads): use shared geographic eligibility across session and settlement
+5eac94cd5725bdc659be077e563a74c8e6608830	production home	2026-11-18T15:33:00+03:00	refactor(ads): centralize geographic targeting policy
+55e806bbc19d50d0993368b3752ffc517d7e63a2	production home	2026-11-18T15:32:43+03:00	fix(ads): preserve all-Arab targeting in atomic session recheck
+ba3d442b0f6e26599276cb0969b8f456857fb00b	production home	2026-11-18T15:32:14+03:00	fix(calls): revalidate room rental and participant membership at connection
+2cff69bc3777188fd88b7fbf485d2166c241bab7	production home	2026-11-18T15:31:52+03:00	test(calls): cover block and membership changes before acceptance
+f9e7d54816e0c92370a5570e570647c32fb5b3d6	production home	2026-11-18T15:31:37+03:00	fix(calls): revalidate account safety and chat membership on acceptance
+dfcae6ce09db1a2ed97d397577db41ea33483043	production home	2026-11-18T15:31:24+03:00	fix(calls): revalidate participants and direct-chat membership atomically
+b8ede5c9cf57103e8c15f54127d1890e22a50212	production home	2026-11-18T15:30:17+03:00	test(economy): assert package offers fail closed without owner pricing
+fa8c914e85e3b021a800055d06e4224d524452c7	production home	2026-11-18T15:30:03+03:00	fix(economy): require owner-configured coin package catalogue
+d2ff554acee6a94713fa2c5a34a1cb4a6add0300	production home	2026-11-18T15:29:29+03:00	fix(wallet): bind retry keys to exact gift intent
+8bac2102066c70dff86fdb50e585eee609b08a0a	production home	2026-11-18T15:29:21+03:00	fix(wallet): align owner coin purchase fields with server contract
+f2712e874acc92c40ec693c72bcab1a55736fd0d	production home	2026-11-18T15:28:47+03:00	feat(wallet): expose coin gifting from wallet screen
+6e45dedafb381741a8ddd37d75aa9c73559d6219	production home	2026-11-18T15:28:38+03:00	feat(wallet): add package and balance-based coin gifting screen
+29c89cdb7cb39d8f189c0ed6ad76f97879d55d39	production home	2026-11-18T15:24:31+03:00	test(media): cover owner capacity policy versioning and partial telemetry
+452d7f69fdd5a209f52852253047f67fa791790e	production home	2026-11-18T15:24:16+03:00	test(media): verify atomic finalized upload metering and replay safety
+9bda63796ff190c5b1f8dd9521e41ef11bef1908	production home	2026-11-18T15:23:59+03:00	fix(media): label partial upload metering accurately in owner console
+d84ab8a4af6097e24eca85e836a7f5df893bb4f9	production home	2026-11-18T15:23:50+03:00	feat(media): meter finalized upload bytes atomically without member identifiers
+378254202e4f0fba8cd58df95c4e4c255c53c8a7	production home	2026-11-18T15:23:37+03:00	feat(media): add owner-authenticated observe-only capacity policy callables
+a78c03e6cff31a01014f5609b183ef5e24699aaa	production home	2026-11-18T15:23:19+03:00	feat(media): link owner capacity and media policy screen
+2e300f311e4167b10e9942b0b2df7d75971c4ace	production home	2026-11-18T15:23:10+03:00	feat(media): add owner observe-only capacity management screen
+ff74e239963ce68370cfeae05edeb6056a8e5919	production home	2026-11-18T15:23:04+03:00	test(media): cover owner capacity policy validation
+a83f81b30574c4629c9c35cb69ba05c1c26eb6b0	production home	2026-11-18T15:23:01+03:00	feat(media): add observe-only owner capacity policy model
+df94af4bd8ea789a63d6f98a4fef467d932f9ff9	production home	2026-11-18T15:21:42+03:00	test(ads): cover campaign reward ceiling and remaining budget
+e0172893e1960edfa57bc5a9dd73755e8527d707	production home	2026-11-18T15:21:35+03:00	refactor(ads): use tested owner reward policy and campaign budget guards
+175ed14d271be4d61a76da24c3a46a3c86d26d6f	production home	2026-11-18T15:21:24+03:00	refactor(ads): centralize campaign reward ceiling and budget checks
+74b6a6456c74a658e249a94430bab5ee982aa32e	production home	2026-11-18T15:20:04+03:00	test(media): reject scanner signature age overrides above 36 hours
+74d8ffd16dd068a20416b4e9774477c815a537bd	production home	2026-11-18T15:19:57+03:00	fix(media): reject scanner configurations looser than 36-hour signature freshness
+4cd946c66a8c642a49981c8e5d7f552a3183bd88	production home	2026-11-18T15:19:52+03:00	fix(media): hard-cap scanner signature freshness at 36 hours
+aa7e20a6678102ce0b4dbe47e219935d23eaeef3	production home	2026-11-18T15:18:50+03:00	test(ads): cover all-Arab campaign regional targeting
+d0f39bfa1abdd7834e54bf0aa8c9e8cafb014309	production home	2026-11-18T15:18:41+03:00	fix(ads): enforce consistent geographic eligibility through reward claim
+7e589dbb1c2b1c5c2776c4d08f45b533c8c05789	production home	2026-11-18T15:18:34+03:00	fix(ads): include all-Arab campaigns in regional showcases
+c4df4c89e041cb2a28e6cb0695468d4bfa5468f0	production home	2026-11-18T15:18:19+03:00	fix(ads): send expected reward policy version from owner dashboard
+984c8fc3611c778783ddbc0e8ecc27ef4e7df183	production home	2026-11-18T15:18:11+03:00	fix(ads): version-check owner reward policy updates
+75afa3e527e9006db5527bd8e66c564b2ecf5509	production home	2026-11-18T15:17:59+03:00	fix(ads): remove hidden campaign reward defaults and clarify owner caps
+e81f859e8b870a82781684a4b3f0dd73c9be9769	production home	2026-11-18T15:17:44+03:00	test(ads): assert fail-closed owner-configured featured ad rewards
+5db18877124de95237a9aceff3614416ec6ef81f	production home	2026-11-18T15:17:27+03:00	fix(ads): honor owner campaign reward amount within global reward ceiling
+c7129ecba9a062781e0435b6c6c9a11b03385a45	production home	2026-11-18T15:17:15+03:00	fix(ads): remove unapproved reward and campaign budget presets from owner UI
+284f9ae132728675fea13b33074d3b812fecf6e6	production home	2026-11-18T15:16:56+03:00	fix(ads): disable featured-ad rewards until owner configures amounts and quotas
+89582a41e4b51bd0f472f5ae46482e69f8505f8a	production home	2026-11-18T15:13:55+03:00	test(calls): terminate room call when rental expires
+61d1a2ac876d0466f6d46d72cc9b6c912c31694a	production home	2026-11-18T15:13:40+03:00	fix(calls): terminate room calls when the private rental expires
+a36129794849f4787fd8f8e4b954cfae3e04a761	production home	2026-11-18T15:13:24+03:00	fix(calls): recheck room membership and rental at call admission
+2e1d0a1d6aae6cf22ce744614c92aaf12c6c2fcf	production home	2026-11-18T15:12:47+03:00	test(calls): verify room participant entitlement admission and rejection
+62a124e68dc817bd572e850bfd2d91111691a128	production home	2026-11-18T15:12:33+03:00	fix(calls): validate entitlements for admitted call participants only
+885ec85eb38d78b80753f51bb10519d01d6a8d39	production home	2026-11-18T15:12:01+03:00	test(calls): cover private rental gate and four-person video cap
+3b83ef2471a6fac334a89f5b6f21624b5048ffee	production home	2026-11-18T15:11:48+03:00	test(calls): align room call integration fixture with rented private room policy
+03d1043257c832aed8f9bc5cfb42ebf17bc392db	production home	2026-11-18T15:11:26+03:00	fix(calls): require active private room rental and enforce video capacity
+4dd0f4b0965258c33eb8eeb5d451b723880d8074	production home	2026-11-18T15:10:29+03:00	test(economy): fail closed on inconsistent gift ledger replay
+d4db61880c6385dd58f617144d112e526accda08	production home	2026-11-18T15:10:21+03:00	feat(economy): link gift history from member wallet
+8b9c87df634de8847a9b76df0de7fbbbb7bbcbb1	production home	2026-11-18T15:10:15+03:00	feat(economy): add member gift history screen
+c5a3c0903652917752976b8515224bc983b59f8d	production home	2026-11-18T15:09:55+03:00	fix(economy): verify immutable gift ledgers before idempotent replay
+08d3de55b94444a28b421c302456cf4cbf063d2b	production home	2026-11-18T15:09:40+03:00	test(economy): reject malformed active gift entitlement expiry
+6b0b3bdeab296057fd54e67c8b01147311d767a8	production home	2026-11-18T15:09:35+03:00	fix(economy): fail closed on malformed active gift expiry
+f108044dd56e1fd860c7beb0629ee4cb1ce8fef2	production home	2026-11-18T15:09:21+03:00	fix(economy): correct control-character validation for gift recipient IDs
+eac8d3d03db78e9de47740700f72d0c20e1d8f23	production home	2026-11-18T15:09:08+03:00	fix(economy): reject unsafe path characters in gift recipient IDs
+3c1e905c6aefbedb990d5ae5982938721356b6e9	production home	2026-11-18T15:08:33+03:00	feat(economy): add coin package, wallet balance and store gifting UI
+397aa37e894ca646e98aa4036d026d251a7cd941	production home	2026-11-18T15:08:08+03:00	test(economy): enable auth emulator for wallet gift integration
+4c5dec93b9f785ec450cb6d9c4d61598b624d9b0	production home	2026-11-18T15:08:02+03:00	test(economy): cover atomic store and coin package gifting in emulators
+9b38da2f2bb9cae5f83b14a006fe207847d53878	production home	2026-11-18T15:07:32+03:00	fix(economy): reject self gift before recipient auth lookup
+f996a1f254628e57b331f5c53ebbc2dfe3abb7a0	production home	2026-11-18T15:06:58+03:00	feat(economy): add server-verified gifted coin packages and gift history
+b2f287867d082e9bdf3a9f97ee52873112490441	production home	2026-11-18T15:06:12+03:00	test(economy): cover gifted coin package request validation
+cb8cc4643572ff9e4066898564a06134a34e06f4	production home	2026-11-18T15:06:05+03:00	feat(economy): validate recipient for gifted coin packages
+17a2c32ce02e7c9c3dfbedb1085aa68647894df2	production home	2026-11-18T14:59:37+03:00	docs: record selective PR 22 24 25 audit and local test blocker
+5587546f46151fb8f771bbb9b005164bbeebd0a3	production home	2026-11-18T14:54:01+03:00	docs: record selective integration audit for open PRs
+2bc3b2183ef39a5a4f9e9ef1c37249aaec280688	production home	2026-11-18T14:50:57+03:00	docs: record unified branch reconciliation checkpoint
+37e0b27dd2c676ac67e5d1e27dfb565cd831c722	production home	2026-11-18T14:47:33+03:00	Document financial transition boundary hardening
+875d42dd435067bc5c497ce00c336b29be0ee3ee	production home	2026-11-18T14:47:26+03:00	Test forged financial events and corrupt snapshots
+b8cc837ab2694860c18302f8e3f5bbba9114c8f0	production home	2026-11-18T14:47:20+03:00	Harden featured ad financial transition boundary
+80e5ade48518ca2fa9fdef4acb66cc3a772e27f3	production home	2026-11-18T14:42:51+03:00	docs: record isolated featured ad finance policy integration
+1a9dc1ec5fd770e11ba69d033de1a98d20ee13ea	production home	2026-11-18T14:42:40+03:00	test: add isolated featured ad finance policy coverage
+64677c63423f26d86afe822983db25e42f4a1e62	production home	2026-11-18T14:42:35+03:00	feat: add isolated featured ad finance policy
+76742b3c4a71400e8fafb22a73cf110e698d046a	production home	2026-11-18T14:42:26+03:00	docs: record sticker UI integration and final review
+9f4aa52f45664313449cb9a46ac596c35f2e8072	production home	2026-11-18T14:42:04+03:00	fix(stickers): protect chat participant binding and message summary
+a761d70dfccdd12cba8eccc2865817e3a746fdac	production home	2026-11-18T14:41:18+03:00	docs: update sticker client integration status
+08230028d65d7a643e87bfea997a2ca0c31dd2d8	production home	2026-11-18T14:40:46+03:00	feat(stickers): integrate sticker picker and message rendering in room chats
+8c665200e16fa6b75a6cdeaef587cc7ee065320d	production home	2026-11-18T14:40:42+03:00	feat(stickers): integrate sticker picker and message rendering in direct chats
+2d91f7baae1b7d9b743fb26019a2ec15f2be0f2d	production home	2026-11-18T14:40:19+03:00	feat(stickers): add owner sticker pack management entry
+41eeaba73512e3e0322c9e5afcb363c95abdcb56	production home	2026-11-18T14:40:06+03:00	feat(stickers): add owner pack editor and sticker picker widgets
+7a88ebf2eb2db209618e2c8bcbfce1ff3825deca	production home	2026-11-18T14:40:03+03:00	feat(stickers): add owner pack editor and sticker picker widgets
+5cdea71ecb890beabe393e1b3fabd5e91f6f0ed1	production home	2026-11-18T14:39:57+03:00	feat(stickers): add client methods for upload, catalog and send
+2ab8982ebf13dd8af93ab9997fac0ef7ccf8e4ac	production home	2026-11-18T14:38:52+03:00	docs: record sticker send authorization hardening
+7efd056aefc626151297d96735640c1666ea96d9	production home	2026-11-18T14:38:22+03:00	fix(stickers): align room membership checks with canonical room messaging
+8f2d0863d36901d6e1906d7b46c0754feb32153e	production home	2026-11-18T14:38:00+03:00	fix(stickers): enforce active member account eligibility
+0cb9f36a3372ca658cbae7935e0c11e5f450a3ac	production home	2026-11-18T14:37:21+03:00	docs: record sticker backend implementation and remaining gates
+c3b48f9c8ae45a6f8fe63740a94d2b76a22fd6ed	production home	2026-11-18T14:36:26+03:00	fix(stickers): bind send retries to pack and sticker identity
+0b8b00a142cc4aaf5c87714face3bc90e03dcfb4	production home	2026-11-18T14:36:12+03:00	test(stickers): verify full idempotency identity
+a43a8db9e1b06bd125eb10a1cb401b1ae8452405	production home	2026-11-18T14:36:09+03:00	fix(stickers): bind replay detection to full message identity
+e9e3cb6e43e3a680f1de05f910e2583d8a158bd3	production home	2026-11-18T14:35:39+03:00	fix(stickers): consolidate media policy imports
+5e9f4d15c8f5f805713ba1ce0e6822aafdeab296	production home	2026-11-18T14:35:01+03:00	feat(stickers): expose secure sticker catalog and media callables
+63695d8153e811c4ecbf675cd6ba002a3783c28b	production home	2026-11-18T14:34:36+03:00	feat(stickers): add secure owner pack, send and asset delivery callables
+8c541981852740e2172e35885e81032f7e2ba0d5	production home	2026-11-18T14:34:09+03:00	test(stickers): cover owner-only sticker derivative routing
+e1e390adff33b8cb20557841e75cab3b5f7ad4ba	production home	2026-11-18T14:34:07+03:00	feat(stickers): allow owner-only sticker derivatives
+92b50c4c2d111c91f234acd787c19bf75c0d100a	production home	2026-11-18T14:33:43+03:00	feat(stickers): bind upload to scanner-measured safe metadata
+d40e18fbcc1531f2b3416208263c8dfc77ad86d0	production home	2026-11-18T14:33:40+03:00	test(stickers): cover owner-only upload limits
+17941d27a74f9d58c348ea9afb0837ed791e8e21	production home	2026-11-18T14:33:23+03:00	feat(stickers): enforce owner-only bounded sticker upload policy
+45e362a58f435f0b11fab6c8306913551d257272	production home	2026-11-18T14:33:21+03:00	test(stickers): cover scanner sticker verdict validation
+adfa4612d946491d9cf4a6eb8cd369b9661178cd	production home	2026-11-18T14:33:18+03:00	feat(stickers): validate scanner-measured sticker metadata
+fefa499fcae5d00b6105e827758b6c14ffff54f0	production home	2026-11-18T14:32:51+03:00	feat(stickers): add scanner-side sticker inspection and safe derivatives
+1243a14f37f3110daddb6d0212a152726cf6f30c	production home	2026-11-18T14:32:49+03:00	feat(stickers): add scanner-side sticker inspection and safe derivatives
+03f5f360f33bfacf83355f0024a28fbfce79b60e	production home	2026-11-18T14:32:46+03:00	feat(stickers): add scanner-side sticker inspection and safe derivatives
+e62ececc2387bbfa5f74a58e2afde2acb97e91a4	production home	2026-11-18T14:32:43+03:00	feat(stickers): add scanner-side sticker inspection and safe derivatives
+7b6d4f9dd54f32ceb3ac239b48153608367abe4b	production home	2026-11-18T14:32:40+03:00	feat(stickers): add scanner-side sticker inspection and safe derivatives
+479a1d595d733ebe124272a74f30b86b2d7f957f	production home	2026-11-18T14:32:02+03:00	revert(media): restore standard quota cleanup state
+e7a9c219f3adbeb9d828d6a9a3ee79f919a45c2a	production home	2026-11-18T14:31:44+03:00	revert(media): defer unapproved quota exemption policy
+854adeb1c59683b8a7227a7d8c2df1b06b331e96	production home	2026-11-18T14:31:25+03:00	revert(test): defer unapproved quota exemption policy
+5e5cda9ee9a7e014c3af848b0f8b8f0040e4086e	production home	2026-11-18T14:31:22+03:00	revert(media): defer unapproved quota exemption policy
+c847c90a544d4d9512ab87df26b0316059d67088	production home	2026-11-18T14:30:36+03:00	fix(media): make cleanup quota release exemption-aware
+98165641eaef7bfa7db5dd3039d5c24d3e5cc927	production home	2026-11-18T14:30:20+03:00	fix(media): release only existing quota reservations
+a1b637217d3530b431b58aebb907f2bf2facae65	production home	2026-11-18T14:30:08+03:00	fix(media): bind owner transfer exemption to verified recipient
+6c82cd83044cb5411790933064ffdea4aa02ff2c	production home	2026-11-18T14:30:00+03:00	feat(media): apply server-verified transfer quota exemptions
+d5db3268b02fec312ab0eb725fde2556041ea420	production home	2026-11-18T14:29:36+03:00	test(media): cover owner transfer quota exemptions
+816a6ae69529032ac391c0f20e8418f50c80f87d	production home	2026-11-18T14:29:34+03:00	feat(media): add verified transfer quota exemptions
+f05bbcfc4608a5840f6adc8846199d4cc4f771e2	production home	2026-11-18T14:27:25+03:00	docs: record media quota exemption security review
+0eceae16d6132ae29d440ebc6909c5475173a8db	production home	2026-11-18T14:26:56+03:00	docs: record media integration findings and execution order
+33aeb4a91b5b3b7cdaa2aeaa9a9cf274a94919ce	production home	2026-11-18T14:22:28+03:00	Document safe test seeder syntax-check integration
+efb80d130793ba2f3f5c5d6a58ced11f4fb08736	production home	2026-11-18T14:22:20+03:00	Add emulator seeder syntax check to local Functions test command
+230c9b734b59e5023851aa0908d48012a10487bb	production home	2026-11-18T14:19:26+03:00	Record review of remaining divergent branches and reject policy conflicts
+fcde3f8a3c09ee2fc29d135aeefc107e7746c20c	production home	2026-11-18T14:18:13+03:00	Document comprehensive integration conflict audit and safe index union
+effe4ac858b6b5557b3b05e32b82d586d5e0da34	production home	2026-11-18T14:17:46+03:00	Preserve additive featured-ad and media indexes in unified test branch
+b5dd16687c224c8a8bf8416c7921ccf0a3c9e76f	production home	2026-11-18T14:14:07+03:00	docs: refresh unified branch integration evidence
+5e04013f5d250ccf914699a4611c31690887c98c	production home	2026-11-18T14:13:42+03:00	docs: record selective policy module integration and remaining wiring
+56541eb73a4ef25702ac5871d9ac83bff4ca50ad	production home	2026-11-18T14:13:29+03:00	chore: remove duplicate call entitlement helper pending unified integration
+075418ec469b1b28f2bcc84767de73d22c3669d3	production home	2026-11-18T14:13:26+03:00	chore: remove duplicate call entitlement helper pending unified integration
+cf0e239febb207d8678725a5c0331bd7ed2b2d7f	production home	2026-11-18T14:13:03+03:00	test: cover integer group call allocation and five-person ceiling
+44fcfb216145b02f725e9df5959c2cf655008355	production home	2026-11-18T14:13:01+03:00	fix: enforce five-person group call allocation ceiling
+388f4c83dc911e6c25231ecc1d5ff532a1a50d43	production home	2026-11-18T14:12:47+03:00	feat: add isolated store-gifting.test.js policy and tests
+8cde29586b8625657e2d2433e1864a47b81e8a0f	production home	2026-11-18T14:12:43+03:00	feat: add isolated room-call-policy.test.js policy and tests
+513ca3b042f9be33e2b553177fab50a4c6246f98	production home	2026-11-18T14:12:40+03:00	feat: add isolated store-gifting.ts policy and tests
+f010ad25698d6cc504b9eecf2ed7a049d05f0848	production home	2026-11-18T14:12:37+03:00	feat: add isolated room-call-policy.ts policy and tests
+1cf3049c7fa74a827bdbcdf99ed91a30d4661e9b	production home	2026-11-18T14:12:34+03:00	feat: add isolated group-call-economy.ts policy and tests
+7d0ed4398691b565f6d80ffdc0b0ab137343961c	production home	2026-11-18T14:12:15+03:00	test: add isolated call entitlement policy unit coverage
+af4d92ea08e52d07b883e46c1f7dbde094a8b62b	production home	2026-11-18T14:12:10+03:00	test: add sticker policy and catalog unit coverage
+05c4708c558cc6d94ba5a20f2e6b0d1343d59cee	production home	2026-11-18T14:12:04+03:00	feat: add isolated call-entitlements policy module
+8ba9e47864ab209348984b017152a346e18c7c1e	production home	2026-11-18T14:12:02+03:00	feat: add isolated sticker-catalog policy module
+28182105618fa55fc23b3ef3304cee9b25f54088	production home	2026-11-18T14:11:59+03:00	feat: add isolated sticker-policy policy module
+9f833e9ee76483d94db6cd921016e544f229e279	production home	2026-11-18T14:11:37+03:00	docs(testing): add emulator test center operator runbook
+aa1e02dece350244d121cb5beb1b7ed29c6a6796	production home	2026-11-18T14:03:32+03:00	docs: correct unified integration register references
+47a32f9562d3a2865755635d42c563348a300d19	production home	2026-11-18T14:03:19+03:00	docs: record safe unified branch integration status
+fb9cfce8c4d0743d06b8a0001e370007896b79a8	production home	2026-11-18T14:02:49+03:00	docs(testing): add isolated test account system specification
+adbdf8e7d2d55e2eb888cfbeec319c47361f7e6f	production home	2026-11-18T13:50:18+03:00	docs: record unified branch inventory and integration controls
+9423fbaed63417cec4c9b27cdc10d45b16ef6401	production home	2026-11-18T13:45:28+03:00	Merge pull request #21 from productionhome2022-hash/codex/featured-ads-serving-foundation
+0fe15db693eb0a36a73c11a6e563e189069e74ba	production home	2026-11-18T09:25:15+03:00	docs(economy): record gifting and Media Saver fulfillment closure work
+0c465318eb590bdf789360c0e9601456e3ded2f6	production home	2026-11-18T09:24:57+03:00	test(economy): cover member gifting and full call/media store catalog
+a74172d9a8d2278a3a25ae7445931149a65c4c99	production home	2026-11-18T09:24:33+03:00	feat(economy): add atomic member-to-member store entitlement gifting
+ee718fb0397d32911f611f621e752547488908ab	production home	2026-11-18T09:24:03+03:00	fix(economy): mark Media Saver fulfillment as server-ready
+b68e08c638faa2d4c1fd3f412a19d73a59404407	production home	2026-11-18T09:23:17+03:00	ui(economy): finish visible Beta Coins terminology cleanup
+980e78802eb916a8b6b4002d47fcedc6e58048e6	production home	2026-11-18T09:23:14+03:00	ui(economy): finish visible Beta Coins terminology cleanup
+09c8c227bfc5bd605c61c4e875712a4c0cd8ea38	production home	2026-11-18T09:22:39+03:00	fix(economy): restore store catalog technical field and clean Beta Coins labels
+03953580d881bd49a31fbb712a557fa2941f22cd	production home	2026-11-18T09:19:41+03:00	docs(economy): authorize development test pricing and durations
+741edbf27a7b24a6178af838118a9a133fd35a35	production home	2026-11-18T09:15:09+03:00	docs(economy): define comprehensive economy phase scope and release gates
+436ab59b38a2ad35235529e1b49435ed6f9ac67d	production home	2026-11-18T09:03:58+03:00	docs(economy): record Beta Coins terminology and phase-wide closeout gates
+b2bdafc812487c7759a82f2f3bb39848164e4349	production home	2026-11-18T09:03:38+03:00	ui(economy): standardize Beta Coins terminology across economy surfaces
+a3a226460eded7832489f8012aa24c5b8e66df27	production home	2026-11-18T09:03:36+03:00	ui(economy): standardize Beta Coins terminology across economy surfaces
+d3b8d3050f27ba66fa50bac6d5ce04500989ceb2	production home	2026-11-18T09:03:32+03:00	ui(economy): standardize Beta Coins terminology across economy surfaces
+163b20fae011d8b7ec970ac09b5d3209aa68537f	production home	2026-11-18T09:03:30+03:00	ui(economy): standardize Beta Coins terminology across economy surfaces
+6bd696966107234d63ee0480763d9486370f5016	production home	2026-11-18T09:03:25+03:00	ui(economy): standardize Beta Coins terminology across economy surfaces
+be49fc64c3d5233500d4e6fc37d8a280bb6129e2	production home	2026-11-18T08:58:11+03:00	docs(economy): record Beta Coins product naming decision
+f62296a4cdf1815c2f78ee6346042c09c42164c7	production home	2026-11-18T08:58:01+03:00	ui(economy): finish Beta Coins visible terminology
+5b8c084d1c3f22ddccf41250e8e945cb857ee424	production home	2026-11-18T08:57:58+03:00	ui(economy): finish Beta Coins visible terminology
+9ea8a23858fc480ebadf9f5db8c2739dbc6105d7	production home	2026-11-18T08:57:48+03:00	fix(economy): restore technical coin service identifiers
+0556c0b0b0ecc805780461e793238bc3386c2fe6	production home	2026-11-18T08:57:45+03:00	fix(economy): restore technical identifiers after terminology pass
+72e9cc388aa4c259a9ad4153836e498e1b9285a4	production home	2026-11-18T08:57:13+03:00	docs(economy): standardize Beta Coins terminology
+c4a99443835fb3b67466f3d721d09a806691d834	production home	2026-11-18T08:57:11+03:00	docs(economy): standardize Beta Coins terminology
+1327a251caa08604149185e1079b4a21a700c047	production home	2026-11-18T08:57:01+03:00	ui(economy): adopt Beta Coins product terminology
+d2b437b288c9871748bc1e4431ba55c82422febc	production home	2026-11-18T08:56:57+03:00	ui(economy): adopt Beta Coins product terminology
+8750f963a92d7b42c630a38716a06733ccc75027	production home	2026-11-18T08:48:40+03:00	test(economy): include Hide Coins in fulfilled privacy SKU contract
+722b1c6c3f7626a5787fafacc15b43a141e8598a	production home	2026-11-18T08:48:33+03:00	docs(economy): record approved Hide Coins visibility semantics
+b52f9fa35f41e8fdff6cc23af0484809aeb7e867	production home	2026-11-18T08:48:24+03:00	docs(economy): close Hide Coins gap and record Media Saver UI completion
+cdc5c16756de63e204047f737e3857ceed17900d	production home	2026-11-18T08:48:09+03:00	test(economy): extend feature coverage matrix for privacy and Media Saver
+4a25d7cbbfe3458610aa44294ba653f9d713516e	production home	2026-11-18T08:47:43+03:00	ui(media): add Media Saver actions to room attachments
+695c1bed9750f58a5d2335d587d5bf3600e998bf	production home	2026-11-18T08:47:11+03:00	ui(media): add Media Saver action to direct audio attachments
+8f129883506f20698395d83f1e9c9d3cd30b541b	production home	2026-11-18T08:47:03+03:00	ui(media): add Media Saver save action to direct chat attachments
+6ca6a21e1339e5819b88c137eedd3a4e96058ad4	production home	2026-11-18T08:46:35+03:00	feat(media): implement server-authorized Media Saver local save flow
+302d829869ce466741341d3888b9c6a7eff8f25c	production home	2026-11-18T08:46:21+03:00	feat(media): add cross-platform local file saver dependency
+4c7e17ea2e16f3c7720840b2a95723a3dd235e7b	production home	2026-11-18T08:45:26+03:00	test(economy): verify Hide Coins access matrix for members and platform owner
+a7e7c455f2129f193cb8245b8af387f9d4be7684	production home	2026-11-18T08:45:11+03:00	ui(economy): show locked or visible coin balance in profile
+b5ba095641c45984529efb76ad20508c175f629d	production home	2026-11-18T08:44:33+03:00	feat(economy): enable Hide Coins fulfillment contract
+46426d7118d38dd97f8dafa3f3e81efcc431371d	production home	2026-11-18T08:44:27+03:00	feat(economy): enforce Hide Coins profile visibility at server projection
+b1b42524e85ffa778239a0d38c461c7b10857661	production home	2026-11-18T08:34:50+03:00	docs(economy): refresh phase closeout head after latest hardening
+51839edcffff5db7020b174b0c5147509c29f9ad	production home	2026-11-18T08:34:32+03:00	test(economy): include ghost mode in fulfilled store SKU contract
+cba394865067f993f354bbabb78ead09e0bbb155	production home	2026-11-18T08:34:23+03:00	fix(economy): register ghost mode as a fulfilled privacy SKU
+987e132882a3aa7822c814db35a8969d309a2b68	production home	2026-11-18T08:34:11+03:00	docs(media): update Media Saver traceability with server gate evidence
+b3e9fa36b6f905fa0ec19d5e45ca43ed734758a0	production home	2026-11-18T08:34:03+03:00	test(economy): track Media Saver as catalog SKU pending local-save fulfillment
+8ef8931bef42c5dc037bd079428e5b2d25bdb23a	production home	2026-11-18T08:33:54+03:00	feat(media): expose server-checked Media Saver capability to client service
+56eef48aad7f78b91b9e880a035caa0e5fe27c79	production home	2026-11-18T08:33:46+03:00	security(media): restrict Media Saver to approved local-save media types
+a27777708944102856097880302df258d7bd0d99	production home	2026-11-18T08:33:34+03:00	fix(media): use explicit callable request shape for Media Saver delivery helper
+baca84e785f2d739243ef98c5b782f4987e1e0b0	production home	2026-11-18T08:33:26+03:00	ui(media): expose Media Saver catalog category without enabling unfinished purchase
+abb57a53d3a5127607cae3747574ba2f66a23d57	production home	2026-11-18T08:33:19+03:00	feat(media): register Media Saver SKU category in central catalog
+df688072ed70a59c80edd08f74e58964a3b740c4	production home	2026-11-18T08:33:13+03:00	feat(media): add Media Saver as a central catalog SKU gated until local saver ships
+9585431a65b4e86523fd52733dec728c1a74d539	production home	2026-11-18T08:33:03+03:00	test(media): verify Media Saver entitlement gate fails closed
+148f0878ce4779950b6cc3c8aaff3bec990e8ac5	production home	2026-11-18T08:32:44+03:00	feat(media): add server-checked Media Saver delivery capability
+a96a904887a5f29035a6a04f56bb337dead7d9b1	production home	2026-11-18T08:32:21+03:00	docs(economy): refresh traceability for central store and owner grants
+4e099eb011281bced6c1abae18c0b05d24510a42	production home	2026-11-18T08:32:10+03:00	docs(economy): add phase 1 execution closeout and remaining gates
+127ecac60f643e3281cd2d1abdc82b11e116832e	production home	2026-11-18T08:31:04+03:00	fix(economy): remove hardcoded call pricing and quotas from store UI
+6f0e5ca03e6069833510d1669f456777770109e8	production home	2026-11-18T08:30:55+03:00	test(economy): verify ghost entitlement hides and restores discovery visibility
+51c8348a2e57031591312738827cb6970463bcf1	production home	2026-11-18T08:30:39+03:00	feat(economy): expose active ghost entitlement in profile projection
+2cf74ae118297881096ac176715003651a8585d7	production home	2026-11-18T08:30:30+03:00	feat(economy): expose purchased ghost mode controls in profile
+ba78464c0ff95a4aba282b76e1fa1cadacea420b	production home	2026-11-18T08:30:07+03:00	feat(economy): activate server-enforced ghost-mode entitlement
+a8b971421d59af28a976f2afbdd67fbb254bffd8	production home	2026-11-18T08:29:47+03:00	test(economy): prove call plans purchase and authorize paid call flow
+9fd5ac311c01efcc38d60c966a759f14ee2aa1d3	production home	2026-11-18T08:29:30+03:00	test(economy): verify call store SKUs are purchase-ready after entitlement integration
+dde228141cd9769ba30b396e7363779e5ee953c0	production home	2026-11-18T08:29:23+03:00	feat(economy): connect voice and video call SKUs to central entitlement fulfillment
+03c73755b15da9d239d573aa671735e8c74449fc	production home	2026-11-18T08:21:31+03:00	test(calls): verify mode-specific entitlement and recheck at acceptance
+f2c18cff8f8d4c45a9474909d3544e328c770b4c	production home	2026-11-18T08:21:15+03:00	fix(calls): reject incoming calls when entitlement or device setup fails
+4ee483a0734efa709f12ac7981c440a5eb3c95e7	production home	2026-11-18T08:20:56+03:00	test(calls): verify missing peer entitlement blocks direct call setup
+210b3ccfa9e29df7bf9a51319fa2fa173c344245	production home	2026-11-18T08:20:47+03:00	test(calls): declare call mode in server duration fixture
+76fb019d16c346b02c5026dd4341ede8d9d0e7f9	production home	2026-11-18T08:20:40+03:00	test(calls): seed active store entitlements in call lifecycle fixtures
+929d6242f7474787feb91f05286871652a36b80f	production home	2026-11-18T08:20:16+03:00	feat(calls): enforce active audio and video store entitlements for all participants
+301dda1a33db7cb0e06568edf3714bd8e2d43df1	production home	2026-11-18T08:19:22+03:00	fix(calls): retain room signals until accepted peers are synchronized
+4885a5e2c903b622cf772420a4c62009c1b43707	production home	2026-11-18T08:19:04+03:00	feat(calls): synchronize accepted room participants and build deterministic WebRTC mesh
+762db71a264ffc173f44fb889eacd704467c930a	production home	2026-11-18T08:18:09+03:00	fix(calls): keep countdown value typed and remove unused deadline state
+21ef10c65441ebddc600d4d817e025d982d61d33	production home	2026-11-18T08:18:02+03:00	fix(calls): synchronize both clients on server call deadline and show countdown
+551ac9dfc12f54130b252fc6ca032166893291e8	production home	2026-11-18T08:16:24+03:00	security(ads): revoke sessions for inactive members and validate wallet balance
+ae0510be3d6ddef6d25c76437278604bd3cb24f2	production home	2026-11-18T08:15:44+03:00	docs(ads): align experimental per-campaign reward cap to three per rolling day
+b02338f632b7bf2cdaa2f1087a2e19376453d5bd	production home	2026-11-18T08:15:35+03:00	docs(ads): trace AD-001 owner review, media upload and player hardening
+933d2299c5ea9dc66806946e4e0a00bcd9bd25d6	production home	2026-11-18T08:15:15+03:00	fix(ads): keep campaign reward amount aligned with central owner policy
+4379a0894c52becc55f7b3e555abf905bd160813	production home	2026-11-18T08:15:07+03:00	feat(ads): add owner campaign start and end schedule controls
+7bce0475940ce3a6396bbac4684715e2d62db45f	production home	2026-11-18T08:14:55+03:00	test(ads): cover owner-only creative rejection and approval workflow
+4b0cc59481dc5c7a553a7e5ac7480290acf0788b	production home	2026-11-18T08:14:46+03:00	feat(ads): add separate owner creative approval and rejection controls
+03a2dbc0027ee8ebd8e58676c75d8bef0c29a819	production home	2026-11-18T08:14:34+03:00	test(ads): require independent creative review before campaign approval
+9f8e819b922dfacd2dc605775c33f522b836a2bd	production home	2026-11-18T08:14:26+03:00	feat(ads): separate owner creative approval from campaign payment approval
+079e022dc3d62693b6f1320f2b65ad5ba028e53c	production home	2026-11-18T08:13:57+03:00	test(media): cover owner-only secure advertisement upload intake
+2e5f98cc013c0e83906ab930f1a2765c9969756c	production home	2026-11-18T08:13:32+03:00	fix(ads): place featured reward history as sixth media workspace route
+5671257ad6eaaaa1f54217a3bc4a27ba729f16a3	production home	2026-11-18T08:13:06+03:00	fix(ads): stop playback immediately when server revokes viewing session
+f3cf5c1e558c1b10e40f9b41c56901bfc222b563	production home	2026-11-18T08:12:47+03:00	fix(ads): repair owner dashboard copy and campaign status interpolation
+ed74382053e8cdcec6e4efc17be5fbd1cbb137f9	production home	2026-11-18T08:12:31+03:00	fix(ads): remove obsolete duplicate reward screen implementation
+7c4306622c9a45db9d44af67830956d973c4c9c0	production home	2026-11-18T08:12:13+03:00	test(ads): assert member history exposes active reward policy limits
+b701f64901eb615cf1244a77019762c6f788f33e	production home	2026-11-18T08:12:06+03:00	fix(ads): evaluate campaign schedule at final session creation time
+a55752795a2c45246132187d59ffe3eb1d836a80	production home	2026-11-18T08:11:57+03:00	security(ads): revalidate campaign atomically before session creation
+2b8b576121078c4d3ee036a359ff302e3687941c	production home	2026-11-18T08:11:40+03:00	fix(ads): display live server reward policy in member history screen
+85cff42f92542c9453dc5f3006c9c836db2e6172	production home	2026-11-18T08:11:30+03:00	feat(ads): return active experimental reward limits with member history
+2191ea24c5f287c09057aaadd104670236200b46	production home	2026-11-18T08:10:46+03:00	fix(ads): validate enabled reward policy limits before owner save
+8f0c56d6fee72ed860928c9d93506c9e581d4444	production home	2026-11-18T08:10:35+03:00	test(ads): verify pause resume and irreversible campaign withdrawal
+8512a537b0dbc28b3cb373e903b27b650ff7bd2a	production home	2026-11-18T08:10:27+03:00	security(ads): enforce terminal withdrawal and valid campaign state transitions
+9b38c4ebc4ac556387d2720be1e2533b332bdae1	production home	2026-11-18T08:10:04+03:00	fix(ads): require latest server foreground evidence before completion
+b29aa6c8ff752d675cbc913f13c36a1ee2a09748	production home	2026-11-18T08:09:57+03:00	fix(ads): return server foreground evidence with viewing heartbeat
+2876ff0770440987a012fdb3ed6dbe3868c958e9	production home	2026-11-18T08:09:37+03:00	test(ads): separate idempotent close from withdrawal revocation fixture
+a20867f6ba770e14b1c104a5b8d7a57bfcaa6873	production home	2026-11-18T08:09:27+03:00	test(ads): cover campaign withdrawal heartbeat revocation and session close
+d5844435cc3e25ed6ab789a1e1ca143933d07709	production home	2026-11-18T08:09:18+03:00	fix(ads): safely end abandoned sessions without async type mismatch
+1e899d023f49b78c9dd15c5544d2d00a5717d93a	production home	2026-11-18T08:09:10+03:00	fix(ads): close abandoned viewing sessions when player exits
+cf279455850ddc2613606bf4303f3f98236db189	production home	2026-11-18T08:09:02+03:00	fix(ads): revoke active sessions on campaign withdrawal and add session close
+1a4b6e40d952d73f67a079aa11a7d59a5a6a6d01	production home	2026-11-18T08:08:44+03:00	fix(ads): gate completion UI on server progress and foreground visibility
+f6aaa3288e4921f483fee881ffa59212ebd92305	production home	2026-11-18T08:08:31+03:00	feat(ads): return server-authoritative viewing thresholds at session start
+6797f84cf5c15f61fa8677e28cbe0efc2a8e899b	production home	2026-11-18T08:08:20+03:00	test(ads): cover invalid secure derivative and prevent orphan viewing sessions
+6c7b1dcefa12dac6f3bd6af20e5df8f790c6d445	production home	2026-11-18T08:08:09+03:00	test(ads): clean up all featured viewing session fixtures
+40f2bf47cd277bfb672c8b6c8ffe11235f1ac69b	production home	2026-11-18T08:07:46+03:00	fix(ads): make selected player occupy responsive 60/40 app viewport
+ae0bdd175c4c3957a25a1c920ceb09b50d3f79e2	production home	2026-11-18T08:06:38+03:00	test(ads): provide safe derivative evidence for campaign approval fixture
+301d4ebec0a644f29561abe321a475282ed2ba56	production home	2026-11-18T08:06:32+03:00	security(ads): require verified safe derivative metadata before campaign approval
+7b176311bd9cec53e062979e7cfde3c330536433	production home	2026-11-18T08:06:15+03:00	security(ads): audit denied owner campaign and reward policy access
+3f77debdacfcbd87050563b9f56a345745399633	production home	2026-11-18T08:06:04+03:00	feat(ads): add owner secure media upload and reward policy controls
+f312e1a6fdbe5c12d7eb219d7cb13ea4e5f6bd1a	production home	2026-11-18T08:05:44+03:00	feat(media): add secure owner advertisement creative upload flow
+044c09253ef6e4291402fe080475b90c0871e668	production home	2026-11-18T08:05:14+03:00	test(ads): fix fixture lifecycle references and cleanup
+110f65ea9f24281a5dbb7bcab5057d8292824579	production home	2026-11-18T08:05:03+03:00	test(ads): exercise owner payment approval without fixture bypass and restore policy
+0ed0f03ff1b2db378e6044792de874678d52c286	production home	2026-11-18T08:04:42+03:00	fix(ads): create viewing sessions only after secure media validation
+7dcb9071171323c83704b74cafeb7c641d10848c	production home	2026-11-18T08:04:34+03:00	fix(ads): allow explicit owner payment confirmation during approval
+6519459c99822f4fbeb6e26d07b4089140791ab6	production home	2026-11-18T08:02:15+03:00	docs(ads): record current AD-001 implementation head and test status
+ac43615f1115c9e6f0a2571646f83b2542b8704e	production home	2026-11-18T08:02:09+03:00	feat(ads): expose security-approved media selection in owner dashboard
+608242f1c3757cf3fa02cdb56c2c5d549b53528b	production home	2026-11-18T08:01:58+03:00	test(ads): avoid network-dependent reward history assertion
+8a82a34f9140a5da3324efc6073f65d658fcb847	production home	2026-11-18T08:01:52+03:00	test(ads): align featured UI tests with server-backed discovery and history
+4f0bb92fd4c8274194e42c194cf9cc68a899c85a	production home	2026-11-18T08:01:42+03:00	chore(ads): index featured reward history wallet query
+f4c5a8ea29240f84b93b19b0eb148d1575d86a43	production home	2026-11-18T08:01:25+03:00	feat(ads): link owner intake to featured campaign dashboard
+b4862784ffc2cc4061bc949e5bd2df3725cf5835	production home	2026-11-18T08:01:15+03:00	feat(ads): add video playback dependency for selected ad player
+62bfa2f54560f67d2c40b3490e534dbbdc92b2d4	production home	2026-11-18T08:01:05+03:00	docs(ads): record AD-001 serving reward and 60/40 layout implementation
+b93c3bc5c03876c249d38d630fccdff96b759f94	production home	2026-11-18T08:00:56+03:00	docs(ads): correct selected-ad player layout to approved 60/40 split
+1db93b5944c3b94bff17c30a17118b156e9d2656	production home	2026-11-18T08:00:42+03:00	feat(ads): add owner featured ads campaign dashboard
+d7fa28c59f21fe34267de383cf1b4496a68b0299	production home	2026-11-18T07:59:57+03:00	feat(ads): add responsive 60/40 selected-ad player and reward history
+e18467b49ae19e096ce6e4419043a40733d6cd0d	production home	2026-11-18T07:58:50+03:00	fix(test): seed approved creative before owner campaign creation
+bdcdf023796b43a6a45db7c31a2fd9d790d5fc88	production home	2026-11-18T07:58:42+03:00	test(ads): cover owner lifecycle reward replay concurrency and withdrawal
+ea7f1fb362339da36e12594c8ce6184c2af87832	production home	2026-11-18T07:58:28+03:00	fix(ads): require approved secure creative before featured publication
+5f716c3f8a29ca508a5bbb6a5e3459bfe9ade947	production home	2026-11-18T07:58:19+03:00	fix(ads): track continuous foreground visibility for image rewards
+4347a2f91387e8e10856d91da66cc8ce244a39f6	production home	2026-11-18T07:58:11+03:00	fix(ads): enforce rolling campaign reward window atomically
+7f4f303f8bd0217ea068da56540e49c38bb0cba4	production home	2026-11-18T07:58:01+03:00	feat(ads): implement owner campaigns secure sessions heartbeats and atomic rewards
+57c4ad847a39fcf5a9732e04120bc0edd4cd2ebf	production home	2026-11-18T07:56:45+03:00	feat(media): expose secure media bucket accessor for featured ads
+6a0fcbccb0ee1eae90aa1de24948032284f15b8a	production home	2026-11-18T05:55:58+03:00	refactor(ads): reuse canonical advertising geography taxonomy
+b6b3caee710a5ca2f4ff297adc21bf1c71c7af9d	production home	2026-11-18T05:55:40+03:00	docs(ads): record featured discovery foundation and remaining AD-001 gates
+0e13f6980c16813f278bb1d6fa7b813d62970bee	production home	2026-11-18T05:55:11+03:00	chore(ads): index active featured campaign discovery query
+800aacbbbe59ba5efa64f8bf64174607f3fccdd3	production home	2026-11-18T05:55:05+03:00	fix(ads): render sponsor and campaign copy on separate lines
+b4ec13ec3e49e4dde6cdd0a66a5dcb2ed9f7e7ab	production home	2026-11-18T05:54:46+03:00	feat(ads): connect member featured-ad discovery screen to callable feed
+8827363f0fe1489b7dda337bf4711195b711d93e	production home	2026-11-18T05:54:28+03:00	test(ads): cover featured campaign discovery authorization and filtering
+3de3f0bb456027a6899cf6b00c5b9757bb69b6f8	production home	2026-11-18T05:54:18+03:00	fix(ads): narrow validated featured placement type
+9921ac7e2112656f7698191e7d9fe24bfc7db3dc	production home	2026-11-18T05:54:11+03:00	feat(ads): add authenticated featured campaign discovery feed

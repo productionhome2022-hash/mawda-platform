@@ -1,0 +1,18 @@
+BRANCH: codex/phase1-ci-evidence-2026-11-20
+REF: refs/remotes/origin/codex/phase1-ci-evidence-2026-11-20
+SHA: 6ad595cf10964ab54a39f3b0629efd5f8ef6e043
+
+MERGE BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE ===
+222	1
+
+=== FILE STATUS ===
+M	docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md
+
+=== CHANGE SUMMARY ===
+ docs/PHASE1_UNIFIED_INTEGRATION_STATUS_2026-11-19.md | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+=== UNIQUE COMMITS ===
+6ad595cf docs(phase1): record expanded emulator CI coverage

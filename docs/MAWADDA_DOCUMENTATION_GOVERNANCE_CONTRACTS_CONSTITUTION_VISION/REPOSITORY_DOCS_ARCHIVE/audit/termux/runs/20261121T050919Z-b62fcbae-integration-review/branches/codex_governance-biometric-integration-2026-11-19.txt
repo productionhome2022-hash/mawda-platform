@@ -1,0 +1,182 @@
+BRANCH: codex/governance-biometric-integration-2026-11-19
+REF: refs/remotes/origin/codex/governance-biometric-integration-2026-11-19
+SHA: 619eab643e2d5849b3b2c055461d53ba2be01753
+
+MERGE BASE: 1a3d17ddde864a2649f7f0411b2f8b6552effd59
+
+=== DIVERGENCE ===
+486	89
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	README.md
+M	docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+A	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+M	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+M	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+M	functions/test/rules/firestore.rules.test.js
+M	functions/test/rules/storage.rules.test.js
+M	lib/models/app_models.dart
+A	lib/screens/biometric_verification_screen.dart
+M	lib/screens/main_user_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	storage.rules
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |   2 +
+ .github/workflows/validate.yml                     |   2 +
+ README.md                                          |   8 +-
+ docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md           |  16 +-
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  65 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |   6 +-
+ docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md       |  19 +-
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        |  35 +
+ docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md  |  10 +-
+ docs/MAWADDA_PRODUCT_CONSTITUTION.md               |  38 +-
+ docs/SEVEN_PHASE_EXECUTION_PLAN.md                 |  29 +-
+ ...RNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md | 149 ++++
+ firestore.rules                                    |   6 +
+ functions/package.json                             |   9 +-
+ functions/src/advertising-governance.ts            |  77 +-
+ functions/src/biometric-media.ts                   |  97 +++
+ functions/src/biometric-review.ts                  | 154 ++++
+ functions/src/biometric-verification.ts            |   5 +-
+ functions/src/index.ts                             | 851 ++++++++++++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++
+ functions/test/advertising-governance.test.js      |  71 +-
+ functions/test/biometric-media.test.js             |  61 ++
+ functions/test/biometric-review.test.js            |  96 +++
+ functions/test/biometric-reward-security.test.js   |   4 +-
+ functions/test/biometric-verification.test.js      |   7 +
+ .../biometric-verification.integration.test.js     | 178 ++++-
+ .../specialized-role-capacity.integration.test.js  | 120 +++
+ functions/test/member-social-links-access.test.js  |   3 +
+ functions/test/member-social-links.test.js         |  11 +-
+ functions/test/platform-role-identities.test.js    |  50 ++
+ functions/test/rules/firestore.rules.test.js       |  23 +
+ functions/test/rules/storage.rules.test.js         | 144 +++-
+ lib/models/app_models.dart                         |   8 +-
+ lib/screens/biometric_verification_screen.dart     | 293 +++++++
+ lib/screens/main_user_screen.dart                  |  10 +-
+ lib/screens/owner_biometric_review_screen.dart     | 276 +++++++
+ lib/screens/owner_chat_participation_screen.dart   |   2 +-
+ lib/screens/super_admin_screen.dart                |  16 +-
+ storage.rules                                      |  28 +-
+ 39 files changed, 2934 insertions(+), 131 deletions(-)
+
+=== UNIQUE COMMITS ===
+619eab64 test: keep fixed five-seat ordinal policy unresolved
+a1295f7f fix: limit permanent ordinal allocation to Admin N
+4b56fdc5 docs: clarify unresolved five-seat number reuse policy
+54db1040 ci: validate governance branch on every push
+e6d6e03f ci: validate governance branch on every push
+eca9e14c docs: record canonical Admin Media permission catalogue
+23e43410 test: use canonical Admin Media permission
+78066717 test: fix role matrix test description
+f052181b test: align Admin Media grants with approved permission catalogue
+0ec3ef32 security: unify Admin Media permission catalogue
+edfbd98f docs: record fail-closed unconfigured role grants
+3326f7a3 test: deny unconfigured specialized role permission grants
+4e560b07 security: deny unconfigured specialized role grants
+cacacdd7 docs: record remaining authorization integration gaps
+5b70b6f7 test: enforce canonical unnumbered team supervisor label
+d419dbee fix: keep team production supervisor display unnumbered
+44b76eb7 docs: align advertising supervisor traceability labels
+3bc6f261 docs: align advertising workspace roles with canonical names
+09a30058 docs: record supervisor permission boundary remediation
+880456dc docs(ui): remove legacy owner title from model comments
+a68cdeb5 test: cover specialized supervisor permission isolation
+55086f4a security: enforce specialized role permission boundaries
+bacce620 test: run biometric evidence lifecycle against Storage Emulator
+418dd289 test: verify biometric evidence deletion in Storage Emulator
+964a54d0 test: scope biometric reward security assertions to callable body
+6ce60c12 test: serialize Firestore and Storage rules suites to avoid shared emulator races
+8330111e test: assert local authentication is not biometric proof
+0d51a3aa test: align biometric eligibility fixtures with owner-reviewed records
+a60dc4bc fix: import biometric and role policy helpers into Functions
+1b0ddf5e ci: rerun validation suites for governance biometric head
+faca18a0 Test server denial of biometric upload URLs for non-active or foreign requests
+dbc3ef91 Guard the legacy owner authorization ID while changing display terminology
+a0a78995 Keep duplicate-submission test focused on pending-request protection after consent
+d0304599 Normalize legacy owner title in execution and traceability documents
+ca67d2e7 Normalize legacy owner title in execution and traceability documents
+381dcc48 Normalize legacy owner title in execution and traceability documents
+0df39414 Replace legacy owner title in canonical product documentation
+daba8aa4 Replace legacy owner title in canonical product documentation
+4e5c8e45 Replace legacy owner title in canonical product documentation
+4105fdfa Replace legacy owner title in canonical product documentation
+4a6ca9d9 Update biometric settings UI implementation traceability
+bdbd0ac4 Add owner-controlled biometric settings without inventing limits or phrases
+c2fc0d6e Bound local biometric recording size and clean temporary evidence files
+8ece689c Track governance and biometric integration status and remaining acceptance gates
+0d1d2290 Test calendar-month biometric lockout boundaries
+1c84e6c2 Use exact three-calendar-month biometric lockout semantics
+b94803fe Preserve existing super_admin authorization identifier for Super Owner display rename
+f1cbc174 Replace legacy owner label in server-generated chat messages
+7c7e3a30 Verify explicit server-enforced consent before biometric submission
+51064dc4 Send explicit biometric evidence consent to server
+7b748132 Persist explicit biometric evidence consent and bind deletion to canonical owner paths
+25b24595 Add Super Owner biometric review inbox entry point
+2bb81ad7 Expose member biometric verification workflow in completed profile
+c7fe5a9a Issue short-lived member-owned upload URLs for biometric evidence
+844be9a1 Add Super Owner biometric review inbox and decision screen
+cfb5a848 Add member biometric recording and submission screen
+b02224c0 Correct biometric evidence path validation expressions
+8baf6c91 Fail closed when biometric evidence deletion paths are missing or malformed
+9dc2b488 Run validation workflows on governance integration branch
+d01eebad Run validation workflows on governance integration branch
+b17d11bf Link governance and biometric verification specification
+7acc099e Document biometric review and administrative governance acceptance gates
+66d92655 Align product vision and execution plan with approved role terminology
+abfdc052 Align product vision and execution plan with approved role terminology
+058ef11f Align governance decisions with canonical Super Owner terminology
+1b750c0f Align governance decisions with canonical Super Owner terminology
+77489ca7 Record canonical owner and supervisor display terminology
+52edabb6 Link canonical administrative terminology standard
+7a991528 Add canonical administrative role terminology standard
+e241d7f4 Apply canonical Super Owner display terminology
+2aaf22e9 Apply canonical Super Owner display terminology
+7488c435 Apply canonical Super Owner display terminology
+8913885a Test member-owned biometric evidence access and upload rules
+2c64ebe8 Test member-owned biometric evidence access and upload rules
+df461aa7 Integrate biometric and role policy regression coverage
+aac55fcf Integrate biometric and role policy regression coverage
+0fe24379 Integrate biometric and role policy regression coverage
+01048495 Add specialized role capacity emulator tests
+c68823a4 Integrate biometric and role policy regression coverage
+ce4ff1b4 Add role identity capacity and permanent numbering tests
+8aee9b19 Add unit coverage for biometric review and canonical role policies
+d6b8b78c Add unit coverage for biometric review and canonical role policies
+90ffa589 Require owner-reviewed evidence for active biometric verification
+5f045b83 Add private, bounded biometric evidence upload rules
+90ac7d80 Restrict biometric request reads to member-owned upload state
+7aa0bff8 Integrate owner-reviewed biometric workflow and scoped role capacity checks
+a601b965 Add reviewed biometric and canonical role policy helpers
+cde71c69 Add reviewed biometric and canonical role policy helpers
+20b5df5f Add reviewed biometric and canonical role policy helpers

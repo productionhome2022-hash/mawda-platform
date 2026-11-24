@@ -146,3 +146,12 @@
 - [تقرير التدقيق الزمني ومطابقة GitHub Actions والـ commits والفهرس والرؤية والدستور](audit/2026-11-21/CHRONOLOGICAL_DOCUMENTATION_RECONCILIATION_AUDIT_2026-11-21.md).
 - [ملحق التسلسل الزمني للـ commits بعد لقطة 8bc](MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/POST_SNAPSHOT_COMMIT_CHRONOLOGY_2026-11-21.tsv).
 - أحدث إجمالي جرد موثق: 1,133 مساراً. هذا لا يعني مراجعتها دلالياً؛ 1,109 ما زالت بانتظار المراجعة الفردية.
+
+## نقل وثائق Recovery إلى Full Platform — 2026-11-24
+
+- نُقلت جميع المسارات الوثائقية الفريدة من رأس Recovery المسجل في الفهرس الزمني أدناه إلى جسم Full Platform.
+- [سجل النقل الزمني الكامل: التاريخ المستنتج من اسم/مسار الملف، SHA للمحتوى، المصدر والمسار الأصلي](governance/RECOVERY_DOCUMENT_MIGRATION_CHRONOLOGY_2026-11-24.csv).
+- قاعدة الترتيب: التواريخ الصريحة في أسماء/مسارات الملفات أولاً تصاعدياً؛ الملفات التي لا يظهر في مسارها تاريخ موثوق تأتي بعدها أبجدياً. لا يُدّعى أن ترتيب الاسم يعادل تاريخ الإنشاء إذا لم يتوفر دليل.
+- النسخ الوثائقية العشر التي اختلف محتواها بين Full Platform وRecovery محفوظة كما هي في docs/_archive/recovery-conflict-snapshots-2026-11-24/، مع إبقاء النسخ المرجعية الموجودة في Full دون استبدال صامت.
+- المصدر: codex/mawda-recovery-integration-2026-11-21 عند 990b419a81651c66a2c02ccb5e0af596c4cc8f4a. رأس Full Platform الأب قبل النقل: 5f7fc7bfafe0bcfbe339efb47cb1e6dd3ff05f7e.
+- لا يشمل هذا النقل اعتماد تغييرات Recovery البرمجية؛ اختلافات الكود تظل ضمن المصالحة البرمجية المنفصلة.

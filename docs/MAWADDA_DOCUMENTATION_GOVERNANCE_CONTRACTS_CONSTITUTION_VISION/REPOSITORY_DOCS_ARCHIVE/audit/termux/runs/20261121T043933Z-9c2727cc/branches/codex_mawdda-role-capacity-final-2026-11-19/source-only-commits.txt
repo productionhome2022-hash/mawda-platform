@@ -1,0 +1,40 @@
+138d9b5d6624d111d61b6b71bf0cb60a8b17050d	production home	2026-11-19T17:03:47+03:00	fix(roles): preserve expired-grant capacity reconciliation
+a824a00095bae1d342964362185fdbb29a11254b	production home	2026-11-19T17:03:38+03:00	perf(roles): bound active seat-capacity transaction reads
+a54737916c09cb92ef8d5ec97bd559b496bbf7c0	production home	2026-11-19T13:10:52+03:00	test(security): exercise actual control character in resource scope
+9c86f4128cae3b36a2e64f561b7c1627b209b515	production home	2026-11-19T13:10:50+03:00	fix(security): use control-character scope validation
+5efdb4b0577bbf038feb8aa5d9e13d851697a04f	production home	2026-11-19T13:10:38+03:00	test(security): cover non-canonical resource scope rejection
+275277a6d69b1e897cd8438b1993b8eaac78e594	production home	2026-11-19T13:10:35+03:00	fix(security): reject non-canonical specialized resource scopes
+b76c5427767a5fee3eeec80c9d5d4a23010af246	production home	2026-11-19T13:09:18+03:00	docs(security): record specialized authorization integration gap
+0aab8419b11f4944dce4e10b82b2103bc64bc66e	production home	2026-11-19T13:04:06+03:00	docs: record specialized grant negative test coverage
+be08fd1e764c9224e8da43ee7c256841e143a540	production home	2026-11-19T13:03:52+03:00	test: strengthen specialized grant scope rejection coverage
+b29075eb667e0cdb196637a4e9016db3a4596472	production home	2026-11-19T12:57:45+03:00	docs(roles): record canonical label correction and authorization gaps
+5ee9bf3cc0355ac69541e7d30c5f327e3839e7d2	production home	2026-11-19T12:57:14+03:00	test(roles): assert canonical Arabic production supervisor title
+d6ea557ecc6a930c2105d643e591cc5a8a0f9c36	production home	2026-11-19T12:57:12+03:00	fix(roles): use owner-approved Arabic production supervisor title
+1fd56b4e967072aa322f5791d8c35ea995479d35	production home	2026-11-19T12:17:26+03:00	test: assert immutable featured-ad event snapshot fields
+aae62fc3a63398ebfeeaef652b651993013f3500	production home	2026-11-19T12:17:20+03:00	fix: persist resulting featured-ad snapshot in immutable event
+8175a8aaa7fcf9e6275d9c934eb6a3541037f3f7	production home	2026-11-19T12:13:58+03:00	test: use canonical allowed Admin Media permission
+5f9fded3a3cc298b2201ea5f575c55f20100c87a	production home	2026-11-19T12:13:50+03:00	test: seed explicit catalog versions in premium profile purchase fixtures
+297e456fd68814886cbcf53b6a3b645a91d54608	production home	2026-11-19T10:07:36+03:00	ci: enable exact-head checks on rebased role PR
+ddae88d962f5fb8d2eb7f4271ce0d1ffe27574ce	production home	2026-11-19T10:07:33+03:00	ci: enable exact-head checks on rebased role PR
+4819ca5f8db1b81533a3cf1c89338b26ef790dc8	production home	2026-11-19T10:07:03+03:00	docs: carry canonical role governance and traceability
+08601e3e0d8bde2de4faf8ff1de06343af286ffe	production home	2026-11-19T10:06:59+03:00	docs: carry canonical role governance and traceability
+a330e454afba8a97c7ab0fda905b1675f55ea721	production home	2026-11-19T10:06:55+03:00	docs: carry canonical role governance and traceability
+722f153fd4c889bdcbbcb4e8ef3fb8255a511f9a	production home	2026-11-19T10:06:51+03:00	docs: carry canonical role governance and traceability
+0068344e5ee3bcf3d6058a30629e4f27f75af8b9	production home	2026-11-19T10:06:42+03:00	docs: add role policy and enable exact-head role tests
+6bf882d1b24b81aeea9f09dbf4556979fca64c64	production home	2026-11-19T10:06:39+03:00	docs: add role policy and enable exact-head role tests
+d7f1b10e8b0359efab6d922e22a0f1fb2487f36b	production home	2026-11-19T10:06:35+03:00	feat: enforce transactional five-seat supervisor capacity
+7d53403c3d4dd3f341cd48eb781af736ab5aa852	production home	2026-11-19T10:06:32+03:00	feat: port role capacity helper and emulator tests
+4915f28a50f6361f730db7a78fdd05d24bb393ef	production home	2026-11-19T10:06:29+03:00	feat: port role capacity helper and emulator tests
+c7e37e2fb8d3168affbab80a2e246db774096cab	production home	2026-11-19T10:06:26+03:00	feat: port role capacity helper and emulator tests
+9d0cadc4b460b0b540a56503846977593f7994b7	production home	2026-11-19T10:04:16+03:00	test: configure bounds in custom coin request lifecycle fixture
+63916ade25d9c6d5db640204637053042415fa06	production home	2026-11-19T09:59:04+03:00	fix: return server catalog version from transactional publish
+94b042126b39731255b8cc45605c16a09a8f4835	production home	2026-11-19T09:58:50+03:00	test: verify owner catalog versioning enables purchases
+485502ddd567db41ce61f60da14bf30ed63581b5	production home	2026-11-19T09:58:47+03:00	fix: assign monotonic server versions to store catalog items
+032a66b35b8d31caaa92c50ad7b7dc18317da7b9	production home	2026-11-19T09:53:14+03:00	fix: persist immutable timed ad campaign versions
+0972405c59daf929e4a9a60e1d03a3f53d62ae6b	production home	2026-11-19T09:53:12+03:00	test: complete store and custom coin request fixtures
+4cf8c090bd4aef72ff0e87891b645f914d02c46b	production home	2026-11-19T09:47:49+03:00	ci: run validation on retention approval repair branch
+7a38396880d7f899b84e2a790c61a9daae682fa0	production home	2026-11-19T09:47:46+03:00	ci: run validation on retention approval repair branch
+a8c0656b648bfbec3877c86f25838729904bf074	production home	2026-11-19T09:46:41+03:00	docs: record confirmed retention policy and CI evidence
+5b805dd5ee657a093052f6adff3d340d19d39287	production home	2026-11-19T09:46:38+03:00	docs: align platform vision with approved chat retention
+7d058c0de0887b025fd8072caa96eccd9bb47e47	production home	2026-11-19T09:46:35+03:00	docs: record owner-approved 30-day important chat retention
+124731af4e13725fffc8527010531660c42bafaf	production home	2026-11-19T09:46:33+03:00	test: correct purchasable owner entitlement fixture

@@ -1,0 +1,533 @@
+BRANCH: codex/featured-ads-secure-lifecycle-20261118
+SHA: b15b643f14bc6c1196bf914190778e053e2ac9b1
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: c759083e04ffd98616691c2e736207095aaf2dbc
+
+=== DIVERGENCE target-only / branch-only ===
+491	199
+
+=== BRANCH UNIQUE COMMITS ===
+b15b643f14bc6c1196bf914190778e053e2ac9b1 test(security): deny direct member access to featured ad state
+0763e58311c3d78fa35e2eca68178c3c74cc0214 fix(advertising): net stale same-campaign reservations before replacement
+c8d572251812fe11178fbb831fa2187f2ecc9aa1 fix(test): clean featured sessions outside test block scope
+79d5d370522e0192bf4781474f74eee7cd4dd6eb test(advertising): recover expired featured session lock and release reservation
+c8595e936e70e2ae5ef081b0ce608e64ee299ac5 fix(advertising): replace stale active lock when starting a new session
+5def820a21524e2378fd72ad1890869e7fee826b fix(advertising): recover expired session locks and cancel stale policy sessions
+ec85c186aaf04fe853cb824832656651808aab88 fix(advertising): clamp rotation interval and reset carousel index
+5c15ae960eeb501d727c55a954b409201723024d feat(advertising): rotate featured campaign showcase in member UI
+d761600b1de3be346827e0c016153d61da584f2f test(advertising): keep expired featured campaigns out of discovery limit
+42fd3c9fe19dbc140f40629f3851452085738243 chore(advertising): index active featured campaign discovery
+8403eba0f77af4e014f914871f1dba839409b9ef fix(advertising): filter expired featured campaigns before result limit
+3de3f346b8285a8aefa8838b9ea2506179dc19a5 fix(advertising): remove nullable cancellation future handler
+39c2c45b222c37baed61b9a1f49d197feb13597a test(advertising): assert over-refund rejection
+a451bf81ecf966add705fff259fd4a9cb03cac3c test(advertising): block featured publication before financial reconciliation
+1582effdf3ca7c7be0125137e3959c57098bac5c fix(advertising): show publish only after financial reconciliation
+c065ebdedf1dfbb95a42e53c1f944503ff9cb8e1 fix(advertising): require reconciled financial state before publishing
+be047abbf2cadc92c9b05478c4c06a9b97301ded test(advertising): reject stale reward policy and conflicting finance retries
+c62f925d1001ef03846f750d61da41684d9c5aff docs(advertising): link featured ads implementation status
+77900a547a78d7d5635933494c19da9f506fc06f docs(advertising): record featured ads lifecycle and finance implementation
+5fa759337304191885642dccd85b64d402f5701d test(advertising): cover broad regional showcase filtering
+0cc174e1d5bfc47a788f35ed8ed8e28d2140a280 test(advertising): align featured ads widgets with live callable states
+64105ac118df7bcafd6da90f85df78ae7f87ae4c fix(advertising): defer Firebase initialization until callable use
+8e2221bb6e1c3f83da4886c1ecf9809e6e47a7ed test(advertising): correct stable finance reference assertion
+b1b267e4d46391539f698f862f10a8242930abe6 fix(advertising): enforce exact featured creative type match
+641b0e6d5d4c7c9b0e1286f20162c823e0c84b6c fix(advertising): preserve terminal campaign status on refunds
+11fd7f99b89203d2367405de9f0b895b0fb34867 feat(advertising): expose owner controls for featured reward policy
+34e3f4a75ac21275c19d2f934d321233bfd65451 test(advertising): cover optimistic reward policy versioning
+180d568d78ec907c67591ce624b8bd4eefee3d44 fix(advertising): version featured reward policy updates
+b6755f188a73c36934d8f7af6fa12157d979025d fix(advertising): align financial event validation types
+e44b7228ce0b6b5c59ffa1efc8ec7914e7334b5c fix(advertising): require stable finance reference and dispose dialog fields
+df541ba7a0bc48207bcdaf784bf3c164dd64d4e7 test(advertising): replay financial confirmation with new client key
+a6cad09539b8ed1cbf0da23ff4e2cfde359c03f3 fix(advertising): make finance retries stable across client restarts
+b237b1c9258b872e6cb32a11c507041d8f44bc7d test(advertising): verify stable finance reference idempotency
+5d3d1f55c02f2e301f14eb36990fa27a4e01f311 fix(advertising): bind financial idempotency to external reference
+3612ead933a576b7b09e17af1b2f8a1a327524b1 fix(advertising): tighten featured creative delivery gates
+edfd72089c08e856f6001370029b8bdbfaa0533e fix(advertising): freeze paid featured campaign terms and block unsupported creatives
+7edac796b7fbcaf3f951a0c92dae30de2676eb1a fix(advertising): handle failed session cancellation safely
+2a0d3db792a18f904721e8b633c750bd637857c6 test(advertising): verify owner review after refund adjustment
+07f2c4d940c29c4270c0548316bf09f2df0c1d08 fix(advertising): reopen net reconciliation after refund
+80335386b306901fba9dc39649d71dd5e23458cc feat(advertising): link owner featured ads finance console
+fac1054449d18a3b15cb5c92e1e6b80afe172c89 feat(advertising): add owner featured campaign and finance console
+a5fa4f5cdd2e2fcdc81c43d38a1cfdb34ed9940c fix(advertising): remove inert featured player control
+f19f6890d065be1970b991c7e603e0968d2e82c7 fix(advertising): include regional campaigns in broad showcase filter
+851767d2818f73809e442db9343e81dd332d2aae feat(advertising): connect featured ads discovery player and reward history
+944d64da2a0b787fc41febc9bbd5707cb95a6d90 feat(advertising): support safe cancellation of featured ad sessions
+e89aff0d855a0516cdf49fbcad4272fa32d734a7 feat(advertising): expose server reward policy to featured ad discovery
+2a637d7e4c77fb4dcfdc804e8ab51cb1808b4a0a feat(advertising): export featured ad creative delivery
+02d7f1b5fff485ae208b375ae38dd9deaad1d4d7 feat(advertising): add session-bound featured creative delivery
+f4065c3bd469d4f99735151795be5ba4a73de901 chore(advertising): add featured campaign lifecycle indexes
+79896e48833b65e249e59ca1b89bbb9f5a9d8f75 test(advertising): exercise featured campaign finance and reward lifecycle
+a6fb0bcdbc27da5ae2d02c5d7d452e9db3dc81bd fix(advertising): require evidence for payment and refund records
+74119592244de997b647eef63d341e03809602a2 fix(advertising): invalidate approvals and recheck creative at reward completion
+327aaa3978cd5d7d04b0a9862929fa746e396c4d feat(advertising): add featured ad session and reward lifecycle
+16a21d4bc76fe9e07c1b43910c5abe50c39954e3 fix(advertising): honor all-region featured campaign targeting
+ab450c9da6b0cc80650c47e62f4c901eea139e40 test(advertising): cover refunds after prior reconciliation
+0344d50094d59b893dfdb907b91ca15a8462ad48 fix(advertising): keep refund reconciliation states recoverable
+51ba1f1a6f6bbd87653f2665bf055e61480142fc feat(advertising): add featured campaign governance and finance ledger
+2b653905d6646aab59cd2d73adb4c5ade88c046d test(advertising): cover featured campaign financial controls
+22d0d415efade7138d04af9dd847e658dcbfd18e feat(advertising): add featured campaign financial policy
+07ef669c4b81290c5dd5e218bfc86d29e271bc25 ci: cancel obsolete runs so latest branch head can validate
+4df555720078ffb5641ebc7960732530e10d5306 docs(ads): record campaign concurrency hardening
+097acdab4511ebad674a04ba7c60eb88e1e43e25 ci: preserve regression runs instead of cancelling in-flight validation
+865d7136e30790492b44e17f444d7b39e1009ada test(capacity): verify owner meter projection and observe-only mode
+d732fdbc76bbfca7f8a769a1a63f57e799ed3e6d docs(capacity): record exact-once upload telemetry
+64649df1436a9c78bae313893777bd75d37e0b69 feat(capacity-ui): show partial finalized-upload telemetry honestly
+32c188c2fa27bdfb0c80b3eba49aa6d86c9d2a11 test(capacity): verify finalized upload meter is exactly once
+2e9a26ca0a36abe7a75d32a061498f3fbf92daec feat(capacity): expose verified monthly upload meter
+990611e8cd65907d3900cb2f0d82c09d92bd689a feat(capacity): meter finalized media upload bytes atomically
+4e93a1e0c04b3ec94cfae017c77197b775e601ce docs(ads): define optimistic campaign version contract
+31d07ef94c51f7c13f581c9093b2f07c4da356b0 test(ads): cover optimistic campaign version conflicts
+3a19668c8a52ce30569c39bc7f868385ad460a91 fix(ads-ui): avoid unsupported iterable convenience API
+4cb3cc55374e8327e49c78784b5dc27b2fc69732 fix(ads-ui): send campaign versions for optimistic concurrency
+af2c318fb91073b11aa43cfe123b1339788e5f13 fix(ads): reject stale campaign edits and status transitions
+a26a9db5a1c51a851f5f0a70c4ce8d06882de5a1 docs(calls): record server entitlement enforcement and release gates
+386ccadb127970417e043c47b122501c2d11d887 docs(media): refresh sticker system implementation status
+824585a43866cfcecf6014570f326508d39e5354 test(store): keep paid call entitlements disabled pending refund flow
+91a1ce9fcfe7cbac58fcf782d06389732bd2d251 fix(store): keep paid call plans closed pending refund lifecycle
+e0accd4b4e52d7f8edac57e679e29e41086d0705 test(store): verify call plans can be owner-enabled
+5b3270af2dbc636cc5a1a95454a59240b8cdf397 test(calls): require entitlements in direct and room lifecycle
+9d475f9574d5701fe06b09dd0f697e78709fbc8f feat(calls): enforce active entitlements for every participant
+88ef554cfdd95fcf298144007e63c6868fcf2fb0 feat(store): enable verified call entitlement fulfillment
+6c17a44a9c10c7b26e77ddb5290a2b47a52be179 test(calls): cover mode-specific entitlement validation
+0f0e2513369598753adb4ff7c4f01c71f87622a4 feat(calls): define time-bounded mode entitlements
+c4e43172d4e6bfb1a4dad80fa920d7fcde7476a5 docs(stickers): record scanner worker integration and CI evidence
+75937e84a7178370f0f4f64b755087e863177aa4 test(media): preserve fail-closed malware rejection for stickers
+0689c10e16381935e6d98e6aa85bd9c94996daa4 fix(media): allow malware rejection without sticker metadata
+ff0c50513c482ad412e2cf0bc5dcecf7708bde32 fix(scanner): accept malicious sticker verdicts without parsing metadata
+438d164d0f476ece5e888aeee6bc74f82202118d test(ads): align emulator policy assertions with safe disabled defaults
+9ed43818175392d8d398ad9f0ba08c4f0d315f56 ci(scanner): run scanner and sticker media regression tests
+2f87779019944f3693f8ec284a56f4ac26ffd219 test(scanner): verify real animated sticker metadata and derivative ceiling
+01a0a66891fbb04ceffe95367c7c471e5a895fe2 test(scanner): cover sticker scan request constraints
+d33af0f2d0222547680cfad982d4ed3a0adb4cd1 feat(scanner): emit verified sticker metadata and safe derivatives
+03758ac074708ddf4b8ea947c6bbfd6608a9adff feat(scanner): inspect sticker media and enforce compact animation limits
+145854eebed8df4854d1e09c137f26a3e2eef4b9 feat(scanner): allow validated sticker scan requests
+5528bade0ee6b5dd91ef18db4c5fa5332be7e93b test(ads): assert safe featured reward defaults
+447fc9fb28e06ef25ae2f356131219329b8ac60d fix(ads): keep featured rewards disabled by default
+75d4f280ea3f125d7035fcc8a6ed1af69548d9c4 fix(stickers): enforce pack item limit in owner editor
+a4d6280617f4df93f6fda65363a36faa746f7c1c fix(stickers): bind transactional send and delivery to exact scanner metadata
+c784f0258aef73258b3063e6c97d69a7729ace48 docs(stickers): record backend and UI implementation status
+a33782eb3c114dfadd17bdba85445b87acdf5455 fix(stickers): use supported GIF icon
+b0a4ec6e7467173d764c62828694ef6cf8c035e4 feat(stickers): add sticker pack management to owner dashboard
+15d738ada4e840bf574edc06225ff6ad35366dbb feat(stickers): add owner sticker pack management screen
+db1873ed810600b0ef602a7b3453a81b6b8becb0 feat(stickers): retrieve scanner metadata for owner pack authoring
+9504484a8012b5547e06d1b8a5920d293e3f4b88 feat(stickers): expose scanner-verified metadata to asset owner
+1fe83747d5074b1c66668cc38cc925278fa6f85e fix(stickers): revalidate pack and asset atomically before sending
+5214509ae1201a239cd4eddfd117af9ddad506b5 test(stickers): include required scanner-derived metadata
+f23671eedb1130d1d9878ecbea26fc2e60b312f5 perf(stickers): cache short-lived asset URL requests in widgets
+783e32ea2c18e143120a3c231e9d3909e9be8db6 fix(stickers): type asset document reads in pack transaction
+4f477bf06cf7e9b8fe80abbe09737e1daa4feb38 fix(stickers): type-check verified catalog metadata
+fe0199d7e7adb79ffa6ffe1291e31f04590a4363 fix(stickers): tighten TypeScript types in pack publishing
+5520ce7c285785251e085974f5e2fbbbb44bc2a0 feat(stickers): add owner pack publishing client method
+feb05bb0879cf4fde8f5b909a5f695ca7415a70b feat(stickers): export owner pack publishing callable
+07a3e49f0fa14f8a9c232a99b3b01b5e0cf3e0a1 feat(stickers): add owner-approved sticker pack publishing
+ac4f3ecdb76cd07f2bc0e9a77d6dd9cfbda73fec feat(stickers): verify live media assets before catalog exposure
+50816e859312296ee894f04543549668d877bdd7 feat(stickers): connect sticker picker and messages in rooms
+9f93ff76afcf5e48037c14dc389e776f48ffb4f6 feat(stickers): connect sticker picker and messages in direct chat
+1d359d89340b2e4e6bcf27e32fd711ee56e3083b feat(stickers): add secure sticker picker and message widget
+2ac5efa75fe5013acf9f2f1b5fe45523f84d4049 feat(stickers): add client upload, catalog, delivery and send service
+77d5911de06ea39eb0f766dc2ebacc0501360630 chore(stickers): avoid unused callable imports
+254f70f3c0115ff036547fa1164334da888fdf1d feat(stickers): export secure sticker messaging callables
+fba7b0ea0256fd89107a7ca74b3df4a2bc4f3170 feat(stickers): add atomic direct and room sticker messaging
+f5249a0e9c8e8bb09a0681f459c7661623f1a863 feat(stickers): add authorized scanner-verified asset delivery
+931a17d894570dfd16cb31c418ea40ede14a7126 test(stickers): require scanner-verified sticker metadata
+1ea711b28a9d80fd6a96a714e274c554817ff036 feat(stickers): verify scanned sticker metadata and derivative bounds
+9e3a452da65c7918fac9353d12542e4678b24d65 feat(stickers): bind scanner verdict to validated sticker metadata
+9f6dce3d8803b207a81c9518c8603e6671bdc26b test(media): enforce owner-only sticker GIF derivative contract
+9678865cf1d73e053db1c3b3c9411c061ae49ca8 test(media): cover sticker scanner purpose validation
+4571a882edb352376a71bff40a6a94afd316ebc6 test(media): cover owner-only sticker intake and size ceilings
+d7597ba8f86f3759e6a4c1f1f5918d6095c66c54 feat(media): enforce owner MFA for sticker upload finalization
+144c04c77f0bd0579aa0d08c2e423ec956e0492a feat(media): restrict sticker GIF derivatives to platform owner
+327d6712fb3c91c60ff2998820641c8c2e82901b feat(media): accept sticker purpose in signed scanner verdicts
+af48cecee8e49e3ae4fb47cc1ae2878a9af318f4 feat(media): add owner-only sticker asset intake policy
+1ef30ab44781f7a1fbc5c818ed734778a252e0c3 test(stickers): load compiled catalog module in Node tests
+93aa21f5862cb148f23444fda5cda1031ad2c0d4 test(stickers): assert invalid catalog packs are safely omitted
+dfc7b05e13cbf4a526604d984af1b1a250784055 fix(stickers): isolate invalid packs during catalog projection
+5505b319e6ac4a9fa5012d78dc4eac617820b18c feat(stickers): expose authenticated published catalog callable
+8f4dc7536424d1bc42d8f3f57524d2822bc2dae0 test(stickers): verify public catalog moderation and data projection
+2b1dc0aa5c481dd216dd9afb9a275864d49f88f0 feat(stickers): project safe published sticker catalog
+0ad62b63f99f2193fb8495f8d9bba7a12fe60258 test(stickers): cover pack manifest and send request validation
+03d444ab5fde751a3e0544d00b1e621a3a3cdc75 feat(stickers): validate pack manifests and send request shapes
+039c621013ec37b14c12ac17f9877c313b11f531 docs(media): record finalize and expired intent emulator coverage
+38b50dc0e4b06217dabdb68ebc65ec131ad4dc5d test(media): cover owner-recipient finalize and cleanup quota lifecycle
+f41dc6d5ce220909097a773b32de19242b3b7c08 docs(media): record owner-recipient emulator regression evidence
+8ae97394c36150119deb7a5f09eb817d56b26c2e test(media): verify owner-recipient quota exemptions in auth emulator
+77529c38f667fc5b39325ad67579e54e30e439eb test(media): include auth emulator for owner-recipient verification
+8307b809f4037fb52cb732f67ea77a0be401c8b8 ci(media): run upload lifecycle emulator regression on feature branch
+206f2ae4919f32722ac74bebc0d9975fde69285d test(media): cover owner-recipient quota release accounting
+fa78b2a58a2a9ea5ba7b19cacafafb3d542ba3d5 docs(media): record final quota policy helper revisions
+ac0d86c005e5f76d85cbb9e1142d401a33767f84 test(media): align owner quota policy helper contract
+646b9e2a13baa3cdf79befb07174065f307be3d4 refactor(media): use owner sender-only full exemption
+ba33a30323bf9df19045fb1bbe1d62a9f0883c2a refactor(media): simplify full owner quota exemption
+7adade4af5f94b9fc60c4720acc207b59e62976a docs(media): record owner recipient quota hardening
+3e7e2fc56e5f92d8f451fd98c8980bed491aab9d chore(media): mark unused quota policy input intentionally
+0bfe54b9d0e8c2cc83b8a80901dce0f219fda260 test(media): cover bounded owner transfer quota exemption
+1c78003300977737a2053ae65f0e608c3f52af66 fix(media): retain active guard for owner-directed transfers
+3e8de50f422c5eee1cd0ae2af76e6e04e7a886ac fix(media): separate owner transfer daily quota exemption
+bd8727cd3e1148fa8c5b6dc62ae425f036d425fc docs(release): record current checklist revision SHA
+1c8a67d450f5d830aef2649aac08ce4ac0f86dd4 docs(release): correct call and 5k simulation release gates
+737a367072d92c957f50ac92a0bd410439112f08 docs(release): require live audio video acceptance before launch
+e6f299771a3cdbe67c5c0110ce0896da4c2f1753 docs(media): record owner exemption repair and capacity console
+172f8f10906d583394d171484bc1edb5d9143e37 feat(admin): link capacity media management from owner console
+10b11132877721550cf059d149346cc42ba0380e feat(admin): add observe-only capacity and media policy screen
+c1ac171991edd5296af44bd13a067e81959206d3 fix(media): keep regular direct recipients on standard quota path
+a8a8b77eabad5658bf0eac1fec1fe9e5f12e6204 fix(chat): pass direct recipient for media quota policy
+bc49d115e66f243051103edd211d0ccef7c369df fix(media): bind direct uploads to verified recipients
+cceef406edcb16d6ec5fe80db7ad232b32bde992 fix(stickers): narrow validated media content type
+2ee00c370fb44f7f961a3684db46b0281e3e9a82 docs(stickers): record unified sticker requirements and implementation status
+57e8692774ab250be7e833ff9d81e1f22e1a1236 test(stickers): cover dimensions size animation and pack limits
+dac6af1fde80c9b6fb5b3b91b68540648c139814 feat(stickers): define compact static and animated sticker media policy
+b62777337d6e3761c557c6f279742a51017d6c7a fix(media): remove stale client-side GIF block for chat and room uploads
+bbd295554fda7e4e0a48fa1dbaaca3b4a2510232 feat(media): pass direct recipient for owner-exempt media uploads
+b99aa725d9fb3643083c9ff25b59cecc203be1ca test(media): cover verified owner sender and recipient exemptions
+fd4d619707c89f0a298ed5bc3bdccaf0c9e84e77 test(media): cover verified owner sender and recipient exemptions
+67defec7324bf4d638d3a9f6499c2d33ce6a5ed5 test(media): cover verified owner sender and recipient exemptions
+0de3985968a3735456782fbae2cbb5f832ec6383 fix(media): preserve quota exemptions through finalize and abandoned-upload cleanup
+5c09a92b9c56a561d7daec435309ea6715d022a2 feat(media): exempt verified owner transfers from member quotas and allow supported PDFs to owner
+8874a91d36e3c9603bc3b6755c8c9279416c0433 feat(media): define verified owner quota exemption
+5993a2efac3da4c8fda72c08a1abe13ad6176b88 fix(media): validate owner-recipient document delivery
+e8ef2eb15a64c222d878613c74b06eb905b468d8 fix(media): allow supported documents when addressed to verified owner
+0f497ed6cf968a4c31d95d8e9f157278d805a27f fix(capacity): type owner media quota policy safely
+39391bdaf076c4c5389dbfeec8435a7211e03196 feat(capacity): add audited owner controls for unified capacity and media quotas
+b6f3015e841000ddc49c086e7ef27ebcf05d69b3 test(capacity): cover tier basis and owner media quota validation
+b4aec2b2c00cde851262b2c185b3c4f5456b4ef4 feat(capacity): add unified capacity and media quota policy contract
+894727ea10b5b7a7e908f54ab7bcab116b56bd31 test: cover owner-managed featured reward policy
+917d39a211237191f007186b5b91fac564232b51 ads: add owner-managed featured reward policy endpoints
+bfe5760859ebb1f2ac4ce2a145a5ec1fe308cba7 ui: remove stale featured ad reward limits
+2ed2b4a7b3c484b548501329e03e5de324e02b47 test: cover owner-configured featured ad reward caps above 100
+7d68aaac6a4ba48bdc084ba81d080f1a1ce46a43 ads: align featured reward defaults with 100-view campaign policy
+e290af1362fde0c8b48673e485a4c51fb114cec3 docs: record timed advertising lifecycle hardening
+349d4ab6efe6d577f99e28d09ef89e49b4ade479 test: cover cancellation when rewarded campaign is paused
+9bb7d6d0396f348678e8bb354fc7d6ff41b0217e ads: reject rewards from stale or unpublished campaign sessions
+270b96750d0c1e9c65bc850e24463d60da4bc11a ads: align owner upload limits and campaign repeat count
+aa34b5c65368873789c82d9709985cca5dc11129 test: allow owner-configured repeat counts beyond 100
+82bad6b1ff5a687c1d265d457d52e9f7e9e967d7 ads: remove arbitrary per-member claim cap
+8c70a1abec83d697b1dd2e4b069e29a60f041b9d ci: run domain regression on featured ads development branch
+4cabc96ef2303a3ba27bb4154bb1140b563d84a2 Expose per-member rewarded ad repetition setting in owner campaign form
+5e8234e23b1745ed79cf5899a926d2b6add01dec Test owner-configured per-campaign reward repetitions
+1de6fc66fce8e946c5f5c7f10b05deff3d25e1fb Make featured ad repeat limits campaign-configurable
+258044bec1194e61f8cdd0e9ec100ba503a24cf5 docs: record secure featured advertising lifecycle gates
+
+=== CHERRY STATUS ===
++ 258044bec1194e61f8cdd0e9ec100ba503a24cf5 docs: record secure featured advertising lifecycle gates
++ 1de6fc66fce8e946c5f5c7f10b05deff3d25e1fb Make featured ad repeat limits campaign-configurable
++ 5e8234e23b1745ed79cf5899a926d2b6add01dec Test owner-configured per-campaign reward repetitions
++ 4cabc96ef2303a3ba27bb4154bb1140b563d84a2 Expose per-member rewarded ad repetition setting in owner campaign form
++ 8c70a1abec83d697b1dd2e4b069e29a60f041b9d ci: run domain regression on featured ads development branch
++ 82bad6b1ff5a687c1d265d457d52e9f7e9e967d7 ads: remove arbitrary per-member claim cap
++ aa34b5c65368873789c82d9709985cca5dc11129 test: allow owner-configured repeat counts beyond 100
++ 270b96750d0c1e9c65bc850e24463d60da4bc11a ads: align owner upload limits and campaign repeat count
++ 9bb7d6d0396f348678e8bb354fc7d6ff41b0217e ads: reject rewards from stale or unpublished campaign sessions
++ 349d4ab6efe6d577f99e28d09ef89e49b4ade479 test: cover cancellation when rewarded campaign is paused
++ e290af1362fde0c8b48673e485a4c51fb114cec3 docs: record timed advertising lifecycle hardening
++ 7d68aaac6a4ba48bdc084ba81d080f1a1ce46a43 ads: align featured reward defaults with 100-view campaign policy
++ 2ed2b4a7b3c484b548501329e03e5de324e02b47 test: cover owner-configured featured ad reward caps above 100
++ bfe5760859ebb1f2ac4ce2a145a5ec1fe308cba7 ui: remove stale featured ad reward limits
++ 917d39a211237191f007186b5b91fac564232b51 ads: add owner-managed featured reward policy endpoints
++ 894727ea10b5b7a7e908f54ab7bcab116b56bd31 test: cover owner-managed featured reward policy
++ b4aec2b2c00cde851262b2c185b3c4f5456b4ef4 feat(capacity): add unified capacity and media quota policy contract
++ b6f3015e841000ddc49c086e7ef27ebcf05d69b3 test(capacity): cover tier basis and owner media quota validation
++ 39391bdaf076c4c5389dbfeec8435a7211e03196 feat(capacity): add audited owner controls for unified capacity and media quotas
++ 0f497ed6cf968a4c31d95d8e9f157278d805a27f fix(capacity): type owner media quota policy safely
++ e8ef2eb15a64c222d878613c74b06eb905b468d8 fix(media): allow supported documents when addressed to verified owner
++ 5993a2efac3da4c8fda72c08a1abe13ad6176b88 fix(media): validate owner-recipient document delivery
++ 8874a91d36e3c9603bc3b6755c8c9279416c0433 feat(media): define verified owner quota exemption
++ 5c09a92b9c56a561d7daec435309ea6715d022a2 feat(media): exempt verified owner transfers from member quotas and allow supported PDFs to owner
++ 0de3985968a3735456782fbae2cbb5f832ec6383 fix(media): preserve quota exemptions through finalize and abandoned-upload cleanup
++ 67defec7324bf4d638d3a9f6499c2d33ce6a5ed5 test(media): cover verified owner sender and recipient exemptions
++ fd4d619707c89f0a298ed5bc3bdccaf0c9e84e77 test(media): cover verified owner sender and recipient exemptions
++ b99aa725d9fb3643083c9ff25b59cecc203be1ca test(media): cover verified owner sender and recipient exemptions
++ bbd295554fda7e4e0a48fa1dbaaca3b4a2510232 feat(media): pass direct recipient for owner-exempt media uploads
++ b62777337d6e3761c557c6f279742a51017d6c7a fix(media): remove stale client-side GIF block for chat and room uploads
++ dac6af1fde80c9b6fb5b3b91b68540648c139814 feat(stickers): define compact static and animated sticker media policy
++ 57e8692774ab250be7e833ff9d81e1f22e1a1236 test(stickers): cover dimensions size animation and pack limits
++ 2ee00c370fb44f7f961a3684db46b0281e3e9a82 docs(stickers): record unified sticker requirements and implementation status
++ cceef406edcb16d6ec5fe80db7ad232b32bde992 fix(stickers): narrow validated media content type
++ bc49d115e66f243051103edd211d0ccef7c369df fix(media): bind direct uploads to verified recipients
++ a8a8b77eabad5658bf0eac1fec1fe9e5f12e6204 fix(chat): pass direct recipient for media quota policy
++ c1ac171991edd5296af44bd13a067e81959206d3 fix(media): keep regular direct recipients on standard quota path
++ 10b11132877721550cf059d149346cc42ba0380e feat(admin): add observe-only capacity and media policy screen
++ 172f8f10906d583394d171484bc1edb5d9143e37 feat(admin): link capacity media management from owner console
++ e6f299771a3cdbe67c5c0110ce0896da4c2f1753 docs(media): record owner exemption repair and capacity console
++ 737a367072d92c957f50ac92a0bd410439112f08 docs(release): require live audio video acceptance before launch
++ 1c8a67d450f5d830aef2649aac08ce4ac0f86dd4 docs(release): correct call and 5k simulation release gates
++ bd8727cd3e1148fa8c5b6dc62ae425f036d425fc docs(release): record current checklist revision SHA
++ 3e8de50f422c5eee1cd0ae2af76e6e04e7a886ac fix(media): separate owner transfer daily quota exemption
++ 1c78003300977737a2053ae65f0e608c3f52af66 fix(media): retain active guard for owner-directed transfers
++ 0bfe54b9d0e8c2cc83b8a80901dce0f219fda260 test(media): cover bounded owner transfer quota exemption
++ 3e7e2fc56e5f92d8f451fd98c8980bed491aab9d chore(media): mark unused quota policy input intentionally
++ 7adade4af5f94b9fc60c4720acc207b59e62976a docs(media): record owner recipient quota hardening
++ ba33a30323bf9df19045fb1bbe1d62a9f0883c2a refactor(media): simplify full owner quota exemption
++ 646b9e2a13baa3cdf79befb07174065f307be3d4 refactor(media): use owner sender-only full exemption
++ ac0d86c005e5f76d85cbb9e1142d401a33767f84 test(media): align owner quota policy helper contract
++ fa78b2a58a2a9ea5ba7b19cacafafb3d542ba3d5 docs(media): record final quota policy helper revisions
++ 206f2ae4919f32722ac74bebc0d9975fde69285d test(media): cover owner-recipient quota release accounting
++ 8307b809f4037fb52cb732f67ea77a0be401c8b8 ci(media): run upload lifecycle emulator regression on feature branch
++ 77529c38f667fc5b39325ad67579e54e30e439eb test(media): include auth emulator for owner-recipient verification
++ 8ae97394c36150119deb7a5f09eb817d56b26c2e test(media): verify owner-recipient quota exemptions in auth emulator
++ f41dc6d5ce220909097a773b32de19242b3b7c08 docs(media): record owner-recipient emulator regression evidence
++ 38b50dc0e4b06217dabdb68ebc65ec131ad4dc5d test(media): cover owner-recipient finalize and cleanup quota lifecycle
++ 039c621013ec37b14c12ac17f9877c313b11f531 docs(media): record finalize and expired intent emulator coverage
++ 03d444ab5fde751a3e0544d00b1e621a3a3cdc75 feat(stickers): validate pack manifests and send request shapes
++ 0ad62b63f99f2193fb8495f8d9bba7a12fe60258 test(stickers): cover pack manifest and send request validation
++ 2b1dc0aa5c481dd216dd9afb9a275864d49f88f0 feat(stickers): project safe published sticker catalog
++ 8f4dc7536424d1bc42d8f3f57524d2822bc2dae0 test(stickers): verify public catalog moderation and data projection
++ 5505b319e6ac4a9fa5012d78dc4eac617820b18c feat(stickers): expose authenticated published catalog callable
++ dfc7b05e13cbf4a526604d984af1b1a250784055 fix(stickers): isolate invalid packs during catalog projection
++ 93aa21f5862cb148f23444fda5cda1031ad2c0d4 test(stickers): assert invalid catalog packs are safely omitted
++ 1ef30ab44781f7a1fbc5c818ed734778a252e0c3 test(stickers): load compiled catalog module in Node tests
++ af48cecee8e49e3ae4fb47cc1ae2878a9af318f4 feat(media): add owner-only sticker asset intake policy
++ 327d6712fb3c91c60ff2998820641c8c2e82901b feat(media): accept sticker purpose in signed scanner verdicts
++ 144c04c77f0bd0579aa0d08c2e423ec956e0492a feat(media): restrict sticker GIF derivatives to platform owner
++ d7597ba8f86f3759e6a4c1f1f5918d6095c66c54 feat(media): enforce owner MFA for sticker upload finalization
++ 4571a882edb352376a71bff40a6a94afd316ebc6 test(media): cover owner-only sticker intake and size ceilings
++ 9678865cf1d73e053db1c3b3c9411c061ae49ca8 test(media): cover sticker scanner purpose validation
++ 9f6dce3d8803b207a81c9518c8603e6671bdc26b test(media): enforce owner-only sticker GIF derivative contract
++ 9e3a452da65c7918fac9353d12542e4678b24d65 feat(stickers): bind scanner verdict to validated sticker metadata
++ 1ea711b28a9d80fd6a96a714e274c554817ff036 feat(stickers): verify scanned sticker metadata and derivative bounds
++ 931a17d894570dfd16cb31c418ea40ede14a7126 test(stickers): require scanner-verified sticker metadata
++ f5249a0e9c8e8bb09a0681f459c7661623f1a863 feat(stickers): add authorized scanner-verified asset delivery
++ fba7b0ea0256fd89107a7ca74b3df4a2bc4f3170 feat(stickers): add atomic direct and room sticker messaging
++ 254f70f3c0115ff036547fa1164334da888fdf1d feat(stickers): export secure sticker messaging callables
++ 77d5911de06ea39eb0f766dc2ebacc0501360630 chore(stickers): avoid unused callable imports
++ 2ac5efa75fe5013acf9f2f1b5fe45523f84d4049 feat(stickers): add client upload, catalog, delivery and send service
++ 1d359d89340b2e4e6bcf27e32fd711ee56e3083b feat(stickers): add secure sticker picker and message widget
++ 9f93ff76afcf5e48037c14dc389e776f48ffb4f6 feat(stickers): connect sticker picker and messages in direct chat
++ 50816e859312296ee894f04543549668d877bdd7 feat(stickers): connect sticker picker and messages in rooms
++ ac4f3ecdb76cd07f2bc0e9a77d6dd9cfbda73fec feat(stickers): verify live media assets before catalog exposure
++ 07a3e49f0fa14f8a9c232a99b3b01b5e0cf3e0a1 feat(stickers): add owner-approved sticker pack publishing
++ feb05bb0879cf4fde8f5b909a5f695ca7415a70b feat(stickers): export owner pack publishing callable
++ 5520ce7c285785251e085974f5e2fbbbb44bc2a0 feat(stickers): add owner pack publishing client method
++ fe0199d7e7adb79ffa6ffe1291e31f04590a4363 fix(stickers): tighten TypeScript types in pack publishing
++ 4f477bf06cf7e9b8fe80abbe09737e1daa4feb38 fix(stickers): type-check verified catalog metadata
++ 783e32ea2c18e143120a3c231e9d3909e9be8db6 fix(stickers): type asset document reads in pack transaction
++ f23671eedb1130d1d9878ecbea26fc2e60b312f5 perf(stickers): cache short-lived asset URL requests in widgets
++ 5214509ae1201a239cd4eddfd117af9ddad506b5 test(stickers): include required scanner-derived metadata
++ 1fe83747d5074b1c66668cc38cc925278fa6f85e fix(stickers): revalidate pack and asset atomically before sending
++ 9504484a8012b5547e06d1b8a5920d293e3f4b88 feat(stickers): expose scanner-verified metadata to asset owner
++ db1873ed810600b0ef602a7b3453a81b6b8becb0 feat(stickers): retrieve scanner metadata for owner pack authoring
++ 15d738ada4e840bf574edc06225ff6ad35366dbb feat(stickers): add owner sticker pack management screen
++ b0a4ec6e7467173d764c62828694ef6cf8c035e4 feat(stickers): add sticker pack management to owner dashboard
++ a33782eb3c114dfadd17bdba85445b87acdf5455 fix(stickers): use supported GIF icon
++ c784f0258aef73258b3063e6c97d69a7729ace48 docs(stickers): record backend and UI implementation status
++ a4d6280617f4df93f6fda65363a36faa746f7c1c fix(stickers): bind transactional send and delivery to exact scanner metadata
++ 75d4f280ea3f125d7035fcc8a6ed1af69548d9c4 fix(stickers): enforce pack item limit in owner editor
++ 447fc9fb28e06ef25ae2f356131219329b8ac60d fix(ads): keep featured rewards disabled by default
++ 5528bade0ee6b5dd91ef18db4c5fa5332be7e93b test(ads): assert safe featured reward defaults
++ 145854eebed8df4854d1e09c137f26a3e2eef4b9 feat(scanner): allow validated sticker scan requests
++ 03758ac074708ddf4b8ea947c6bbfd6608a9adff feat(scanner): inspect sticker media and enforce compact animation limits
++ d33af0f2d0222547680cfad982d4ed3a0adb4cd1 feat(scanner): emit verified sticker metadata and safe derivatives
++ 01a0a66891fbb04ceffe95367c7c471e5a895fe2 test(scanner): cover sticker scan request constraints
++ 2f87779019944f3693f8ec284a56f4ac26ffd219 test(scanner): verify real animated sticker metadata and derivative ceiling
++ 9ed43818175392d8d398ad9f0ba08c4f0d315f56 ci(scanner): run scanner and sticker media regression tests
++ 438d164d0f476ece5e888aeee6bc74f82202118d test(ads): align emulator policy assertions with safe disabled defaults
++ ff0c50513c482ad412e2cf0bc5dcecf7708bde32 fix(scanner): accept malicious sticker verdicts without parsing metadata
++ 0689c10e16381935e6d98e6aa85bd9c94996daa4 fix(media): allow malware rejection without sticker metadata
++ 75937e84a7178370f0f4f64b755087e863177aa4 test(media): preserve fail-closed malware rejection for stickers
++ c4e43172d4e6bfb1a4dad80fa920d7fcde7476a5 docs(stickers): record scanner worker integration and CI evidence
++ 0f0e2513369598753adb4ff7c4f01c71f87622a4 feat(calls): define time-bounded mode entitlements
++ 6c17a44a9c10c7b26e77ddb5290a2b47a52be179 test(calls): cover mode-specific entitlement validation
+- 88ef554cfdd95fcf298144007e63c6868fcf2fb0 feat(store): enable verified call entitlement fulfillment
++ 9d475f9574d5701fe06b09dd0f697e78709fbc8f feat(calls): enforce active entitlements for every participant
++ 5b3270af2dbc636cc5a1a95454a59240b8cdf397 test(calls): require entitlements in direct and room lifecycle
++ e0accd4b4e52d7f8edac57e679e29e41086d0705 test(store): verify call plans can be owner-enabled
++ 91a1ce9fcfe7cbac58fcf782d06389732bd2d251 fix(store): keep paid call plans closed pending refund lifecycle
++ 824585a43866cfcecf6014570f326508d39e5354 test(store): keep paid call entitlements disabled pending refund flow
++ 386ccadb127970417e043c47b122501c2d11d887 docs(media): refresh sticker system implementation status
++ a26a9db5a1c51a851f5f0a70c4ce8d06882de5a1 docs(calls): record server entitlement enforcement and release gates
++ af2c318fb91073b11aa43cfe123b1339788e5f13 fix(ads): reject stale campaign edits and status transitions
++ 4cb3cc55374e8327e49c78784b5dc27b2fc69732 fix(ads-ui): send campaign versions for optimistic concurrency
++ 3a19668c8a52ce30569c39bc7f868385ad460a91 fix(ads-ui): avoid unsupported iterable convenience API
++ 31d07ef94c51f7c13f581c9093b2f07c4da356b0 test(ads): cover optimistic campaign version conflicts
++ 4e93a1e0c04b3ec94cfae017c77197b775e601ce docs(ads): define optimistic campaign version contract
++ 990611e8cd65907d3900cb2f0d82c09d92bd689a feat(capacity): meter finalized media upload bytes atomically
++ 2e9a26ca0a36abe7a75d32a061498f3fbf92daec feat(capacity): expose verified monthly upload meter
++ 32c188c2fa27bdfb0c80b3eba49aa6d86c9d2a11 test(capacity): verify finalized upload meter is exactly once
+- 64649df1436a9c78bae313893777bd75d37e0b69 feat(capacity-ui): show partial finalized-upload telemetry honestly
++ d732fdbc76bbfca7f8a769a1a63f57e799ed3e6d docs(capacity): record exact-once upload telemetry
++ 865d7136e30790492b44e17f444d7b39e1009ada test(capacity): verify owner meter projection and observe-only mode
++ 097acdab4511ebad674a04ba7c60eb88e1e43e25 ci: preserve regression runs instead of cancelling in-flight validation
++ 4df555720078ffb5641ebc7960732530e10d5306 docs(ads): record campaign concurrency hardening
++ 07ef669c4b81290c5dd5e218bfc86d29e271bc25 ci: cancel obsolete runs so latest branch head can validate
++ 22d0d415efade7138d04af9dd847e658dcbfd18e feat(advertising): add featured campaign financial policy
++ 2b653905d6646aab59cd2d73adb4c5ade88c046d test(advertising): cover featured campaign financial controls
++ 51ba1f1a6f6bbd87653f2665bf055e61480142fc feat(advertising): add featured campaign governance and finance ledger
++ 0344d50094d59b893dfdb907b91ca15a8462ad48 fix(advertising): keep refund reconciliation states recoverable
++ ab450c9da6b0cc80650c47e62f4c901eea139e40 test(advertising): cover refunds after prior reconciliation
++ 16a21d4bc76fe9e07c1b43910c5abe50c39954e3 fix(advertising): honor all-region featured campaign targeting
++ 327aaa3978cd5d7d04b0a9862929fa746e396c4d feat(advertising): add featured ad session and reward lifecycle
++ 74119592244de997b647eef63d341e03809602a2 fix(advertising): invalidate approvals and recheck creative at reward completion
++ a6fb0bcdbc27da5ae2d02c5d7d452e9db3dc81bd fix(advertising): require evidence for payment and refund records
++ 79896e48833b65e249e59ca1b89bbb9f5a9d8f75 test(advertising): exercise featured campaign finance and reward lifecycle
++ f4065c3bd469d4f99735151795be5ba4a73de901 chore(advertising): add featured campaign lifecycle indexes
++ 02d7f1b5fff485ae208b375ae38dd9deaad1d4d7 feat(advertising): add session-bound featured creative delivery
++ 2a637d7e4c77fb4dcfdc804e8ab51cb1808b4a0a feat(advertising): export featured ad creative delivery
++ e89aff0d855a0516cdf49fbcad4272fa32d734a7 feat(advertising): expose server reward policy to featured ad discovery
++ 944d64da2a0b787fc41febc9bbd5707cb95a6d90 feat(advertising): support safe cancellation of featured ad sessions
++ 851767d2818f73809e442db9343e81dd332d2aae feat(advertising): connect featured ads discovery player and reward history
++ f19f6890d065be1970b991c7e603e0968d2e82c7 fix(advertising): include regional campaigns in broad showcase filter
++ a5fa4f5cdd2e2fcdc81c43d38a1cfdb34ed9940c fix(advertising): remove inert featured player control
++ fac1054449d18a3b15cb5c92e1e6b80afe172c89 feat(advertising): add owner featured campaign and finance console
++ 80335386b306901fba9dc39649d71dd5e23458cc feat(advertising): link owner featured ads finance console
++ 07f2c4d940c29c4270c0548316bf09f2df0c1d08 fix(advertising): reopen net reconciliation after refund
++ 2a0d3db792a18f904721e8b633c750bd637857c6 test(advertising): verify owner review after refund adjustment
++ 7edac796b7fbcaf3f951a0c92dae30de2676eb1a fix(advertising): handle failed session cancellation safely
++ edfd72089c08e856f6001370029b8bdbfaa0533e fix(advertising): freeze paid featured campaign terms and block unsupported creatives
++ 3612ead933a576b7b09e17af1b2f8a1a327524b1 fix(advertising): tighten featured creative delivery gates
++ 5d3d1f55c02f2e301f14eb36990fa27a4e01f311 fix(advertising): bind financial idempotency to external reference
++ b237b1c9258b872e6cb32a11c507041d8f44bc7d test(advertising): verify stable finance reference idempotency
++ a6cad09539b8ed1cbf0da23ff4e2cfde359c03f3 fix(advertising): make finance retries stable across client restarts
++ df541ba7a0bc48207bcdaf784bf3c164dd64d4e7 test(advertising): replay financial confirmation with new client key
++ e44b7228ce0b6b5c59ffa1efc8ec7914e7334b5c fix(advertising): require stable finance reference and dispose dialog fields
++ b6755f188a73c36934d8f7af6fa12157d979025d fix(advertising): align financial event validation types
++ 180d568d78ec907c67591ce624b8bd4eefee3d44 fix(advertising): version featured reward policy updates
++ 34e3f4a75ac21275c19d2f934d321233bfd65451 test(advertising): cover optimistic reward policy versioning
++ 11fd7f99b89203d2367405de9f0b895b0fb34867 feat(advertising): expose owner controls for featured reward policy
++ 641b0e6d5d4c7c9b0e1286f20162c823e0c84b6c fix(advertising): preserve terminal campaign status on refunds
++ b1b267e4d46391539f698f862f10a8242930abe6 fix(advertising): enforce exact featured creative type match
++ 8e2221bb6e1c3f83da4886c1ecf9809e6e47a7ed test(advertising): correct stable finance reference assertion
++ 64105ac118df7bcafd6da90f85df78ae7f87ae4c fix(advertising): defer Firebase initialization until callable use
++ 0cc174e1d5bfc47a788f35ed8ed8e28d2140a280 test(advertising): align featured ads widgets with live callable states
++ 5fa759337304191885642dccd85b64d402f5701d test(advertising): cover broad regional showcase filtering
++ 77900a547a78d7d5635933494c19da9f506fc06f docs(advertising): record featured ads lifecycle and finance implementation
++ c62f925d1001ef03846f750d61da41684d9c5aff docs(advertising): link featured ads implementation status
++ be047abbf2cadc92c9b05478c4c06a9b97301ded test(advertising): reject stale reward policy and conflicting finance retries
++ c065ebdedf1dfbb95a42e53c1f944503ff9cb8e1 fix(advertising): require reconciled financial state before publishing
++ 1582effdf3ca7c7be0125137e3959c57098bac5c fix(advertising): show publish only after financial reconciliation
++ a451bf81ecf966add705fff259fd4a9cb03cac3c test(advertising): block featured publication before financial reconciliation
++ 39c2c45b222c37baed61b9a1f49d197feb13597a test(advertising): assert over-refund rejection
++ 3de3f346b8285a8aefa8838b9ea2506179dc19a5 fix(advertising): remove nullable cancellation future handler
++ 8403eba0f77af4e014f914871f1dba839409b9ef fix(advertising): filter expired featured campaigns before result limit
++ 42fd3c9fe19dbc140f40629f3851452085738243 chore(advertising): index active featured campaign discovery
++ d761600b1de3be346827e0c016153d61da584f2f test(advertising): keep expired featured campaigns out of discovery limit
++ 5c15ae960eeb501d727c55a954b409201723024d feat(advertising): rotate featured campaign showcase in member UI
++ ec85c186aaf04fe853cb824832656651808aab88 fix(advertising): clamp rotation interval and reset carousel index
++ 5def820a21524e2378fd72ad1890869e7fee826b fix(advertising): recover expired session locks and cancel stale policy sessions
++ c8595e936e70e2ae5ef081b0ce608e64ee299ac5 fix(advertising): replace stale active lock when starting a new session
++ 79d5d370522e0192bf4781474f74eee7cd4dd6eb test(advertising): recover expired featured session lock and release reservation
++ c8d572251812fe11178fbb831fa2187f2ecc9aa1 fix(test): clean featured sessions outside test block scope
++ 0763e58311c3d78fa35e2eca68178c3c74cc0214 fix(advertising): net stale same-campaign reservations before replacement
++ b15b643f14bc6c1196bf914190778e053e2ac9b1 test(security): deny direct member access to featured ad state
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+A	docs/CALL_ENTITLEMENT_IMPLEMENTATION_RECORD.md
+A	docs/FEATURED_ADVERTISING_SECURE_LIFECYCLE_IMPLEMENTATION.md
+M	docs/MAWDDA_ADVERTISING_AND_REWARDS_SPEC.md
+A	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+M	docs/RELEASE_READINESS_CHECKLIST.md
+A	docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+M	firestore.indexes.json
+M	functions/package.json
+A	functions/src/call-entitlements.ts
+A	functions/src/capacity-media-management.ts
+M	functions/src/chat-media-policy.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/featured-ad-finance.ts
+M	functions/src/featured-ad-rewards.ts
+M	functions/src/featured-advertising.ts
+M	functions/src/index.ts
+M	functions/src/media-derivative-contract.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media-security.ts
+M	functions/src/media.ts
+A	functions/src/sticker-catalog.ts
+A	functions/src/sticker-policy.ts
+M	functions/src/store-catalog.ts
+A	functions/test/call-entitlements.test.js
+A	functions/test/capacity-media-management.test.js
+M	functions/test/chat-media-policy.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/featured-ad-finance.test.js
+M	functions/test/featured-ad-rewards.test.js
+M	functions/test/featured-advertising.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/engagement-rewards.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+M	functions/test/media-derivative-contract.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+M	functions/test/media-security.test.js
+M	functions/test/rules/firestore.rules.test.js
+A	functions/test/sticker-policy.test.js
+M	functions/test/store-catalog.test.js
+A	lib/screens/capacity_media_management_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/direct_chat_screen.dart
+M	lib/screens/featured_ads_screen.dart
+M	lib/screens/owner_advertising_rewards_screen.dart
+A	lib/screens/owner_featured_ads_screen.dart
+A	lib/screens/owner_sticker_packs_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/services/member_media_upload_service.dart
+A	lib/widgets/mawdda_sticker_widgets.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/security.test.js
+M	test/featured_ads_screen_test.dart
+
+=== NUMSTAT ===
+18	1	.github/workflows/mawdda-domain-regression.yml
+35	0	docs/CALL_ENTITLEMENT_IMPLEMENTATION_RECORD.md
+130	0	docs/FEATURED_ADVERTISING_SECURE_LIFECYCLE_IMPLEMENTATION.md
+12	0	docs/MAWDDA_ADVERTISING_AND_REWARDS_SPEC.md
+142	0	docs/MEDIA_OWNER_EXEMPTION_AND_CAPACITY_UI_2026-11-18.md
+16	12	docs/RELEASE_READINESS_CHECKLIST.md
+56	0	docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+74	0	firestore.indexes.json
+1	1	functions/package.json
+42	0	functions/src/call-entitlements.ts
+66	0	functions/src/capacity-media-management.ts
+9	2	functions/src/chat-media-policy.ts
+1	1	functions/src/engagement-rewards.ts
+185	0	functions/src/featured-ad-finance.ts
+20	19	functions/src/featured-ad-rewards.ts
+3	1	functions/src/featured-advertising.ts
+967	6	functions/src/index.ts
+1	0	functions/src/media-derivative-contract.ts
+21	4	functions/src/media-quota.ts
+20	3	functions/src/media-scanner.ts
+14	3	functions/src/media-security.ts
+618	26	functions/src/media.ts
+72	0	functions/src/sticker-catalog.ts
+182	0	functions/src/sticker-policy.ts
+12	1	functions/src/store-catalog.ts
+42	0	functions/test/call-entitlements.test.js
+59	0	functions/test/capacity-media-management.test.js
+6	0	functions/test/chat-media-policy.test.js
+4	0	functions/test/engagement-rewards.test.js
+97	0	functions/test/featured-ad-finance.test.js
+39	13	functions/test/featured-ad-rewards.test.js
+9	0	functions/test/featured-advertising.test.js
+35	0	functions/test/integration/call-signaling.integration.test.js
+417	12	functions/test/integration/engagement-rewards.integration.test.js
+261	1	functions/test/integration/media-callables.integration.test.js
+2	0	functions/test/media-derivative-contract.test.js
+45	0	functions/test/media-quota.test.js
+49	0	functions/test/media-scanner.test.js
+16	0	functions/test/media-security.test.js
+19	0	functions/test/rules/firestore.rules.test.js
+185	0	functions/test/sticker-policy.test.js
+6	2	functions/test/store-catalog.test.js
+271	0	lib/screens/capacity_media_management_screen.dart
+34	0	lib/screens/chat_room_screen.dart
+37	2	lib/screens/direct_chat_screen.dart
+494	195	lib/screens/featured_ads_screen.dart
+29	7	lib/screens/owner_advertising_rewards_screen.dart
+519	0	lib/screens/owner_featured_ads_screen.dart
+216	0	lib/screens/owner_sticker_packs_screen.dart
+20	0	lib/screens/super_admin_screen.dart
+163	5	lib/services/member_media_upload_service.dart
+249	0	lib/widgets/mawdda_sticker_widgets.dart
+33	2	scanner/processors.js
+6	4	scanner/security.js
+22	5	scanner/server.js
+31	1	scanner/test/processors.integration.test.js
+3	0	scanner/test/security.test.js
+8	12	test/featured_ads_screen_test.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

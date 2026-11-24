@@ -1,0 +1,21 @@
+BRANCH: codex/mawdda-store-entitlement-hardening
+REF: refs/remotes/origin/codex/mawdda-store-entitlement-hardening
+SHA: bca089273f4c3652eeb01d27f5cc2788c386c060
+
+MERGE BASE: 092cebb249c909d06c4fc35bbe1a21b3c90d20d1
+
+=== DIVERGENCE ===
+1574	2
+
+=== FILE STATUS ===
+M	functions/test/integration/room-events.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+
+=== CHANGE SUMMARY ===
+ .../integration/room-events.integration.test.js    |   1 +
+ .../integration/wallet-store.integration.test.js   | 136 +++++++++++++++++++++
+ 2 files changed, 137 insertions(+)
+
+=== UNIQUE COMMITS ===
+bca08927 test: fix room event lifecycle cleanup assertion reference
+bcbd4659 test: cover every enabled store entitlement and idempotent purchase

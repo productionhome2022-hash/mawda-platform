@@ -1,0 +1,7 @@
+Branches reviewed: 78
+Processing errors: 0
+Target SHA: 0b316750848f77bfac7b58e4dab8cec538a1e08b
+
+Per-branch reports are in branches/.
+This is a Git inventory and comparison, not semantic approval.
+No source merge, source transfer, branch deletion, or production change.

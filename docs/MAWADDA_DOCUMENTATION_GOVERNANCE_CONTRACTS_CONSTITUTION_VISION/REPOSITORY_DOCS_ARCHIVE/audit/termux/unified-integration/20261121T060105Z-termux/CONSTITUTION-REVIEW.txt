@@ -1,0 +1,59 @@
+MANDATORY SEMANTIC REVIEW - NOT AUTOMATICALLY WAIVED
+
+Compare every candidate change against the target branch's actual
+governance documents, approved decisions, architecture and policies.
+
+REQUIRED DOMAINS:
+
+1. SUPER OWNER:
+- Preserve exclusive owner identity and authority.
+- Verify server-side authorization for every privileged operation.
+- Verify owner dashboard, command/control center and all sections.
+- Verify member management, bans, moderation and role assignment.
+- Verify economy, wallets, coins, store, entitlements and grants.
+- Verify configuration, audit logs, security controls and recovery.
+- UI visibility is never authorization.
+- No ordinary member or administrator may impersonate or override owner.
+
+2. AUDIO AND CALLS:
+- Live voice recording maximum remains 60 seconds.
+- Distinguish live recording from uploaded audio files.
+- Verify all conversation and room types.
+- Verify server and test enforcement.
+
+3. MEDIA:
+- Images 3 MiB.
+- GIF 3 MiB, 20 seconds, 50 frames.
+- Audio 5 MiB and 60 seconds.
+- Original video 25 MiB.
+- Safe derived video 15 MiB and up to 90 seconds.
+- Owner-pinned PDF 20 MiB.
+- Verify server-side entitlement for every Media Saver operation.
+- Do not extend server retention.
+
+4. RETENTION:
+- Private temporary: full deletion after 4 hours from server-recorded activity.
+- Normal: media 4 hours, text 7 days.
+- Important: media 4 hours, text 30 days.
+- Do not activate a live deletion lifecycle while the unresolved
+  mode-selection/consent decision remains unresolved.
+
+5. ECONOMY:
+- Centralized economy engine.
+- Atomic, server-authoritative, auditable, idempotent transactions.
+- Owner grants, entitlements, store, subscriptions and wallet integrity.
+- Never invent prices, quotas or economic policy.
+
+6. SECURITY AND PLATFORM:
+- Firestore and Storage rules, callable authorization, replay protection.
+- Firebase project identity and existing iOS registration.
+- Android signing identity and PWA private-data caching.
+- No secrets, credentials or signing keys in source control.
+
+7. COST AND PRODUCTION:
+- No billing activation, paid resource creation, deployment or production
+  mutation.
+- No changes to main without separate owner approval.
+
+A filename scan is not proof of semantic compatibility.
+Each domain requires code-path and test evidence.

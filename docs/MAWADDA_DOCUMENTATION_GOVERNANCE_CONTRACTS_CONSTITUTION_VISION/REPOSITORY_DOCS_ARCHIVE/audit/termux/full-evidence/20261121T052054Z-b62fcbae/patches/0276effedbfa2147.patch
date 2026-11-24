@@ -1,0 +1,587 @@
+diff --git a/functions/test/integration/premium-profile.integration.test.js b/functions/test/integration/premium-profile.integration.test.js
+index 812dbb25..93a12645 100644
+--- a/functions/test/integration/premium-profile.integration.test.js
++++ b/functions/test/integration/premium-profile.integration.test.js
+@@ -1,148 +1,294 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const {
+   getMemberProfile,
++  purchaseStoreItem,
+   setMemberProfileVisitorGreeting,
+   setMemberPinnedProfileSection,
+   setMemberCustomTitle,
+   discoverMembers,
+ } = require("../../lib/index");
+ 
+ const db = getFirestore();
+ const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
+ const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+ 
+ function profile(age, extra = {}) {
+   return {
+     profileCompleted: true,
+     accountStatus: "active",
+     profileVisibility: "public",
+     age,
+     displayName: "Mawdda Test Member",
+     username: "member_test",
+     bio: "A test profile",
+     profession: "Engineer",
+     country: "Switzerland",
+     region: "Zurich",
+     gender: "unspecified",
+     maritalStatus: "single",
+     interests: ["reading", "music"],
+     goals: [],
+     ...extra,
+   };
+ }
+ 
+ test("premium profile features enforce entitlements, count unique views, and rank boosts safely", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   const viewerUid = uid("premium_viewer");
+   const targetUid = uid("premium_target");
+   const regularUid = uid("premium_regular");
+   const minorUid = uid("premium_minor");
+   const blockedUid = uid("premium_blocked");
+   const now = Date.now();
+   const future = Timestamp.fromMillis(now + 10 * 24 * 60 * 60 * 1000);
+   const refs = [viewerUid, targetUid, regularUid, minorUid, blockedUid]
+     .map((id) => db.collection("users").doc(id));
+   const [viewerRef, targetRef, regularRef, minorRef, blockedRef] = refs;
+ 
+   await Promise.all([
+     viewerRef.set(profile(29)),
+     targetRef.set(profile(31, {
+       discoveryBoostExpiresAt: future,
+       profileVisitorGreeting: "مرحباً بك في ملفي!",
+       pinnedProfileSection: "interests",
+     })),
+     regularRef.set(profile(28)),
+     minorRef.set(profile(17)),
+     blockedRef.set(profile(30, { blockedUids: [viewerUid] })),
+   ]);
+   const profileEntitlements = [
+     ["vip_monthly", "عضوية VIP", "vip"],
+     ["title_custom", "لقب النخبة", "title"],
+     ["badge_special", "وسام مودة", "badge"],
+     ["avatar_frame_30d", "إطار مميز", "frame"],
+     ["username_color_30d", "اسم ملون", "username_style"],
+     ["username_animated_30d", "اسم متحرك", "username_style"],
+     ["profile_analytics_30d", "تحليلات الملف", "analytics"],
+     ["profile_layout_30d", "ملف احترافي", "profile_layout"],
+     ["profile_pin_30d", "قسم مثبت", "profile_layout"],
+     ["discovery_boost_7d", "ظهور معزز", "boost"],
+     ["profile_theme_30d", "سمة مميزة", "theme"],
+     ["visitor_greeting_30d", "ترحيب الزوار", "greeting"],
+   ];
+   await Promise.all(profileEntitlements.map(([itemId, itemName, category]) =>
+     targetRef.collection("entitlements").doc(itemId).set({
+       itemId,
+       itemName,
+       category,
+       status: "active",
+       purchasedAt: Timestamp.fromMillis(now),
+       expiresAt: future,
+     }),
+   ));
+ 
+   try {
+     const firstView = await getMemberProfile.run(call(viewerUid, { userId: targetUid }));
+     assert.equal(firstView.visitorGreeting, "مرحباً بك في ملفي!");
+     assert.equal(firstView.pinnedProfileSection, "interests");
+     assert.equal(firstView.discoveryBoostActive, true);
+ 
+     await getMemberProfile.run(call(viewerUid, { userId: targetUid }));
+     const ownerView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+     assert.equal(ownerView.profileAnalytics.last7DaysViews, 1);
+     assert.equal(ownerView.vipActive, true);
+     assert.equal(ownerView.activeTitle, "لقب النخبة");
+     await setMemberCustomTitle.run(call(targetUid, { title: "سفير مودة" }));
+     const customizedTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+     assert.equal(customizedTitleView.activeTitle, "سفير مودة");
+     await assert.rejects(
+       () => setMemberCustomTitle.run(call(viewerUid, { title: "لقب غير مستحق" })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => setMemberCustomTitle.run(call(targetUid, { title: "x".repeat(41) })),
+       (error) => error && error.code === "invalid-argument",
+     );
+     await targetRef.collection("entitlements").doc("title_custom").update({
+       expiresAt: Timestamp.fromMillis(Date.now() - 1000),
+     });
+     const expiredTitleView = await getMemberProfile.run(call(targetUid, { userId: targetUid }));
+     assert.equal(expiredTitleView.activeTitle, null);
+     await assert.rejects(
+       () => setMemberCustomTitle.run(call(targetUid, { title: "لقب منتهي" })),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.deepEqual(
+       new Set(ownerView.activeFeatures.map((feature) => feature.itemId)),
+       new Set(profileEntitlements.map(([itemId]) => itemId)),
+     );
+ 
+     await setMemberProfileVisitorGreeting.run(call(targetUid, { greeting: "أهلاً بك في مودة!" }));
+     await setMemberPinnedProfileSection.run(call(targetUid, { section: "gallery" }));
+     const updatedTarget = (await targetRef.get()).data();
+     assert.equal(updatedTarget.profileVisitorGreeting, "أهلاً بك في مودة!");
+     assert.equal(updatedTarget.pinnedProfileSection, "gallery");
+ 
+     const discovery = await discoverMembers.run(call(viewerUid));
+     const discovered = discovery.members;
+     assert.ok(discovered.some((member) => member.uid === targetUid && member.isBoosted));
+     assert.ok(!discovered.some((member) => member.uid === minorUid));
+     assert.ok(!discovered.some((member) => member.uid === blockedUid));
+     assert.ok(discovered.findIndex((member) => member.uid === targetUid) <
+       discovered.findIndex((member) => member.uid === regularUid));
+ 
+     await assert.rejects(
+       () => getMemberProfile.run(call(minorUid, { userId: targetUid })),
+       (error) => error && error.code === "permission-denied",
+     );
+     await assert.rejects(
+       () => setMemberProfileVisitorGreeting.run(call(viewerUid, { greeting: "No entitlement" })),
+       (error) => error && error.code === "failed-precondition",
+     );
+   } finally {
+     await Promise.all(refs.map((ref) => db.recursiveDelete(ref).catch(() => undefined)));
+     const audit = await db.collection("profileFeatureAuditLogs").where("actorUid", "==", targetUid).get();
+     await Promise.all(audit.docs.map((doc) => doc.ref.delete()));
+   }
+ });
++
++
++test("real store purchases flow into the member profile and disappear when their entitlement expires", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const memberUid = uid("premium_purchase_member");
++  const memberRef = db.collection("users").doc(memberUid);
++  const items = [
++    ["vip_monthly", "vip", 30],
++    ["title_custom", "title", 30],
++    ["badge_special", "badge", 30],
++    ["avatar_frame_30d", "frame", 30],
++    ["username_color_30d", "username_style", 30],
++    ["username_animated_30d", "username_style", 30],
++    ["profile_analytics_30d", "analytics", 30],
++    ["profile_layout_30d", "profile_layout", 30],
++    ["profile_pin_30d", "profile_layout", 30],
++    ["discovery_boost_7d", "boost", 7],
++    ["profile_theme_30d", "theme", 30],
++    ["visitor_greeting_30d", "greeting", 30],
++  ];
++  const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
++  const purchaseRefs = [];
++  const ledgerRefs = [];
++  const entitlementRefs = [];
++  const priceCoins = 100;
++
++  await memberRef.set(profile(30, { coins: 5000 }));
++  try {
++    await Promise.all(items.map(([itemId, category, durationDays], index) =>
++      catalogRefs[index].set({
++        itemId,
++        name: `ميزة ${itemId}`,
++        description: "اختبار شراء واستحقاق الملف الشخصي",
++        category,
++        priceCoins,
++        durationDays,
++        sortOrder: index + 1,
++        active: true,
++        purchaseEnabled: true,
++        fulfillmentReady: true,
++      }),
++    ));
++
++    for (const [index, [itemId, category]] of items.entries()) {
++      const requestId = `profile_purchase_${memberUid}_${index}`;
++      const purchaseId = `${memberUid}_${requestId}`;
++      const purchaseRef = db.collection("storePurchases").doc(purchaseId);
++      const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
++      const entitlementRef = memberRef.collection("entitlements").doc(itemId);
++      purchaseRefs.push(purchaseRef);
++      ledgerRefs.push(ledgerRef);
++      entitlementRefs.push(entitlementRef);
++
++      const result = await purchaseStoreItem.run(call(memberUid, {
++        itemId, requestId, expectedPriceCoins: priceCoins,
++      }));
++      assert.equal(result.idempotentReplay, false, itemId);
++      assert.equal(result.newBalance, 5000 - (index + 1) * priceCoins, itemId);
++
++      const [receipt, ledger, entitlement] = await Promise.all([
++        purchaseRef.get(), ledgerRef.get(), entitlementRef.get(),
++      ]);
++      assert.equal(receipt.data()?.status, "completed", itemId);
++      assert.equal(receipt.data()?.itemId, itemId, itemId);
++      assert.equal(ledger.data()?.type, "store_purchase", itemId);
++      assert.equal(ledger.data()?.amount, -priceCoins, itemId);
++      assert.equal(ledger.data()?.purchaseId, purchaseId, itemId);
++      assert.equal(entitlement.data()?.status, "active", itemId);
++      assert.equal(entitlement.data()?.category, category, itemId);
++      assert.ok(entitlement.data()?.expiresAt.toMillis() > Date.now(), itemId);
++    }
++
++    const profileView = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
++    assert.equal(profileView.vipActive, true);
++    assert.equal(profileView.activeTitle, "ميزة title_custom");
++    assert.deepEqual(
++      new Set(profileView.activeFeatures.map((feature) => feature.itemId)),
++      new Set(items.map(([itemId]) => itemId)),
++    );
++    assert.equal(profileView.discoveryBoostActive, true);
++
++    await setMemberCustomTitle.run(call(memberUid, { title: "سفير مودة" }));
++    const customized = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
++    assert.equal(customized.activeTitle, "سفير مودة");
++
++    await entitlementRefs[0].update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
++    await entitlementRefs[2].update({ expiresAt: Timestamp.fromMillis(Date.now() - 1000) });
++    const expired = await getMemberProfile.run(call(memberUid, { userId: memberUid }));
++    assert.equal(expired.vipActive, false);
++    assert.ok(!expired.activeFeatures.some((feature) => feature.itemId === "vip_monthly"));
++    assert.ok(!expired.activeFeatures.some((feature) => feature.itemId === "badge_special"));
++  } finally {
++    await Promise.all([
++      ...purchaseRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
++      ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
++      db.recursiveDelete(memberRef).catch(() => undefined),
++    ]);
++  }
++});
++
++test("concurrent retries of the same store purchase debit the wallet only once", async () => {
++  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
++  const memberUid = uid("concurrent_store_member");
++  const memberRef = db.collection("users").doc(memberUid);
++  const itemRef = db.collection("storeCatalog").doc("vip_monthly");
++  const requestId = `concurrent_purchase_${memberUid}`;
++  const purchaseId = `${memberUid}_${requestId}`;
++  const purchaseRef = db.collection("storePurchases").doc(purchaseId);
++  const ledgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
++  const entitlementRef = memberRef.collection("entitlements").doc("vip_monthly");
++
++  await Promise.all([
++    memberRef.set(profile(30, { coins: 1000 })),
++    itemRef.set({
++      itemId: "vip_monthly", name: "VIP", description: "Concurrent purchase test",
++      category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
++      active: true, purchaseEnabled: true, fulfillmentReady: true,
++    }),
++  ]);
++  try {
++    const request = call(memberUid, {
++      itemId: "vip_monthly", requestId, expectedPriceCoins: 600,
++    });
++    const results = await Promise.all([
++      purchaseStoreItem.run(request),
++      purchaseStoreItem.run(request),
++    ]);
++    assert.equal(results.filter((result) => result.idempotentReplay === false).length, 1);
++    assert.equal(results.filter((result) => result.idempotentReplay === true).length, 1);
++    assert.equal((await memberRef.get()).data()?.coins, 400);
++    assert.equal((await purchaseRef.get()).data()?.status, "completed");
++    assert.equal((await ledgerRef.get()).data()?.amount, -600);
++    assert.equal((await entitlementRef.get()).data()?.status, "active");
++  } finally {
++    await Promise.all([
++      purchaseRef.delete().catch(() => undefined),
++      ledgerRef.delete().catch(() => undefined),
++      entitlementRef.delete().catch(() => undefined),
++      itemRef.delete().catch(() => undefined),
++      db.recursiveDelete(memberRef).catch(() => undefined),
++    ]);
++  }
++});
+diff --git a/lib/screens/shop_screen.dart b/lib/screens/shop_screen.dart
+index dd98e075..63c2c7d7 100644
+--- a/lib/screens/shop_screen.dart
++++ b/lib/screens/shop_screen.dart
+@@ -1,154 +1,157 @@
+ import 'package:cloud_functions/cloud_functions.dart';
+ import 'package:flutter/material.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ class ShopScreen extends StatefulWidget {
+   const ShopScreen({super.key, required this.userId});
+   final String userId;
+ 
+   @override
+   State<ShopScreen> createState() => _ShopScreenState();
+ }
+ 
+ class _ShopScreenState extends State<ShopScreen> {
+   late Future<List<Map<String, dynamic>>> _catalogFuture;
+   String? _purchasingItemId;
+   String _selectedStore = 'all';
+ 
+   @override
+   void initState() {
+     super.initState();
+     _catalogFuture = _loadCatalog();
+   }
+ 
+   Future<List<Map<String, dynamic>>> _loadCatalog() async {
+     final response = await FirebaseFunctions.instance
+         .httpsCallable('getStoreCatalog')
+         .call();
+     final data = Map<String, dynamic>.from(response.data as Map);
+     return (data['items'] as List<dynamic>? ?? const [])
+         .whereType<Map>()
+         .map((item) => Map<String, dynamic>.from(item))
+         .toList(growable: false);
+   }
+ 
+   void _refresh() => setState(() => _catalogFuture = _loadCatalog());
+ 
+   Future<void> _purchase(Map<String, dynamic> item) async {
+     final itemId = item['itemId'] as String?;
+     final name = item['name'] as String? ?? 'عنصر مودة';
+     final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
+     if (itemId == null || itemId.isEmpty || price <= 0 || _purchasingItemId != null) return;
+     final confirmed = await showDialog<bool>(
+       context: context,
+       builder: (dialogContext) => AlertDialog(
+         title: const Text('تأكيد شراء العنصر'),
+         content: Text('سيتم خصم $price كوين من محفظتك مقابل "$name"، ومنح الاستحقاق عبر الخادم.'),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext, false),
+             child: const Text('إلغاء'),
+           ),
+           FilledButton(
+             onPressed: () => Navigator.pop(dialogContext, true),
+             child: const Text('تأكيد الشراء'),
+           ),
+         ],
+       ),
+     );
+     if (confirmed != true || !mounted) return;
+     setState(() => _purchasingItemId = itemId);
+     try {
+       final response = await FirebaseFunctions.instance.httpsCallable('purchaseStoreItem').call({
+         'itemId': itemId,
+         'requestId': const Uuid().v4(),
+         'expectedPriceCoins': price,
+       });
+       final result = Map<String, dynamic>.from(response.data as Map);
+-      if (!mounted) return;
++      final purchaseId = result['purchaseId'] as String?;
++      final confirmedItemId = result['itemId'] as String?;
+       final balance = (result['newBalance'] as num?)?.toInt();
++      if (purchaseId == null || confirmedItemId != itemId || balance == null) {
++        throw StateError('STORE_PURCHASE_RECEIPT_INCOMPLETE');
++      }
++      if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(
+-          balance == null
+-              ? 'تمت معالجة الشراء.'
+-              : 'تم الشراء بنجاح. رصيدك الجديد: $balance كوين.',
++          'تم تأكيد شراء "$name" ومنح استحقاقه. رصيدك الجديد: $balance كوين. رقم الإيصال: $purchaseId',
+         )),
+       );
+       _refresh();
+     } on FirebaseFunctionsException catch (error) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(error.message ?? 'تعذر إتمام الشراء.')),
+       );
+     } catch (_) {
+       if (!mounted) return;
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('تعذر إتمام الشراء؛ لم يتم تأكيد الخصم أو الاستحقاق.')),
+       );
+     } finally {
+       if (mounted) setState(() => _purchasingItemId = null);
+     }
+   }
+ 
+   String _categoryLabel(String category) => switch (category) {
+     'avatar' || 'frame' => 'إطارات الصور',
+     'username_style' => 'أنماط الأسماء',
+     'theme' => 'الثيمات والخلفيات',
+     'title' => 'متجر الألقاب',
+     'badge' => 'متجر الأوسمة',
+     'vip' => 'عضوية VIP',
+     'analytics' => 'تحليلات الملف',
+     'profile_layout' => 'تطوير الملف الشخصي',
+     'boost' => 'تعزيز الظهور',
+     'greeting' => 'ترحيب الزوار',
+     'privacy' => 'الخصوصية - قيد التجهيز',
+     _ => 'ميزات خاصة',
+   };
+ 
+   String _storeGroup(Map<String, dynamic> item) {
+     final category = item['category'] as String? ?? 'feature';
+     return switch (category) {
+       'vip' => 'vip',
+       'title' => 'titles',
+       'badge' => 'badges',
+       'privacy' => 'privacy',
+       _ => 'features',
+     };
+   }
+ 
+   String _storeGroupLabel(String group) => switch (group) {
+     'all' => 'كل المتاجر',
+     'features' => 'المميزات الخاصة',
+     'badges' => 'الأوسمة',
+     'titles' => 'الألقاب',
+     'vip' => 'VIP',
+     'privacy' => 'الخصوصية',
+     _ => 'المتجر',
+   };
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       appBar: AppBar(
+         title: const Text('متجر مودة'),
+         actions: [
+           IconButton(
+             tooltip: 'تحديث الكتالوج',
+             onPressed: _refresh,
+             icon: const Icon(Icons.refresh),
+           ),
+         ],
+       ),
+       body: FutureBuilder<List<Map<String, dynamic>>>(
+         future: _catalogFuture,
+         builder: (context, snapshot) {
+           if (snapshot.connectionState == ConnectionState.waiting) {
+             return const Center(child: CircularProgressIndicator());
+           }
+           if (snapshot.hasError) {
+             return Center(
+               child: Padding(
+                 padding: const EdgeInsets.all(24),
+                 child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+diff --git a/lib/screens/user_profile_screen.dart b/lib/screens/user_profile_screen.dart
+index fd02a599..eff13ce6 100644
+--- a/lib/screens/user_profile_screen.dart
++++ b/lib/screens/user_profile_screen.dart
+@@ -1,101 +1,108 @@
+ import 'package:flutter/material.dart';
+ 
+ class UserProfileScreen extends StatelessWidget {
+   final String userName;
+   final String userBio;
+   final String profileImageUrl;
+   final String coverImageUrl;
+   final int userCoins;
+   final List<String> userBadges;
+ 
+   const UserProfileScreen({
+     Key? key,
+     required this.userName,
+     required this.userBio,
+     required this.profileImageUrl,
+     required this.coverImageUrl,
+     required this.userCoins,
+     required this.userBadges,
+   }) : super(key: key);
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+       backgroundColor: Colors.grey.shade100,
+       appBar: AppBar(
+         title: Text(userName),
+         backgroundColor: Colors.pink.shade700,
+       ),
+       body: SingleChildScrollView(
+         child: Column(
+           children: [
+             Stack(
+               clipBehavior: Clip.none,
+               alignment: Alignment.center,
+               children: [
+                 Container(
+                   height: 200,
+                   width: double.infinity,
+                   color: Colors.pink.shade200,
+                 ),
+                 const Positioned(
+                   bottom: -50,
+                   child: CircleAvatar(
+                     radius: 55,
+                     backgroundColor: Colors.white,
+                     child: CircleAvatar(
+                       radius: 50,
+                       backgroundColor: Colors.pink,
+                       child: Icon(Icons.person, size: 50, color: Colors.white),
+                     ),
+                   ),
+                 ),
+               ],
+             ),
+             const SizedBox(height: 60),
+             Text(userName, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+-            const SizedBox(height: 5),
+-            Row(
+-              mainAxisAlignment: MainAxisAlignment.center,
+-              children: const [
+-                Icon(Icons.verified, color: Colors.pink, size: 18),
+-                SizedBox(width: 5),
+-                Text('Mawda VIP Member', style: TextStyle(color: Colors.grey)),
+-              ],
+-            ),
++            if (userBadges.isNotEmpty)
++              Padding(
++                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
++                child: Wrap(
++                  alignment: WrapAlignment.center,
++                  spacing: 8,
++                  runSpacing: 8,
++                  children: userBadges
++                      .where((badge) => badge.trim().isNotEmpty)
++                      .map((badge) => Chip(
++                            avatar: const Icon(Icons.military_tech, size: 16),
++                            label: Text(badge),
++                          ))
++                      .toList(growable: false),
++                ),
++              ),
+             const SizedBox(height: 15),
+             Container(
+               margin: const EdgeInsets.symmetric(horizontal: 16),
+               padding: const EdgeInsets.all(12),
+               decoration: BoxDecoration(
+                 color: Colors.white,
+                 borderRadius: BorderRadius.circular(12),
+               ),
+               child: Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceAround,
+                 children: [
+                   Column(
+                     children: [
+                       const Icon(Icons.monetization_on, color: Colors.amber, size: 28),
+                       const SizedBox(height: 5),
+                       Text('$userCoins Coins', style: const TextStyle(fontWeight: FontWeight.bold)),
+                     ],
+                   ),
+                   const VerticalDivider(color: Colors.grey),
+                   Column(
+                     children: [
+                       const Icon(Icons.military_tech, color: Colors.purple, size: 28),
+                       const SizedBox(height: 5),
+                       Text('${userBadges.length} Badges', style: const TextStyle(fontWeight: FontWeight.bold)),
+                     ],
+                   ),
+                 ],
+               ),
+             ),
+             const SizedBox(height: 20),
+           ],
+         ),
+       ),
+     );
+   }
+ }

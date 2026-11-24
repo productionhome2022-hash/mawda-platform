@@ -1,0 +1,36 @@
+BRANCH: codex/mawdda-member-inbox-rebased
+REF: refs/remotes/origin/codex/mawdda-member-inbox-rebased
+SHA: 4933e76a38501ac533c37fbac2fc9c7078f5c597
+
+MERGE BASE: 88dff14a3c07c971918093dfdd92dcf441d76ab4
+
+=== DIVERGENCE ===
+1523	7
+
+=== FILE STATUS ===
+M	firestore.indexes.json
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/direct-message-deletion.integration.test.js
+M	functions/test/integration/media-callables.integration.test.js
+A	lib/screens/conversations_screen.dart
+M	lib/screens/main_user_screen.dart
+
+=== CHANGE SUMMARY ===
+ firestore.indexes.json                             |  14 ++
+ functions/src/index.ts                             | 105 +++++++++++
+ functions/src/media.ts                             |  31 +++-
+ .../direct-message-deletion.integration.test.js    |  83 +++++++++
+ .../media-callables.integration.test.js            |   9 +
+ lib/screens/conversations_screen.dart              | 204 +++++++++++++++++++++
+ lib/screens/main_user_screen.dart                  |  20 ++
+ 7 files changed, 465 insertions(+), 1 deletion(-)
+
+=== UNIQUE COMMITS ===
+4933e76a test: deny direct media downloads after participant block
+dd5273d7 fix: enforce block and account standing before direct chat media delivery
+3666f16f feat: add member conversations inbox screen
+8a5ae1fd feat: rebase member inbox changes (lib/screens/main_user_screen.dart)
+ccaf65dd feat: rebase member inbox changes (functions/test/integration/direct-message-deletion.integration.test.js)
+6c48d7f5 feat: rebase member inbox changes (functions/src/index.ts)
+ed3e6f0b feat: rebase member inbox changes (firestore.indexes.json)

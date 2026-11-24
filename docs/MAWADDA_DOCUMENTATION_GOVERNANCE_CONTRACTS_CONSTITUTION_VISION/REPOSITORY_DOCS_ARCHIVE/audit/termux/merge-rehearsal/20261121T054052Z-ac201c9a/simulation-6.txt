@@ -1,0 +1,76 @@
+70993a63f55f110ff7e1e3af3c910b9c0ac51731
+100644 04c2ca5d455af4b01e6712ebd9087fb7c703fcc0 1	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+100644 6b6aaf8e372233f97d6e2a98fbddd7fdc44d9d0c 2	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+100644 99432350f9e15fda9728589f6910d3ce13f94b74 3	docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+100644 11c678a756bbb10b3d578b456941c27082f94b9d 1	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+100644 0fa3322cddc1b458550a33460ca5382ed71f47d5 2	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+100644 ec3e60660984baf18dc0e994bb12e8ba6e5d0b47 3	docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+100644 803d72deb96d2054ff379c14f0c14110b77407b6 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 3c67257706d42dd5857ac8d23c525548178f8ea4 3	functions/package.json
+100644 06a8191e70a5fbba71504d9bbe4958629c218721 2	functions/src/biometric-evidence.ts
+100644 34a2b421061ed9aed5c45d04185820b859c9b3e9 3	functions/src/biometric-evidence.ts
+100644 9b78166147187ef6fa7357538a64703d88ac116d 2	functions/src/biometric-lifecycle.ts
+100644 6061cde87ef6b2220c39bcecc7d4f07ee21d6856 3	functions/src/biometric-lifecycle.ts
+100644 ad411137babcfb3b6e3662aa9313931590fceb0c 1	functions/src/biometric-media.ts
+100644 3c50947f58dda366d710ed1835158c22ceca8e75 2	functions/src/biometric-media.ts
+100644 c04fcde812c185ad967b7abc64540780eee8f684 3	functions/src/biometric-media.ts
+100644 bd33ebf726b9e49178a5e7adcfb17819dfe3bbb6 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 15865b73f084b3b94c026021da5ba1bbac57b990 3	functions/src/index.ts
+100644 b1e24e5edab32d7ab9b11dd9bf39e611bec350e3 1	functions/src/media-security.ts
+100644 6ed8f4b156670d11ddc1e5cd28d6e878c8460c68 2	functions/src/media-security.ts
+100644 5a5a5c582b53e75eaebb74e477979582a9480bd1 3	functions/src/media-security.ts
+100644 1cc1b46343e0a332c4c81f4f35b4fdc87cfb97d3 1	functions/src/media.ts
+100644 c99a99856d2c266d82873b7895daee49e6b68964 2	functions/src/media.ts
+100644 5dad1243912fe6d3236343337a6443af53c86995 3	functions/src/media.ts
+100644 76786cd99329f2b4c76b21705affdd9bd4975488 1	functions/test/biometric-media.test.js
+100644 e93b92920165e388dd1f84934aa400844ebe8086 2	functions/test/biometric-media.test.js
+100644 ca640e294cebd78a78b1e756239652e3eaeff019 3	functions/test/biometric-media.test.js
+100644 f5e5655fc23ef037645d1a117dbae09017208a16 1	functions/test/integration/biometric-verification.integration.test.js
+100644 20f19857a11713f9bc935cc9aa7f0c706a99758b 2	functions/test/integration/biometric-verification.integration.test.js
+100644 9cda3ed97c527747caffb9d346d137210d828d30 3	functions/test/integration/biometric-verification.integration.test.js
+100644 e133a9cfaf60173894444a717f0e359311167abb 1	functions/test/media-scanner.test.js
+100644 728db4118f272fa295f6a100f2eecfca153ee206 2	functions/test/media-scanner.test.js
+100644 a9b9fe27c03abbba3cc3edf6e1b92ce1b1190d82 3	functions/test/media-scanner.test.js
+100644 66fbeb473ecad562f900729970b2a5bd55939ebb 1	lib/services/member_media_upload_service.dart
+100644 fc2e674de485f52cefff84648d9a663ed1399e41 2	lib/services/member_media_upload_service.dart
+100644 a5acf7686e3ae0ac27da8878d7f7e3ab78e4ed61 3	lib/services/member_media_upload_service.dart
+100644 92708d51acab1cba2d2dc093060b3350a077693c 1	scanner/test/processors.test.js
+100644 a973734140d41fab1d36d8ce61d47766e330fb28 2	scanner/test/processors.test.js
+100644 1d013b214c4175c0e86e47048f09efd913174669 3	scanner/test/processors.test.js
+100644 2a8c5209f5bfeedada68d177aa954e2bc30d4301 1	scanner/test/security.test.js
+100644 f0650d6d4912fbf0b8c10afefaffc4522a59dec7 2	scanner/test/security.test.js
+100644 4f2a9df161ec589ce17fa051ed6d9f24d628b3c0 3	scanner/test/security.test.js
+
+Auto-merging docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+CONFLICT (content): Merge conflict in docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md
+Auto-merging docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+CONFLICT (content): Merge conflict in docs/phase1/BIOMETRIC_SUPER_OWNER_IMPLEMENTATION_GAPS_2026-11-20.md
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/biometric-evidence.ts
+CONFLICT (add/add): Merge conflict in functions/src/biometric-evidence.ts
+Auto-merging functions/src/biometric-lifecycle.ts
+CONFLICT (add/add): Merge conflict in functions/src/biometric-lifecycle.ts
+Auto-merging functions/src/biometric-media.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-media.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/media-scanner.ts
+Auto-merging functions/src/media-security.ts
+CONFLICT (content): Merge conflict in functions/src/media-security.ts
+Auto-merging functions/src/media.ts
+CONFLICT (content): Merge conflict in functions/src/media.ts
+Auto-merging functions/test/biometric-media.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-media.test.js
+Auto-merging functions/test/integration/biometric-verification.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/biometric-verification.integration.test.js
+Auto-merging functions/test/media-scanner.test.js
+CONFLICT (content): Merge conflict in functions/test/media-scanner.test.js
+Auto-merging lib/services/member_media_upload_service.dart
+CONFLICT (content): Merge conflict in lib/services/member_media_upload_service.dart
+Auto-merging scanner/test/processors.test.js
+CONFLICT (content): Merge conflict in scanner/test/processors.test.js
+Auto-merging scanner/test/security.test.js
+CONFLICT (content): Merge conflict in scanner/test/security.test.js

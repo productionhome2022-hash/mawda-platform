@@ -1,0 +1,36 @@
+Branch: codex/mawdda-premium-effects
+Branch SHA: 5203d25ab38df8ae2a2bd700537e2f0d14bfbde3
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+1602	5
+
+--- Merge base ---
+c9bdaef83b092508ae5a49ab834baeec50b02fa0
+
+--- Changed files relative to common ancestor ---
+M	lib/screens/guest_session_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/services/auth_service.dart
+A	lib/widgets/premium_profile_effects.dart
+
+--- Diff statistics ---
+ lib/screens/guest_session_screen.dart    |  42 +++++++++++-
+ lib/screens/profile_screen.dart          |  70 +++++++++----------
+ lib/services/auth_service.dart           |  14 ++++
+ lib/widgets/premium_profile_effects.dart | 113 +++++++++++++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 35 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+5203d25a (origin/codex/mawdda-premium-effects) Add user-confirmed guest session deletion
+11721576 Add explicit anonymous guest account termination
+f0e1b642 Avoid animation controller when animated username is not purchased
+95c1e605 Use looping animated avatar frames and premium usernames
+028dbc81 Add animated premium avatar frames and usernames
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

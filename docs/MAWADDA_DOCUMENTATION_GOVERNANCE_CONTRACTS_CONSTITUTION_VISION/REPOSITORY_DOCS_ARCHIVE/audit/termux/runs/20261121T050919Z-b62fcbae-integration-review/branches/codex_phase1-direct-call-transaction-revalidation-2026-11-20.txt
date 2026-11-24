@@ -1,0 +1,26 @@
+BRANCH: codex/phase1-direct-call-transaction-revalidation-2026-11-20
+REF: refs/remotes/origin/codex/phase1-direct-call-transaction-revalidation-2026-11-20
+SHA: b78817d0e6d7a73398fcce1d54c7df4f6707d045
+
+MERGE BASE: c6f8fc239a43ddeeed28f75d4dc8eb9ab4347dc7
+
+=== DIVERGENCE ===
+206	5
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/room-call-policy.test.js
+
+=== CHANGE SUMMARY ===
+ functions/src/index.ts                  | 28 +++++++++++++++++++---
+ functions/src/room-call-policy.ts       | 37 +++++++++++++++++++++++++++++
+ functions/test/room-call-policy.test.js | 42 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 103 insertions(+), 4 deletions(-)
+
+=== UNIQUE COMMITS ===
+b78817d0 test(calls): cover malformed direct-call revalidation snapshots
+f6cdf552 fix(calls): revalidate direct-call participants transactionally
+0701c884 test(calls): cover direct-call relationship revalidation
+00bed093 fix(calls): clarify age-class comparison in direct-call guard
+59dc773f fix(calls): add direct-call transactional relationship guard

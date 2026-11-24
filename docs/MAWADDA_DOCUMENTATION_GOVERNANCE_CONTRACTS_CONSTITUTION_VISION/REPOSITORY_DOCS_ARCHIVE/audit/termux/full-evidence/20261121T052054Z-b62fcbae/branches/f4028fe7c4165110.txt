@@ -1,0 +1,35 @@
+BRANCH: codex/mawdda-unified-release
+SHA: 42e11d492584a556e018e70db2eed71de84616fa
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 2363755fe72333a5c69c8c3e7af7c29ea30c43c3
+
+=== DIVERGENCE target-only / branch-only ===
+1654	4
+
+=== BRANCH UNIQUE COMMITS ===
+42e11d492584a556e018e70db2eed71de84616fa Connect local biometric prompt to server reward cycle
+5c2f422f299ee882ad59e32dd7e401571a8cb4e6 Add server-side biometric reward cycle callable
+1358471763ebe7eeea08f039c6fdfd79c420a66f Test biometric reward cycle policy
+f45589ec9a4595b5575286e91b6e8ebdbdc7cd76 Add server-clocked biometric reward cycles
+
+=== CHERRY STATUS ===
++ f45589ec9a4595b5575286e91b6e8ebdbdc7cd76 Add server-clocked biometric reward cycles
++ 1358471763ebe7eeea08f039c6fdfd79c420a66f Test biometric reward cycle policy
++ 5c2f422f299ee882ad59e32dd7e401571a8cb4e6 Add server-side biometric reward cycle callable
++ 42e11d492584a556e018e70db2eed71de84616fa Connect local biometric prompt to server reward cycle
+
+=== FILE STATUS ===
+A	functions/src/biometric-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/test/biometric-verification-cycle.test.js
+M	lib/screens/profile_screen.dart
+
+=== NUMSTAT ===
+62	0	functions/src/biometric-verification-cycle.ts
+129	0	functions/src/index.ts
+44	0	functions/test/biometric-verification-cycle.test.js
+57	19	lib/screens/profile_screen.dart
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

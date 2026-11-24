@@ -1,0 +1,126 @@
+78c44ca8acb7548188c9a461456e96bf67aecefd
+100644 a0fbe565ffc16d53db7cc407bcfc000aa311508b 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 bde5a39d69f9ac5fdc596baee1c48840a21aedb4 3	.github/workflows/mawdda-domain-regression.yml
+100644 2b062c72b2afd692f5b96c0593061c0b32981f46 2	docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+100644 a7833115c34bf2ca630a2f2079cd198ed3a5f149 3	docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+100644 e5a12eaeb866df21cb2f57742062f7cb4eb0813b 1	firestore.indexes.json
+100644 55049d211ca65f2169eb528b52243d523431a790 2	firestore.indexes.json
+100644 dc6b5ade83ff0b0ab4e680a981f1f725b1477b18 3	firestore.indexes.json
+100644 469b43a650986b165052460987f148a16c4794f0 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 9046b622c103c4584848b18ff0fa6a2be36fe574 3	functions/package.json
+100644 c14271df7167e73c67b555ca98b981bcf059e6e2 2	functions/src/call-entitlements.ts
+100644 ca37db9278b4ee2c7e065f1603430709871291eb 3	functions/src/call-entitlements.ts
+100644 ad1df67f766c946353cd35d3f476869620929962 2	functions/src/featured-ad-finance.ts
+100644 4c6a0f40c68784819fa81c4856f2173898ebf0d7 3	functions/src/featured-ad-finance.ts
+100644 1bc251cf550aed3a09fc361c115a75920a5f7bb6 1	functions/src/featured-advertising.ts
+100644 173b909d3e141ee1a3fa6eaaaf6e2791b5c0d100 2	functions/src/featured-advertising.ts
+100644 e3d956e381f49088dc33d0edd8c00365d9d0ff51 3	functions/src/featured-advertising.ts
+100644 f996aee7ba88170f64ab6c92af75b81e0dcf2b53 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 d72a925c7946eb3967227a52cece6ce005ac8173 3	functions/src/index.ts
+100644 64d36bf26f6c87a31a0f960ccfb0189583c4d289 1	functions/src/media-scanner.ts
+100644 a49e0ed64892a8fa4b8bb7bdf5858a356ae86fc0 2	functions/src/media-scanner.ts
+100644 54843ee452ba8951200b4928abac391d58d2076f 3	functions/src/media-scanner.ts
+100644 b1e24e5edab32d7ab9b11dd9bf39e611bec350e3 1	functions/src/media-security.ts
+100644 6ed8f4b156670d11ddc1e5cd28d6e878c8460c68 2	functions/src/media-security.ts
+100644 1934bfcbb0b759b0f1eb9abccb2fee14b78b2619 3	functions/src/media-security.ts
+100644 19e672090f37e71affa4d617b0aff2d0cef9778d 1	functions/src/media.ts
+100644 c99a99856d2c266d82873b7895daee49e6b68964 2	functions/src/media.ts
+100644 4ec8d794cbfd9562e2965670b2c6af7ffa7927bc 3	functions/src/media.ts
+100644 85cadaeab01251a53b8d8cfa643a73c9a84cbb28 2	functions/src/sticker-catalog.ts
+100644 590ca2e0d1c3d405c32f45623bf7ee2a75ce2663 3	functions/src/sticker-catalog.ts
+100644 78e05a960c8938331d0d8d282f36c357a2071cc2 2	functions/src/sticker-policy.ts
+100644 fc52ec3f54da5633526d59705f293ed044f1a5e1 3	functions/src/sticker-policy.ts
+100644 d9c2427bff87a87bf605455c75213b6e81613b73 1	functions/src/store-catalog.ts
+100644 3abfdca7ea55edbe4d626928224d783b1127ae12 2	functions/src/store-catalog.ts
+100644 c5a0fbd5745a4f2834ed839a0a8e7061a9e00df8 3	functions/src/store-catalog.ts
+100644 592b7b0f77d0b5ce00fb2f244c115d3a9bb54500 2	functions/test/call-entitlements.test.js
+100644 e7174d8be7ea46f26450f3d3062784c5724c3cad 3	functions/test/call-entitlements.test.js
+100644 ec03793b5fea93491e007a016173467b2b83e9da 2	functions/test/featured-ad-finance.test.js
+100644 b99f27bba5e08bb616603e05beb9068cdf172fb7 3	functions/test/featured-ad-finance.test.js
+100644 1ae571195dfddf7dc23e98c7a3b5e2117ba8d8bd 1	functions/test/featured-advertising.test.js
+100644 86a477a7385afa4b3689bde06d5d7d16dfb75e08 2	functions/test/featured-advertising.test.js
+100644 d192e12e1dc22f89c570ded10e7b0416f58a3240 3	functions/test/featured-advertising.test.js
+100644 5a184229babffdaf9265e93b013dc2ec21540ce0 1	functions/test/integration/call-signaling.integration.test.js
+100644 2e35bd8b7b027e1a39d4e056dd7a8b834b7a5ca9 2	functions/test/integration/call-signaling.integration.test.js
+100644 2384353c4bdf0828f38b8e3be2048a9c5ac1688f 3	functions/test/integration/call-signaling.integration.test.js
+100644 295526a52b624e8a5eb0d813b3cd847633556593 1	functions/test/integration/media-callables.integration.test.js
+100644 e9c54466cda57daba2fe3d58804a9dfbf7e9b542 2	functions/test/integration/media-callables.integration.test.js
+100644 5e4b501c67d756f3c239fe8d3b0eb564f1bca0b3 3	functions/test/integration/media-callables.integration.test.js
+100644 66534fc7f9719a08d621fa61edfbd4871f1fc60d 1	functions/test/rules/firestore.rules.test.js
+100644 222d51f66db613a8204d90a1da42d90139c37285 2	functions/test/rules/firestore.rules.test.js
+100644 5cac553584315226fcc5ef290eb62a02e1f19877 3	functions/test/rules/firestore.rules.test.js
+100644 54348e9766f2e1f05a0f212cb37259736c2cdb9a 2	functions/test/sticker-policy.test.js
+100644 8559dcbdec502e53c9254a99ff10bf1329a37cd0 3	functions/test/sticker-policy.test.js
+100644 a2fa7b35beb623514fd044ea8df4078aaddf9f4f 1	functions/test/store-catalog.test.js
+100644 63226820c27cf3b0f879948bb3be9b8ecc9f44c7 2	functions/test/store-catalog.test.js
+100644 e7add3f95c5a1687eda106b6001295586df5f80b 3	functions/test/store-catalog.test.js
+100644 9c24a165f4f3950337dcd430c555e957473f687f 1	lib/screens/super_admin_screen.dart
+100644 089a4992234880b800a22ac8a6698fc517659109 2	lib/screens/super_admin_screen.dart
+100644 888764fe0effc4689c6656c92f3efe9e4947bb80 3	lib/screens/super_admin_screen.dart
+100644 9d959d05e05abcaecdb7275e7d1074bc42f7fb61 1	scanner/processors.js
+100644 9157cd2df9bc40c65fd263347a06ea3f019beaa9 2	scanner/processors.js
+100644 1dab947d03d3d08a558fcaa525f005f3bd486e9a 3	scanner/processors.js
+100644 fdcbe907a43c5a4b0e1060c7df65fb705ffea09c 1	scanner/security.js
+100644 acb3cc3a277665142ada675056596f70def4cef7 2	scanner/security.js
+100644 cd8a19fb922cc3b6aedf6d602cb52e594f283fb2 3	scanner/security.js
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging docs/RELEASE_READINESS_CHECKLIST.md
+Auto-merging docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+CONFLICT (add/add): Merge conflict in docs/STICKER_SYSTEM_IMPLEMENTATION_RECORD.md
+Auto-merging firestore.indexes.json
+CONFLICT (content): Merge conflict in firestore.indexes.json
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/call-entitlements.ts
+CONFLICT (add/add): Merge conflict in functions/src/call-entitlements.ts
+Auto-merging functions/src/featured-ad-finance.ts
+CONFLICT (add/add): Merge conflict in functions/src/featured-ad-finance.ts
+Auto-merging functions/src/featured-advertising.ts
+CONFLICT (content): Merge conflict in functions/src/featured-advertising.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/media-derivative-contract.ts
+Auto-merging functions/src/media-scanner.ts
+CONFLICT (content): Merge conflict in functions/src/media-scanner.ts
+Auto-merging functions/src/media-security.ts
+CONFLICT (content): Merge conflict in functions/src/media-security.ts
+Auto-merging functions/src/media.ts
+CONFLICT (content): Merge conflict in functions/src/media.ts
+Auto-merging functions/src/sticker-catalog.ts
+CONFLICT (add/add): Merge conflict in functions/src/sticker-catalog.ts
+Auto-merging functions/src/sticker-policy.ts
+CONFLICT (add/add): Merge conflict in functions/src/sticker-policy.ts
+Auto-merging functions/src/store-catalog.ts
+CONFLICT (content): Merge conflict in functions/src/store-catalog.ts
+Auto-merging functions/test/call-entitlements.test.js
+CONFLICT (add/add): Merge conflict in functions/test/call-entitlements.test.js
+Auto-merging functions/test/featured-ad-finance.test.js
+CONFLICT (add/add): Merge conflict in functions/test/featured-ad-finance.test.js
+Auto-merging functions/test/featured-advertising.test.js
+CONFLICT (content): Merge conflict in functions/test/featured-advertising.test.js
+Auto-merging functions/test/integration/call-signaling.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/call-signaling.integration.test.js
+Auto-merging functions/test/integration/media-callables.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/media-callables.integration.test.js
+Auto-merging functions/test/media-derivative-contract.test.js
+Auto-merging functions/test/media-scanner.test.js
+Auto-merging functions/test/media-security.test.js
+Auto-merging functions/test/rules/firestore.rules.test.js
+CONFLICT (content): Merge conflict in functions/test/rules/firestore.rules.test.js
+Auto-merging functions/test/sticker-policy.test.js
+CONFLICT (add/add): Merge conflict in functions/test/sticker-policy.test.js
+Auto-merging functions/test/store-catalog.test.js
+CONFLICT (content): Merge conflict in functions/test/store-catalog.test.js
+Auto-merging lib/screens/super_admin_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/super_admin_screen.dart
+Auto-merging lib/services/member_media_upload_service.dart
+Auto-merging scanner/processors.js
+CONFLICT (content): Merge conflict in scanner/processors.js
+Auto-merging scanner/security.js
+CONFLICT (content): Merge conflict in scanner/security.js
+Auto-merging scanner/test/security.test.js

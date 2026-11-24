@@ -1,0 +1,1 @@
+d46cd7095915bf98480ef38574356c62d72e6a95	production home	2026-11-20T00:34:36+03:00	ci: run role capacity and store gifting emulator suites

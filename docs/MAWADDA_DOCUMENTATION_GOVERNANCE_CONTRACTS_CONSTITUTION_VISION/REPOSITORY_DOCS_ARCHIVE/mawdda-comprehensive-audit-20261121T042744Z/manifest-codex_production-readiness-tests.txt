@@ -1,0 +1,35 @@
+Branch: codex/production-readiness-tests
+Commit: 424599a34acc9ec33b4e759ba166dc6d0a9df04d
+
+.firebase/hosting.YnVpbGQvd2Vi.cache
+.firebaserc
+.github/workflows/firebase-hosting-merge.yml
+.github/workflows/flutter-ci.yml
+README.md
+assets/.gitkeep
+build/web/index.html
+build/web/manifest.json
+build/web/sw.js
+firebase.json
+firestore.rules
+lib/firebase_options.dart
+lib/main.dart
+lib/models/app_models.dart
+lib/models/room_model.dart
+lib/models/user_model.dart
+lib/screens/chat_room_screen.dart
+lib/screens/landing_page.dart
+lib/screens/landing_page_screen.dart
+lib/screens/login_screen.dart
+lib/screens/main_user_screen.dart
+lib/screens/profile_screen.dart
+lib/screens/shop_screen.dart
+lib/screens/super_admin_screen.dart
+lib/screens/user_profile_screen.dart
+lib/services/auth_service.dart
+lib/services/coin_system_service.dart
+lib/services/database_service.dart
+lib/services/room_billing_service.dart
+lib/services/super_admin_security_service.dart
+pubspec.yaml
+web/index.html

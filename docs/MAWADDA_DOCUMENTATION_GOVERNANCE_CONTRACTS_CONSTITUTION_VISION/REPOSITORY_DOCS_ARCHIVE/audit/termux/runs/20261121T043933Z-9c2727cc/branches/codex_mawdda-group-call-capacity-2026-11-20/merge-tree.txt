@@ -1,0 +1,13 @@
+e7c4c8190ba087147742c0918d6125e92a7d85f5
+100644 8105298a68d48af8b3014be6f91c7732f112bb32 1	functions/src/room-call-policy.ts
+100644 7941f63dca354599f8a4d88f0f2092d1d674e795 2	functions/src/room-call-policy.ts
+100644 74a506437afe868d6eb4ff87fee81406a5eb5ed8 3	functions/src/room-call-policy.ts
+100644 4017724af155d055cfe7f94e1add2ce633f7ca88 1	functions/test/integration/call-signaling.integration.test.js
+100644 2e35bd8b7b027e1a39d4e056dd7a8b834b7a5ca9 2	functions/test/integration/call-signaling.integration.test.js
+100644 ca939e077e30065418b9f816dc97a95673011d73 3	functions/test/integration/call-signaling.integration.test.js
+
+Auto-merging functions/src/index.ts
+Auto-merging functions/src/room-call-policy.ts
+CONFLICT (content): Merge conflict in functions/src/room-call-policy.ts
+Auto-merging functions/test/integration/call-signaling.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/call-signaling.integration.test.js

@@ -1,0 +1,11 @@
+f960b053da8f99d66848a114e19ee2cbb83d2900
+100644 812dbb25341ffa4188033a65e0e233dd32edc57b 1	functions/test/integration/premium-profile.integration.test.js
+100644 9626b34f4a908f8c58a35af88a9af17af2960b9a 2	functions/test/integration/premium-profile.integration.test.js
+100644 93a126450ca6486f15bb47103ec47f9f80b586ee 3	functions/test/integration/premium-profile.integration.test.js
+100644 fd02a599a3cd9c42c7d0cb5870668665aa89ee73 1	lib/screens/user_profile_screen.dart
+100644 eff13ce69164c20fd9b1a1ddd713db4819122237 3	lib/screens/user_profile_screen.dart
+
+Auto-merging functions/test/integration/premium-profile.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/premium-profile.integration.test.js
+Auto-merging lib/screens/shop_screen.dart
+CONFLICT (modify/delete): lib/screens/user_profile_screen.dart deleted in 58eef7f66d686fb3939276dd89950fdfff326b0c and modified in 201f5bfc8d73a982e9edab9be6858b085c2b2eb8.  Version 201f5bfc8d73a982e9edab9be6858b085c2b2eb8 of lib/screens/user_profile_screen.dart left in tree.

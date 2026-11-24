@@ -1,0 +1,5 @@
+64ccc7b20445e7be15d6ec4d0be0e329f0250f11	production home	2026-11-19T12:54:51+03:00	docs(governance): classify legacy owner identifiers as internal compatibility
+f8b2dcaf19132a0452d732b981fd1297e17bb4b4	production home	2026-11-19T12:54:05+03:00	docs(governance): align owner terminology with Super Owner
+10572229a76b0f32a8918299e406bc5cca990db1	production home	2026-11-19T12:54:02+03:00	docs(governance): align owner terminology with Super Owner
+be8887b31ffcf4ba52efe3d523b5bd7240ae64b1	production home	2026-11-19T12:53:49+03:00	docs(governance): trace owner-confirmed administrative hierarchy
+b1fdc6333413f953d0ce68061c278a0218d882dc	production home	2026-11-19T12:52:07+03:00	docs(governance): confirm owner-approved canonical role hierarchy

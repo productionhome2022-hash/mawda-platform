@@ -1,0 +1,37 @@
+d89d30a623369e5b687525297b97257192a27462	production home	2026-11-14T15:03:31+03:00	docs: clarify emulator wallet fixture is not a reward
+a72583bdf0ef0b3d7a689612bf87c64002a13d9b	production home	2026-11-14T15:03:09+03:00	fix: seed complete canonical member profile fixtures
+86a6ff9af22514cdf9b344261c4855ee858df6d6	production home	2026-11-14T15:02:14+03:00	test: allow biometric persona dedicated challenge capability
+05fa74259e2011c6f682f9bfc54fcd11e2d81762	production home	2026-11-14T15:00:58+03:00	docs: record guest public room implementation release blocker
+cf71fc42f851f5c03502d452a522b4696c13890c	production home	2026-11-14T15:00:55+03:00	test: prevent overstating guest integration coverage
+b64cd644fd80fd5b2d49cd000b64382399673d82	production home	2026-11-14T15:00:53+03:00	test: mark guest room session journey as blocked until implemented
+f58a9194f2782d3c82ff3e0198e26b9479ddf1fa	production home	2026-11-14T15:00:51+03:00	test: assert explicit guest room message directions
+7996e27f84de12031cae705186f6ad351471985f	production home	2026-11-14T15:00:48+03:00	test: clarify guest room send and receive capabilities
+2c5a2bbbe9d62b4f4970de7c80210b5c5693631a	production home	2026-11-14T14:56:14+03:00	Update Test Center runbook with guest public-room text/audio rules
+252539a3acfec8d958c6ab674b844d00072660fd	production home	2026-11-14T14:56:11+03:00	Document guest public-room participation and restricted message types
+0f2545bb8f1837a8b6770e70c6dfcbf61e7504fe	production home	2026-11-14T14:56:09+03:00	Extend guest journey matrix for public rooms and text/audio-only messaging
+a17c3206fae68eaa37a17ccd77f7acba02a01382	production home	2026-11-14T14:56:07+03:00	Add guest public-room text/audio permissions and negative capability tests
+d1ae2d6a77caec0327000b4a812c5b9f344136a1	production home	2026-11-14T14:56:04+03:00	Define guest-preview as one hour per rolling 24 hours with public-room text/audio participation
+bccd91a4dbcca2358b708ee3421e82ed266f12f9	production home	2026-11-14T14:46:53+03:00	Verify seeded Auth identities and profile wallet fixtures before interaction
+e8b33e47537c0a0584390127f4c3272996a32863	production home	2026-11-14T14:46:45+03:00	Keep seeded profile wallet fixtures consistent with emulator balances
+001d49c50f01c796738fd0925e0044116a93ea4d	production home	2026-11-14T14:46:02+03:00	Document cross-persona seeded interaction test
+3541dd84f21b20959a498bf5a172b650d9f43332	production home	2026-11-14T14:46:00+03:00	Add cross-persona live emulator interaction journey
+23774c8b32dc7c33806bda3f692149c66dd06b32	production home	2026-11-14T14:45:51+03:00	Add seeded account interaction test to complete test-center run
+47a614077a838071e4e221afb00c4c730cfd8a74	production home	2026-11-14T14:45:46+03:00	Test real seeded Mawdda member-to-member wallet interaction
+111ee1b149e678311e039799bce30f19c3a43ada	production home	2026-11-14T14:45:29+03:00	Provision test personas as usable emulator member records
+04a09d01029d277c9e8431af21f89cea40e7abaf	production home	2026-11-14T14:44:54+03:00	Fix coverage matrix test command and capability comparison checks
+946a78de6e817788b496419181b09e1bbd3a5a9d	production home	2026-11-14T14:44:03+03:00	Align counterparty persona with full member feature permissions
+8038080e49355ab61ca5f1371a4fc6062281813d	production home	2026-11-14T14:43:56+03:00	Validate complete feature coverage and persona interaction matrix
+e6920ea07e25d2d562f12bb33ec363db60774891	production home	2026-11-14T14:43:43+03:00	Define complete Mawdda persona interaction and release coverage matrix
+2fbc04438ff34a39b03cc7fc66f1be8ed755ac3f	production home	2026-11-14T14:42:05+03:00	Ignore local Mawdda emulator credentials and test data
+b201a0095484fd651b7c4a89f6375392a028f5a8	production home	2026-11-14T14:41:34+03:00	Validate complete persona profile fixture coverage
+a2c38672f73189171e5509dca6141cdb47a442f0	production home	2026-11-14T14:41:26+03:00	Seed complete isolated persona profile fixtures
+8e91401bbc7caefce8da4548b39bc75e7afc7c92	production home	2026-11-14T14:41:15+03:00	Add complete isolated sample profiles for Mawdda test personas
+e5536e462c5771075d95eac864cba806d67329b2	production home	2026-11-14T14:40:04+03:00	Add pull request validation workflow for Mawdda Test Center
+c90ddf28145d5210725b61df587ae01d5cd03bcf	production home	2026-11-14T14:39:55+03:00	Include emulator account provisioning in full test-center run
+3c8a9e22457d947967648c73552b12348346ee34	production home	2026-11-14T14:39:47+03:00	Add unified Mawdda emulator test suite command and fix seed project guard
+ce6790d4f732a6d60e4742a966ea50cc60f16b4c	production home	2026-11-14T14:39:28+03:00	Document Mawdda Test Center operations and release gates
+cc227b5b6cc8f1fb31511c8dbfd427ea0ab1275d	production home	2026-11-14T14:39:06+03:00	Wire emulator-only test account seeding into backend scripts
+39a9a2dcd639c1789d14ab51413b20337b1aa55e	production home	2026-11-14T14:38:48+03:00	Add emulator-only Mawdda test account provisioner
+3c38f663173986688e56f651bd9c29ea526f4166	production home	2026-11-14T14:33:15+03:00	Add Mawdda test-account system foundation
+d6b622280d15e8d190b4e05c56b2e92b740ff22b	production home	2026-11-14T14:33:13+03:00	Add Mawdda test-account system foundation
+0e449f676e2cf33476f4c82486d3ca7c7c56b4e6	production home	2026-11-14T14:33:11+03:00	Add Mawdda test-account system foundation

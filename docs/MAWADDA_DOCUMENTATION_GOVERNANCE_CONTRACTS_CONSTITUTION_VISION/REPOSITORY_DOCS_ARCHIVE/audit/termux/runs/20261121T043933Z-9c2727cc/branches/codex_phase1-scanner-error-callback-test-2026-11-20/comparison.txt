@@ -1,0 +1,39 @@
+Branch: codex/phase1-scanner-error-callback-test-2026-11-20
+Branch SHA: 20519494a898b19f08bcaf4f22e4af64acff622b
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+221	12
+
+--- Merge base ---
+d857497c50eca8d7dcf105e938c8060402ae85e3
+
+--- Changed files relative to common ancestor ---
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+--- Diff statistics ---
+ functions/src/media.ts                             |  36 ++++-
+ .../media-callables.integration.test.js            | 161 ++++++++++++++++++++-
+ 2 files changed, 190 insertions(+), 7 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+20519494 (origin/codex/phase1-scanner-error-callback-test-2026-11-20) docs(phase1): avoid overlapping unified status edits in scanner PR
+b1283970 docs(media): record malicious scanner callback emulator evidence
+2a87609c test(media): verify malicious scanner callback rejection and cleanup
+9fbecf69 test(media): remove unused HTTP wrapper import
+19a0597f fix(media): correct scanner callback wrapper terminator
+be80e047 refactor(media): isolate scanner callback handler dependencies
+cf0287c4 test(media): exercise scanner callback with injected test config
+640cfecf refactor(media): inject scanner callback config for tests
+d144ec59 test(media): seed scanner provider for callback emulator
+9359395d test(media): configure scanner secret before module initialization
+94b7b685 test(media): invoke HTTP callback through request handler
+1b27e314 test(media): verify scanner error callback preserves quarantine
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

@@ -1,0 +1,2 @@
+M	.github/workflows/validate.yml
+M	functions/test/integration/store-gifting.integration.test.js

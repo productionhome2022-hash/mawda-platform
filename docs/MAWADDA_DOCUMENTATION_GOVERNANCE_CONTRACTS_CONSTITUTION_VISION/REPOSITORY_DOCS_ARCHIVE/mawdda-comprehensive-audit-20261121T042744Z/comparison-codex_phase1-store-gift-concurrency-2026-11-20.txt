@@ -1,0 +1,14 @@
+Compared branch: codex/phase1-store-gift-concurrency-2026-11-20
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+220	2
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml                              |  3 +++
+ .../test/integration/store-gifting.integration.test.js      | 13 +++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/validate.yml
+M	functions/test/integration/store-gifting.integration.test.js

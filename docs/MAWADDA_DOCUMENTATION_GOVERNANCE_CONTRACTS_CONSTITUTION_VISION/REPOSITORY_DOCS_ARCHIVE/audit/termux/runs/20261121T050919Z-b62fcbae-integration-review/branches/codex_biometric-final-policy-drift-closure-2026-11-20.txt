@@ -1,0 +1,14 @@
+BRANCH: codex/biometric-final-policy-drift-closure-2026-11-20
+REF: refs/remotes/origin/codex/biometric-final-policy-drift-closure-2026-11-20
+SHA: 0089c556a7e241454cfbfb3223fff500cc8763bb
+
+MERGE BASE: 0089c556a7e241454cfbfb3223fff500cc8763bb
+
+=== DIVERGENCE ===
+145	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

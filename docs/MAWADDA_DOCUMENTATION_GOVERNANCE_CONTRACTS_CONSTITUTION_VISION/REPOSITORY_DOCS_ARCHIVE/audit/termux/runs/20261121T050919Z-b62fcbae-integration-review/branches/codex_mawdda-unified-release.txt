@@ -1,0 +1,27 @@
+BRANCH: codex/mawdda-unified-release
+REF: refs/remotes/origin/codex/mawdda-unified-release
+SHA: 42e11d492584a556e018e70db2eed71de84616fa
+
+MERGE BASE: 2363755fe72333a5c69c8c3e7af7c29ea30c43c3
+
+=== DIVERGENCE ===
+1653	4
+
+=== FILE STATUS ===
+A	functions/src/biometric-verification-cycle.ts
+M	functions/src/index.ts
+A	functions/test/biometric-verification-cycle.test.js
+M	lib/screens/profile_screen.dart
+
+=== CHANGE SUMMARY ===
+ functions/src/biometric-verification-cycle.ts      |  62 ++++++++++
+ functions/src/index.ts                             | 129 +++++++++++++++++++++
+ .../test/biometric-verification-cycle.test.js      |  44 +++++++
+ lib/screens/profile_screen.dart                    |  76 +++++++++---
+ 4 files changed, 292 insertions(+), 19 deletions(-)
+
+=== UNIQUE COMMITS ===
+42e11d49 Connect local biometric prompt to server reward cycle
+5c2f422f Add server-side biometric reward cycle callable
+13584717 Test biometric reward cycle policy
+f45589ec Add server-clocked biometric reward cycles

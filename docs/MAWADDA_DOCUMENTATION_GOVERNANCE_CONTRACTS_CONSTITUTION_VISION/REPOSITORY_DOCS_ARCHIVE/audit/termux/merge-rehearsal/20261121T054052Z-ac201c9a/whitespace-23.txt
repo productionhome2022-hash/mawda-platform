@@ -1,0 +1,4 @@
+docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md:7: trailing whitespace.
++Branch: `codex/mawdda-biometric-proof-gate-2026-11-20`  
+docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md:8: trailing whitespace.
++Base: `codex/mawdda-phase1-unified-2026-11-19`  

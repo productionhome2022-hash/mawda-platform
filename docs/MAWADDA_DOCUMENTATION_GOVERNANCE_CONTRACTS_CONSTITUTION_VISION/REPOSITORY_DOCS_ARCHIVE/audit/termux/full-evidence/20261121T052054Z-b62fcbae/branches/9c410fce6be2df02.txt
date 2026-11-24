@@ -1,0 +1,27 @@
+BRANCH: codex/phase1-featured-ad-geography-all-arab-2026-11-20
+SHA: ac22ff635c41e4a36603c8864af53942e22e3fcb
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: fff04a165cde85a33a75bca104024f1691cfc913
+
+=== DIVERGENCE target-only / branch-only ===
+200	2
+
+=== BRANCH UNIQUE COMMITS ===
+ac22ff635c41e4a36603c8864af53942e22e3fcb test(ads): cover all-Arab campaign geography without overdelivery
+41a0fbea241e60b312ec8f75442cc83fc4a40635 fix(ads): honor all-Arab campaign geographic targeting
+
+=== CHERRY STATUS ===
++ 41a0fbea241e60b312ec8f75442cc83fc4a40635 fix(ads): honor all-Arab campaign geographic targeting
++ ac22ff635c41e4a36603c8864af53942e22e3fcb test(ads): cover all-Arab campaign geography without overdelivery
+
+=== FILE STATUS ===
+M	functions/src/featured-advertising.ts
+M	functions/test/featured-advertising.test.js
+
+=== NUMSTAT ===
+2	1	functions/src/featured-advertising.ts
+33	0	functions/test/featured-advertising.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

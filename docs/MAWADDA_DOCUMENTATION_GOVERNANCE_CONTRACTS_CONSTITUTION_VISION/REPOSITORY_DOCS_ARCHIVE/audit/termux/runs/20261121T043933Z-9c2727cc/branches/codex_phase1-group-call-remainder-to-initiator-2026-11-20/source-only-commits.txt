@@ -1,0 +1,2 @@
+99639a6c7adf25c32eca6b93c0cc393d130f8e8f	production home	2026-11-20T12:26:23+03:00	test(calls): enforce initiator remainder allocation
+997cead0018f1f61ff120b314dc32fba32d35f2c	production home	2026-11-20T12:26:20+03:00	fix(calls): assign group-call rounding remainder to initiator

@@ -1,0 +1,285 @@
+BRANCH: codex/mawda-unified-constitution-vision-2026-11-19
+REF: refs/remotes/origin/codex/mawda-unified-constitution-vision-2026-11-19
+SHA: 53bf236076d617f625b1b4225eb014e5c90e17fb
+
+MERGE BASE: 8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+=== DIVERGENCE ===
+397	142
+
+=== FILE STATUS ===
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+M	docs/MAWADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md
+A	docs/MAWADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+A	docs/MAWADDA_MASTER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md
+M	docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+A	docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md
+M	docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md
+A	docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	firestore.rules
+M	functions/package.json
+M	functions/src/advertising-governance.ts
+A	functions/src/biometric-media.ts
+A	functions/src/biometric-review.ts
+M	functions/src/biometric-verification.ts
+A	functions/src/call-entitlements.ts
+A	functions/src/call-usage-policy.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+M	functions/test/advertising-governance.test.js
+A	functions/test/biometric-media.test.js
+A	functions/test/biometric-review.test.js
+M	functions/test/biometric-reward-security.test.js
+M	functions/test/biometric-verification.test.js
+A	functions/test/call-entitlements.test.js
+A	functions/test/call-usage-policy.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/biometric-verification.integration.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/integration/featured-ad-finance.integration.test.js
+M	functions/test/integration/guest-session.integration.test.js
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+M	functions/test/integration/premium-profile.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+M	functions/test/member-social-links-access.test.js
+M	functions/test/member-social-links.test.js
+A	functions/test/platform-role-identities.test.js
+A	functions/test/room-call-policy.test.js
+A	functions/test/room-rental-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	lib/screens/biometric_verification_screen.dart
+A	lib/screens/owner_biometric_review_screen.dart
+M	lib/screens/owner_chat_participation_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+M	lib/services/super_admin_security_service.dart
+M	storage.rules
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-domain-regression.yml     |    3 +
+ .github/workflows/validate.yml                     |    5 +
+ ...IC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md |   58 +
+ docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md |   54 +
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |   35 +
+ docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md        |    2 +-
+ ...WADDA_CONTRACTS_AND_GOVERNANCE_REGISTER_2026.md |   19 +-
+ ...WADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md |  187 +++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   29 +-
+ ...ER_DECISION_CONTRACT_TRACEABILITY_2026-11-19.md |   10 +
+ docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md    |   17 +-
+ docs/MAWADDA_UNIFICATION_SNAPSHOT_2026-11-19.md    |  179 +++
+ docs/MAWADDA_UNIFIED_CONSTITUTION_2026.md          |   43 +-
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   18 +-
+ docs/MAWDDA_ADVERTISING_CONTRACT_TEMPLATES_2026.md |    6 +-
+ ...RNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md |  149 +++
+ docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md         |   59 +
+ docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md         |   84 ++
+ firestore.rules                                    |    6 +
+ functions/package.json                             |    8 +-
+ functions/src/advertising-governance.ts            |   77 +-
+ functions/src/biometric-media.ts                   |   97 ++
+ functions/src/biometric-review.ts                  |  146 +++
+ functions/src/biometric-verification.ts            |   46 +-
+ functions/src/call-entitlements.ts                 |   42 +
+ functions/src/call-usage-policy.ts                 |   65 +
+ functions/src/group-call-economy.ts                |  142 +++
+ functions/src/index.ts                             | 1300 +++++++++++++++++++-
+ functions/src/platform-role-identities.ts          |   86 ++
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/store-gifting.ts                     |   75 ++
+ functions/src/store-purchase.ts                    |    2 +
+ functions/test/advertising-governance.test.js      |   71 +-
+ functions/test/biometric-media.test.js             |   61 +
+ functions/test/biometric-review.test.js            |   93 ++
+ functions/test/biometric-reward-security.test.js   |    4 +-
+ functions/test/biometric-verification.test.js      |   62 +-
+ functions/test/call-entitlements.test.js           |   42 +
+ functions/test/call-usage-policy.test.js           |   64 +
+ functions/test/group-call-economy.test.js          |   97 ++
+ .../biometric-verification.integration.test.js     |  122 +-
+ .../integration/call-signaling.integration.test.js |   87 ++
+ .../featured-ad-finance.integration.test.js        |    3 +
+ .../integration/guest-session.integration.test.js  |    1 +
+ .../owner-entitlement-grants.integration.test.js   |   26 +-
+ .../premium-profile.integration.test.js            |   40 +-
+ .../specialized-role-capacity.integration.test.js  |  120 ++
+ .../integration/store-gifting.integration.test.js  |  103 ++
+ .../integration/wallet-store.integration.test.js   |   48 +-
+ functions/test/member-social-links-access.test.js  |   28 +-
+ functions/test/member-social-links.test.js         |   13 +-
+ functions/test/platform-role-identities.test.js    |   50 +
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/room-rental-catalog.test.js         |   14 +
+ functions/test/store-gifting.test.js               |   77 ++
+ functions/test/store-purchase.test.js              |   15 +-
+ lib/screens/biometric_verification_screen.dart     |  293 +++++
+ lib/screens/owner_biometric_review_screen.dart     |  276 +++++
+ lib/screens/owner_chat_participation_screen.dart   |    2 +-
+ lib/screens/shop_screen.dart                       |    8 +-
+ lib/screens/super_admin_screen.dart                |   18 +-
+ lib/services/super_admin_security_service.dart     |    2 +
+ storage.rules                                      |   28 +-
+ 64 files changed, 4761 insertions(+), 261 deletions(-)
+
+=== UNIQUE COMMITS ===
+53bf2360 test: assert featured-ad event stores immutable financial snapshot
+5e6ac39f fix: verify featured-ad replay against immutable financial snapshot
+be0c8db4 fix: reject anonymous sessions before financial store and coin operations
+88a229f0 test: provide catalog version for guest purchase denial
+8fbef215 test: configure explicit test-only bounds for custom coin requests
+6182c51c security: bind featured-ad financial events to immutable campaign versions
+baa38a97 feat: persist immutable timed-ad campaign versions
+63ca30d3 test: use current catalog versions when updating seeded store items
+0ee876ca test: seed premium catalog and immutable version snapshots together
+5b573d7d test: version premium profile catalog fixtures for immutable purchase snapshots
+e214ce01 test: import owner biometric settings callable in fail-closed integration
+e6a6c668 test: cover audio and video room participant caps
+6d0887b2 fix: enforce approved audio and video room participant caps
+7a8348df docs: record latest unified branch state and validation boundary
+2158fdf7 docs: keep one canonical decision contract crosswalk
+cf77f5a4 docs: register historical library constitution and contract-source evidence
+c89ff90a test: include catalog version on every purchase replay
+656045b3 security: bind store gifts to immutable catalog snapshots
+508a6b64 feat: bind shop purchases to catalog version shown to member
+6bc0a913 test: require catalog version in purchase replay idempotency
+d6be8016 test: require exact catalog version for purchase replay
+a4e0721b security: bind purchase replay to catalog version
+73cc5013 security: bind store purchases and replay to immutable catalog versions
+6fbfa64d test: exercise versioned catalog and snapshot checks in wallet store suite
+c416b84d test: exercise immutable catalog versions in entitlement replay
+9b6786cd test: create store gift catalog with expected version
+93643045 feat: protect owner store edits with optimistic version check
+f80c6a27 feat: send expected store catalog version from owner service
+b96560ca fix: seed immutable version one for default store catalog entries
+8d742432 fix: version and snapshot every owner store catalog update
+b7a67b59 ci: include specialized role capacity emulator acceptance
+ea5f01f2 docs: reconcile UID-bound store gifting implementation and CI gate
+1a8cc13f test: version owner entitlement fixture for purchasable catalog item
+51105120 ci: include UID-bound store gifting emulator regression
+2574a3c0 test: version owner entitlement fixture catalog item
+24fad950 test: correct social-link proof fixture references
+ea64690e test: remove stale active biometric fixture from proof-gated social links
+61194aae test: align social link access with biometric proof fail-closed gate
+c56a19a9 security: never project unapproved manual biometric review as enabled
+ac9129d6 test: keep social link publishing gated by cryptographic biometric proof
+e65fd228 test: require cryptographic biometric proof before privileges
+75c67fd1 test: remove duplicate biometric review suite and enforce proof gate
+79bef540 security: block manual biometric acceptance without cryptographic proof
+ca36873f security: keep biometric eligibility closed until REWARD-002 proof exists
+882b32bc fix: preserve approved cryptographic biometric verification semantics
+4a679ca7 test: remove duplicated biometric review test declarations
+c036510e ci: validate unified integration branch
+c6f393a7 ci: validate unified integration branch
+6cbc534b test: reject username-based store gift targeting
+a11d1b01 test: include store gifting emulator integration in full suite
+26accaad test: enforce UID-only store gift recipient selection
+eeb030cb feat: add profile-targeted store gifting with atomic ledger
+c27c080f docs: record group call remainder allocation correction
+44c04b0d docs: repair contract template formatting
+c42edff7 test: verify group call remainder is charged to initiator
+97708abd test: enforce initiator group-call remainder allocation
+2f8fb14b docs: remove duplicate Admin N role definition
+584e07f1 fix: assign group call rounding remainder to initiator
+e509f904 test: enforce fail-closed biometric review until owner-approved proof
+a8eeddf2 security: keep unapproved manual biometric review fail-closed
+bcff2827 docs: remove duplicate commission contract entry and link canonical traceability
+35718d2e docs: remove duplicate commission contract entry and link canonical traceability
+67477210 docs: remove duplicate commission contract entry and link canonical traceability
+92028eff docs: correct specialized branch divergence metrics in master index
+40bba42a test: align fixed call ceiling assertions
+dd66330b test: enforce five-minute ceiling for all call modes
+21a03577 fix: align call duration ceiling with approved five-minute policy
+443dd8ad docs: standardize owner-facing terminology to Super Owner
+db4ba6e8 docs: make master traceability a single-source redirect
+2ffb7153 docs: reconcile decision contract crosswalk with approved biometric and call policies
+7095ec8d docs: align advertising supervisor agreement with Admin Media seats
+94feb08d docs: record server call entitlement integration and limits
+5d7677a0 docs: record server call entitlement integration and limits
+9aa86941 docs: link canonical decision and contract reconciliation
+66a331c7 docs: link canonical decision and contract reconciliation
+eaf472ee docs: reconcile Admin Media contract and biometric decision conflict
+db0da360 ci: run validation and domain regression on unified integration branch
+f5f079df ci: run validation and domain regression on unified integration branch
+d8321133 docs: correct branch divergence and selective integration evidence
+8f3dde3a docs: align contract register with canonical roles and crosswalk
+69edbe37 feat: enforce active mode-specific call entitlement for every participant
+d30ab3e0 docs: reconcile unified reference with owner decisions and PR evidence
+2f340542 docs: reconcile unified reference with owner decisions and PR evidence
+843e97bf docs: reconcile unified reference with owner decisions and PR evidence
+8ae7af16 test: require mode-specific call entitlements for every participant
+71999f3f feat/test: port server call entitlement policy functions/test/call-entitlements.test.js
+7997c974 feat/test: port server call entitlement policy functions/src/call-entitlements.ts
+36f3bb8a docs: remove duplicate crosswalk in favor of canonical master register
+fba9c3ba docs: add decision contract and governance crosswalk
+9bef43c2 docs: port isolated test center runbook docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+d6a5ee44 docs: port isolated test center runbook docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+2b2fceff docs: update integration snapshot with selective code ports and blockers
+1337116a test: port owner-reviewed biometric workflow emulator coverage
+fdf06a30 docs: reconcile 19 November governance and economic decision conflicts
+b22bdd36 docs: link master contract and decision reconciliation register
+6dedaf28 docs: link master contract and decision reconciliation register
+4313c398 docs: link master contract and decision reconciliation register
+14227a60 docs: align biometric vision with current approved decision register
+d9eef2f7 docs: reconcile biometric proposal with approved cryptographic proof decision
+a0863027 docs: add master decision contract traceability and integration register
+ebccef3a test: ensure missing owner room rental prices fail closed
+20757ba2 fix: remove remaining room rental price fallback
+ccd761a0 fix: fail closed when owner has not configured room rental catalog
+8b82edc7 fix: remove invented default room rental plans
+627a76e5 docs/test: port economic audit evidence docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+a2e02885 docs/test: port economic audit evidence docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+b59308ad docs/test: port economic audit evidence functions/test/integration/store-gifting.integration.test.js
+fbe9663b test: port isolated economic policy tests functions/test/store-gifting.test.js
+89a58289 test: port isolated economic policy tests functions/test/room-call-policy.test.js
+2c73538a test: port isolated economic policy tests functions/test/group-call-economy.test.js
+5c007148 test: port isolated economic policy tests functions/test/call-usage-policy.test.js
+cd8a43e3 feat: port isolated economic policy module functions/src/store-gifting.ts
+3fbce459 feat: port isolated economic policy module functions/src/room-call-policy.ts
+99524b50 feat: port isolated economic policy module functions/src/group-call-economy.ts
+baec62ef feat: port isolated economic policy module functions/src/call-usage-policy.ts
+518f47ec feat: port owner-reviewed biometric governance changes to functions/test/biometric-reward-security.test.js
+31cc8510 feat: port owner-reviewed biometric governance changes to functions/test/biometric-review.test.js
+4bc98cbb feat: port owner-reviewed biometric governance changes to functions/test/advertising-governance.test.js
+a296b5cc feat: port owner-reviewed biometric governance changes to lib/screens/super_admin_screen.dart
+4eb72abc feat: port owner-reviewed biometric governance changes to lib/screens/owner_chat_participation_screen.dart
+1c65935f feat: port owner-reviewed biometric governance changes to functions/src/advertising-governance.ts
+ad5f16ee test: wire biometric storage and role capacity emulator suites
+736dd960 feat: port owner-reviewed biometric request and role capacity server workflows
+780ac365 feat: integrate biometric verification rules and tests for storage.rules
+1443cd3d feat: integrate biometric verification rules and tests for firestore.rules
+b78a5f64 feat: integrate biometric verification rules and tests for functions/src/biometric-verification.ts
+d8c92c25 feat: port isolated biometric governance component owner_biometric_review_screen.dart
+57cd9395 feat: port isolated biometric governance component biometric_verification_screen.dart
+aa9650ba feat: port isolated biometric governance component specialized-role-capacity.integration.test.js
+5a3a2663 feat: port isolated biometric governance component platform-role-identities.test.js
+97a4352a feat: port isolated biometric governance component biometric-review.test.js
+1aa9dbe6 feat: port isolated biometric governance component biometric-media.test.js
+256d3461 feat: port isolated biometric governance component platform-role-identities.ts
+588b2183 feat: port isolated biometric governance component biometric-review.ts
+02374e76 feat: port isolated biometric governance component biometric-media.ts
+0278b4a8 docs: reconcile canonical admin glossary from governance review
+15bdd139 docs: link سجل العقود والحوكمة to unified source reconciliation
+28327e84 docs: link الرؤية الموحدة to unified source reconciliation
+3124ea74 docs: link الدستور الموحد to unified source reconciliation
+1c92cb20 docs: index unified governance reconciliation dossier
+1220a781 docs: port biometric governance specification as reference
+a70f7534 docs: add unified governance and branch reconciliation dossier

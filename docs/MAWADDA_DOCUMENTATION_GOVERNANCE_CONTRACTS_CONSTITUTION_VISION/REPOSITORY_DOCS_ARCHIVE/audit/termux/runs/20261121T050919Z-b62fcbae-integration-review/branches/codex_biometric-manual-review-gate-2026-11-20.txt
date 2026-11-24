@@ -1,0 +1,14 @@
+BRANCH: codex/biometric-manual-review-gate-2026-11-20
+REF: refs/remotes/origin/codex/biometric-manual-review-gate-2026-11-20
+SHA: a82a0614f7526bfb56c6bcc93764a5b907406e95
+
+MERGE BASE: a82a0614f7526bfb56c6bcc93764a5b907406e95
+
+=== DIVERGENCE ===
+153	0
+
+=== FILE STATUS ===
+
+=== CHANGE SUMMARY ===
+
+=== UNIQUE COMMITS ===

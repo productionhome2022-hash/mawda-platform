@@ -1,0 +1,23 @@
+BRANCH: codex/mawdda-store-entitlement-hardening-v2
+SHA: 7506f5d4034b58477fe0bfbc28ab90ead4f77eb0
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 25080d7d471db47be37dc0ee71dc8f719b97eac3
+
+=== DIVERGENCE target-only / branch-only ===
+1570	1
+
+=== BRANCH UNIQUE COMMITS ===
+7506f5d4034b58477fe0bfbc28ab90ead4f77eb0 test: cover every enabled store entitlement and idempotent purchase
+
+=== CHERRY STATUS ===
+- 7506f5d4034b58477fe0bfbc28ab90ead4f77eb0 test: cover every enabled store entitlement and idempotent purchase
+
+=== FILE STATUS ===
+M	functions/test/integration/wallet-store.integration.test.js
+
+=== NUMSTAT ===
+136	0	functions/test/integration/wallet-store.integration.test.js
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

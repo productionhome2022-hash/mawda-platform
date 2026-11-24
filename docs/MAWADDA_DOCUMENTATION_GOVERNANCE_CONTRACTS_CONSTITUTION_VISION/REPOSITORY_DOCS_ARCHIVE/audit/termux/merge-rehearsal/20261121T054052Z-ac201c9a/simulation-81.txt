@@ -1,0 +1,106 @@
+3c02efe1ceb69e5bc9b1d16efe7f6ad818574642
+100644 a0fbe565ffc16d53db7cc407bcfc000aa311508b 1	.github/workflows/mawdda-domain-regression.yml
+100644 24dcbb2ba4e0bdfc249aa33a4c9b219516c41e33 2	.github/workflows/mawdda-domain-regression.yml
+100644 b6a974af6cafba2b2fda123778e504a05b4c65ee 3	.github/workflows/mawdda-domain-regression.yml
+100644 376ee3886a8c592a1b7f229b14cf468a801a3ddc 1	.github/workflows/validate.yml
+100644 d3802584cac2f493e00389baa9c003a12db26f2e 2	.github/workflows/validate.yml
+100644 05249b4011a28a74544e79524fad57a19561cfa7 3	.github/workflows/validate.yml
+100644 a36bd5832c64994553851b7120b3687b5b77ce16 1	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 9ee596af6be3ea7633054adae4d1e5557708a587 2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 e7b3f2fc0c5d2c4d181abd05fdd92120508faa31 3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 2f7b4653424a0ad232ff34f5ccce73adfcae0eb1 1	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+100644 899ae7200dd547f30f4adb614278bf21381ea34d 2	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+100644 c634636b0eb13c495638326981cf82e0cc03e3a3 3	docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+100644 7a8a2a4a489470c7ef2f6df6b122cbcdc94a5119 2	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 509ec688fd2f1c0ae92526dae2223e61f822fe88 3	docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+100644 0c8c17a7d142eb1a34233cacef9f727cd77b78b8 1	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 32eb9e62943361fb609a4bf00c6f45148eaf48f4 2	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 bfa684204f3108f094170ea3e76c73b9c72f6dde 3	docs/MAWADDA_PRODUCT_CONSTITUTION.md
+100644 157bb910d00b6124f834ac9abb4572d58d532734 1	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 6677c42233254c4cf0059be2d962e973d4ede16e 2	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 d52369ba9eedb4c6b8b98efdd41d2c14c5b1ba77 3	docs/SEVEN_PHASE_EXECUTION_PLAN.md
+100644 469b43a650986b165052460987f148a16c4794f0 1	functions/package.json
+100644 f5756c3d6ad9a52224536b3159e5821297a6a650 2	functions/package.json
+100644 3782789620002da0986d48ee47b4954b164a9dc6 3	functions/package.json
+100644 e257e761c82135b1799d02ff7fae7815273550f0 1	functions/src/advertising-governance.ts
+100644 caec16865c75e76bc044a2ec0a73fe50dc9acbf8 2	functions/src/advertising-governance.ts
+100644 16fa2882f5580ccab42772e639b88d8a306edf42 3	functions/src/advertising-governance.ts
+100644 3c50947f58dda366d710ed1835158c22ceca8e75 2	functions/src/biometric-media.ts
+100644 846fcdad8d30060aa76bd1a809241c74e4b1dadb 3	functions/src/biometric-media.ts
+100644 e7a340e6aed62a2edc8529628b1489b72abef049 1	functions/src/biometric-verification.ts
+100644 d69ce5c59d78235a295e1e4aae34b009181ddf2d 2	functions/src/biometric-verification.ts
+100644 27ffea0d0c1ecdfb133529d3fc477c9aa5c469f6 3	functions/src/biometric-verification.ts
+100644 f996aee7ba88170f64ab6c92af75b81e0dcf2b53 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 328504b0d8e8b4391617dd5a2a57b07dccaa1bc0 3	functions/src/index.ts
+100644 8d26a34734374f0d411bdf25317ef66277608338 2	functions/src/platform-role-identities.ts
+100644 d1fbbcf58ad1d6685309598be6ae68e93184ca42 3	functions/src/platform-role-identities.ts
+100644 e93b92920165e388dd1f84934aa400844ebe8086 2	functions/test/biometric-media.test.js
+100644 e046dd598a182f1c486525d6c223ec5e9e5e4954 3	functions/test/biometric-media.test.js
+100644 2ef78f30a6ecda1b0e264b79bae415d595a972b3 1	functions/test/biometric-reward-security.test.js
+100644 8c3a8b17806ee164041ffde787f727b175702f3e 2	functions/test/biometric-reward-security.test.js
+100644 30c21a89789ed976e69e0a630f7994d8e6735704 3	functions/test/biometric-reward-security.test.js
+100644 a12303e1814240b29c989e9a56fa05a0c13a77cb 1	functions/test/biometric-verification.test.js
+100644 c7be8481da402c2bc72c4a459af02c699f8c114a 2	functions/test/biometric-verification.test.js
+100644 5e3325e05e9a39dc48f9163a25433737d2f56c63 3	functions/test/biometric-verification.test.js
+100644 f5e5655fc23ef037645d1a117dbae09017208a16 1	functions/test/integration/biometric-verification.integration.test.js
+100644 20f19857a11713f9bc935cc9aa7f0c706a99758b 2	functions/test/integration/biometric-verification.integration.test.js
+100644 c895bf8238715c5e8081d1f61aca032f7b2b2af8 3	functions/test/integration/biometric-verification.integration.test.js
+100644 e6756a8be26f5ec4e84a1e740c222726d4b3b735 2	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 a4c5ae35dd86008635e8c31e799c0b7316b5baa6 3	functions/test/integration/specialized-role-capacity.integration.test.js
+100644 699f8b0b3f9c2b88973621449c28a7df767ff8a4 1	functions/test/member-social-links-access.test.js
+100644 1bfc08a0c2f68d3c822cc14b53ccf8c6d21f258b 2	functions/test/member-social-links-access.test.js
+100644 f041025d6a09071782f999abf59dd8f2bb80d62a 3	functions/test/member-social-links-access.test.js
+100644 b9b0a1f3d2339ddc573699fc95329bc60ff0bf56 1	functions/test/member-social-links.test.js
+100644 6315c173fe46ef5e14cea15d76caa9393bd1612d 2	functions/test/member-social-links.test.js
+100644 9e27e0de409d374a01fe5658899db300bd0b9b61 3	functions/test/member-social-links.test.js
+100644 077e909ecda72e5ebc9506120263fc131b1e65e2 2	functions/test/platform-role-identities.test.js
+100644 59756fda5696db81ccd7ede8da6942ac30679f7d 3	functions/test/platform-role-identities.test.js
+
+Auto-merging .github/workflows/mawdda-domain-regression.yml
+CONFLICT (content): Merge conflict in .github/workflows/mawdda-domain-regression.yml
+Auto-merging .github/workflows/validate.yml
+CONFLICT (content): Merge conflict in .github/workflows/validate.yml
+Auto-merging README.md
+Auto-merging docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+Auto-merging docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md
+Auto-merging docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+CONFLICT (add/add): Merge conflict in docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+Auto-merging docs/MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md
+Auto-merging docs/MAWADDA_PRODUCT_CONSTITUTION.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_PRODUCT_CONSTITUTION.md
+Auto-merging docs/SEVEN_PHASE_EXECUTION_PLAN.md
+CONFLICT (content): Merge conflict in docs/SEVEN_PHASE_EXECUTION_PLAN.md
+Auto-merging functions/package.json
+CONFLICT (content): Merge conflict in functions/package.json
+Auto-merging functions/src/advertising-governance.ts
+CONFLICT (content): Merge conflict in functions/src/advertising-governance.ts
+Auto-merging functions/src/biometric-media.ts
+CONFLICT (add/add): Merge conflict in functions/src/biometric-media.ts
+Auto-merging functions/src/biometric-verification.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-verification.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/src/platform-role-identities.ts
+CONFLICT (add/add): Merge conflict in functions/src/platform-role-identities.ts
+Auto-merging functions/test/advertising-governance.test.js
+Auto-merging functions/test/biometric-media.test.js
+CONFLICT (add/add): Merge conflict in functions/test/biometric-media.test.js
+Auto-merging functions/test/biometric-reward-security.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-reward-security.test.js
+Auto-merging functions/test/biometric-verification.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-verification.test.js
+Auto-merging functions/test/integration/biometric-verification.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/biometric-verification.integration.test.js
+Auto-merging functions/test/integration/specialized-role-capacity.integration.test.js
+CONFLICT (add/add): Merge conflict in functions/test/integration/specialized-role-capacity.integration.test.js
+Auto-merging functions/test/member-social-links-access.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links-access.test.js
+Auto-merging functions/test/member-social-links.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links.test.js
+Auto-merging functions/test/platform-role-identities.test.js
+CONFLICT (add/add): Merge conflict in functions/test/platform-role-identities.test.js
+Auto-merging functions/test/rules/firestore.rules.test.js
+Auto-merging lib/screens/super_admin_screen.dart

@@ -1,0 +1,3 @@
+SOURCE: /root/.dart-tool/dart-flutter-telemetry.log
+MODIFIED: 2026-11-14 01:21:57.067112501 +0300
+{"client_id":"45e8905e-f63e-4343-b94a-ea55fe6ef273","events":[{"name":"dart_cli_command_executed","params":{"name":"pub/global/activate","enabledExperiments":""}}],"user_properties":{"session_id":{"value":1794608517060},"flutter_channel":{"value":null},"host":{"value":"Linux"},"flutter_version":{"value":null},"dart_version":{"value":"3.13.7"},"analytics_pkg_version":{"value":"8.0.16-wip"},"tool":{"value":"dart-tool"},"local_time":{"value":"2026-11-14 01:21:57.063619 +0300"},"host_os_version":{"value":"Linux 6.17.0-PRoot-Distro #1 SMP PRE"},"locale":{"value":"en_US"},"client_ide":{"value":null},"ai_agent":{"value":null}}}

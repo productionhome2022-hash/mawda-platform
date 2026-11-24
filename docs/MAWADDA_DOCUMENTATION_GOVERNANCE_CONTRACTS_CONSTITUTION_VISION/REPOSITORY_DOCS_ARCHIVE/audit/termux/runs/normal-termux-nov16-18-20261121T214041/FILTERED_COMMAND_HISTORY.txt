@@ -1,0 +1,85 @@
+# Local shell history — filtered evidence
+
+## /data/data/com.termux/files/home/.bash_history
+echo "Test-only commits picked: $PICKED"
+echo "Test suites passed: $TEST_PASSES"
+echo "Test suites failed: $TEST_FAILURES"
+echo "Production/Firebase changes: NO"
+RUN="$STAMP-$(git -C "$HOME" rev-parse --short HEAD 2>/dev/null || echo termux)"
+TESTS="$WORK/TEST-RESULTS.txt"
+: > "$TESTS"
+  git -C "$REPO" worktree remove --force "$INT" >/dev/null 2>&1 || true
+  git -C "$REPO" worktree remove --force "$PUB" >/dev/null 2>&1 || true
+git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null ||
+ORIGIN="$(git -C "$REPO" remote get-url origin 2>/dev/null)" ||
+git -C "$REPO" status --short --branch > "$WORK/ORIGINAL-WORKTREE.txt"
+git -C "$REPO" branch -avv > "$WORK/ORIGINAL-BRANCHES.txt"
+git -C "$REPO" log -1 --format=fuller > "$WORK/ORIGINAL-HEAD.txt"
+git -C "$REPO" fetch origin \
+BASE="$(git -C "$REPO" rev-parse "refs/remotes/origin/$TARGET")"
+git -C "$REPO" ls-remote --heads origin "refs/heads/$TARGET" \
+git -C "$REPO" worktree add --detach "$INT" "$BASE" ||
+git -C "$INT" config user.name \
+  "$(git -C "$REPO" config user.name || echo Mawdda Integration)"
+git -C "$INT" config user.email \
+  "$(git -C "$REPO" config user.email || echo mawdda-integration@users.noreply.github.com)"
+  COUNT="$(git -C "$REPO" rev-list --count "$BASE..$SHA" 2>/dev/null || echo 0)"
+  if ! git -C "$REPO" merge-base "$BASE" "$SHA" >/dev/null 2>&1; then
+  FILES="$(git -C "$REPO" diff --name-only "$BASE...$SHA" 2>/dev/null || true)"
+      *audio*|*voice*|*recording*|*firebase*|*ios*|*android*|*entitlement*|\
+  if git -C "$INT" merge --no-ff --no-edit "$SHA" > "$MERGE_LOG" 2>&1; then
+    if git -C "$INT" diff HEAD^ HEAD --check >> "$MERGE_LOG" 2>&1; then
+      git -C "$INT" reset --hard HEAD^ >/dev/null
+    git -C "$INT" merge --abort >/dev/null 2>&1 || true
+  git -C "$REPO" for-each-ref \
+git -C "$INT" ls-tree -r --name-only HEAD |
+  grep -Ei '(^|/)(docs?/|.*constitution.*|.*governance.*|.*decision.*|.*architecture.*|.*security.*|.*owner.*|.*admin.*|.*dashboard.*|.*economy.*|.*media.*|.*audio.*|.*retention.*|.*firebase.*|.*policy.*|.*runbook.*)' \
+git -C "$INT" ls-tree -r --name-only HEAD \
+git -C "$INT" diff --name-status "$BASE..HEAD" \
+git -C "$INT" diff --stat "$BASE..HEAD" \
+- Verify server and test enforcement.
+- Firebase project identity and existing iOS registration.
+Each domain requires code-path and test evidence.
+git -C "$INT" diff --check "$BASE..HEAD" \
+  if gitleaks detect --source "$INT" --no-git \
+    echo "GITLEAKS: PASS" >> "$TESTS"
+    echo "GITLEAKS: FINDINGS_OR_ERROR" >> "$TESTS"
+  echo "GITLEAKS: NOT_INSTALLED - NOT VERIFIED" >> "$TESTS"
+echo "=== 8. RUN AVAILABLE TESTS ==="
+TEST_FAILURES=0
+TEST_PASSES=0
+TEST_SKIPS=0
+  LOG="$WORK/test-$NAME.log"
+    echo "$NAME: PASS" | tee -a "$TESTS"
+    TEST_PASSES=$((TEST_PASSES + 1))
+    echo "$NAME: FAIL ($RC)" | tee -a "$TESTS"
+    TEST_FAILURES=$((TEST_FAILURES + 1))
+if command -v flutter >/dev/null 2>&1 && [ -f "$INT/pubspec.yaml" ]; then
+  run_cmd flutter-analyze flutter analyze
+  run_cmd flutter-tests flutter test
+  echo "Flutter: SKIPPED - SDK/project root unavailable" >> "$TESTS"
+  TEST_SKIPS=$((TEST_SKIPS + 1))
+    run_cmd functions-npm-test bash -c 'cd functions && npm test'
+    echo "Functions tests: SKIPPED - dependencies unavailable" >> "$TESTS"
+    TEST_SKIPS=$((TEST_SKIPS + 1))
+  echo "Functions: SKIPPED - package.json unavailable" >> "$TESTS"
+  TEST_SKIPS=$((TEST_SKIPS + 1))
+   [ "$TEST_FAILURES" -eq 0 ] &&
+   [ "$TEST_SKIPS" -eq 0 ] &&
+  git -C "$REPO" worktree add --detach "$PUB" "$BASE"
+cp "$TESTS" "$REPORT_BASE/$REL/"
+Tests passed: $TEST_PASSES
+Tests failed: $TEST_FAILURES
+Tests skipped: $TEST_SKIPS
+No production/Firebase mutation.
+git -C "$REPORT_BASE" add "$REL"
+git -C "$REPORT_BASE" commit \
+REPORT_COMMIT="$(git -C "$REPORT_BASE" rev-parse HEAD)"
+REMOTE_NOW="$(git -C "$REPO" ls-remote --heads origin \
+git -C "$REPORT_BASE" push origin "HEAD:refs/heads/$TARGET"
+REMOTE_VERIFY="$(git -C "$REPO" ls-remote --heads origin \
+echo "Tests passed: $TEST_PASSES"
+echo "Tests failed: $TEST_FAILURES"
+echo "Tests skipped: $TEST_SKIPS"
+echo "Production/Firebase mutation: NO"
+bash "$HOME/mawdda_unified_integration_v3.sh"   2>&1 | tee "$HOME/mawdda_unified_integration_v3_latest.log"

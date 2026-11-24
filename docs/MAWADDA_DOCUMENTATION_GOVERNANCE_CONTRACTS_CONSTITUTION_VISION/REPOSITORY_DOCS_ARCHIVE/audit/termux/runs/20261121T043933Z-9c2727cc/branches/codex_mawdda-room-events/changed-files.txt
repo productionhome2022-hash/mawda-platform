@@ -1,0 +1,4 @@
+M	functions/src/audit-archive.ts
+M	functions/src/index.ts
+M	functions/test/audit-archive.test.js
+M	infra/audit-archive/README.md

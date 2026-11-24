@@ -1,0 +1,58 @@
+SOURCE: /tmp/mawda-historical-audit-20261121T194610Z/worktree/docs/mawdda-comprehensive-audit-20261121T042744Z/comparison-codex_mawda-phase2-hardening.txt
+MODIFIED: 2026-11-21 22:46:26.530225453 +0300
+Compared branch: codex/mawda-phase2-hardening
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+2515	78
+
+=== CHANGE SUMMARY ===
+ .github/workflows/validate.yml                     |  17 +
+ docs/SECURE_MEDIA_INTAKE.md                        |  85 ++++-
+ firestore.indexes.json                             |  28 ++
+ functions/package.json                             |   2 +-
+ functions/scripts/test-signed-urls-http.cjs        |  42 ++-
+ functions/src/index.ts                             |   1 +
+ functions/src/media-controls.ts                    |  56 +++-
+ functions/src/media-quota.ts                       |  14 +-
+ functions/src/media-scanner.ts                     |   6 +
+ functions/src/media.ts                             | 370 +++++++++++++++++----
+ .../media-callables.integration.test.js            | 187 ++++++++---
+ functions/test/media-cleanup.test.js               |  20 ++
+ functions/test/media-controls.test.js              |   5 +-
+ functions/test/media-quota.test.js                 |  12 +-
+ functions/test/media-scanner.test.js               |   3 +
+ scanner/Dockerfile                                 |  20 ++
+ scanner/README.md                                  |  64 ++++
+ scanner/clamd.conf                                 |  15 +
+ scanner/entrypoint.sh                              |  33 ++
+ scanner/freshclam.conf                             |   5 +
+ scanner/package.json                               |  10 +
+ scanner/server.mjs                                 | 269 +++++++++++++++
+ scanner/test/server.test.mjs                       | 210 ++++++++++++
+ 23 files changed, 1318 insertions(+), 156 deletions(-)
+
+=== CHANGED PATHS ===
+M	.github/workflows/validate.yml
+M	docs/SECURE_MEDIA_INTAKE.md
+M	firestore.indexes.json
+M	functions/package.json
+M	functions/scripts/test-signed-urls-http.cjs
+M	functions/src/index.ts
+M	functions/src/media-controls.ts
+M	functions/src/media-quota.ts
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+A	functions/test/media-cleanup.test.js
+M	functions/test/media-controls.test.js
+M	functions/test/media-quota.test.js
+M	functions/test/media-scanner.test.js
+A	scanner/Dockerfile
+A	scanner/README.md
+A	scanner/clamd.conf
+A	scanner/entrypoint.sh
+A	scanner/freshclam.conf
+A	scanner/package.json
+A	scanner/server.mjs
+A	scanner/test/server.test.mjs

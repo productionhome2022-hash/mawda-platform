@@ -1,0 +1,973 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index e6858b42..2e376add 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -105,154 +105,154 @@ jobs:
+           name: mawda-web-production-candidate-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+   functions:
+     name: Cloud Functions compile and unit tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 90
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v5
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - name: Install Cloud Functions dependencies from committed lockfile
+         id: install_functions
+         run: npm ci --no-audit --no-fund
+       - name: Compile and test backend
+         run: npm test
+       - name: Syntax-check live non-production scanner E2E script
+         run: node --check scripts/test-live-media-scanner-e2e.cjs
+       - name: Validate GitHub Actions workflow YAML syntax
+         run: |
+           ruby -e 'require "yaml"; ARGV.each { |file| YAML.parse_file(file); puts file }' ../.github/workflows/*.yml
+       - name: Upload compiled Cloud Functions artifact
+         uses: actions/upload-artifact@v7.0.2
+         with:
+           name: mawda-cloud-functions-${{ github.sha }}
+           path: functions/lib/
+           if-no-files-found: error
+           retention-days: 7
+       - name: Set up Java for Firebase emulators
+         uses: actions/setup-java@v5
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Run media callable authorization and audit integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-integration
+       - name: Run mode-aware chat retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:retention-integration
+       - name: Run direct-message deletion authorization and erasure integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-deletion-integration
+       - name: Run owner entitlement grant and bulk replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-entitlement-grants-integration
+       - name: Run coin transfer and store purchase transactional integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:wallet-store-integration
+       - name: Run store gifting and concurrent idempotent replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:store-gifting-integration
+       - name: Run specialized role capacity and seat lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:specialized-role-capacity-integration
+       - name: Run featured-ad financial event and replay integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:featured-ad-finance-integration
+       - name: Run room rental pricing and lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-rental-integration
+       - name: Run room event scheduling and RSVP integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:room-events-integration
+       - name: Run call signaling Firestore emulator integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:call-signaling-integration
+       - name: Verify Firestore and Storage emulator backup/restore
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:emulator-backup-restore
+       - name: Run FCM token registration and deactivation integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:push-token-integration
+-      - name: Run 30-day biometric reward cycle integration tests
++      - name: Run biometric verification integration security tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:biometric-integration
+       - name: Run attendance and timed-ad reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:engagement-rewards-integration
+-      - name: Run 90-day email verification renewal and reward integration tests
++      - name: Run three-calendar-month email verification renewal and reward integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:email-renewal-integration
+       - name: Run safety report and appeal lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:safety-integration
+       - name: Run guest and member privacy acknowledgement integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-privacy-integration
+       - name: Run guest session and public-room interaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:guest-session-integration
+       - name: Provision emulator-only test personas and exercise cross-persona wallet interaction
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:seeded-persona-interaction
+       - name: Run owner audit export pagination and redaction integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:owner-audit-export-integration
+       - name: Run media legal hold and release integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:media-legal-hold-integration
+       - name: Run avatar and cover lifecycle integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:profile-media-integration
+       - name: Run premium profile, analytics, greeting, pin and discovery integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:premium-profile-integration
+       - name: Run message legal hold and resumed retention integration tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:message-legal-hold-integration
+       - name: Run Firestore and Storage rules emulator tests
+         if: ${{ always() && steps.install_functions.outcome == 'success' }}
+         run: npm run test:rules
+ 
+   scanner:
+     name: Isolated ClamAV scanner gateway tests and image build
+     runs-on: ubuntu-latest
+     timeout-minutes: 25
+     steps:
+       - uses: actions/checkout@v5
+       - name: Test Android release artifact identity and version validators
+         run: python3 -m unittest discover -s tool -p 'test_android_release*.py' -v
+       - uses: actions/setup-node@v5
+         with:
+           node-version: "22.23.4"
+       - name: Validate scanner source and security contracts
+         run: |
+           node --check scanner/server.js
+           node --check scanner/security.js
+           node --check scanner/processors.js
+           sh -n scanner/start.sh
+           node --test scanner/test/security.test.js scanner/test/processors.test.js
+       - name: Build isolated ClamAV scanner container
+         run: docker build --tag mawda-clamav-scanner:ci scanner
+       - name: Run real GIF, audio, video and PDF sanitization tests inside the scanner image
+         run: docker run --rm --entrypoint npm mawda-clamav-scanner:ci test
+       - name: Verify ClamAV detects the harmless EICAR test signature
+         run: |
+           docker run --rm --entrypoint sh mawda-clamav-scanner:ci -c '
+             set -eu
+             freshclam --stdout --log=/tmp/freshclam.log
+             printf '%s' 'WDVPIVAlQEFQWzRcUFpYNTQoUF4pN0NDKTd9JEVJQ0FSLVNUQU5EQVJELUFOVElWSVJVUy1URVNULUZJTEUhJEgrSCo=' | base64 -d > /tmp/eicar.com
+             set +e
+             clamscan --infected --no-summary /tmp/eicar.com
+             result=$?
+             set -e
+             test "$result" -eq 1
+           '
+diff --git a/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md b/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+index b1081441..90505422 100644
+--- a/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
++++ b/docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+@@ -179,80 +179,99 @@ Audit target HEAD before this documentation update: `d18b1c234a2b72413ba9814382c
+ 
+ ### Economy
+ - `codex/mawdda-economy-selective-port-2026-11-19`: 10 commits ahead / 130 behind. The store-gifting helper, unit tests and Shop screen were already verified byte-identical to unified in the previous audit; the unified callable and integration suite are newer and broader. Its older `index.ts` is not a safe replacement. No duplicate economy code was ported.
+ - Exact-head Domain Regression and Validate runs both include successful store-gifting and wallet/entitlement integration steps.
+ 
+ ### Ads and media
+ - `codex/featured-ads-secure-lifecycle-20261118`: 199 commits ahead / 307 behind. It contains large overlapping changes to `functions/src/index.ts`, `functions/src/media.ts`, scanner, media rules, ads, quota, and client screens; selective file-level review remains mandatory.
+ - Unified `featured-ad-finance.ts` and its unit tests are newer/larger than the corresponding source-branch files; do not replace them.
+ - The source branch's new call-entitlement helper relates to unresolved direct-call paid entitlement/lifecycle work (#66); do not activate or port it independently of owner-approved entitlement/pricing, per-party consent, metering and settlement.
+ - Its capacity-media policy leaves quotas null and enforcement observe-only, but remains a separate policy module requiring reconciliation with the approved capacity/cost model before adoption.
+ - Its sticker policy/catalog/widgets are new, but define additional sticker-specific limits and a new moderation/catalog lifecycle. They are not yet integrated into the unified scanner, entitlement, catalog and retention lifecycle. Do not port the feature bundle as a "small" media change; review the complete upload/scan/publish/send/delete path and confirm no conflict with canonical media limits first.
+ 
+ ### Exact-head GitHub Actions evidence
+ For unified HEAD `d18b1c234a2b72413ba9814382c7ce7b996c6416`, the following runs were polled to completion:
+ - Validate Mawda: `44731027874`, `44731018627` — all jobs completed successfully, including Functions compile/unit tests, media callable and direct-message deletion integration, store gifting, specialized role capacity, biometric-cycle regression, premium-profile integration, Flutter tests and scanner tests.
+ - Mawdda Domain Regression: `44731027859`, `44731018700` — both jobs completed successfully, including specialized-role capacity/concurrency, store gifting, retention/room reservation and Flutter widget/unit tests.
+ - These are GitHub Actions results only. No 5,000-persona simulation, external/device/manual test, live-production test, deployment, financial operation or main merge was performed.
+ 
+ ### Remaining blockers
+ - P0 / Issue #72: cryptographic biometric proof protocol and secure end-to-end workflow are not implemented; 1,500-coin reward and biometric privileges remain disabled. Issue #72 records the implementation and acceptance matrix.
+ - P0: #48 specialist permission enforcement remains unwired to protected operations.
+ - P0: #49 complete secure media lifecycle; #23 group-call lifecycle; #66 direct-call paid economy remain open.
+ - P1: #52 selective branch extraction remains active; the above audits classify duplicates and blocked bundles, not every divergent commit. Continue file-level provenance review for governance/ads/media and extract only self-contained, policy-aligned code with tests.
+ - P1: inbox/profile source branches reviewed above have no safe unique extraction at this baseline; continue with other specialized member/profile branches if new refs appear.
+ 
+ 
+ ## 9. P0 lifecycle follow-up — biometric proof gate, role wiring, media and calls (2026-11-20)
+ 
+ ### Biometric proof hardening branch / PR #73
+ - Branch `codex/mawdda-biometric-proof-gate-2026-11-20` is based on the unified line and is proposed through Draft PR #73.
+ - Initial PR commit SHA: `fb1a54fd66b568e0bf781ab2b6de174a9abf2267`; subsequent documentation/audit commits advanced the branch head. Base unified line was `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`.
+ - Files changed are limited to the biometric eligibility helper, its profile/social-link call sites and tests, plus the proof-gate schema note.
+ - The eligibility helper now requires the expected account UID and a persisted server-proof record with an allowlisted platform provider, matching account UID, device key ID, one-time challenge ID, proof digest, server signature/attestation verification markers, consumed nonce and ordered server timestamps. Legacy verified flags and client OS prompt claims fail closed.
+ - This is **only an eligibility hardening gate**. It does not implement or cryptographically verify Google Play Integrity or Apple App Attest tokens, device-key enrollment, challenge issuance/consumption, proof-to-evidence binding, or the Owner review lifecycle. The fields are an internal trusted-verifier output contract; no client may write them. Firestore rules currently deny all client writes to `users/{uid}`.
+ - `completeBiometricVerificationCycle` remains fail-closed. No reward, badge or biometric privilege is enabled. Owner acceptance alone remains insufficient for the 1,500-coin reward.
+ - Draft PR #73 must pass exact-head CI and review before any merge to the unified branch. The complete proof lifecycle remains open under Issue #72.
+ 
+ ### Specialized role authorization — Issue #48
+ - Re-read the current `functions/src/index.ts` on unified. It has 11,157 lines and 146 exported callable declarations at this audit point; the string `hasAdvertisingPermission` has zero occurrences in the file.
+ - Existing specialized grant CRUD/capacity callables remain Owner-only. Advertising intake and production application review callables remain Owner-only; public submission callables only create requests.
+ - The approved permission catalogue and role-bound grant evaluator exist, but the audited intake/production records do not provide canonical assignment ownership fields or server-derived resource scopes. The grant `resourceScopes` are still opaque strings. Replacing Owner gates now would create an ungrounded authorization bypass.
+ - No broad delegated guard was added. Before enabling any specialist operation, add server-owned assignment records and canonical scope derivation, then wire one callable at a time with callable Emulator allow/deny coverage. Keep contract signing, finance, grant administration, emergency controls and other sovereign operations Owner-only.
+ 
+ ### Secure media lifecycle — Issue #49
+ - Unified media code already has upload-intent creation, quarantine/finalization, scanner verdict validation, safe-derivative contracts, delivery authorization, legal holds and retryable deletion/tombstones. This is not yet proof of a complete lifecycle.
+ - `codex/featured-ads-secure-lifecycle-20261118` remains highly divergent: 199 commits ahead / 309 behind. `codex/featured-ads-serving-foundation`: 139 ahead / 308 behind. Both modify collision-heavy `index.ts`, `media.ts`, scanner, tests, rules, package/workflow files and UI; no wholesale or speculative port is safe.
+ - New capacity-media policy is observe-only with null quota values and requires reconciliation with the owner-controlled capacity/cost model. New sticker catalog/policy/widgets add their own limits and moderation lifecycle and are not integrated into the canonical scanner/retention/entitlement path. No such bundle was ported.
+ - Remaining #49 acceptance: generation-pinned scanner verdicts and derivative provenance, signed URL expiry/revocation, non-member/wrong-purpose denial, legal-hold and deletion race, late derivative tombstone cleanup, and end-to-end Emulator proof that originals never reach clients.
+ 
+ ### Group calls — Issue #23
+ - Unified `group-call-economy.ts` is a pure policy-driven calculation helper only. It has no server settlement callable or wallet/ledger integration.
+ - Current `startCall` selects room members automatically from the rented room (2–5), and each invitee accepts/rejects the call. It does not provide a separate member join-request queue with creator approval, nor a separate explicit financial consent per participant.
+ - The existing `call-signaling.integration.test.js` verifies room signaling and member departure, not the full requested admission/entitlement/consent/media-connected metering/atomic settlement lifecycle.
+ - The current room-call duration helper applies fixed 5-minute audio / 3-minute video constants. Do not silently change those durations or invent pricing/capacity rules; reconcile with approved room policy and Owner-controlled configuration before expanding.
+ - No billing, wallet hold, settlement or paid resource was activated. Issue #23 remains open until the full non-production Emulator lifecycle and media-topology acceptance tests pass.
+ 
+ ### Direct-call paid economy — Issue #66
+ - Direct call exports currently implement signaling, rolling attempt quotas, active-call locks, connection deadline and call termination; no owner-versioned paid pricing/entitlement, per-party financial consent, trusted connected-media metering or atomic wallet settlement is wired.
+ - The Issue #66 record still contains unresolved Owner decisions for the asymmetric caller/receiver entitlement case, sub-minute rounding, reservation/hold timing and failed-media refund/release behavior. Do not infer these choices or use hardcoded fallback prices.
+ - No paid call or financial operation was performed or enabled.
+ 
+ ### Current GitHub Actions evidence
+ - Unified base SHA `7d386a77818e3a9ec59977f1cbcb67b8eac6ba9d`: Validate run `44732927438` succeeded (Functions compile/unit tests, Flutter analysis/tests/web build and isolated scanner build/tests); Domain Regression run `44732927381` succeeded (retention/room reservation Emulator regression and Flutter widget/unit tests).
+ - These results are for the unified base SHA, **not** PR #73 head. Exact-head PR #73 Actions had not yet surfaced when this section was written; do not claim they passed.
+ - No 5,000-persona simulation, external/device/manual/live-production test, production mutation, billing or deployment was run.
+ 
+ ### Active blockers / next sequence
+ 1. #72: implement actual Android/iOS provider verification, device-key registration, server nonce lifecycle, replay prevention and proof-to-evidence binding; preserve Owner acceptance as a separate gate. Reward remains disabled.
+ 2. #48: establish approved operation-to-permission-to-resource assignment matrix and server-owned assignment schema before delegated callable guards.
+ 3. #49: finish scanner-generation-delivery-retention-deletion lifecycle and Emulator tests; continue file-level review of divergent media branches.
+ 4. #23: implement join-request/creator-approval/entitlement/financial-consent/connected-media metering/atomic settlement and participant media topology.
+ 5. #66: resolve the four listed Owner pricing/settlement decisions before paid billing implementation.
+ 6. Do not merge PR #73 until exact-head GitHub Actions and review are complete. No main merge, deployment, production Firebase change, billing or simulation.
+ 
+ 
+ ### Media Saver selective-port decision
+ - The `codex/featured-ads-serving-foundation` branch adds a server-side `getMediaSaverAttachmentUrl` capability that checks an entitlement on every save and reuses the safe-derivative delivery path. This matches the approved principle that every save needs a backend entitlement check and must not extend server retention.
+ - Its implementation hardcodes the entitlement document ID `media_saver_7d`. The binding constitution instead defines one Media Saver product with owner-configurable 24-hour / one-week / one-month durations and explicitly says the initial one-week / 200-coin value is test-only. The unified catalog currently has no Media Saver SKU.
+ - Therefore the feature is **not ported yet**: the backend consumer must be connected to the central owner-configurable catalog/entitlement schema and support all owner-enabled duration variants, not introduce a fixed one-week product ID or price. The underlying secure delivery logic is already present in unified; a separate callable can be added once the canonical product/entitlement identity is established.
+ - The source branch also adds entitlement-required direct-call tests, but the unified `startCall` implementation does not currently enforce the relevant call entitlements. Those tests cannot be copied alone; implement the approved call entitlement and asymmetry matrix first.
++
++
++## Verification-cycle isolation implementation update — 2026-11-20
++
++Owner-approved policy: email verification and biometric verification are independent tracks. Neither track gates, completes, renews, extends, expires, resets, approves, rejects, delays or reschedules the other.
++
++Implemented in this candidate branch:
++- Added UTC calendar-month arithmetic with month-end clamping.
++- Email verification cycle duration is now three calendar months from the last successful email verification timestamp; the previous fixed 90-day approximation is removed from the cycle helper.
++- Biometric one-calendar-month and email three-calendar-month due-date primitives are separately exposed and covered by focused unit tests.
++- Email renewal eligibility now compares the persisted cycle expiry timestamp directly, rather than reconstructing the original timestamp by subtracting a fixed 90-day duration.
++- Updated the email renewal unit/emulator fixture and GitHub Actions step labels to reflect calendar-month semantics.
++
++Not yet implemented / blocking full acceptance:
++- The existing biometric callable remains fail-closed and does not implement Super Owner manual submission/review/accept/reject.
++- The existing biometric gate still requires device attestation proof and therefore conflicts with the newly approved manual-review policy. It must not be relaxed to a client-writable flag; replace it only with a server-authoritative Super Owner decision record and tests.
++- No complete biometric request state machine, three-attempt/monthly retry enforcement, private evidence workflow, Super Owner-only media authorization, decision-triggered deletion lifecycle, or exactly-once 1,500 BetaCoins award is implemented by this change.
++- No exact-head CI result is claimed here. The PR must pass Cloud Functions build/unit tests, email-renewal Emulator integration, biometric integration/security tests, Flutter analysis/tests, and the repository's required validation workflows before merge.
++- This candidate is scoped to the unified integration branch. The development branch remains 78 commits behind the unified branch at the recorded comparison point; do not cherry-pick this isolated helper change onto its older code line independently of the approved branch reconciliation plan.
+diff --git a/functions/src/email-verification-cycle.ts b/functions/src/email-verification-cycle.ts
+index f435e261..ead43c71 100644
+--- a/functions/src/email-verification-cycle.ts
++++ b/functions/src/email-verification-cycle.ts
+@@ -1,71 +1,71 @@
+ import { createHash } from "node:crypto";
++import { addCalendarMonthsUtc, isCalendarMonthCycleDue } from "./verification-calendar";
+ 
+-export const EMAIL_VERIFICATION_CYCLE_DAYS = 90;
++export const EMAIL_VERIFICATION_CYCLE_MONTHS = 3;
+ export const EMAIL_VERIFICATION_REWARD_COINS = 500;
+-export const EMAIL_VERIFICATION_CYCLE_MS = EMAIL_VERIFICATION_CYCLE_DAYS * 24 * 60 * 60 * 1000;
+ 
+ export type EmailVerificationCycleStatus = "pending" | "rewarded" | "expired" | "revoked";
+ 
+ export interface EmailVerificationCycle {
+   cycleId: string;
+   uid: string;
+   email: string;
+   sequence: number;
+   status: EmailVerificationCycleStatus;
+   startedAtMs: number;
+   expiresAtMs: number;
+ }
+ 
+ /** Deterministic identity prevents duplicate cycles for the same member/email/sequence. */
+ export function createEmailVerificationCycle(input: {
+   uid: string;
+   email: string;
+   sequence: number;
+   serverNowMs: number;
+ }): EmailVerificationCycle {
+   const uid = input.uid.trim();
+   const email = input.email.trim().toLowerCase();
+   if (!uid || uid.length > 128 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+     throw new Error("INVALID_MEMBER_OR_EMAIL");
+   }
+   if (!Number.isSafeInteger(input.sequence) || input.sequence < 1 ||
+       !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0) {
+     throw new Error("INVALID_CYCLE_CLOCK_OR_SEQUENCE");
+   }
+   const cycleId = createHash("sha256")
+     .update("mawda-email-verification-v1|" + uid + "|" + email + "|" + input.sequence)
+     .digest("hex");
+   return {
+     cycleId, uid, email, sequence: input.sequence, status: "pending",
+     startedAtMs: input.serverNowMs,
+-    expiresAtMs: input.serverNowMs + EMAIL_VERIFICATION_CYCLE_MS,
++    expiresAtMs: addCalendarMonthsUtc(input.serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS),
+   };
+ }
+ 
+ export function isEmailVerificationCycleDue(lastVerifiedAtMs: number, serverNowMs: number): boolean {
+   if (!Number.isSafeInteger(lastVerifiedAtMs) || lastVerifiedAtMs < 0 ||
+       !Number.isSafeInteger(serverNowMs) || serverNowMs < 0) {
+     throw new Error("INVALID_VERIFICATION_CLOCK");
+   }
+-  return serverNowMs >= lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS;
++  return isCalendarMonthCycleDue(lastVerifiedAtMs, serverNowMs, EMAIL_VERIFICATION_CYCLE_MONTHS);
+ }
+ 
+ /** Confirmation requires the same normalized address and a live, unused cycle. */
+ export function canRewardEmailVerificationCycle(input: {
+   cycle: EmailVerificationCycle;
+   currentEmail: string;
+   authEmailVerified: boolean;
+   serverNowMs: number;
+ }): boolean {
+   const { cycle } = input;
+   if (cycle.status !== "pending" || !input.authEmailVerified ||
+       !Number.isSafeInteger(input.serverNowMs) || input.serverNowMs < 0 ||
+       input.serverNowMs >= cycle.expiresAtMs) return false;
+   return typeof input.currentEmail === "string" &&
+     input.currentEmail.trim().toLowerCase() === cycle.email;
+ }
+ 
+ export function emailVerificationRewardLedgerId(cycleId: string): string {
+   if (!/^[a-f0-9]{64}$/.test(cycleId)) throw new Error("INVALID_EMAIL_CYCLE_ID");
+   return "email_verification_" + cycleId;
+ }
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 4b444094..294fdfdc 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -1,120 +1,120 @@
+ import {
+   isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+ } from "./store-gifting";
+ import {
+   assertPlatformRoleCapacity,
+   platformRoleCapacity,
+   PLATFORM_ROLE_CAPACITY,
+   type NumberedPlatformRole,
+ } from "./platform-role-identities";
+ import { initializeApp } from "firebase-admin/app";
+ import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+ import { getAuth } from "firebase-admin/auth";
+ import { getMessaging } from "firebase-admin/messaging";
+ import { getStorage } from "firebase-admin/storage";
+ import { validateMemberProfile } from "./member-profile";
+ import { isAllowedLegalPortalAppId } from "./legal-portal-access";
+ import { FieldPath, FieldValue, Timestamp, getFirestore, type DocumentReference, type Transaction } from "firebase-admin/firestore";
+ import { HttpsError, onCall } from "firebase-functions/v2/https";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
+ import { defineString, defineSecret } from "firebase-functions/params";
+ import { validateMediaLegalHoldInput } from "./media-legal-hold";
+ import { validateMessageLegalHoldInput } from "./message-legal-hold";
+ import { logger } from "firebase-functions";
+ import { calculateTransferBreakdown } from "./coin-math";
+ import { reconcileWalletLedger } from "./wallet-reconciliation";
+ import { validateRegistrationPolicy } from "./registration-policy";
+ import { canViewMemberProfile, projectPublicMemberProfile } from "./member-profile-view";
+ import { validateMemberProfileUpdate } from "./member-profile-update";
+ import {
+   canChangeMemberSocialLinkVisibility,
+   projectMemberSocialLinks,
+   validateMemberSocialLinks,
+ } from "./member-social-links";
+ import { validateDirectMessageInput } from "./direct-message";
+ import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
+ import { createDirectChatId } from "./direct-chat-id";
+ import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
+ import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
+ import { hasActiveBiometricVerification } from "./biometric-verification";
+-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, isEmailVerificationCycleDue, canRewardEmailVerificationCycle } from "./email-verification-cycle";
++import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
+ import { isMemberAccountInGoodStanding } from "./member-access";
+ import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+ import {
+   validateFeaturedAdFinancialEvent,
+   applyFeaturedAdFinancialEvent,
+   featuredAdFinancialIdempotencyId,
+   defaultFeaturedAdFinancialSnapshot,
+ } from "./featured-ad-finance";
+ import {
+   assertMessageLinksAllowed,
+   BIOMETRIC_APPROVED_HOSTS,
+   canSendApprovedPlatformLinks,
+ } from "./link-policy";
+ import { createHash, createHmac, randomUUID } from "node:crypto";
+ import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+ import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible } from "./room-call-policy";
+ import { isGuestSessionActive } from "./guest-sessions";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+ import {
+   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
+   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
+   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
+   ADDITIONAL_AUDIT_COLLECTIONS,
+   isOwnerAuditArchiveEligible,
+   validateLockedAuditArchiveBucket,
+   verifyOwnerAuditArchiveChunk,
+   ownerAuditArchiveObjectName,
+   serializeOwnerAuditArchive,
+   auditCollectionArchiveObjectName,
+   serializeAuditCollectionArchive,
+ } from "./audit-archive";
+ import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+ import {
+   validateOwnerChatReviewRequest,
+   validateOwnerConversationPageRequest,
+   encodeOwnerMessagePageToken,
+   decodeOwnerMessagePageToken,
+   validateOwnerReviewAnnouncementRequest,
+   validateOwnerChatParticipationRequest,
+ } from "./owner-chat-review";
+ import {
+   PRIVACY_POLICY_HASH,
+   PRIVACY_POLICY_VERSION,
+   validatePrivacyAcknowledgement,
+ } from "./privacy-acknowledgement";
+ import {
+   isStoreItemPurchasable,
+   projectStoreCatalogItem,
+   validateStoreCatalogItemInput,
+ } from "./store-catalog";
+ import {
+   calculateStorePurchaseBalance,
+   isStoreEntitlementActive,
+   isStorePurchasePriceCurrent,
+   isStorePurchaseReplayCompatible,
+   projectStoreEntitlementFeatures,
+ } from "./store-purchase";
+ import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+ import { deleteMediaAssetForMessage } from "./media";
+ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
+ import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
+ import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+ import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
+ import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+ import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+ import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
+ import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+ import {
+   applyContractSignature,
+   assertContractStatusTransition,
+   canMakeContractEffective,
+   computeContractContentHash,
+   validateContractDraftInput,
+   validateContractReadyForSignature,
+   type ContractDraftInput,
+   type ContractSignatureEvidence,
+   type ContractSigningState,
+@@ -2110,211 +2110,211 @@ export const listSafetyCases = onCall(async (request) => {
+   if (typeof status === "string") query = db.collection("safetyCases")
+     .where("status", "==", status).orderBy("createdAt", "desc").limit(limit);
+   const snapshot = await query.get();
+   return {
+     cases: snapshot.docs.map((doc) => ({ caseId: doc.id, ...doc.data() })),
+   };
+ });
+ 
+ /** Owner-only final decision. A reason is mandatory and all decisions are audited. */
+ export const reviewSafetyCase = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   const caseId = request.data?.caseId;
+   const decision = request.data?.decision;
+   const reason = typeof request.data?.reason === "string" ? request.data.reason.trim() : "";
+   if (typeof caseId !== "string" || caseId.length < 8 || caseId.length > 160 ||
+       !["action_taken", "dismissed"].includes(decision) || reason.length < 10 || reason.length > 1000) {
+     throw new HttpsError("invalid-argument", "بيانات قرار البلاغ غير صالحة.");
+   }
+   const caseRef = db.collection("safetyCases").doc(caseId);
+   const subjectUid = await db.runTransaction(async (transaction) => {
+     const snapshot = await transaction.get(caseRef);
+     if (!snapshot.exists) {
+       throw new HttpsError("not-found", "البلاغ غير موجود.");
+     }
+     const current = snapshot.data()!;
+     if (current.status === decision && current.reviewedBy === actorUid) {
+       return current.subjectUid as string;
+     }
+     if (current.status !== "open") {
+       throw new HttpsError("failed-precondition", "البلاغ غير موجود أو سبق اتخاذ قرار بشأنه.");
+     }
+     transaction.update(caseRef, {
+       status: decision,
+       decisionReason: reason,
+       reviewedBy: actorUid,
+       reviewedAt: FieldValue.serverTimestamp(),
+       updatedAt: FieldValue.serverTimestamp(),
+       appealStatus: decision === "action_taken" ? "available" : "not_available",
+     });
+     return snapshot.data()?.subjectUid as string;
+   });
+   await appendOwnerReviewAuditEvent({
+     actorUid,
+     action: "safety_case_reviewed",
+     caseId,
+     subjectUid,
+     decision,
+     outcome: "completed",
+   }, `safety_case_review_${caseId}`);
+   return { caseId, decision };
+ });
+ 
+ /**
+  * Applies the owner-approved local biometric reward policy.
+  *
+  * Trust boundary: local_auth returns a device-local result. The server enforces
+  * the 30-day cycle and atomic wallet ledger, but cannot cryptographically prove
+  * that an unmodified client displayed the OS prompt. The client claim is
+  * therefore explicitly recorded as such and must not be represented as civil
+  * identity verification or hardware attestation.
+  */
+ /**
+  * Fail-closed until a server-verifiable, device-bound biometric attestation
+  * challenge is implemented. A client boolean and attempt ID are not proof:
+  * a modified client can invoke this callable directly and mint the reward.
+  *
+  * Do not restore wallet credits here until Android Play Integrity / iOS
+  * App Attest (or an equivalent cryptographic key attestation) is verified
+  * server-side with a fresh challenge, nonce binding, replay protection and
+  * one-time ledger idempotency.
+  */
+ export const completeBiometricVerificationCycle = onCall(async (request) => {
+   requireAuthenticatedUid(request.auth?.uid);
+   throw new HttpsError(
+     "failed-precondition",
+     "مكافأة التوثيق البيومتري معلّقة مؤقتاً حتى اكتمال التحقق التشفيري المرتبط بالجهاز. نجاح نافذة النظام وحده لا يكفي لمنح الكوينز.",
+   );
+ });
+ 
+ /**
+- * Starts a fresh 90-day email ownership challenge when the current cycle is due.
++ * Starts a fresh email ownership challenge after three calendar months from the last successful verification.
+  * Firebase Auth is temporarily marked unverified so the member must redeem a
+  * fresh provider-issued email action link before the renewal reward is credited.
+  */
+ export const startEmailVerificationRenewal = onCall(async (request) => {
+   const uid = requireAuthenticatedUid(request.auth?.uid);
+   const authUser = await getAuth().getUser(uid);
+   if (!authUser.email) {
+     throw new HttpsError("failed-precondition", "لا يوجد بريد إلكتروني مرتبط بالحساب.");
+   }
+   const email = authUser.email.trim().toLowerCase();
+   const userRef = db.collection("users").doc(uid);
+   const nowMs = Date.now();
+ 
+   const cycleResult = await db.runTransaction(async (transaction) => {
+     let expiredPendingId: string | null = null;
+     const userSnapshot = await transaction.get(userRef);
+     if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true) {
+       throw new HttpsError("failed-precondition", "يجب إكمال الملف الشخصي أولاً.");
+     }
+     const userData = userSnapshot.data()!;
+     const pendingId = userData.emailVerificationRenewalPendingCycleId;
+     if (typeof pendingId === "string" && pendingId.length > 0) {
+       const pendingRef = db.collection("emailVerificationCycles").doc(uid + "_" + pendingId);
+       const pendingSnapshot = await transaction.get(pendingRef);
+       const pending = pendingSnapshot.data();
+       const expiry = pending?.expiresAt;
+       const expiryMs = expiry instanceof Timestamp
+         ? expiry.toMillis()
+         : typeof expiry?.toMillis === "function" ? expiry.toMillis() : 0;
+       if (pendingSnapshot.exists && pending?.status === "pending" &&
+           pending.email === email && expiryMs > nowMs) {
+         return {
+           cycleId: pendingId,
+           email,
+           alreadyPending: true,
+           authResetAt: pending.authResetAt ?? null,
+         };
+       }
+       if (pendingSnapshot.exists && pending?.status === "pending") {
+         expiredPendingId = pendingId;
+       }
+     }
+ 
+     const priorExpiry = userData.emailVerificationCycleExpiresAt;
+     const priorExpiryMs = priorExpiry instanceof Timestamp
+       ? priorExpiry.toMillis()
+       : typeof priorExpiry?.toMillis === "function" ? priorExpiry.toMillis() : null;
+     if (expiredPendingId === null) {
+       if (!authUser.emailVerified || priorExpiryMs === null ||
+-          !isEmailVerificationCycleDue(priorExpiryMs - 90 * 24 * 60 * 60 * 1000, nowMs)) {
++          priorExpiryMs > nowMs) {
+         throw new HttpsError("failed-precondition", "لم يحن موعد دورة التحقق التالية بعد.");
+       }
+     }
+ 
+     const sequence = (Number.isSafeInteger(userData.emailVerificationSequence)
+       ? userData.emailVerificationSequence as number
+       : 1) + 1;
+     const cycle = createEmailVerificationCycle({
+       uid,
+       email,
+       sequence,
+       serverNowMs: nowMs,
+     });
+     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycle.cycleId);
+     const existingCycle = await transaction.get(cycleRef);
+     if (existingCycle.exists) {
+       throw new HttpsError("already-exists", "دورة التحقق هذه موجودة مسبقاً.");
+     }
+     if (expiredPendingId !== null) {
+       transaction.update(
+         db.collection("emailVerificationCycles").doc(uid + "_" + expiredPendingId),
+         { status: "expired", expiredAt: FieldValue.serverTimestamp() },
+       );
+     }
+     const startedAt = Timestamp.fromMillis(cycle.startedAtMs);
+     const expiresAt = Timestamp.fromMillis(cycle.expiresAtMs);
+     transaction.create(cycleRef, {
+       ...cycle,
+       status: "pending",
+       startedAt,
+       expiresAt,
+       authResetAt: null,
+       createdAt: startedAt,
+       updatedAt: startedAt,
+     });
+     transaction.update(userRef, {
+       emailVerified: false,
+       emailVerificationSequence: sequence,
+       emailVerificationRenewalPendingCycleId: cycle.cycleId,
+       emailVerificationRenewalPendingEmail: email,
+       emailVerificationRenewalStartedAt: startedAt,
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+     return {
+       cycleId: cycle.cycleId,
+       email,
+       alreadyPending: false,
+       authResetAt: null,
+     };
+   });
+ 
+   // Retry-safe: if Auth was reset but recording authResetAt failed, the next
+   // call observes Auth=false and records the marker without invalidating a
+   // subsequently redeemed link.
+   if (cycleResult.authResetAt == null) {
+     if (authUser.emailVerified) {
+       await getAuth().updateUser(uid, { emailVerified: false });
+     }
+     const cycleRef = db.collection("emailVerificationCycles").doc(uid + "_" + cycleResult.cycleId);
+     await db.runTransaction(async (transaction) => {
+       const cycleSnapshot = await transaction.get(cycleRef);
+       if (!cycleSnapshot.exists || cycleSnapshot.data()?.status !== "pending") {
+         throw new HttpsError("failed-precondition", "انتهت دورة التحقق قبل تهيئة البريد.");
+       }
+       if (cycleSnapshot.data()?.authResetAt == null) {
+         transaction.update(cycleRef, { authResetAt: FieldValue.serverTimestamp() });
+       }
+     });
+   }
+ 
+   return {
+     cycleId: cycleResult.cycleId,
+     email: cycleResult.email,
+     alreadyPending: cycleResult.alreadyPending,
+     sendVerificationEmail: true,
+   };
+ });
+ 
+ /**
+  * Finalizes a renewal only after Firebase Auth confirms that the member
+diff --git a/functions/src/verification-calendar.ts b/functions/src/verification-calendar.ts
+new file mode 100644
+index 00000000..f4896bda
+--- /dev/null
++++ b/functions/src/verification-calendar.ts
+@@ -0,0 +1,30 @@
++/** UTC calendar-month arithmetic shared only as a pure date primitive. */
++export function addCalendarMonthsUtc(anchorMs: number, months: number): number {
++  if (!Number.isSafeInteger(anchorMs) || anchorMs < 0 ||
++      !Number.isSafeInteger(months) || months < 0) {
++    throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  }
++  const source = new Date(anchorMs);
++  if (!Number.isFinite(source.getTime())) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  const year = source.getUTCFullYear();
++  const monthIndex = source.getUTCMonth() + months;
++  const targetYear = year + Math.floor(monthIndex / 12);
++  const targetMonth = monthIndex % 12;
++  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
++  const targetDay = Math.min(source.getUTCDate(), lastDay);
++  return Date.UTC(targetYear, targetMonth, targetDay,
++    source.getUTCHours(), source.getUTCMinutes(), source.getUTCSeconds(), source.getUTCMilliseconds());
++}
++
++export function isCalendarMonthCycleDue(anchorMs: number, nowMs: number, months: number): boolean {
++  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new Error("INVALID_CALENDAR_MONTH_INPUT");
++  return nowMs >= addCalendarMonthsUtc(anchorMs, months);
++}
++
++export function isEmailVerificationDue(lastVerifiedAtMs: number, nowMs: number): boolean {
++  return isCalendarMonthCycleDue(lastVerifiedAtMs, nowMs, 3);
++}
++
++export function isBiometricVerificationDue(lastApprovedAtMs: number, nowMs: number): boolean {
++  return isCalendarMonthCycleDue(lastApprovedAtMs, nowMs, 1);
++}
+diff --git a/functions/test/biometric-reward-security.test.js b/functions/test/biometric-reward-security.test.js
+index 2ef78f30..9c5955a9 100644
+--- a/functions/test/biometric-reward-security.test.js
++++ b/functions/test/biometric-reward-security.test.js
+@@ -1,24 +1,24 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const fs = require("node:fs");
+ const path = require("node:path");
+ 
+ test("biometric reward callable fails closed without server-verifiable device attestation", () => {
+   const source = fs.readFileSync(path.join(__dirname, "../src/index.ts"), "utf8");
+   const start = source.indexOf("export const completeBiometricVerificationCycle = onCall(async (request) => {");
+-  const end = source.indexOf("\n\n/**\n * Starts a fresh 90-day email ownership challenge", start);
++  const end = source.indexOf("\n\n/**\n * Starts a fresh email ownership challenge after three calendar months", start);
+   assert.notEqual(start, -1, "biometric reward callable must remain present");
+   assert.notEqual(end, -1, "biometric reward callable boundary must remain identifiable");
+   const callable = source.slice(start, end);
+   assert.match(callable, /failed-precondition/);
+   assert.match(callable, /التحقق التشفيري المرتبط بالجهاز/);
+   assert.doesNotMatch(callable, /runTransaction|walletLedger|rewardCoins|transaction\.update|transaction\.create/);
+ });
+ 
+ test("client booleans and attempt IDs are not accepted as a biometric proof contract", () => {
+   const source = fs.readFileSync(path.join(__dirname, "../src/index.ts"), "utf8");
+   const start = source.indexOf("export const completeBiometricVerificationCycle = onCall(async (request) => {");
+-  const end = source.indexOf("\n\n/**\n * Starts a fresh 90-day email ownership challenge", start);
++  const end = source.indexOf("\n\n/**\n * Starts a fresh email ownership challenge after three calendar months", start);
+   const callable = source.slice(start, end);
+   assert.doesNotMatch(callable, /localAuthenticationSucceeded|clientAttemptId|local_os_biometric_prompt/);
+ });
+diff --git a/functions/test/email-verification-cycle.test.js b/functions/test/email-verification-cycle.test.js
+index c589e61b..ea78a0e6 100644
+--- a/functions/test/email-verification-cycle.test.js
++++ b/functions/test/email-verification-cycle.test.js
+@@ -1,58 +1,59 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+-  EMAIL_VERIFICATION_CYCLE_MS,
++  EMAIL_VERIFICATION_CYCLE_MONTHS,
+   EMAIL_VERIFICATION_REWARD_COINS,
+   createEmailVerificationCycle,
+   isEmailVerificationCycleDue,
+   canRewardEmailVerificationCycle,
+   emailVerificationRewardLedgerId,
+ } = require("../lib/email-verification-cycle");
+ 
+-const NOW = 1_800_000_000_000;
++const NOW = Date.UTC(2026, 0, 31, 12, 0, 0);
+ 
+-test("creates deterministic server-clocked 90-day cycle bound to normalized email", () => {
++test("creates deterministic server-clocked three-calendar-month cycle bound to normalized email", () => {
+   const input = { uid: "member-1", email: " Member@Example.com ", sequence: 2, serverNowMs: NOW };
+   const first = createEmailVerificationCycle(input);
+   assert.deepEqual(first, createEmailVerificationCycle(input));
+   assert.equal(first.email, "member@example.com");
+   assert.equal(first.startedAtMs, NOW);
+-  assert.equal(first.expiresAtMs, NOW + EMAIL_VERIFICATION_CYCLE_MS);
++  assert.equal(first.expiresAtMs, Date.UTC(2026, 3, 30, 12, 0, 0));
++  assert.equal(EMAIL_VERIFICATION_CYCLE_MONTHS, 3);
+   assert.equal(first.status, "pending");
+ });
+ 
+ test("rejects invalid identity, email, sequence and server clock", () => {
+   for (const input of [
+     { uid: "", email: "a@b.com", sequence: 1, serverNowMs: NOW },
+     { uid: "u", email: "not-an-email", sequence: 1, serverNowMs: NOW },
+     { uid: "u", email: "a@b.com", sequence: 0, serverNowMs: NOW },
+     { uid: "u", email: "a@b.com", sequence: 1, serverNowMs: -1 },
+   ]) assert.throws(() => createEmailVerificationCycle(input));
+ });
+ 
+-test("renewal becomes due at exactly 90 days using server time", () => {
+-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS - 1), false);
+-  assert.equal(isEmailVerificationCycleDue(NOW, NOW + EMAIL_VERIFICATION_CYCLE_MS), true);
++test("renewal becomes due at exactly three calendar months using server time", () => {
++  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 11, 59, 59, 999)), false);
++  assert.equal(isEmailVerificationCycleDue(NOW, Date.UTC(2026, 3, 30, 12, 0, 0)), true);
+ });
+ 
+ test("reward requires pending cycle, verified Auth state, unchanged email and unexpired cycle", () => {
+   const cycle = createEmailVerificationCycle({
+     uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+   });
+   const base = { cycle, currentEmail: "MEMBER@example.com", authEmailVerified: true, serverNowMs: NOW + 1 };
+   assert.equal(canRewardEmailVerificationCycle(base), true);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, currentEmail: "changed@example.com" }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, authEmailVerified: false }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, serverNowMs: cycle.expiresAtMs }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, cycle: { ...cycle, status: "rewarded" } }), false);
+   assert.equal(canRewardEmailVerificationCycle({ ...base, cycle: { ...cycle, status: "revoked" } }), false);
+ });
+ 
+ test("cycle-specific ledger identity prevents reward collisions and validates ids", () => {
+   const cycle = createEmailVerificationCycle({
+     uid: "member-1", email: "member@example.com", sequence: 1, serverNowMs: NOW,
+   });
+   assert.equal(emailVerificationRewardLedgerId(cycle.cycleId), "email_verification_" + cycle.cycleId);
+   assert.throws(() => emailVerificationRewardLedgerId("bad-id"));
+   assert.equal(EMAIL_VERIFICATION_REWARD_COINS, 500);
+ });
+diff --git a/functions/test/integration/email-verification-renewal.integration.test.js b/functions/test/integration/email-verification-renewal.integration.test.js
+index 4f477f03..fb1b434e 100644
+--- a/functions/test/integration/email-verification-renewal.integration.test.js
++++ b/functions/test/integration/email-verification-renewal.integration.test.js
+@@ -1,106 +1,106 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { getAuth } = require("firebase-admin/auth");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const {
+   startEmailVerificationRenewal,
+   completeEmailVerificationRenewal,
+ } = require("../../lib/index");
+-const { EMAIL_VERIFICATION_CYCLE_MS } = require("../../lib/email-verification-cycle");
++
+ 
+ const db = getFirestore();
+ const auth = getAuth();
+ const request = (uid) => ({
+   data: {},
+   auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+ });
+ const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+ 
+-test("fresh email link renewal credits 500 coins once and starts the next 90-day cycle", async () => {
++test("fresh email link renewal credits 500 coins once and starts the next three-calendar-month cycle", async () => {
+   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+   assert.ok(process.env.FIREBASE_AUTH_EMULATOR_HOST, "Auth emulator is required");
+   const tag = suffix();
+   const uid = `email_renewal_${tag}`;
+   const email = `renewal_${tag}@example.test`;
+   const userRef = db.collection("users").doc(uid);
+-  const lastVerifiedAtMs = Date.now() - EMAIL_VERIFICATION_CYCLE_MS - 1000;
++  const lastVerifiedAtMs = Date.now() - 1000;
+   const ledgerIdPrefix = "email_verification_";
+   let cycleRef;
+   let ledgerRef;
+   let auditRef;
+ 
+   await auth.createUser({ uid, email, password: "Test-only-password-123!", emailVerified: true });
+   await userRef.set({
+     uid,
+     email,
+     emailVerified: true,
+-    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs),
++    emailVerifiedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
+     emailVerificationSequence: 1,
+     emailVerificationCycleId: "initial-cycle",
+-    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs),
+-    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs + EMAIL_VERIFICATION_CYCLE_MS),
++    emailVerificationCycleStartedAt: Timestamp.fromMillis(lastVerifiedAtMs - 3 * 31 * 24 * 60 * 60 * 1000),
++    emailVerificationCycleExpiresAt: Timestamp.fromMillis(lastVerifiedAtMs - 1),
+     coins: 250,
+     profileCompleted: true,
+     accountStatus: "active",
+   });
+ 
+   try {
+     const started = await startEmailVerificationRenewal.run(request(uid));
+     assert.equal(started.email, email);
+     assert.equal(started.alreadyPending, false);
+     assert.equal(started.sendVerificationEmail, true);
+ 
+     const authAfterStart = await auth.getUser(uid);
+     assert.equal(authAfterStart.emailVerified, false);
+     cycleRef = db.collection("emailVerificationCycles").doc(`${uid}_${started.cycleId}`);
+     const pending = (await cycleRef.get()).data();
+     assert.equal(pending.status, "pending");
+     assert.ok(pending.authResetAt);
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 250);
+ 
+     // Simulate the Firebase Auth action link being redeemed by its owner.
+     await auth.updateUser(uid, { emailVerified: true });
+     const completed = await completeEmailVerificationRenewal.run(request(uid));
+     assert.equal(completed.rewardGranted, true);
+     assert.equal(completed.rewardAmount, 500);
+     assert.equal(completed.newBalance, 750);
+ 
+     const member = (await userRef.get()).data();
+     assert.equal(member.coins, 750);
+     assert.equal(member.emailVerified, true);
+     assert.equal(member.emailVerificationSequence, 2);
+     assert.equal(member.emailVerificationCycleId, started.cycleId);
+     assert.equal(member.emailVerificationRenewalPendingCycleId, undefined);
+     assert.ok(member.emailVerificationCycleExpiresAt.toMillis() > Date.now());
+ 
+     const cycle = (await cycleRef.get()).data();
+     assert.equal(cycle.status, "rewarded");
+     ledgerRef = userRef.collection("walletLedger").doc(ledgerIdPrefix + started.cycleId);
+     auditRef = db.collection("verificationAuditLogs").doc(ledgerIdPrefix + started.cycleId);
+     assert.equal((await ledgerRef.get()).data().amount, 500);
+     assert.equal((await auditRef.get()).data().action, "email_verification_cycle_rewarded");
+ 
+     await assert.rejects(
+       () => completeEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     await assert.rejects(
+       () => startEmailVerificationRenewal.run(request(uid)),
+       (error) => error && error.code === "failed-precondition",
+     );
+     assert.equal((await userRef.get()).data().coins, 750);
+   } finally {
+     await Promise.all([
+       cycleRef?.delete().catch(() => undefined),
+       ledgerRef?.delete().catch(() => undefined),
+       auditRef?.delete().catch(() => undefined),
+       userRef.delete().catch(() => undefined),
+       auth.deleteUser(uid).catch(() => undefined),
+     ]);
+   }
+ });
+diff --git a/functions/test/verification-calendar.test.js b/functions/test/verification-calendar.test.js
+new file mode 100644
+index 00000000..a80d9623
+--- /dev/null
++++ b/functions/test/verification-calendar.test.js
+@@ -0,0 +1,27 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const { addCalendarMonthsUtc, isEmailVerificationDue, isBiometricVerificationDue } = require("../lib/verification-calendar");
++
++test("calendar month arithmetic clamps month-end and preserves UTC time", () => {
++  assert.equal(addCalendarMonthsUtc(Date.UTC(2026, 0, 31, 12), 1), Date.UTC(2026, 1, 28, 12));
++  assert.equal(addCalendarMonthsUtc(Date.UTC(2028, 0, 31, 12), 1), Date.UTC(2028, 1, 29, 12));
++  assert.equal(addCalendarMonthsUtc(Date.UTC(2026, 10, 30, 8, 15), 3), Date.UTC(2027, 1, 28, 8, 15));
++});
++
++test("email and biometric renewals have separate one-month and three-month clocks", () => {
++  const anchor = Date.UTC(2026, 0, 31, 12);
++  const biometricDue = Date.UTC(2026, 1, 28, 12);
++  const emailDue = Date.UTC(2026, 3, 30, 12);
++  assert.equal(isBiometricVerificationDue(anchor, biometricDue - 1), false);
++  assert.equal(isBiometricVerificationDue(anchor, biometricDue), true);
++  assert.equal(isEmailVerificationDue(anchor, emailDue - 1), false);
++  assert.equal(isEmailVerificationDue(anchor, emailDue), true);
++  assert.equal(isEmailVerificationDue(anchor, biometricDue), false);
++  assert.equal(isBiometricVerificationDue(anchor, emailDue), true);
++});
++
++test("invalid clocks and month offsets are rejected", () => {
++  assert.throws(() => addCalendarMonthsUtc(-1, 1));
++  assert.throws(() => addCalendarMonthsUtc(Date.now(), -1));
++  assert.throws(() => isEmailVerificationDue(0, Number.NaN));
++});

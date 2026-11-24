@@ -1,0 +1,23 @@
+85aaefc845fcb000c85671634ee81d37863c31ff
+100644 0d40e490616e9de08b5f1be0ec5e5e34dd9bbca0 2	functions/src/audit-archive.ts
+100644 9e00329ce30aabd1136250bbb497e0691a1e410e 3	functions/src/audit-archive.ts
+100644 03c46416c6d4ceace97fe5348ffdcc0a7cf23502 1	functions/src/index.ts
+100644 4574024ded13f7d5c51fb0eb10febff2ffd1e329 2	functions/src/index.ts
+100644 f83a2de4a5ae47fe337bcc466e5bbeb0b675daa9 3	functions/src/index.ts
+100644 04bba0f1b19bc1d9a10762c66079fdd81c5e0a98 2	functions/test/audit-archive.test.js
+100644 cb5c9d3b9a2a0db33d7dafb5ee910302a73481ec 3	functions/test/audit-archive.test.js
+100644 482cd1327137be1f5419fa857c96dbdebe7603b9 2	infra/audit-archive/README.md
+100644 0bacd2662d4b568547ff7d5fce0e1885c929b0fa 3	infra/audit-archive/README.md
+100644 e80ed57f65b88100497cc9d719cd00eb95dbea43 2	infra/audit-archive/variables.tf
+100644 aedf3069490bee22ed042eac02a666fdfe9cd4b2 3	infra/audit-archive/variables.tf
+
+Auto-merging functions/src/audit-archive.ts
+CONFLICT (add/add): Merge conflict in functions/src/audit-archive.ts
+Auto-merging functions/src/index.ts
+CONFLICT (content): Merge conflict in functions/src/index.ts
+Auto-merging functions/test/audit-archive.test.js
+CONFLICT (add/add): Merge conflict in functions/test/audit-archive.test.js
+Auto-merging infra/audit-archive/README.md
+CONFLICT (add/add): Merge conflict in infra/audit-archive/README.md
+Auto-merging infra/audit-archive/variables.tf
+CONFLICT (add/add): Merge conflict in infra/audit-archive/variables.tf

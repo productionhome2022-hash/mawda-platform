@@ -1,0 +1,69 @@
+Branch: codex/mawdda-role-capacity-after-retention-2026-11-19
+Branch SHA: 5110cb59f9d9a6edae4bbc7bc8418043f0a1eb51
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+396	22
+
+--- Merge base ---
+8a1c8d0b93ed43570c523ab2d8c2598648ddac0e
+
+--- Changed files relative to common ancestor ---
+M	.github/workflows/mawdda-domain-regression.yml
+M	.github/workflows/validate.yml
+M	docs/IMPLEMENTATION_TRACEABILITY.md
+M	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+M	docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md
+M	docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md
+M	functions/src/index.ts
+A	functions/src/platform-role-identities.ts
+M	functions/test/integration/owner-entitlement-grants.integration.test.js
+A	functions/test/integration/specialized-role-capacity.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/platform-role-identities.test.js
+
+--- Diff statistics ---
+ .github/workflows/mawdda-domain-regression.yml     |   4 +
+ .github/workflows/validate.yml                     |   2 +
+ docs/IMPLEMENTATION_TRACEABILITY.md                |  10 +-
+ .../MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md |  20 ++++
+ docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md    |   6 ++
+ docs/MAWADDA_UNIFIED_PLATFORM_VISION_2026.md       |   2 +-
+ functions/src/index.ts                             |  69 +++++++++++-
+ functions/src/platform-role-identities.ts          |  86 +++++++++++++++
+ .../owner-entitlement-grants.integration.test.js   |   4 +-
+ .../specialized-role-capacity.integration.test.js  | 120 +++++++++++++++++++++
+ .../integration/wallet-store.integration.test.js   |  25 +++--
+ functions/test/platform-role-identities.test.js    |  50 +++++++++
+ 12 files changed, 381 insertions(+), 17 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+5110cb59 (origin/codex/mawdda-role-capacity-after-retention-2026-11-19) ci: invoke Firebase CLI from locked local dependencies
+c324e960 ci: run role capacity integration test inside Firestore emulator
+6d33c171 docs: trace role capacity implementation and remaining lifecycle gates
+a22d0f73 docs: record canonical administrative role policy and implementation gate
+06df7f65 docs: index canonical administrative terminology appendix
+51e207c3 ci: validate role capacity after retention integration
+d153391b ci: run role capacity emulator tests after retention fixes
+a14e6157 feat: enforce transactional five-seat supervisor capacity
+7175923b feat: add canonical role identity and capacity tests
+7aa21941 feat: add canonical role identity and capacity tests
+803275aa feat: add canonical role identity and capacity tests
+63916ade fix: return server catalog version from transactional publish
+94b04212 test: verify owner catalog versioning enables purchases
+485502dd fix: assign monotonic server versions to store catalog items
+032a66b3 fix: persist immutable timed ad campaign versions
+0972405c test: complete store and custom coin request fixtures
+4cf8c090 ci: run validation on retention approval repair branch
+7a383968 ci: run validation on retention approval repair branch
+a8c0656b docs: record confirmed retention policy and CI evidence
+5b805dd5 docs: align platform vision with approved chat retention
+7d058c0d docs: record owner-approved 30-day important chat retention
+124731af test: correct purchasable owner entitlement fixture
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

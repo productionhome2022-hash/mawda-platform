@@ -1,0 +1,19 @@
+BRANCH: codex/biometric-manual-review-gate-2026-11-20
+SHA: a82a0614f7526bfb56c6bcc93764a5b907406e95
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: a82a0614f7526bfb56c6bcc93764a5b907406e95
+
+=== DIVERGENCE target-only / branch-only ===
+154	0
+
+=== BRANCH UNIQUE COMMITS ===
+
+=== CHERRY STATUS ===
+
+=== FILE STATUS ===
+
+=== NUMSTAT ===
+
+=== DIFF CHECK ===
+DIFF_CHECK=PASS

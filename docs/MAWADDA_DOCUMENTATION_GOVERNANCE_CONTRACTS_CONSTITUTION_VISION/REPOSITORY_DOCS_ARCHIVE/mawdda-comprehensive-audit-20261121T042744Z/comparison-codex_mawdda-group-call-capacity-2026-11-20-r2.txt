@@ -1,0 +1,18 @@
+Compared branch: codex/mawdda-group-call-capacity-2026-11-20-r2
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+177	5
+
+=== CHANGE SUMMARY ===
+ functions/src/index.ts                             | 25 +++++--
+ functions/src/room-call-policy.ts                  | 14 ++++
+ .../integration/call-signaling.integration.test.js | 82 ++++++++++++++++++++++
+ functions/test/room-call-policy.test.js            | 13 +++-
+ 4 files changed, 129 insertions(+), 5 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/src/index.ts
+M	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+M	functions/test/room-call-policy.test.js

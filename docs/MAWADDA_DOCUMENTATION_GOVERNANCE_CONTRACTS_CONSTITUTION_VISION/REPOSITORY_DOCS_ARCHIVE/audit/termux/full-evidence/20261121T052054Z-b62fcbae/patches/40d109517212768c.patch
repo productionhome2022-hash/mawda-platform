@@ -1,0 +1,2892 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+index 21256aed..e89d63ea 100644
+--- a/.github/workflows/validate.yml
++++ b/.github/workflows/validate.yml
+@@ -1,81 +1,98 @@
+ name: Validate Mawda
+ 
+ on:
+   push:
+     branches:
+       - main
+       - codex/mawda-full-platform-implementation
++      - codex/mawda-phase2-hardening
+   pull_request:
+     branches:
+       - main
++      - codex/mawda-full-platform-implementation
+   workflow_dispatch:
+ 
+ concurrency:
+   group: mawda-validation-${{ github.event.pull_request.number || github.ref }}
+   cancel-in-progress: true
+ 
+ permissions:
+   contents: read
+ 
+ jobs:
+   flutter:
+     name: Flutter analysis, tests and web build
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     steps:
+       - uses: actions/checkout@v4
+       - uses: subosito/flutter-action@v2
+         with:
+           flutter-version: "3.47.9"
+           channel: stable
+           cache: true
+       - name: Install Flutter dependencies from committed lockfile
+         run: flutter pub get --enforce-lockfile
+       - name: Analyze Dart code
+         run: flutter analyze
+       - name: Run Flutter tests
+         run: flutter test
+       - name: Build web release
+         run: flutter build web --release
+       - name: Upload validated web build artifact
+         uses: actions/upload-artifact@v4
+         with:
+           name: mawda-web-build-${{ github.sha }}
+           path: build/web/
+           if-no-files-found: error
+           retention-days: 7
+ 
+   functions:
+     name: Cloud Functions compile and unit tests
+     runs-on: ubuntu-latest
+     timeout-minutes: 30
+     defaults:
+       run:
+         working-directory: functions
+     steps:
+       - uses: actions/checkout@v4
+       - uses: actions/setup-node@v4
+         with:
+           node-version: "20.20.2"
+           cache: npm
+           cache-dependency-path: functions/package-lock.json
+       - name: Install Cloud Functions dependencies from committed lockfile
+         run: npm ci --no-audit --no-fund
+       - name: Compile and test backend
+         run: npm test
+       - name: Upload compiled Cloud Functions artifact
+         uses: actions/upload-artifact@v4
+         with:
+           name: mawda-cloud-functions-${{ github.sha }}
+           path: functions/lib/
+           if-no-files-found: error
+           retention-days: 7
+       - name: Set up Java for Firebase emulators
+         uses: actions/setup-java@v4
+         with:
+           distribution: temurin
+           java-version: "21"
+       - name: Run media callable authorization and audit integration tests
+         run: npm run test:media-integration
+       - name: Run Firestore and Storage rules emulator tests
+         run: npm run test:rules
++
++  scanner:
++    name: ClamAV gateway tests and container build
++    runs-on: ubuntu-latest
++    timeout-minutes: 30
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-node@v4
++        with:
++          node-version: "20.20.2"
++      - name: Test scanner protocol, limits and signed callback
++        working-directory: scanner
++        run: node --check server.mjs && npm test
++      - name: Build isolated ClamAV container
++        run: docker build -f scanner/Dockerfile -t mawadda-media-scanner:ci .
+diff --git a/docs/SECURE_MEDIA_INTAKE.md b/docs/SECURE_MEDIA_INTAKE.md
+index de2613e1..0041d357 100644
+--- a/docs/SECURE_MEDIA_INTAKE.md
++++ b/docs/SECURE_MEDIA_INTAKE.md
+@@ -1,24 +1,77 @@
+-# Secure media intake — phase 1
++# Secure media intake — phase 2 engineering record
+ 
+-## Security posture
++## Security boundary
+ 
+-- Firebase Storage client rules remain deny-all. No object is public and no member can read another member's media through the Firebase client SDK.
+-- Authenticated uploads receive a five-minute V4 signed PUT URL scoped to one random object path under `quarantine/{uid}/`.
+-- Upload authorization reserves quota in a Firestore transaction before the capability is returned. Initial operational defaults: at most 5 concurrent intents, 150 MiB of concurrently reserved bytes, and 500 MiB reserved per UTC day per authenticated UID. The daily budget is consumed when an intent is issued (including abandoned attempts); active capacity is released only after successful or rejected finalization. These are conservative launch defaults and must be load-tested and owner-reviewed before production use.\n- Supported formats are explicitly allowlisted: JPEG, PNG, WebP, MP4, MPEG/MP4/OGG/WAV audio, and PDF. Per-category byte limits are enforced again against server-reported object size after upload.
+-- Finalization verifies ownership, object existence, server content type, generation, size and leading-byte signature. Mismatches are deleted and recorded as rejected.
+-- A valid upload is marked `pending_security_scan`. Signature checks are format validation only; they are not antivirus or deep-content inspection. Until a trusted malware scanner is integrated and returns a clean verdict, the asset remains quarantined and is not available to members.
+-- The sole platform owner can list metadata and request a 60-second attachment URL for explicit inspection. Every upload-intent, validation, listing and owner URL action is audited. Owner endpoints require the platform-owner custom claim and a recent MFA session.
+-- Signed URLs are bearer credentials. They are short-lived, must not be logged by clients, and must not be copied into member-visible documents or notifications.
++- Firebase Storage client rules remain deny-all. Firestore client access to `mediaAssets` and `mediaAccessAudit` remains denied. No member-facing media download path is enabled.
++- Each authenticated upload intent creates a random object path under `quarantine/{uid}/{mediaId}`, with a five-minute V4 signed PUT URL. Its V4 signature binds the exact `Content-Type`, an `x-goog-content-length-range` header equal to `declaredBytes,declaredBytes`, and the `ifGenerationMatch=0` query precondition. Cloud Storage rejects a size mismatch and rejects a second successful create over an existing live generation. The URL remains a bearer credential until expiry and is not universally single-use.
++- Finalization verifies owner UID, exact declared-vs-actual byte count, allowlisted content type, server metadata, generation and leading-byte signature. Mismatches are rejected, deleted and audited. Signature validation is not malware detection.
++- Accepted files remain `pending_security_scan`. A file becomes `security_approved` only after the signed scanner callback validates the provider, HMAC, timestamp, media ID, exact Storage generation and full-object SHA-256.
++- Scanner callback HMAC uses constant-time comparison. Callback payloads are size-limited and freshness-checked. Malicious verdicts are rejected and the exact scanned generation is deleted. Missing, invalid, stale or mismatched verdicts never approve a file.
++- The repository now contains a scanner dispatcher trigger and an isolated Cloud Run ClamAV gateway container. The dispatcher sends only the exact validated quarantine generation to the IAM-protected gateway; the gateway scans the complete payload and returns a signed verdict. This is deployable source code, **not proof that the Cloud Run service has been provisioned or run in a non-production project**. Until the real service and callback are verified, files remain quarantined. Never manually mark a file approved.
++- Owner-only metadata listing and short-lived attachment inspection URL callables require the sole platform-owner claim and recent MFA. Their requests/results are audited. The Flutter console currently lists metadata; a safe in-app preview is not yet delivered. Do not expose signed URLs in UI text, logs, analytics, notifications, navigation state or member documents.
++- Storage inspection URLs are bearer credentials. The 60-second expiry limits exposure but does not prevent reuse during that window.
+ 
+-## Quotas, lifecycle and cleanup\n\n- `mediaUploadQuotas/{uid}` is a server-only accounting document. Reservation and asset creation are committed in one Firestore transaction, so parallel requests cannot independently exceed the active-count/byte limits. Finalization releases active capacity in the same transaction as the terminal asset transition.\n- The daily window is UTC and resets without erasing active reservations. A failed or abandoned intent continues to consume daily budget until the UTC window rolls over.\n- Expired-intent cleanup is not enabled yet. A future scheduled janitor must verify age, owner/path/generation and current asset state, delete only the exact quarantined generation, release reservations transactionally, and write an immutable audit event. No broad prefix deletion is permitted.\n- Retention periods, export, legal hold, deletion authorization and backup expiry still require an owner-approved policy before destructive automation is enabled.\n\n## Cloud scanner integration still required
++## Upload size limits and quota accounting
+ 
+-This repository does not yet contain a malware scanning provider, isolated media transcoder, image decoder/re-encoder, archive-bomb protection, or content-disarm pipeline. Do not mark assets `security_approved`, generate member-facing download URLs, or open Storage rules until a trusted scanner/processor is deployed and its authenticated verdict, retry/dead-letter behavior, size limits, and emulator/integration tests are implemented.
++Per-file limits:
++- JPEG, PNG, WebP: 10 MiB.
++- MP4: 100 MiB.
++- MPEG/MP4/OGG/WAV audio: 25 MiB.
++- PDF: 20 MiB.
+ 
+-## Callable contract
++Per authenticated UID defaults:
++- At most 5 concurrent upload intents.
++- At most 150 MiB of concurrently reserved bytes.
++- At most 100 upload intents and 500 MiB of declared upload budget per UTC day.
+ 
+-- `createMediaUploadIntent({ originalName, contentType, sizeBytes })`
++Reservations and asset creation are atomic in Firestore. Finalization releases active count/bytes in the same transaction as the asset state transition. The daily count and byte budgets are consumed at intent issuance, including abandoned intents, and reset at the UTC day boundary without erasing active reservations.
++
++**Transport qualification:** the signed V4 PUT binds `x-goog-content-length-range` to the exact declared size and Cloud Storage rejects out-of-range PUT bodies with HTTP 400. The generation-match precondition rejects a replay after the first successful create with HTTP 412. Finalization independently checks actual server-reported bytes. This is a storage-side object-size gate; it is not a guarantee that an oversized request consumes zero ingress bandwidth before rejection. If ingress-bandwidth abuse must also be bounded, use a streaming upload gateway with an early byte counter.
++
++## Abandoned upload cleanup
++
++A scheduled janitor runs every 15 minutes. It claims only `upload_authorized` records whose signed URL expiry plus a 30-minute grace period has passed, verifies the object path exactly matches `quarantine/{ownerUid}/{mediaId}`, transitions the record transactionally to a cleanup-in-progress state, and deletes only the observed Storage generation using a generation precondition. It then releases active quota and writes an audit event in the same Firestore transaction. Failed deletion remains retryable; it does not sweep arbitrary prefixes.
++
++## Signed URL HTTP verification
++
++- Emulator integration tests verify the exact V4 PUT signing options (signed byte-range header, create-only generation precondition, bounded expiry), attachment-only owner read, owner/MFA authorization, stale-generation denial and finalization rejection. The emulator cannot mint real Google V4 signatures without signing credentials, so these tests deliberately stub only the signer.
++- `functions/scripts/test-signed-urls-http.cjs` is an opt-in real-bucket test for a dedicated non-production bucket. It checks successful signed PUT, over/under-size rejection (HTTP 400), create-only replay rejection (expected HTTP 412), signed GET byte equality and expiry. It refuses the known production project and production-named buckets. It has **not** been run against a real non-production Firebase project yet.
++- Cloud Storage V4 signed URLs are not inherently one-time. The generation precondition is the replay barrier after the first successful object creation.
++
++## Scanner gateway contract
++
++The callback endpoint accepts POST JSON authenticated with `X-Mawadda-Scanner-Signature`, an HMAC-SHA256 over the exact raw request body. The payload binds:
++- `mediaId`
++- configured `provider`
++- verdict: `clean`, `malicious` or `error`
++- exact `objectGeneration`
++- full-file `sha256`
++- fresh `scannedAtMs`
++
++The endpoint independently reads the stored object and recomputes SHA-256 before accepting the verdict. The gateway must use HTTPS, authenticate to the quarantine bucket with least privilege, isolate file parsing, enforce decompression/archive limits, and record engine/signature-database versions in its own durable scan record. Provider secret provisioning and the real scanner service remain non-production setup gates.
++
++## Retention, export and deletion
++
++Only expired, unfinished upload intents are automatically cleaned up. Retention of finalized media, owner exports, member deletion requests, legal holds, backup expiry and audit retention are not automated. Their durations and authorization rules require an explicit owner-approved policy; no broad or irreversible deletion is enabled.
++
++## Remaining phase-2 release gates
++
++1. Build and deploy the ClamAV gateway to a dedicated non-production Cloud Run service with IAM-only invocation, shared Secret Manager secrets, a working signature database and a verified callback URL; test clean, EICAR/malicious, timeout, unavailable, stale, duplicate and tampered-callback cases.
++2. Run the exact-size signed PUT against a dedicated non-production bucket; decide whether a separate streaming proxy is required to limit ingress bandwidth as well as committed object size.
++3. Deliver a safe owner preview pipeline that serves sanitized/re-encoded derivatives only; do not decode untrusted originals directly in the owner UI.
++4. Run the opt-in signed URL HTTP test against a dedicated non-production Firebase bucket and retain dated evidence.
++5. Approve retention/export/deletion/legal-hold policy and test it in a non-production environment.
++6. Verify bucket CORS for the exact approved web origins, `PUT`, and the signed `Content-Type` plus `x-goog-content-length-range` headers; verify Cloud Run invoker IAM, Secret Manager provisioning/rotation, MFA lifecycle, scanner retries/dead-letter handling, monitoring and device/platform behavior.
++7. Re-run all Flutter, Functions, emulator and integration suites on the exact final phase-2 commit. No merge or production deployment is authorized by this document.
++
++## Callable and scheduled contracts
++
++- `createMediaUploadIntent({ originalName, contentType, sizeBytes })` — returns a five-minute signed PUT URL, signed `uploadHeaders`, `uploadMethod: PUT`, exact `maxBytes` and expiry.
+ - `finalizeMediaUpload({ mediaId })`
+-- `listOwnerMediaAssets({ status?, limit?, pageToken? })`
+-- `getOwnerMediaInspectionUrl({ mediaId })`
++- `listOwnerMediaAssets({ status?, uploaderType?, limit?, pageToken? })`
++- `getOwnerMediaInspectionUrl({ mediaId })` — attachment-only and `security_approved` only; pending/rejected originals are denied.
++- `dispatchMediaSecurityScan` — retryable Firestore transition trigger that sends quarantined bytes to the IAM-protected scanner gateway.
++- `receiveMediaScanVerdict` — authenticated HMAC callback from the configured scanner gateway.
++- `cleanupExpiredMediaUploadIntents` — scheduled cleanup of expired unfinished intents only.
+ 
+-All Firestore asset records are server-written. Client SDK access remains denied by the existing Firestore/Storage rules.
++The Flutter client upload flow must send a raw HTTP `PUT` using the returned URL and both exact `uploadHeaders`; it must keep the URL and headers in memory only and never log or persist them. The client-side uploader integration and browser CORS verification remain release gates. All asset metadata is server-written. Client SDK access remains denied by the existing Firestore and Storage rules.
+diff --git a/firestore.indexes.json b/firestore.indexes.json
+index be5d3c73..9f32ecac 100644
+--- a/firestore.indexes.json
++++ b/firestore.indexes.json
+@@ -1,37 +1,65 @@
+ {
+   "indexes": [
+     {
+       "collectionGroup": "mediaAssets",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "status",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "createdAt",
+           "order": "DESCENDING"
+         }
+       ]
+     },
+     {
+       "collectionGroup": "mediaAssets",
+       "queryScope": "COLLECTION",
+       "fields": [
+         {
+           "fieldPath": "status",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "uploaderType",
+           "order": "ASCENDING"
+         },
+         {
+           "fieldPath": "createdAt",
+           "order": "DESCENDING"
+         }
+       ]
++    },
++    {
++      "collectionGroup": "mediaAssets",
++      "queryScope": "COLLECTION",
++      "fields": [
++        {
++          "fieldPath": "status",
++          "order": "ASCENDING"
++        },
++        {
++          "fieldPath": "createdAt",
++          "order": "ASCENDING"
++        }
++      ]
++    },
++    {
++      "collectionGroup": "mediaAssets",
++      "queryScope": "COLLECTION",
++      "fields": [
++        {
++          "fieldPath": "status",
++          "order": "ASCENDING"
++        },
++        {
++          "fieldPath": "uploadUrlExpiresAt",
++          "order": "ASCENDING"
++        }
++      ]
+     }
+   ],
+   "fieldOverrides": []
+ }
+diff --git a/functions/package.json b/functions/package.json
+index 7764baf7..8bd23c9e 100644
+--- a/functions/package.json
++++ b/functions/package.json
+@@ -1,28 +1,28 @@
+ {
+   "name": "mawda-platform-functions",
+   "private": true,
+   "main": "lib/index.js",
+   "engines": {
+     "node": "20"
+   },
+   "scripts": {
+     "build": "tsc",
+     "build:watch": "tsc --watch",
+-    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --test test/*.test.js",
++    "test": "npm run build && node --check scripts/bootstrap-owner.cjs && node --check scripts/test-signed-urls-http.cjs && node --test test/*.test.js",
+     "bootstrap:owner": "node scripts/bootstrap-owner.cjs",
+     "test:rules": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-rules \"node --test test/rules/*.test.js\"",
+     "test:media-integration": "firebase emulators:exec --config ../firebase.json --only firestore,storage --project demo-mawda-media \"node --test test/integration/media-callables.integration.test.js\"",
+     "test:media-signed-urls-http": "npm run build && node scripts/test-signed-urls-http.cjs",
+     "test:signed-urls-http": "node scripts/test-signed-urls-http.cjs"
+   },
+   "dependencies": {
+     "firebase-admin": "^13.0.0",
+     "firebase-functions": "^6.0.0"
+   },
+   "devDependencies": {
+     "typescript": "^5.7.2",
+     "@firebase/rules-unit-testing": "^4.0.1",
+     "firebase": "^11.0.0",
+     "firebase-tools": "^14.0.0"
+   }
+ }
+diff --git a/functions/scripts/test-signed-urls-http.cjs b/functions/scripts/test-signed-urls-http.cjs
+index cf165d25..c3413dc6 100644
+--- a/functions/scripts/test-signed-urls-http.cjs
++++ b/functions/scripts/test-signed-urls-http.cjs
+@@ -1,45 +1,69 @@
+ const { initializeApp, applicationDefault } = require("firebase-admin/app");
+ const { getStorage } = require("firebase-admin/storage");
+ const { randomUUID } = require("node:crypto");
+ 
+ const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+ const bucketName = process.env.MAWDA_MEDIA_TEST_BUCKET;
+ if (process.env.MAWDA_MEDIA_SIGNED_URL_HTTP_TEST !== "1" || !projectId || !bucketName) {
+   throw new Error("Set MAWDA_MEDIA_SIGNED_URL_HTTP_TEST=1, GOOGLE_CLOUD_PROJECT and MAWDA_MEDIA_TEST_BUCKET to run this opt-in HTTP test.");
+ }
+-if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(projectId) ||\n    !/(test|staging|dev|nonprod|sandbox)/i.test(bucketName)) {
++if (projectId === "mawda-app-2026" || /prod(uction)?/i.test(projectId) || /prod(uction)?/i.test(bucketName) ||
++    !/(test|staging|dev|nonprod|sandbox)/i.test(projectId) ||
++    !/(test|staging|dev|nonprod|sandbox)/i.test(bucketName)) {
+   throw new Error("Refusing to run signed URL destructive/replay tests against a production project or bucket.");
+ }
+ initializeApp({ credential: applicationDefault(), projectId, storageBucket: bucketName });
+ const bucket = getStorage().bucket(bucketName);
+ const path = `quarantine-http-tests/${randomUUID()}.txt`;
+ const file = bucket.file(path);
+ const bytes = Buffer.from("Mawadda signed URL HTTP integration test");
+ const contentType = "text/plain";
+ 
+ async function main() {
+   try {
++    const contentLengthRange = `${bytes.length},${bytes.length}`;
+     const [putUrl] = await file.getSignedUrl({
+-      version: "v4", action: "write", expires: Date.now() + 2_500,
+-      contentType, queryParams: { ifGenerationMatch: "0" },
++      version: "v4",
++      action: "write",
++      expires: Date.now() + 5_000,
++      contentType,
++      extensionHeaders: { "x-goog-content-length-range": contentLengthRange },
++      queryParams: { ifGenerationMatch: "0" },
+     });
+-    const first = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
++    const put = (payload) => fetch(putUrl, {
++      method: "PUT",
++      headers: {
++        "content-type": contentType,
++        "x-goog-content-length-range": contentLengthRange,
++      },
++      body: payload,
++    });
++    const oversized = await put(Buffer.concat([bytes, Buffer.from("x")]));
++    if (oversized.status !== 400) throw new Error(`Oversized PUT should fail with 400; received HTTP ${oversized.status}`);
++    const undersized = await put(bytes.subarray(0, bytes.length - 1));
++    if (undersized.status !== 400) throw new Error(`Undersized PUT should fail with 400; received HTTP ${undersized.status}`);
++    const first = await put(bytes);
+     if (!first.ok) throw new Error(`Initial signed PUT failed: HTTP ${first.status}`);
+-    const replay = await fetch(putUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
++    const replay = await put(bytes);
+     if (replay.status !== 412) throw new Error(`Replay should fail with 412; received HTTP ${replay.status}`);
+ 
+-    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 2_500 });
++    const [readUrl] = await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 5_000 });
+     const read = await fetch(readUrl);
+     if (!read.ok || Buffer.compare(Buffer.from(await read.arrayBuffer()), bytes) !== 0) {
+       throw new Error(`Signed GET failed or returned different bytes: HTTP ${read.status}`);
+     }
+-    await new Promise((resolve) => setTimeout(resolve, 2500));
++    await new Promise((resolve) => setTimeout(resolve, 6000));
+     const expired = await fetch(readUrl);
+     if (expired.ok) throw new Error("Expired signed GET unexpectedly remained usable.");
+-    console.log(JSON.stringify({ initialPut: first.status, replayPut: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
++    console.log(JSON.stringify({ oversizedPut: oversized.status, undersizedPut: undersized.status, initialPut: first.status, replayPut: replay.status, signedGet: read.status, expiredGet: expired.status, objectPath: path }));
+   } finally {
+     await file.delete({ ignoreNotFound: true });
+   }
+ }
+ 
+-main().catch((error) => { console.error(error); process.exitCode = 1; });
++main().catch((error) => {
++  const safeCode = typeof error?.code === "string" ? error.code :
++    error instanceof Error ? error.name : "unknown";
++  console.error(`Signed URL HTTP test failed (${safeCode})`);
++  process.exitCode = 1;
++});
+diff --git a/functions/src/index.ts b/functions/src/index.ts
+index 0bfd9edd..805250a5 100644
+--- a/functions/src/index.ts
++++ b/functions/src/index.ts
+@@ -2900,81 +2900,82 @@ export const purchaseStoreItem = onCall(async (request) => {
+     });
+     return {
+       purchaseId,
+       itemId,
+       priceCoins: item.priceCoins,
+       newBalance,
+       expiresAt: expiresAt?.toMillis() ?? null,
+       idempotentReplay: false,
+     };
+   });
+ });
+ 
+ 
+ /** Owner/MFA-only catalog publishing; client writes to storeCatalog remain denied. */
+ export const setStoreCatalogItem = onCall(async (request) => {
+   const actorUid = requireOwner(request);
+   let item;
+   try {
+     item = validateStoreCatalogItemInput(request.data);
+   } catch {
+     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
+   }
+   const itemRef = db.collection("storeCatalog").doc(item.itemId);
+   await db.runTransaction(async (transaction) => {
+     const previousSnapshot = await transaction.get(itemRef);
+     const now = FieldValue.serverTimestamp();
+     transaction.set(itemRef, {
+       itemId: item.itemId,
+       name: item.name,
+       description: item.description,
+       category: item.category,
+       priceCoins: item.priceCoins,
+       durationDays: item.durationDays ?? null,
+       sortOrder: item.sortOrder,
+       active: item.active,
+       purchaseEnabled: item.purchaseEnabled,
+       fulfillmentReady: item.fulfillmentReady,
+       createdAt: previousSnapshot.data()?.createdAt ?? now,
+       updatedAt: now,
+       updatedBy: actorUid,
+     });
+     const auditRef = db.collection("adminAuditLogs").doc();
+     transaction.create(auditRef, {
+       actorUid,
+       action: previousSnapshot.exists ? "store_catalog_item_updated" : "store_catalog_item_created",
+       itemId: item.itemId,
+       active: item.active,
+       priceCoins: item.priceCoins,
+       category: item.category,
+       purchaseEnabled: item.purchaseEnabled,
+       fulfillmentReady: item.fulfillmentReady,
+       createdAt: now,
+     });
+   });
+   return { itemId: item.itemId, active: item.active };
+ });
+ 
+ /** Returns only display-safe catalog fields to the authenticated owner. */
+ export const getOwnerStoreCatalog = onCall(async (request) => {
+   requireOwner(request);
+   const snapshot = await db.collection("storeCatalog").limit(100).get();
+   const items = snapshot.docs
+     .map((document) => {
+       const data = document.data();
+       const projected = projectStoreCatalogItem(document.id, { ...data, active: true });
+       return projected ? { ...projected, active: data.active === true } : null;
+     })
+     .filter((item): item is NonNullable<typeof item> => item !== null)
+     .sort((left, right) => left.sortOrder - right.sortOrder || left.itemId.localeCompare(right.itemId));
+   return { items };
+ });
+ 
+ 
+ export {
+   createMediaUploadIntent,
+   finalizeMediaUpload,
+   listOwnerMediaAssets,
+   getOwnerMediaInspectionUrl,
+   cleanupExpiredMediaUploadIntents,
+   receiveMediaScanVerdict,
++  dispatchMediaSecurityScan,
+ } from "./media";
+diff --git a/functions/src/media-controls.ts b/functions/src/media-controls.ts
+index c443ba3d..836373d2 100644
+--- a/functions/src/media-controls.ts
++++ b/functions/src/media-controls.ts
+@@ -1,44 +1,74 @@
++import { MEDIA_QUOTA_LIMITS } from "./media-quota";
++
+ export const MEDIA_QUOTA_POLICY = Object.freeze({
+-  dailyUploadCount: 100,
+-  dailyDeclaredBytes: 512 * 1024 * 1024,
+-  activeQuarantineBytes: 1024 * 1024 * 1024,
+-  retentionDays: 30,
++  dailyUploadCount: MEDIA_QUOTA_LIMITS.maxDailyUploads,
++  dailyDeclaredBytes: MEDIA_QUOTA_LIMITS.maxDailyBytes,
++  activeQuarantineBytes: MEDIA_QUOTA_LIMITS.maxActiveBytes,
+ });
+ 
+-export function validateMediaQuotaUsage(input) {
++export interface MediaQuotaUsage {
++  uploadCount: number;
++  declaredBytes: number;
++  activeBytes: number;
++  nextBytes: number;
++}
++
++export type MediaQuotaBlockReason =
++  | "DAILY_UPLOAD_COUNT"
++  | "DAILY_BYTES"
++  | "ACTIVE_QUARANTINE_BYTES";
++
++export function validateMediaQuotaUsage(input: MediaQuotaUsage): MediaQuotaBlockReason | null {
+   const { uploadCount, declaredBytes, activeBytes, nextBytes } = input;
+   for (const value of [uploadCount, declaredBytes, activeBytes, nextBytes]) {
+     if (!Number.isSafeInteger(value) || value < 0) {
+       throw new TypeError("Quota counters must be non-negative safe integers.");
+     }
+   }
+   if (uploadCount >= MEDIA_QUOTA_POLICY.dailyUploadCount) return "DAILY_UPLOAD_COUNT";
+   if (declaredBytes + nextBytes > MEDIA_QUOTA_POLICY.dailyDeclaredBytes) return "DAILY_BYTES";
+   if (activeBytes + nextBytes > MEDIA_QUOTA_POLICY.activeQuarantineBytes) return "ACTIVE_QUARANTINE_BYTES";
+   return null;
+ }
+ 
+-export function mediaRetentionCutoff(nowMs = Date.now()) {
+-  if (!Number.isSafeInteger(nowMs) || nowMs < 0) throw new TypeError("Invalid clock value.");
+-  return nowMs - MEDIA_QUOTA_POLICY.retentionDays * 24 * 60 * 60 * 1000;
+-}
+-
+-export function isExpiredUploadIntent(createdAtMs, nowMs = Date.now(), ttlMs = 5 * 60 * 1000) {
++export function isExpiredUploadIntent(
++  createdAtMs: number,
++  nowMs = Date.now(),
++  ttlMs = 5 * 60 * 1000,
++): boolean {
+   return Number.isSafeInteger(createdAtMs) && Number.isSafeInteger(nowMs) &&
+     Number.isSafeInteger(ttlMs) && createdAtMs >= 0 && nowMs >= 0 &&
+     ttlMs > 0 && nowMs - createdAtMs > ttlMs;
+ }
+ 
+-export function assertTrustedScannerVerdict(verdict, expected) {
++export interface TrustedScannerVerdict {
++  provider: string;
++  objectGeneration: string;
++  sha256: string;
++  verdict: "clean" | "malicious" | "error";
++  scannedAtMs: number;
++}
++
++export interface ExpectedScannerEvidence {
++  provider: string;
++  objectGeneration: string;
++  sha256: string;
++  nowMs: number;
++}
++
++export function assertTrustedScannerVerdict(
++  verdict: TrustedScannerVerdict | null | undefined,
++  expected: ExpectedScannerEvidence,
++): boolean {
+   if (!verdict || typeof verdict !== "object" ||
+       verdict.provider !== expected.provider ||
+       verdict.objectGeneration !== expected.objectGeneration ||
+       verdict.sha256 !== expected.sha256 ||
+-      !/^[a-f0-9]{64}$/.test(verdict.sha256 ?? "") ||
++      !/^[a-f0-9]{64}$/.test(verdict.sha256) ||
+       !["clean", "malicious", "error"].includes(verdict.verdict) ||
+       !Number.isSafeInteger(verdict.scannedAtMs) ||
+       Math.abs(expected.nowMs - verdict.scannedAtMs) > 10 * 60 * 1000) {
+     return false;
+   }
+   return true;
+ }
+diff --git a/functions/src/media-quota.ts b/functions/src/media-quota.ts
+index a8d87b8d..a322b83b 100644
+--- a/functions/src/media-quota.ts
++++ b/functions/src/media-quota.ts
+@@ -1,76 +1,84 @@
+ export const MEDIA_QUOTA_LIMITS = Object.freeze({
+   maxActiveUploads: 5,
+   maxActiveBytes: 150 * 1024 * 1024,
+   maxDailyBytes: 500 * 1024 * 1024,
++  maxDailyUploads: 100,
+ });
+ 
+ export interface MediaQuotaState {
+   activeUploads?: number;
+   activeBytes?: number;
+   dailyBytes?: number;
++  dailyUploads?: number;
+   dailyWindow?: string;
+ }
+ 
+ export interface MediaQuotaReservation {
+   activeUploads: number;
+   activeBytes: number;
+   dailyBytes: number;
++  dailyUploads: number;
+   dailyWindow: string;
+ }
+ 
+ function utcDay(now: number): string {
+   if (!Number.isSafeInteger(now) || now < 0) throw new Error("Invalid quota clock.");
+   return new Date(now).toISOString().slice(0, 10);
+ }
+ 
+ /** Calculate a reservation before issuing an upload capability. */
+ export function reserveMediaQuota(
+   current: MediaQuotaState | undefined,
+   bytes: number,
+   now = Date.now(),
+ ): MediaQuotaReservation {
+   if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("Invalid media reservation size.");
+   const day = utcDay(now);
+   const sameDay = current?.dailyWindow === day;
+   const activeUploads = current?.activeUploads ?? 0;
+   const activeBytes = current?.activeBytes ?? 0;
+   const dailyBytes = sameDay ? current?.dailyBytes ?? 0 : 0;
+-  if (![activeUploads, activeBytes, dailyBytes].every((value) =>
++  const dailyUploads = sameDay ? current?.dailyUploads ?? 0 : 0;
++  if (![activeUploads, activeBytes, dailyBytes, dailyUploads].every((value) =>
+     Number.isSafeInteger(value) && value >= 0)) {
+     throw new Error("Corrupt media quota state.");
+   }
+   if (activeUploads + 1 > MEDIA_QUOTA_LIMITS.maxActiveUploads ||
+       activeBytes + bytes > MEDIA_QUOTA_LIMITS.maxActiveBytes ||
+-      dailyBytes + bytes > MEDIA_QUOTA_LIMITS.maxDailyBytes) {
++      dailyBytes + bytes > MEDIA_QUOTA_LIMITS.maxDailyBytes ||
++      dailyUploads + 1 > MEDIA_QUOTA_LIMITS.maxDailyUploads) {
+     throw new Error("Media upload quota exceeded.");
+   }
+   return {
+     activeUploads: activeUploads + 1,
+     activeBytes: activeBytes + bytes,
+     dailyBytes: dailyBytes + bytes,
++    dailyUploads: dailyUploads + 1,
+     dailyWindow: day,
+   };
+ }
+ 
+ /** Release an active reservation once finalization has reached a terminal result. */
+ export function releaseMediaQuota(
+   current: MediaQuotaState | undefined,
+   bytes: number,
+ ): MediaQuotaReservation {
+   if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("Invalid media reservation release.");
+   const activeUploads = current?.activeUploads ?? 0;
+   const activeBytes = current?.activeBytes ?? 0;
+   const dailyBytes = current?.dailyBytes ?? 0;
++  const dailyUploads = current?.dailyUploads ?? 0;
+   const dailyWindow = current?.dailyWindow ?? utcDay(Date.now());
+-  if (![activeUploads, activeBytes, dailyBytes].every((value) =>
++  if (![activeUploads, activeBytes, dailyBytes, dailyUploads].every((value) =>
+     Number.isSafeInteger(value) && value >= 0) ||
+     activeUploads < 1 || activeBytes < bytes) {
+     throw new Error("Media quota reservation is inconsistent.");
+   }
+   return {
+     activeUploads: activeUploads - 1,
+     activeBytes: activeBytes - bytes,
+     dailyBytes,
++    dailyUploads,
+     dailyWindow,
+   };
+ }
+diff --git a/functions/src/media-scanner.ts b/functions/src/media-scanner.ts
+index 0c43a9ad..52e21d52 100644
+--- a/functions/src/media-scanner.ts
++++ b/functions/src/media-scanner.ts
+@@ -1,39 +1,45 @@
+ import { createHmac, timingSafeEqual } from "node:crypto";
+ 
+ export interface ScannerVerdictPayload {
+   mediaId: string;
+   provider: string;
++  engine: string;
++  engineVersion: string;
++  signatureVersion: string;
+   verdict: "clean" | "malicious" | "error";
+   objectGeneration: string;
+   sha256: string;
+   scannedAtMs: number;
+ }
+ 
+ export function verifyScannerWebhook(
+   rawBody: Buffer,
+   suppliedSignature: string | undefined,
+   secret: string | undefined,
+ ): boolean {
+   if (!secret || secret.length < 32 || !suppliedSignature ||
+       !/^[a-f0-9]{64}$/i.test(suppliedSignature)) return false;
+   const expected = createHmac("sha256", secret).update(rawBody).digest();
+   const supplied = Buffer.from(suppliedSignature, "hex");
+   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+ }
+ 
+ export function validateScannerVerdict(
+   value: unknown,
+   expectedProvider: string,
+   nowMs = Date.now(),
+ ): ScannerVerdictPayload | null {
+   if (!value || typeof value !== "object") return null;
+   const v = value as Record<string, unknown>;
+   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
+       v.provider !== expectedProvider ||
++      typeof v.engine !== "string" || v.engine.length < 2 || v.engine.length > 80 ||
++      typeof v.engineVersion !== "string" || v.engineVersion.length < 1 || v.engineVersion.length > 80 ||
++      typeof v.signatureVersion !== "string" || v.signatureVersion.length < 1 || v.signatureVersion.length > 120 ||
+       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
+       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
+       typeof v.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(v.sha256) ||
+       !Number.isSafeInteger(v.scannedAtMs) ||
+       Math.abs(nowMs - Number(v.scannedAtMs)) > 10 * 60 * 1000) return null;
+   return v as unknown as ScannerVerdictPayload;
+ }
+diff --git a/functions/src/media.ts b/functions/src/media.ts
+index 4a84b32a..1ff282f0 100644
+--- a/functions/src/media.ts
++++ b/functions/src/media.ts
+@@ -1,321 +1,537 @@
+ import { randomUUID } from "node:crypto";
+ import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+ import { getStorage } from "firebase-admin/storage";
+ import { HttpsError, onCall, onRequest } from "firebase-functions/v2/https";
++import { logger } from "firebase-functions";
+ import { createHash } from "node:crypto";
+ import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
+ import { onSchedule } from "firebase-functions/v2/scheduler";
++import { onDocumentUpdated } from "firebase-functions/v2/firestore";
++import { defineSecret, defineString } from "firebase-functions/params";
+ import { hasPlatformOwnerSession } from "./owner-access";
+ import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
++import { MEDIA_UPLOAD_CLEANUP_GRACE_MS, uploadIntentIsEligibleForCleanup } from "./media-cleanup";
+ import {
+   detectMediaSignature,
+   mediaPolicyFor,
+   normalizeMediaRequest,
+   mediaUploaderTypeFromToken,
+   mediaSignedUrlExpiresAt,
+ } from "./media-security";
+ 
+ // Resolve Admin SDK services lazily. This module is re-exported by index.ts,
+ // whose static imports execute before initializeApp(); eager resolution here
+ // would make the Functions entry point fail during module loading.
+ const mediaDb = () => getFirestore();
+ const mediaBucket = () => getStorage().bucket();
++const mediaScannerHmacSecret = defineSecret("MAWDA_MEDIA_SCANNER_HMAC_SECRET");
++const mediaScannerBearerToken = defineSecret("MAWDA_MEDIA_SCANNER_BEARER_TOKEN");
++const mediaScannerUrl = defineString("MAWDA_MEDIA_SCANNER_URL");
++const mediaScannerCallbackUrl = defineString("MAWDA_MEDIA_SCANNER_CALLBACK_URL");
++const mediaScannerProvider = defineString("MAWDA_MEDIA_SCANNER_PROVIDER", {
++  default: "mawadda-malware-gateway",
++});
+ 
+ function requireUid(uid: string | undefined): string {
+   if (!uid) throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً.");
+   return uid;
+ }
+ 
+ function requireSoleOwner(request: {
+   auth?: { uid: string; token: Record<string, unknown> } | null;
+ }): string {
+   const uid = requireUid(request.auth?.uid);
+   if (request.auth?.token.platformOwner !== true ||
+       !hasPlatformOwnerSession(request.auth.token)) {
+     throw new HttpsError("permission-denied", "الوصول إلى ملفات المنصة مخصص للمالك بعد تحقق MFA حديث.");
+   }
+   return uid;
+ }
+ 
+ async function auditMediaAccess(event: Record<string, unknown>): Promise<void> {
+   await mediaDb().collection("mediaAccessAudit").add({
+     ...event,
+     createdAt: FieldValue.serverTimestamp(),
+   });
+ }
+ 
+ /** Persist authenticated denials before returning an authorization error. */
+ async function requireSoleOwnerForMediaReview(
+   request: { auth?: { uid: string; token: Record<string, unknown> } | null },
+   action: string,
+ ): Promise<string> {
+   try {
+     return requireSoleOwner(request);
+   } catch (error) {
+     const actorUid = request.auth?.uid;
+     if (actorUid) {
+       // Fail closed: do not return an authorization denial if its audit cannot be persisted.
+       await auditMediaAccess({
+         actorUid,
+         action,
+         outcome: "denied",
+         failureCode: error instanceof HttpsError ? error.code : "permission-denied",
+         ownerAuthTime: request.auth?.token.auth_time ?? null,
+       });
+     }
+     throw error;
+   }
+ }
+ 
+ 
+ /**
+  * Issues a five-minute, single-object upload URL. Objects are written only
+  * beneath a private quarantine prefix and are never made publicly readable.
+  */
+ 
+ async function sha256Object(file: ReturnType<ReturnType<typeof mediaBucket>["file"]>): Promise<string> {
+   return new Promise((resolve, reject) => {
+     const hash = createHash("sha256");
+     const stream = file.createReadStream();
+     stream.on("data", (chunk: Buffer) => hash.update(chunk));
+     stream.on("error", reject);
+     stream.on("end", () => resolve(hash.digest("hex")));
+   });
+ }
+ 
++/** Minimal HTTP contract keeps the scanner callback directly integration-testable. */
++interface MediaScanCallbackRequest {
++  method: string;
++  rawBody?: Buffer;
++  get(name: string): string | undefined;
++}
++interface MediaScanCallbackResponse {
++  status(code: number): MediaScanCallbackResponse;
++  set(name: string, value: string): MediaScanCallbackResponse;
++  send(body: string): MediaScanCallbackResponse;
++  json(body: Record<string, unknown>): MediaScanCallbackResponse;
++}
++
+ /** Authenticated gateway callback; any missing/mismatched evidence stays quarantined. */
+-export const receiveMediaScanVerdict = onRequest(async (request, response) => {
++export async function handleMediaScanVerdict(
++  request: MediaScanCallbackRequest,
++  response: MediaScanCallbackResponse,
++): Promise<void> {
+   if (request.method !== "POST") {
+     response.status(405).set("Allow", "POST").send("Method not allowed");
+     return;
+   }
+   const rawBody = request.rawBody;
+-  const secret = process.env.MAWDA_MEDIA_SCANNER_HMAC_SECRET;
+-  const provider = process.env.MAWDA_MEDIA_SCANNER_PROVIDER;
++  const secret = mediaScannerHmacSecret.value();
++  const provider = mediaScannerProvider.value();
+   if (!rawBody || rawBody.length > 16 * 1024 || !secret || !provider ||
+       !verifyScannerWebhook(rawBody, request.get("x-mawadda-scanner-signature"), secret)) {
+     response.status(401).send("Unauthorized scanner callback");
+     return;
+   }
+   let decoded: unknown;
+   try { decoded = JSON.parse(rawBody.toString("utf8")); } catch {
+     response.status(400).send("Invalid JSON");
+     return;
+   }
+   const verdict = validateScannerVerdict(decoded, provider);
+   if (!verdict) {
+     response.status(400).send("Invalid or stale scanner verdict");
+     return;
+   }
++  if (verdict.verdict === "error") {
++    await auditMediaAccess({
++      actorUid: "trusted-scanner",
++      mediaId: verdict.mediaId,
++      action: "media_security_scan_verdict",
++      outcome: "error",
++      provider: verdict.provider,
++      engine: verdict.engine,
++      engineVersion: verdict.engineVersion,
++      signatureVersion: verdict.signatureVersion,
++      objectGeneration: verdict.objectGeneration,
++      sha256: verdict.sha256,
++    });
++    response.status(503).send("Scanner reported an error; retry required");
++    return;
++  }
+   const db = mediaDb();
+   const assetRef = db.collection("mediaAssets").doc(verdict.mediaId);
+   const snapshot = await assetRef.get();
+-  if (!snapshot.exists || snapshot.data()?.status !== "pending_security_scan") {
+-    response.status(409).send("Asset is not awaiting a scan");
++  if (!snapshot.exists) {
++    response.status(404).send("Asset does not exist");
+     return;
+   }
+   const asset = snapshot.data()!;
+-  const file = mediaBucket().file(String(asset.objectPath));
++  const expectedObjectPath = `quarantine/${String(asset.ownerUid)}/${verdict.mediaId}`;
++  if (asset.objectPath !== expectedObjectPath) {
++    response.status(409).send("Quarantined object path mismatch");
++    return;
++  }
++  const file = mediaBucket().file(expectedObjectPath);
++  if (asset.status !== "pending_security_scan") {
++    const duplicate = asset.scannerObjectGeneration === verdict.objectGeneration &&
++      asset.scannerSha256 === verdict.sha256 && asset.scannerVerdict === verdict.verdict &&
++      ((verdict.verdict === "clean" && asset.status === "security_approved") ||
++       (verdict.verdict === "malicious" && asset.status === "rejected"));
++    if (!duplicate) {
++      response.status(409).send("Asset is not awaiting this scan verdict");
++      return;
++    }
++    if (verdict.verdict === "malicious") {
++      await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
++    }
++    response.status(200).json({ mediaId: verdict.mediaId, status: asset.status, duplicate: true });
++    return;
++  }
+   let metadata: Record<string, unknown>;
+   try {
+     const [rawMetadata] = await file.getMetadata();
+     metadata = rawMetadata as unknown as Record<string, unknown>;
+   } catch {
+     response.status(409).send("Quarantined object is missing");
+     return;
+   }
+   if (String(metadata.generation) !== verdict.objectGeneration ||
+-      String(asset.storageGeneration) !== verdict.objectGeneration) {
++      String(asset.storageGeneration) !== verdict.objectGeneration ||
++      Number(metadata.size) !== Number(asset.sizeBytes) ||
++      String(metadata.contentType) !== String(asset.detectedContentType ?? asset.declaredContentType)) {
+     response.status(409).send("Object generation mismatch");
+     return;
+   }
+   const actualHash = await sha256Object(file);
+   if (actualHash !== verdict.sha256) {
+     response.status(409).send("Object hash mismatch");
+     return;
+   }
+   const nextStatus = verdict.verdict === "clean" ? "security_approved" :
+     verdict.verdict === "malicious" ? "rejected" : "pending_security_scan";
+   await db.runTransaction(async (transaction) => {
+     const latest = await transaction.get(assetRef);
+     if (!latest.exists || latest.data()?.status !== "pending_security_scan" ||
+         String(latest.data()?.storageGeneration) !== verdict.objectGeneration) {
+       throw new HttpsError("failed-precondition", "Asset state changed during scanner callback.");
+     }
+     transaction.update(assetRef, {
+       status: nextStatus,
+       scannerProvider: verdict.provider,
++      scannerEngine: verdict.engine,
++      scannerEngineVersion: verdict.engineVersion,
++      scannerSignatureVersion: verdict.signatureVersion,
+       scannerVerdict: verdict.verdict,
+       scannerSha256: actualHash,
+       scannerObjectGeneration: verdict.objectGeneration,
+       scannerScannedAt: new Date(verdict.scannedAtMs),
+       scannerVerifiedAt: FieldValue.serverTimestamp(),
+       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
+       updatedAt: FieldValue.serverTimestamp(),
+     });
+-  });
+-  await auditMediaAccess({
+-    actorUid: "trusted-scanner",
+-    mediaId: verdict.mediaId,
+-    action: "media_security_scan_verdict",
+-    outcome: verdict.verdict,
+-    provider: verdict.provider,
+-    objectGeneration: verdict.objectGeneration,
+-    sha256: actualHash,
++    const auditRef = db.collection("mediaAccessAudit").doc();
++    transaction.create(auditRef, {
++      actorUid: "trusted-scanner",
++      mediaId: verdict.mediaId,
++      action: "media_security_scan_verdict",
++      outcome: verdict.verdict,
++      provider: verdict.provider,
++      engine: verdict.engine,
++      engineVersion: verdict.engineVersion,
++      signatureVersion: verdict.signatureVersion,
++      objectGeneration: verdict.objectGeneration,
++      sha256: actualHash,
++      createdAt: FieldValue.serverTimestamp(),
++    });
+   });
+   if (verdict.verdict === "malicious") {
+     await file.delete({ ignoreNotFound: true, ifGenerationMatch: Number(verdict.objectGeneration) });
+   }
+   response.status(200).json({ mediaId: verdict.mediaId, status: nextStatus });
+-});
+-\nexport const createMediaUploadIntent = onCall(async (request) => {
++}
++
++export const receiveMediaScanVerdict = onRequest(
++  { secrets: [mediaScannerHmacSecret], timeoutSeconds: 180, memory: "1GiB", maxInstances: 5 },
++  handleMediaScanVerdict,
++);
++
++/**
++ * Sends each newly quarantined asset to the isolated Cloud Run scanner. IAM
++ * identity tokens protect the service invocation; a separate rotated secret
++ * provides application-level defense in depth. Failed scans are retried.
++ */
++async function getScannerIdentityToken(audience: string): Promise<string> {
++  const endpoint = new URL("http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity");
++  endpoint.searchParams.set("audience", audience);
++  endpoint.searchParams.set("format", "full");
++  const tokenResponse = await fetch(endpoint, {
++    headers: { "Metadata-Flavor": "Google" },
++    signal: AbortSignal.timeout(10_000),
++  });
++  if (!tokenResponse.ok) throw new Error("SCANNER_IDENTITY_TOKEN_UNAVAILABLE");
++  const token = await tokenResponse.text();
++  if (!token) throw new Error("SCANNER_IDENTITY_TOKEN_EMPTY");
++  return token;
++}
++
++export const dispatchMediaSecurityScan = onDocumentUpdated(
++  {
++    document: "mediaAssets/{mediaId}",
++    retry: true,
++    memory: "1GiB",
++    timeoutSeconds: 540,
++    maxInstances: 2,
++    secrets: [mediaScannerBearerToken],
++  },
++  async (event) => {
++    const before = event.data?.before.data();
++    const after = event.data?.after.data();
++    if (!before || !after || before.status === "pending_security_scan" ||
++        after.status !== "pending_security_scan") return;
++
++    const mediaId = event.params.mediaId;
++    // A previous delivery may have completed the callback even if the
++    // gateway response was lost. Never rescan an already-terminal asset.
++    const latestAsset = await mediaDb().collection("mediaAssets").doc(mediaId).get();
++    if (!latestAsset.exists || latestAsset.data()?.status !== "pending_security_scan") return;
++    const ownerUid = String(after.ownerUid ?? "");
++    const objectPath = String(after.objectPath ?? "");
++    if (!ownerUid || objectPath !== `quarantine/${ownerUid}/${mediaId}`) {
++      throw new Error("SCANNER_OBJECT_PATH_INVALID");
++    }
++    const scannerUrl = new URL(mediaScannerUrl.value());
++    const callbackUrl = new URL(mediaScannerCallbackUrl.value());
++    if (scannerUrl.protocol !== "https:" || callbackUrl.protocol !== "https:" ||
++        !scannerUrl.pathname.endsWith("/scan")) {
++      throw new Error("SCANNER_ENDPOINT_CONFIGURATION_INVALID");
++    }
++    const bearerToken = mediaScannerBearerToken.value();
++    if (!bearerToken || bearerToken.length < 32) {
++      throw new Error("SCANNER_BEARER_SECRET_NOT_CONFIGURED");
++    }
++
++    const file = mediaBucket().file(objectPath);
++    const [metadata] = await file.getMetadata();
++    const generation = String(metadata.generation);
++    const policy = mediaPolicyFor(String(after.declaredContentType));
++    const actualSize = Number(metadata.size);
++    if (!policy || generation !== String(after.storageGeneration) ||
++        actualSize !== Number(after.sizeBytes) || actualSize <= 0 ||
++        actualSize > policy.maxBytes ||
++        String(metadata.contentType) !== String(after.declaredContentType)) {
++      throw new Error("SCANNER_OBJECT_METADATA_MISMATCH");
++    }
++    const [bytes] = await file.download();
++    if (bytes.length !== actualSize) throw new Error("SCANNER_OBJECT_LENGTH_MISMATCH");
++    const sha256 = createHash("sha256").update(bytes).digest("hex");
++    const identityToken = await getScannerIdentityToken(scannerUrl.origin);
++    const scannerResponse = await fetch(scannerUrl, {
++      method: "POST",
++      headers: {
++        Authorization: `Bearer ${identityToken}`,
++        "X-Mawadda-Scanner-Token": bearerToken,
++        "X-Mawadda-Media-Id": mediaId,
++        "X-Mawadda-Object-Generation": generation,
++        "X-Mawadda-Expected-SHA256": sha256,
++        "X-Mawadda-Provider": mediaScannerProvider.value(),
++        "X-Mawadda-Callback-URL": callbackUrl.toString(),
++        "Content-Type": "application/octet-stream",
++      },
++      // Node fetch accepts Buffer at runtime; the type declaration omits Node's Uint8Array subclass.
++      body: bytes as unknown as BodyInit,
++      signal: AbortSignal.timeout(510_000),
++    });
++    if (!scannerResponse.ok) {
++      throw new Error(`SCANNER_GATEWAY_HTTP_${scannerResponse.status}`);
++    }
++  },
++);
++
++
++export const createMediaUploadIntent = onCall(async (request) => {
+   const uid = requireUid(request.auth?.uid);
+   let input;
+   try {
+     input = normalizeMediaRequest(request.data ?? {});
+   } catch (error) {
+     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الملف غير صالحة.");
+   }
+   const policy = mediaPolicyFor(input.contentType);
+   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
+   if (input.declaredSizeBytes > policy.maxBytes) {
+     throw new HttpsError("invalid-argument", "حجم الملف يتجاوز الحد المسموح لهذا النوع.");
+   }
+ 
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/${uid}/${mediaId}`;
+   const file = mediaBucket().file(objectPath);
+   const expiresAt = mediaSignedUrlExpiresAt("upload");
+-  const uploadUrl = await file.getSignedUrl({
+-    version: "v4",
+-    action: "write",
+-    expires: expiresAt,
+-    contentType: input.contentType,
+-    // Create-only precondition: a leaked/replayed upload URL cannot overwrite
+-    // the first object generation after the quarantine object is created.
+-    queryParams: { ifGenerationMatch: "0" },
+-  });
+-
+   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+   await mediaDb().runTransaction(async (transaction) => {
+     const [quotaSnapshot, existingAsset] = await Promise.all([
+       transaction.get(quotaRef),
+       transaction.get(assetRef),
+     ]);
+     if (existingAsset.exists) {
+       throw new HttpsError("already-exists", "معرف طلب الرفع مستخدم مسبقاً.");
+     }
+     let reservation;
+     try {
+       reservation = reserveMediaQuota(quotaSnapshot.data(), input.declaredSizeBytes);
+     } catch {
+       throw new HttpsError("resource-exhausted", "تم بلوغ حصة الرفع المؤقتة أو اليومية. حاول لاحقاً.");
+     }
+     const now = FieldValue.serverTimestamp();
+     transaction.set(quotaRef, { ...reservation, updatedAt: now });
+     transaction.create(assetRef, {
+       mediaId,
+       ownerUid: uid,
+       uploaderType: mediaUploaderTypeFromToken(request.auth?.token ?? {}),
+       objectPath,
+       originalName: input.originalName,
+       declaredContentType: input.contentType,
+       declaredSizeBytes: input.declaredSizeBytes,
+       mediaCategory: policy.category,
+       status: "upload_authorized",
+       uploadUrlExpiresAt: new Date(expiresAt),
+       createdAt: now,
+       updatedAt: now,
+     });
+   });
++
++  let uploadUrl: string;
++  const uploadHeaders = {
++    "Content-Type": input.contentType,
++    "x-goog-content-length-range": `${input.declaredSizeBytes},${input.declaredSizeBytes}`,
++  };
++  try {
++    const [signedUrl] = await file.getSignedUrl({
++      version: "v4",
++      action: "write",
++      expires: expiresAt,
++      contentType: input.contentType,
++      // The range and create-only precondition are both part of the V4 signature.
++      extensionHeaders: {
++        "x-goog-content-length-range": uploadHeaders["x-goog-content-length-range"],
++      },
++      queryParams: { ifGenerationMatch: "0" },
++    });
++    uploadUrl = signedUrl;
++  } catch {
++    // A signer outage must not strand a quota reservation or leave a usable intent.
++    await mediaDb().runTransaction(async (transaction) => {
++      const [latestAsset, quotaSnapshot] = await Promise.all([
++        transaction.get(assetRef),
++        transaction.get(quotaRef),
++      ]);
++      if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") return;
++      const reservation = releaseMediaQuota(quotaSnapshot.data(), input.declaredSizeBytes);
++      transaction.update(assetRef, {
++        status: "upload_authorization_failed",
++        failureCode: "SIGNED_URL_ISSUANCE_FAILED",
++        updatedAt: FieldValue.serverTimestamp(),
++      });
++      transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
++      const auditRef = mediaDb().collection("mediaAccessAudit").doc();
++      transaction.create(auditRef, {
++        actorUid: uid,
++        mediaId,
++        action: "media_upload_intent_signing",
++        outcome: "failed",
++        failureCode: "SIGNED_URL_ISSUANCE_FAILED",
++        createdAt: FieldValue.serverTimestamp(),
++      });
++    });
++    throw new HttpsError("unavailable", "تعذر إنشاء رابط رفع آمن. حاول مرة أخرى لاحقاً.");
++  }
++
+   await auditMediaAccess({
+     actorUid: uid,
+     mediaId,
+     action: "media_upload_intent_created",
+     outcome: "success",
+     objectPath,
+     declaredContentType: input.contentType,
+     declaredSizeBytes: input.declaredSizeBytes,
+   });
+-  return { mediaId, uploadUrl: uploadUrl[0], expiresAt };
++  return {
++    mediaId,
++    uploadUrl,
++    uploadHeaders,
++    uploadMethod: "PUT",
++    maxBytes: input.declaredSizeBytes,
++    expiresAt,
++  };
+ });
+ 
+ /**
+  * Verifies the uploaded object's server metadata and file signature. This is
+  * format validation, not antivirus scanning; accepted files remain quarantined
+  * with pending_security_scan and cannot be served to members.
+  */
+ export const finalizeMediaUpload = onCall(async (request) => {
+   const uid = requireUid(request.auth?.uid);
+   const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
+   if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+     throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+   }
+   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+   const snapshot = await assetRef.get();
+   if (!snapshot.exists) throw new HttpsError("not-found", "طلب رفع الملف غير موجود.");
+   const asset = snapshot.data()!;
+   if (asset.ownerUid !== uid || asset.status !== "upload_authorized") {
+     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
+   }
+ 
+   const file = mediaBucket().file(String(asset.objectPath));
+   let metadata: Record<string, unknown>;
+   try {
+     const [rawMetadata] = await file.getMetadata();
+     metadata = rawMetadata as unknown as Record<string, unknown>;
+   } catch {
+     throw new HttpsError("failed-precondition", "لم يتم العثور على الملف المرفوع.");
+   }
+   const sizeBytes = Number(metadata.size);
+   const contentType = typeof metadata.contentType === "string" ? metadata.contentType : "";
+   const policy = mediaPolicyFor(String(asset.declaredContentType));
+   const [header] = await file.download({ start: 0, end: 31 });
+   const detectedType = detectMediaSignature(header);
+   const valid = Boolean(
+     policy &&
+     Number.isSafeInteger(sizeBytes) &&
+     sizeBytes > 0 &&
+     sizeBytes <= policy.maxBytes &&
+     // Quotas reserve declared bytes; reject any object whose actual size differs.
+     sizeBytes === Number(asset.declaredSizeBytes) &&
+     contentType === asset.declaredContentType &&
+     detectedType === asset.declaredContentType &&
+     metadata.generation,
+   );
+ 
+   if (!valid) {
+     await file.delete({ ignoreNotFound: true });
+     const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+     await mediaDb().runTransaction(async (transaction) => {
+       const [latestAsset, quotaSnapshot] = await Promise.all([
+         transaction.get(assetRef),
+         transaction.get(quotaRef),
+       ]);
+       if (!latestAsset.exists || latestAsset.data()?.status !== "upload_authorized") {
+         throw new HttpsError("failed-precondition", "تغيرت حالة طلب الرفع أثناء التحقق.");
+       }
+       const reservation = releaseMediaQuota(quotaSnapshot.data(), Number(asset.declaredSizeBytes));
+       transaction.update(assetRef, {
+         status: "rejected",
+         rejectionCode: "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH",
+         updatedAt: FieldValue.serverTimestamp(),
+       });
+       transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+     });
+     await auditMediaAccess({
+       actorUid: uid,
+       mediaId,
+       action: "media_upload_validation",
+       outcome: "rejected",
+       detectedContentType: detectedType,
+       declaredContentType: asset.declaredContentType,
+       sizeBytes: Number.isFinite(sizeBytes) ? sizeBytes : null,
+     });
+     throw new HttpsError("invalid-argument", "رُفض الملف لأن نوع المحتوى أو حجمه أو بصمته لا يطابق البيانات المعلنة.");
+   }
+ 
+   const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(uid);
+   await mediaDb().runTransaction(async (transaction) => {
+     const [latestAsset, quotaSnapshot] = await Promise.all([
+@@ -368,206 +584,238 @@ export const listOwnerMediaAssets = onCall(async (request) => {
+     throw new HttpsError("invalid-argument", "نوع صاحب الملف المطلوب غير صالح.");
+   }
+   const allowedStatuses = ["upload_authorized", "pending_security_scan", "rejected", "security_approved"];
+   if (!allowedStatuses.includes(status)) {
+     await auditMediaAccess({
+       actorUid,
+       action: "owner_media_asset_list_attempt",
+       outcome: "denied",
+       failureCode: "invalid-status",
+     });
+     throw new HttpsError("invalid-argument", "حالة الملفات المطلوبة غير صالحة.");
+   }
+   let query = mediaDb().collection("mediaAssets").where("status", "==", status);
+   if (uploaderType !== "all") query = query.where("uploaderType", "==", uploaderType);
+   query = query.orderBy("createdAt", "desc").limit(limit + 1);
+   const cursor = typeof request.data?.pageToken === "string" ? request.data.pageToken : "";
+   if (cursor) {
+     const cursorDoc = await mediaDb().collection("mediaAssets").doc(cursor).get();
+     if (!cursorDoc.exists || cursorDoc.data()?.status !== status ||
+         (uploaderType !== "all" && cursorDoc.data()?.uploaderType !== uploaderType)) {
+       await auditMediaAccess({
+         actorUid,
+         action: "owner_media_asset_list_attempt",
+         outcome: "denied",
+         failureCode: "invalid-page-token",
+         requestedStatus: status,
+         requestedUploaderType: uploaderType,
+       });
+       throw new HttpsError("invalid-argument", "مؤشر صفحة الملفات غير صالح.");
+     }
+     query = query.startAfter(cursorDoc);
+   }
+   const result = await query.get();
+   const hasMore = result.docs.length > limit;
+   const docs = result.docs.slice(0, limit);
+   await auditMediaAccess({
+     actorUid,
+     action: "owner_media_asset_listed",
+     outcome: "success",
+     requestedStatus: status,
+     requestedUploaderType: uploaderType,
+     returnedCount: docs.length,
+     hasMore,
+   });
+   return {
+     assets: docs.map((doc) => {
+       const data = doc.data();
+       return {
+         mediaId: doc.id,
+         ownerUid: data.ownerUid,
+         uploaderType: data.uploaderType ?? "legacy_unknown",
+         originalName: data.originalName,
+         declaredContentType: data.declaredContentType,
+         detectedContentType: data.detectedContentType ?? null,
+         sizeBytes: data.sizeBytes ?? data.declaredSizeBytes,
+         mediaCategory: data.mediaCategory,
+         status: data.status,
+         createdAt: data.createdAt?.toMillis?.() ?? null,
+       };
+     }),
+     nextPageToken: hasMore && docs.length ? docs[docs.length - 1].id : null,
+     hasMore,
+   };
+ });
+ 
+ /**
+  * Owner-only short-lived read URL for a quarantined object. This is an
+  * explicit privileged inspection path, not a member-facing media URL.
+  */
+ export const getOwnerMediaInspectionUrl = onCall(async (request) => {
+   const actorUid = await requireSoleOwnerForMediaReview(request, "owner_media_inspection_attempt");
+   const mediaId = typeof request.data?.mediaId === "string" ? request.data.mediaId : "";
+   try {
+     if (!/^[0-9a-f-]{36}$/i.test(mediaId)) {
+       throw new HttpsError("invalid-argument", "معرف الملف غير صالح.");
+     }
+     const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+     const snapshot = await assetRef.get();
+     if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
+     const asset = snapshot.data()!;
+-    if (!["pending_security_scan", "security_approved"].includes(String(asset.status))) {
+-      throw new HttpsError("failed-precondition", "الملف غير متاح للفحص في حالته الحالية.");
++    if (asset.status !== "security_approved") {
++      throw new HttpsError("failed-precondition", "لا يمكن تنزيل الملف الأصلي قبل اعتماد نتيجة الفحص الأمني.");
+     }
+     const file = mediaBucket().file(String(asset.objectPath));
+     const [metadata] = await file.getMetadata();
+     if (String(metadata.generation) !== String(asset.storageGeneration)) {
+       throw new HttpsError("failed-precondition", "تغير إصدار الملف؛ أوقف الوصول احترازياً.");
+     }
+     const expiresAt = mediaSignedUrlExpiresAt("owner-inspection");
+     const [downloadUrl] = await file.getSignedUrl({
+       version: "v4",
+       action: "read",
+       expires: expiresAt,
+       responseDisposition: "attachment",
+     });
+     await auditMediaAccess({
+       actorUid,
+       mediaId,
+       action: "owner_media_inspection_url_issued",
+       outcome: "success",
+       objectPath: asset.objectPath,
+       storageGeneration: String(asset.storageGeneration),
+       expiresAt: new Date(expiresAt),
+     });
+     return { mediaId, downloadUrl, expiresAt };
+   } catch (error) {
+     // Every authenticated owner inspection attempt is recorded, including invalid,
+     // missing, stale-generation and storage failures. Audit failure blocks the call.
+     await auditMediaAccess({
+       actorUid,
+       mediaId: mediaId || null,
+       action: "owner_media_inspection_result",
+       outcome: "denied_or_failed",
+       failureCode: error instanceof HttpsError ? error.code : "storage_or_internal_error",
+     });
+     throw error;
+   }
+ });
+ 
+ 
+ /**
+- * Reclaims abandoned upload reservations after the signed PUT capability has
+- * expired plus a safety grace period. A transactional state claim prevents a
+- * cleanup/finalize race; failed object deletion is retried on the next sweep.
++ * Reclaims abandoned upload reservations only after the signed PUT capability
++ * expiry plus a 30-minute grace period. A transactional state claim prevents
++ * cleanup/finalize races; exact object paths and generations are checked.
+  */
+ export const cleanupExpiredMediaUploadIntents = onSchedule(
+   { schedule: "every 15 minutes", timeZone: "UTC", retryCount: 3 },
+   async () => {
+-    const cutoff = Timestamp.fromMillis(Date.now() - 15 * 60 * 1000);
++    const nowMs = Date.now();
+     const assets = mediaDb().collection("mediaAssets");
+-    const [expired, retrying] = await Promise.all([
++    const expiryCutoff = Timestamp.fromMillis(nowMs - MEDIA_UPLOAD_CLEANUP_GRACE_MS);
++    const [authorized, retrying] = await Promise.all([
+       assets.where("status", "==", "upload_authorized")
+-        .where("createdAt", "<=", cutoff).orderBy("createdAt").limit(100).get(),
++        .where("uploadUrlExpiresAt", "<=", expiryCutoff)
++        .orderBy("uploadUrlExpiresAt", "asc").limit(100).get(),
+       assets.where("status", "==", "expired_cleanup_in_progress")
+-        .orderBy("createdAt").limit(100).get(),
++        .orderBy("createdAt", "asc").limit(100).get(),
+     ]);
+-    const candidates = new Map<string, (typeof expired.docs)[number]>();
+-    for (const doc of [...expired.docs, ...retrying.docs]) candidates.set(doc.id, doc);
++    const candidates = new Map<string, (typeof authorized.docs)[number]>();
++    for (const doc of retrying.docs) candidates.set(doc.id, doc);
++    for (const doc of authorized.docs) candidates.set(doc.id, doc);
+ 
+     let reclaimed = 0;
+     for (const candidate of candidates.values()) {
+       const assetRef = candidate.ref;
+       const claimed = await mediaDb().runTransaction(async (transaction) => {
+         const current = await transaction.get(assetRef);
+         const data = current.data();
+         if (!current.exists || !data) return null;
+         if (data.status === "upload_authorized") {
+-          const createdAt = data.createdAt as Timestamp | undefined;
+-          if (!createdAt || createdAt.toMillis() > cutoff.toMillis()) return null;
++          const expiry = data.uploadUrlExpiresAt;
++          const expiryMs = expiry instanceof Timestamp ? expiry.toMillis() :
++            expiry instanceof Date ? expiry.getTime() : Number.NaN;
++          if (!Number.isSafeInteger(expiryMs) ||
++              !uploadIntentIsEligibleForCleanup(expiryMs, nowMs, MEDIA_UPLOAD_CLEANUP_GRACE_MS)) {
++            return null;
++          }
++        } else if (data.status !== "expired_cleanup_in_progress") {
++          return null;
++        }
++
++        const ownerUid = typeof data.ownerUid === "string" ? data.ownerUid : "";
++        const objectPath = typeof data.objectPath === "string" ? data.objectPath : "";
++        const reservedBytes = Number(data.declaredSizeBytes);
++        if (!ownerUid || objectPath !== `quarantine/${ownerUid}/${candidate.id}` ||
++            !Number.isSafeInteger(reservedBytes) || reservedBytes <= 0) {
++          throw new HttpsError("failed-precondition", "Abandoned upload metadata failed integrity checks.");
++        }
++        if (data.status === "upload_authorized") {
+           transaction.update(assetRef, {
+             status: "expired_cleanup_in_progress",
+             cleanupStartedAt: FieldValue.serverTimestamp(),
+             updatedAt: FieldValue.serverTimestamp(),
+           });
+-          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
+-            reservedBytes: Number(data.declaredSizeBytes) };
+-        }
+-        if (data.status === "expired_cleanup_in_progress") {
+-          return { ownerUid: String(data.ownerUid), objectPath: String(data.objectPath),
+-            reservedBytes: Number(data.declaredSizeBytes) };
+         }
+-        return null;
++        return { ownerUid, objectPath, reservedBytes };
+       });
+       if (!claimed) continue;
+ 
+       try {
+-        await mediaBucket().file(claimed.objectPath).delete({ ignoreNotFound: true });
++        const file = mediaBucket().file(claimed.objectPath);
++        let generation: number | null = null;
++        try {
++          const [metadata] = await file.getMetadata();
++          generation = Number(metadata.generation);
++          if (!Number.isSafeInteger(generation) || generation <= 0) {
++            throw new Error("INVALID_STORAGE_GENERATION");
++          }
++        } catch (error) {
++          const code = (error as { code?: number | string })?.code;
++          if (code !== 404 && code !== "404") throw error;
++        }
++        if (generation !== null) {
++          await file.delete({ ignoreNotFound: true, ifGenerationMatch: generation });
++        }
++
+         await mediaDb().runTransaction(async (transaction) => {
++          const quotaRef = mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid);
+           const [current, quotaSnapshot] = await Promise.all([
+             transaction.get(assetRef),
+-            transaction.get(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid)),
++            transaction.get(quotaRef),
+           ]);
+           if (!current.exists || current.data()?.status !== "expired_cleanup_in_progress") return;
+           const quota = releaseMediaQuota(quotaSnapshot.data(), claimed.reservedBytes);
+           transaction.update(assetRef, {
+             status: "expired",
++            cleanupObjectGeneration: generation === null ? null : String(generation),
+             expiredAt: FieldValue.serverTimestamp(),
+             updatedAt: FieldValue.serverTimestamp(),
+           });
+-          transaction.set(mediaDb().collection("mediaUploadQuotas").doc(claimed.ownerUid), {
+-            ...quota, updatedAt: FieldValue.serverTimestamp(),
++          transaction.set(quotaRef, { ...quota, updatedAt: FieldValue.serverTimestamp() });
++          const auditRef = mediaDb().collection("mediaAccessAudit").doc();
++          transaction.create(auditRef, {
++            actorUid: claimed.ownerUid,
++            mediaId: candidate.id,
++            action: "media_upload_intent_expired",
++            outcome: "success",
++            objectPath: claimed.objectPath,
++            objectGeneration: generation === null ? null : String(generation),
++            createdAt: FieldValue.serverTimestamp(),
+           });
+         });
+-        await auditMediaAccess({
+-          actorUid: claimed.ownerUid,
+-          mediaId: candidate.id,
+-          action: "media_upload_intent_expired",
+-          outcome: "success",
+-          objectPath: claimed.objectPath,
+-        });
+         reclaimed += 1;
+       } catch (error) {
+         // Keep the cleanup claim so the next scheduled sweep retries safely.
+         await auditMediaAccess({
+           actorUid: claimed.ownerUid,
+           mediaId: candidate.id,
+           action: "media_upload_intent_expired",
+           outcome: "retry_required",
+           failureCode: error instanceof Error ? error.name : "cleanup_error",
+         });
+         throw error;
+       }
+     }
+-    return { reclaimed };
++    logger.info("Media upload cleanup completed", { reclaimed });
+   },
+ );
+diff --git a/functions/test/integration/media-callables.integration.test.js b/functions/test/integration/media-callables.integration.test.js
+index 3bb2f921..ddc979e0 100644
+--- a/functions/test/integration/media-callables.integration.test.js
++++ b/functions/test/integration/media-callables.integration.test.js
+@@ -1,351 +1,444 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ 
+ // Import the callable module before initializeApp(). This intentionally guards
+ // against eager Admin SDK access during the Functions entry-point import phase.
+ const {
+   createMediaUploadIntent,
+   listOwnerMediaAssets,
+   finalizeMediaUpload,
+   getOwnerMediaInspectionUrl,
++  cleanupExpiredMediaUploadIntents,
++  handleMediaScanVerdict,
+ } = require("../../lib/media");
+ 
+ const { initializeApp, getApps } = require("firebase-admin/app");
+ const { getFirestore, Timestamp } = require("firebase-admin/firestore");
+ const { getStorage } = require("firebase-admin/storage");
+-const { randomUUID } = require("node:crypto");
++const { randomUUID, createHmac, createHash } = require("node:crypto");
+ 
+ if (getApps().length === 0) {
+   initializeApp({ projectId: "demo-mawda-media", storageBucket: "demo-mawda-media.appspot.com" });
+ }
+ const db = getFirestore();
++const StorageFile = getStorage().bucket().file("test-prototype").constructor;
++const signedUrlRequests = [];
++const originalGetSignedUrl = StorageFile.prototype.getSignedUrl;
++
++test.before(() => {
++  StorageFile.prototype.getSignedUrl = async function(options) {
++    signedUrlRequests.push({ objectPath: this.name, options: structuredClone(options) });
++    const expiresSeconds = Math.ceil((options.expires - Date.now()) / 1000);
++    return [`https://signed.test/${encodeURIComponent(this.name)}?X-Goog-Expires=${expiresSeconds}`];
++  };
++});
++
++test.after(() => {
++  StorageFile.prototype.getSignedUrl = originalGetSignedUrl;
++});
+ 
+ function ownerRequest(uid, data = {}) {
+   return {
+     data,
+     auth: {
+       uid,
+       token: {
+         platformOwner: true,
+         auth_time: Math.floor(Date.now() / 1000),
+         firebase: { sign_in_provider: "password", sign_in_second_factor: "phone" },
+       },
+     },
+   };
+ }
+ 
+ function memberRequest(uid, provider = "password") {
+   return {
+     data: { status: "pending_security_scan", uploaderType: "all" },
+     auth: {
+       uid,
+       token: {
+         auth_time: Math.floor(Date.now() / 1000),
+         firebase: { sign_in_provider: provider },
+       },
+     },
+   };
+ }
+ 
+ async function reserveFixtureQuota(uid, bytes) {
+   await db.collection("mediaUploadQuotas").doc(uid).set({
+     activeUploads: 1,
+     activeBytes: bytes,
+     dailyBytes: bytes,
++    dailyUploads: 1,
+     dailyWindow: new Date().toISOString().slice(0, 10),
+   });
+ }
+ 
+ async function auditEvents(uid) {
+   const snapshot = await db.collection("mediaAccessAudit")
+     .where("actorUid", "==", uid)
+     .get();
+   return snapshot.docs.map((doc) => doc.data());
+ }
+ 
+ test("owner media listing succeeds and writes a success audit event", async () => {
+   const uid = `owner-${Date.now()}-${Math.random()}`;
+   const result = await listOwnerMediaAssets.run(ownerRequest(uid));
+   assert.deepEqual(result.assets, []);
+   assert.equal(result.hasMore, false);
+   const events = await auditEvents(uid);
+   assert.ok(events.some((event) =>
+     event.action === "owner_media_asset_listed" && event.outcome === "success"));
+ });
+ 
+ for (const [label, request] of [
+   ["ordinary member", (uid) => memberRequest(uid)],
+   ["anonymous guest", (uid) => memberRequest(uid, "anonymous")],
+   ["owner with stale MFA", (uid) => ({
+     ...ownerRequest(uid),
+     auth: {
+       ...ownerRequest(uid).auth,
+       token: {
+         ...ownerRequest(uid).auth.token,
+         auth_time: Math.floor(Date.now() / 1000) - 16 * 60,
+       },
+     },
+   })],
+ ]) {
+   test(`${label} is denied and the denial is audited`, async () => {
+     const uid = `${label.replace(/[^a-z]/gi, "-")}-${Date.now()}-${Math.random()}`;
+     await assert.rejects(
+       () => listOwnerMediaAssets.run(request(uid)),
+       (error) => error && error.code === "permission-denied",
+     );
+     const events = await auditEvents(uid);
+     assert.ok(events.some((event) =>
+       event.action === "owner_media_asset_list_attempt" &&
+       event.outcome === "denied" &&
+       event.failureCode === "permission-denied"));
+   });
+ }
+ 
+ test("owner invalid filters are rejected and audited", async () => {
+   const uid = `owner-invalid-filter-${Date.now()}-${Math.random()}`;
+   await assert.rejects(
+     () => listOwnerMediaAssets.run(ownerRequest(uid, { uploaderType: "guest;member" })),
+     (error) => error && error.code === "invalid-argument",
+   );
+   const events = await auditEvents(uid);
+   assert.ok(events.some((event) =>
+     event.action === "owner_media_asset_list_attempt" &&
+     event.outcome === "denied" &&
+     event.failureCode === "invalid-uploader-type"));
+ });
+ 
+ test("finalize callable accepts a matching quarantined PNG and audits the result", async () => {
+   const uid = `uploader-${Date.now()}-${Math.random()}`;
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/${uid}/${mediaId}`;
+   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+   await reserveFixtureQuota(uid, bytes.length);
+   await db.collection("mediaAssets").doc(mediaId).create({
+     mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+     declaredContentType: "image/png", declaredSizeBytes: bytes.length,
+     status: "upload_authorized",
+   });
+   await getStorage().bucket().file(objectPath).save(bytes, {
+     metadata: { contentType: "image/png" },
+   });
+ 
+   const result = await finalizeMediaUpload.run({
+     data: { mediaId },
+     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(result.status, "pending_security_scan");
+   const asset = await db.collection("mediaAssets").doc(mediaId).get();
+   assert.equal(asset.data().status, "pending_security_scan");
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "media_upload_validation" && event.outcome === "pending_security_scan"));
+ });
+ 
+ test("finalize callable rejects and deletes a file whose bytes contradict its declared type", async () => {
+   const uid = `uploader-invalid-${Date.now()}-${Math.random()}`;
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/${uid}/${mediaId}`;
+   const bytes = Buffer.from("MZ executable");
+   await db.collection("mediaAssets").doc(mediaId).create({
+     mediaId, ownerUid: uid, objectPath, uploaderType: "member",
+     declaredContentType: "image/png", declaredSizeBytes: bytes.length,
+     status: "upload_authorized",
+   });
+   await reserveFixtureQuota(uid, bytes.length);
+   const file = getStorage().bucket().file(objectPath);
+   await file.save(bytes, { metadata: { contentType: "image/png" } });
+ 
+   await assert.rejects(
+     () => finalizeMediaUpload.run({
+       data: { mediaId },
+       auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "invalid-argument",
+   );
+   const asset = await db.collection("mediaAssets").doc(mediaId).get();
+   assert.equal(asset.data().status, "rejected");
+   const [exists] = await file.exists();
+   assert.equal(exists, false);
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "media_upload_validation" && event.outcome === "rejected"));
+ });
+ 
+ test("upload intent reserves per-user quota atomically and audits the capability issuance", async () => {
+   const uid = `quota-uploader-${Date.now()}-${Math.random()}`;
+   const result = await createMediaUploadIntent.run({
+     data: { originalName: "quota.png", contentType: "image/png", sizeBytes: 1024 },
+     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(typeof result.mediaId, "string");
+   assert.equal(typeof result.uploadUrl, "string");
+   assert.ok(result.uploadUrl.startsWith("http"));
+   const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+   assert.equal(quota.data().activeUploads, 1);
+   assert.equal(quota.data().activeBytes, 1024);
+   const asset = await db.collection("mediaAssets").doc(result.mediaId).get();
+   assert.equal(asset.data().status, "upload_authorized");
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "media_upload_intent_created" && event.outcome === "success"));
+ });
+ 
+-test("upload intent rejects a user who has exhausted the concurrent upload quota", async () => {
+-  const uid = `quota-exhausted-${Date.now()}-${Math.random()}`;
++test("daily upload count quota rejects before a signed capability is created", async () => {
++  const uid = `daily-count-limit-${Date.now()}-${Math.random()}`;
+   await db.collection("mediaUploadQuotas").doc(uid).set({
+-    activeUploads: 5, activeBytes: 1024, dailyBytes: 1024,
+-    dailyWindow: new Date().toISOString().slice(0, 10),
++    activeUploads: 0, activeBytes: 0, dailyBytes: 0,
++    dailyUploads: 100, dailyWindow: new Date().toISOString().slice(0, 10),
+   });
++  const callsBefore = signedUrlRequests.length;
+   await assert.rejects(
+     () => createMediaUploadIntent.run({
+-      data: { originalName: "blocked.png", contentType: "image/png", sizeBytes: 1024 },
++      data: { originalName: "daily-limit.png", contentType: "image/png", sizeBytes: 1024 },
+       auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "resource-exhausted",
+   );
++  assert.equal(signedUrlRequests.length, callsBefore);
+ });
+ 
+-
+-test("signed upload URL performs a real Storage Emulator HTTP PUT and rejects replay", async () => {
+-  const uid = `http-upload-${Date.now()}-${Math.random()}`;
+-  const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+-  const intent = await createMediaUploadIntent.run({
+-    data: { originalName: "http-check.png", contentType: "image/png", sizeBytes: png.length },
++test("upload capability signs exact byte range and create-only V4 PUT preconditions", async () => {
++  const uid = `signed-options-${Date.now()}-${Math.random()}`;
++  const result = await createMediaUploadIntent.run({
++    data: { originalName: "signed-check.png", contentType: "image/png", sizeBytes: 1024 },
+     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+   });
++  assert.ok(result.uploadUrl.startsWith("https://signed.test/"));
++  assert.equal(result.uploadMethod, "PUT");
++  assert.equal(result.maxBytes, 1024);
++  assert.equal(result.uploadHeaders["Content-Type"], "image/png");
++  assert.equal(result.uploadHeaders["x-goog-content-length-range"], "1024,1024");
++  const call = signedUrlRequests.at(-1);
++  assert.equal(call.options.version, "v4");
++  assert.equal(call.options.action, "write");
++  assert.equal(call.options.contentType, "image/png");
++  assert.equal(call.options.queryParams.ifGenerationMatch, "0");
++  assert.equal(call.options.extensionHeaders["x-goog-content-length-range"], "1024,1024");
++  assert.ok(call.options.expires - Date.now() <= 5 * 60 * 1000);
++  assert.ok(call.options.expires - Date.now() > 4 * 60 * 1000);
++});
+ 
+-  const firstPut = await fetch(intent.uploadUrl, {
+-    method: "PUT",
+-    headers: { "Content-Type": "image/png" },
+-    body: png,
+-  });
+-  assert.equal(firstPut.status, 200, await firstPut.text());
++test("signer failure atomically releases reserved capacity and leaves no upload capability", async () => {
++  const uid = `signer-failure-${Date.now()}-${Math.random()}`;
++  const stubSigner = StorageFile.prototype.getSignedUrl;
++  StorageFile.prototype.getSignedUrl = async () => { throw new Error("signer unavailable"); };
++  try {
++    await assert.rejects(
++      () => createMediaUploadIntent.run({
++        data: { originalName: "signer-failure.png", contentType: "image/png", sizeBytes: 4096 },
++        auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
++      }),
++      (error) => error && error.code === "unavailable",
++    );
++  } finally {
++    StorageFile.prototype.getSignedUrl = stubSigner;
++  }
++  const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
++  assert.equal(quota.data().activeUploads, 0);
++  assert.equal(quota.data().activeBytes, 0);
++  const assets = await db.collection("mediaAssets").where("ownerUid", "==", uid).get();
++  assert.equal(assets.size, 1);
++  assert.equal(assets.docs[0].data().status, "upload_authorization_failed");
++  assert.ok((await auditEvents(uid)).some((event) =>
++    event.action === "media_upload_intent_signing" && event.outcome === "failed"));
++});
+ 
+-  const replayPut = await fetch(intent.uploadUrl, {
+-    method: "PUT",
+-    headers: { "Content-Type": "image/png" },
+-    body: png,
++test("upload intent rejects a user who has exhausted the concurrent upload quota", async () => {
++  const uid = `quota-exhausted-${Date.now()}-${Math.random()}`;
++  await db.collection("mediaUploadQuotas").doc(uid).set({
++    activeUploads: 5, activeBytes: 1024, dailyBytes: 1024,
++    dailyWindow: new Date().toISOString().slice(0, 10),
+   });
+-  assert.ok([400, 403, 412].includes(replayPut.status),
+-    `Expected create-only replay rejection, received HTTP ${replayPut.status}`);
++  await assert.rejects(
++    () => createMediaUploadIntent.run({
++      data: { originalName: "blocked.png", contentType: "image/png", sizeBytes: 1024 },
++      auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
++    }),
++    (error) => error && error.code === "resource-exhausted",
++  );
++});
+ 
+-  const finalized = await finalizeMediaUpload.run({
+-    data: { mediaId: intent.mediaId },
++
++test("upload capability signs exact byte range and create-only V4 PUT preconditions", async () => {
++  const uid = `signed-options-${Date.now()}-${Math.random()}`;
++  const result = await createMediaUploadIntent.run({
++    data: { originalName: "signed-check.png", contentType: "image/png", sizeBytes: 1024 },
+     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+-  assert.equal(finalized.status, "pending_security_scan");
+-  const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
+-  assert.ok(asset.data().storageGeneration);
++  assert.ok(result.uploadUrl.startsWith("https://signed.test/"));
++  assert.equal(result.uploadMethod, "PUT");
++  assert.equal(result.maxBytes, 1024);
++  assert.equal(result.uploadHeaders["Content-Type"], "image/png");
++  assert.equal(result.uploadHeaders["x-goog-content-length-range"], "1024,1024");
++  const call = signedUrlRequests.at(-1);
++  assert.equal(call.options.version, "v4");
++  assert.equal(call.options.action, "write");
++  assert.equal(call.options.contentType, "image/png");
++  assert.equal(call.options.queryParams.ifGenerationMatch, "0");
++  assert.equal(call.options.extensionHeaders["x-goog-content-length-range"], "1024,1024");
++  assert.ok(call.options.expires - Date.now() <= 5 * 60 * 1000);
++  assert.ok(call.options.expires - Date.now() > 4 * 60 * 1000);
+ });
+ 
+-test("owner inspection URL is owner/MFA gated and its signed HTTP GET returns the exact quarantined object", async () => {
++test("owner inspection URL is owner/MFA gated, attachment-only and expires after 60 seconds", async () => {
+   const uid = `http-owner-${Date.now()}-${Math.random()}`;
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/fixture/${mediaId}`;
+   const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+   const file = getStorage().bucket().file(objectPath);
+   await file.save(bytes, { metadata: { contentType: "image/png" } });
+   const [metadata] = await file.getMetadata();
+   await db.collection("mediaAssets").doc(mediaId).create({
+     mediaId, ownerUid: "uploader-fixture", objectPath,
+     uploaderType: "member", declaredContentType: "image/png",
+     detectedContentType: "image/png", sizeBytes: bytes.length,
+     storageGeneration: String(metadata.generation),
+-    status: "pending_security_scan",
++    status: "security_approved",
+   });
+ 
+   const result = await getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId }));
+   assert.equal(result.mediaId, mediaId);
+-  assert.equal(new URL(result.downloadUrl).searchParams.get("X-Goog-Expires"), "60");
+-  const response = await fetch(result.downloadUrl);
+-  assert.equal(response.status, 200, await response.text());
+-  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+-  assert.match(response.headers.get("content-disposition") ?? "", /attachment/i);
++  assert.ok(result.downloadUrl.startsWith("https://signed.test/"));
++  const call = signedUrlRequests.at(-1);
++  assert.equal(call.options.version, "v4");
++  assert.equal(call.options.action, "read");
++  assert.equal(call.options.responseDisposition, "attachment");
++  assert.ok(call.options.expires - Date.now() <= 60 * 1000);
++  assert.ok(call.options.expires - Date.now() > 55 * 1000);
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "owner_media_inspection_url_issued" && event.outcome === "success"));
+ });
+ 
++test("owner cannot download a pending original before a trusted clean verdict", async () => {
++  const uid = `http-owner-pending-${Date.now()}-${Math.random()}`;
++  const mediaId = randomUUID();
++  const objectPath = `quarantine/fixture/${mediaId}`;
++  await getStorage().bucket().file(objectPath).save(Buffer.from("unscanned fixture"), {
++    metadata: { contentType: "image/png" },
++  });
++  await db.collection("mediaAssets").doc(mediaId).create({
++    mediaId, ownerUid: "uploader-fixture", objectPath,
++    uploaderType: "member", declaredContentType: "image/png",
++    detectedContentType: "image/png", sizeBytes: 17,
++    storageGeneration: "1", status: "pending_security_scan",
++  });
++  const callsBefore = signedUrlRequests.length;
++  await assert.rejects(
++    () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
++    (error) => error && error.code === "failed-precondition",
++  );
++  assert.equal(signedUrlRequests.length, callsBefore);
++  assert.ok((await auditEvents(uid)).some((event) =>
++    event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
++});
++
+ test("owner inspection rejects stale storage generations and audits the denial", async () => {
+   const uid = `http-owner-stale-${Date.now()}-${Math.random()}`;
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/fixture/${mediaId}`;
+   await getStorage().bucket().file(objectPath).save(Buffer.from("replacement"), {
+     metadata: { contentType: "image/png" },
+   });
+   await db.collection("mediaAssets").doc(mediaId).create({
+     mediaId, ownerUid: "uploader-fixture", objectPath,
+     uploaderType: "member", declaredContentType: "image/png",
+-    storageGeneration: "1", status: "pending_security_scan",
++    storageGeneration: "1", status: "security_approved",
+   });
+   await assert.rejects(
+     () => getOwnerMediaInspectionUrl.run(ownerRequest(uid, { mediaId })),
+     (error) => error && error.code === "failed-precondition",
+   );
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "owner_media_inspection_result" && event.outcome === "denied_or_failed"));
+ });
+ 
+ 
+ test("scheduled cleanup deletes abandoned quarantine objects and releases active quota", async () => {
+   const uid = `abandoned-${Date.now()}-${Math.random()}`;
+   const mediaId = randomUUID();
+   const objectPath = `quarantine/${uid}/${mediaId}`;
+   const reservedBytes = 2048;
+   await db.collection("mediaUploadQuotas").doc(uid).set({
+     activeUploads: 1,
+     activeBytes: reservedBytes,
+     dailyBytes: reservedBytes,
+     dailyWindow: new Date().toISOString().slice(0, 10),
+   });
+   await db.collection("mediaAssets").doc(mediaId).create({
+     mediaId, ownerUid: uid, objectPath, originalName: "abandoned.png",
+     declaredContentType: "image/png", declaredSizeBytes: reservedBytes,
+     status: "upload_authorized",
+-    createdAt: Timestamp.fromMillis(Date.now() - 30 * 60 * 1000),
++    createdAt: Timestamp.fromMillis(Date.now() - 40 * 60 * 1000),
++    uploadUrlExpiresAt: Timestamp.fromMillis(Date.now() - 35 * 60 * 1000),
+   });
+   const file = getStorage().bucket().file(objectPath);
+   await file.save(Buffer.from("abandoned upload"), {
+     metadata: { contentType: "image/png" },
+   });
+ 
+   await cleanupExpiredMediaUploadIntents.run();
+ 
+   const asset = await db.collection("mediaAssets").doc(mediaId).get();
+   assert.equal(asset.data().status, "expired");
+   const [exists] = await file.exists();
+   assert.equal(exists, false);
+   const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+   assert.equal(quota.data().activeUploads, 0);
+   assert.equal(quota.data().activeBytes, 0);
+   assert.equal(quota.data().dailyBytes, reservedBytes);
+   assert.ok((await auditEvents(uid)).some((event) =>
+     event.action === "media_upload_intent_expired" && event.outcome === "success"));
+ });
+ 
+ 
+-test("finalization rejects an HTTP-uploaded object larger than its quota reservation", async () => {
+-  const uid = `http-size-mismatch-${Date.now()}-${Math.random()}`;
++test("finalization rejects an object larger than its quota reservation and releases active capacity", async () => {
++  const uid = `size-mismatch-${Date.now()}-${Math.random()}`;
+   const png = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+   const intent = await createMediaUploadIntent.run({
+     data: { originalName: "oversized.png", contentType: "image/png", sizeBytes: 8 },
+     auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+-  const put = await fetch(intent.uploadUrl, {
+-    method: "PUT",
+-    headers: { "Content-Type": "image/png" },
+-    body: png,
+-  });
+-  assert.equal(put.status, 200, await put.text());
++  const assetBefore = await db.collection("mediaAssets").doc(intent.mediaId).get();
++  const file = getStorage().bucket().file(assetBefore.data().objectPath);
++  await file.save(png, { metadata: { contentType: "image/png" } });
+   await assert.rejects(
+     () => finalizeMediaUpload.run({
+       data: { mediaId: intent.mediaId },
+       auth: { uid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "invalid-argument",
+   );
+   const asset = await db.collection("mediaAssets").doc(intent.mediaId).get();
+   assert.equal(asset.data().status, "rejected");
+   assert.equal(asset.data().rejectionCode, "CONTENT_TYPE_SIZE_OR_SIGNATURE_MISMATCH");
+-  const [exists] = await getStorage().bucket().file(asset.data().objectPath).exists();
++  const [exists] = await file.exists();
+   assert.equal(exists, false);
+   const quota = await db.collection("mediaUploadQuotas").doc(uid).get();
+   assert.equal(quota.data().activeUploads, 0);
+   assert.equal(quota.data().activeBytes, 0);
+ });
+diff --git a/functions/test/media-cleanup.test.js b/functions/test/media-cleanup.test.js
+new file mode 100644
+index 00000000..1b4dedb2
+--- /dev/null
++++ b/functions/test/media-cleanup.test.js
+@@ -0,0 +1,20 @@
++const test = require("node:test");
++const assert = require("node:assert/strict");
++const {
++  MEDIA_UPLOAD_CLEANUP_GRACE_MS,
++  uploadIntentIsEligibleForCleanup,
++} = require("../lib/media-cleanup");
++
++test("abandoned upload cleanup waits for URL expiry plus a full grace period", () => {
++  const now = 1_800_000_000_000;
++  const expiry = now - MEDIA_UPLOAD_CLEANUP_GRACE_MS;
++  assert.equal(uploadIntentIsEligibleForCleanup(expiry, now), true);
++  assert.equal(uploadIntentIsEligibleForCleanup(expiry + 1, now), false);
++  assert.equal(uploadIntentIsEligibleForCleanup(now, now), false);
++});
++
++test("cleanup eligibility rejects invalid timestamps and grace periods", () => {
++  assert.throws(() => uploadIntentIsEligibleForCleanup(Number.NaN));
++  assert.throws(() => uploadIntentIsEligibleForCleanup(-1));
++  assert.throws(() => uploadIntentIsEligibleForCleanup(1, 2, -1));
++});
+diff --git a/functions/test/media-controls.test.js b/functions/test/media-controls.test.js
+index cc54dea0..3f66093a 100644
+--- a/functions/test/media-controls.test.js
++++ b/functions/test/media-controls.test.js
+@@ -1,32 +1,31 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+-  MEDIA_QUOTA_POLICY, validateMediaQuotaUsage, mediaRetentionCutoff,
++  MEDIA_QUOTA_POLICY, validateMediaQuotaUsage,
+   isExpiredUploadIntent, assertTrustedScannerVerdict,
+ } = require("../lib/media-controls");
+ 
+ test("quota gates reject count, daily bytes and active quarantine overflow", () => {
+   const base = { uploadCount: 0, declaredBytes: 0, activeBytes: 0, nextBytes: 1024 };
+   assert.equal(validateMediaQuotaUsage(base), null);
+   assert.equal(validateMediaQuotaUsage({ ...base, uploadCount: MEDIA_QUOTA_POLICY.dailyUploadCount }), "DAILY_UPLOAD_COUNT");
+   assert.equal(validateMediaQuotaUsage({ ...base, declaredBytes: MEDIA_QUOTA_POLICY.dailyDeclaredBytes }), "DAILY_BYTES");
+   assert.equal(validateMediaQuotaUsage({ ...base, activeBytes: MEDIA_QUOTA_POLICY.activeQuarantineBytes }), "ACTIVE_QUARANTINE_BYTES");
+   assert.throws(() => validateMediaQuotaUsage({ ...base, nextBytes: -1 }));
+ });
+ 
+-test("retention cutoff and upload-intent expiry are deterministic", () => {
++test("upload-intent expiry is deterministic", () => {
+   const now = 1_800_000_000_000;
+-  assert.equal(mediaRetentionCutoff(now), now - 30 * 86400000);
+   assert.equal(isExpiredUploadIntent(now - 300001, now), true);
+   assert.equal(isExpiredUploadIntent(now - 300000, now), false);
+   assert.equal(isExpiredUploadIntent(-1, now), false);
+ });
+ 
+ test("only a fresh, generation-bound scanner verdict is accepted", () => {
+   const expected = { provider: "mawadda-clamav-gateway", objectGeneration: "17", sha256: "a".repeat(64), nowMs: 1_800_000_000_000 };
+   const verdict = { ...expected, verdict: "clean", scannedAtMs: expected.nowMs };
+   assert.equal(assertTrustedScannerVerdict(verdict, expected), true);
+   assert.equal(assertTrustedScannerVerdict({ ...verdict, objectGeneration: "16" }, expected), false);
+   assert.equal(assertTrustedScannerVerdict({ ...verdict, scannedAtMs: expected.nowMs - 700000 }, expected), false);
+   assert.equal(assertTrustedScannerVerdict({ ...verdict, verdict: "unknown" }, expected), false);
+ });
+diff --git a/functions/test/media-quota.test.js b/functions/test/media-quota.test.js
+index 67d8f91d..401f79f9 100644
+--- a/functions/test/media-quota.test.js
++++ b/functions/test/media-quota.test.js
+@@ -1,53 +1,59 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const {
+   MEDIA_QUOTA_LIMITS,
+   reserveMediaQuota,
+   releaseMediaQuota,
+ } = require("../lib/media-quota");
+ 
+ test("media quota enforces concurrent count, active bytes and UTC daily bytes", () => {
+   const now = Date.UTC(2026, 10, 13, 12);
+-  const empty = { activeUploads: 0, activeBytes: 0, dailyBytes: 0, dailyWindow: "2026-11-13" };
++  const empty = { activeUploads: 0, activeBytes: 0, dailyBytes: 0, dailyUploads: 0, dailyWindow: "2026-11-13" };
+   assert.deepEqual(reserveMediaQuota(empty, 10 * 1024 * 1024, now), {
+     activeUploads: 1,
+     activeBytes: 10 * 1024 * 1024,
+     dailyBytes: 10 * 1024 * 1024,
++    dailyUploads: 1,
+     dailyWindow: "2026-11-13",
+   });
+   assert.throws(() => reserveMediaQuota({
+     ...empty, activeUploads: MEDIA_QUOTA_LIMITS.maxActiveUploads,
+   }, 1, now), /quota exceeded/i);
+   assert.throws(() => reserveMediaQuota({
+     ...empty, activeBytes: MEDIA_QUOTA_LIMITS.maxActiveBytes,
+   }, 1, now), /quota exceeded/i);
+   assert.throws(() => reserveMediaQuota({
+     ...empty, dailyBytes: MEDIA_QUOTA_LIMITS.maxDailyBytes,
+   }, 1, now), /quota exceeded/i);
++  assert.throws(() => reserveMediaQuota({
++    ...empty, dailyUploads: MEDIA_QUOTA_LIMITS.maxDailyUploads,
++  }, 1, now), /quota exceeded/i);
+ });
+ 
+ test("daily media quota resets at UTC day boundary but active reservations remain", () => {
+   const nextDay = Date.UTC(2026, 10, 14, 0, 1);
+   assert.deepEqual(reserveMediaQuota({
+     activeUploads: 2,
+     activeBytes: 1024,
+     dailyBytes: MEDIA_QUOTA_LIMITS.maxDailyBytes,
++    dailyUploads: 99,
+     dailyWindow: "2026-11-13",
+   }, 2048, nextDay), {
+     activeUploads: 3,
+     activeBytes: 3072,
+     dailyBytes: 2048,
++    dailyUploads: 1,
+     dailyWindow: "2026-11-14",
+   });
+ });
+ 
+ test("quota release decrements active reservations and fails closed on inconsistent state", () => {
+   assert.deepEqual(releaseMediaQuota({
+-    activeUploads: 2, activeBytes: 4096, dailyBytes: 8192, dailyWindow: "2026-11-13",
++    activeUploads: 2, activeBytes: 4096, dailyBytes: 8192, dailyUploads: 7, dailyWindow: "2026-11-13",
+   }, 2048), {
+-    activeUploads: 1, activeBytes: 2048, dailyBytes: 8192, dailyWindow: "2026-11-13",
++    activeUploads: 1, activeBytes: 2048, dailyBytes: 8192, dailyUploads: 7, dailyWindow: "2026-11-13",
+   });
+   assert.throws(() => releaseMediaQuota({
+     activeUploads: 0, activeBytes: 0, dailyBytes: 0, dailyWindow: "2026-11-13",
+   }, 1), /inconsistent/i);
+ });
+diff --git a/functions/test/media-scanner.test.js b/functions/test/media-scanner.test.js
+index 21dd7713..ae26c1f4 100644
+--- a/functions/test/media-scanner.test.js
++++ b/functions/test/media-scanner.test.js
+@@ -1,31 +1,34 @@
+ const test = require("node:test");
+ const assert = require("node:assert/strict");
+ const { createHmac } = require("node:crypto");
+ const { verifyScannerWebhook, validateScannerVerdict } = require("../lib/media-scanner");
+ 
+ test("scanner webhook HMAC is verified and rejects absent or weak secrets", () => {
+   const body = Buffer.from("{\"verdict\":\"clean\"}");
+   const secret = "s".repeat(48);
+   const signature = createHmac("sha256", secret).update(body).digest("hex");
+   assert.equal(verifyScannerWebhook(body, signature, secret), true);
+   assert.equal(verifyScannerWebhook(body, signature, "weak"), false);
+   assert.equal(verifyScannerWebhook(body, signature, undefined), false);
+   assert.equal(verifyScannerWebhook(body, "0".repeat(64), secret), false);
+ });
+ 
+ test("scanner verdict binds provider, object generation, hash and freshness", () => {
+   const now = 1_800_000_000_000;
+   const payload = {
+     mediaId: "123e4567-e89b-12d3-a456-426614174000",
+     provider: "mawadda-malware-gateway",
++    engine: "ClamAV",
++    engineVersion: "1.4.2",
++    signatureVersion: "20261113-090000",
+     verdict: "clean",
+     objectGeneration: "123456",
+     sha256: "a".repeat(64),
+     scannedAtMs: now,
+   };
+   assert.equal(validateScannerVerdict(payload, "mawadda-malware-gateway", now).verdict, "clean");
+   assert.equal(validateScannerVerdict({ ...payload, provider: "untrusted" }, "mawadda-malware-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, objectGeneration: "latest" }, "mawadda-malware-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, scannedAtMs: now - 700000 }, "mawadda-malware-gateway", now), null);
+   assert.equal(validateScannerVerdict({ ...payload, verdict: "approved" }, "mawadda-malware-gateway", now), null);
+ });
+diff --git a/scanner/Dockerfile b/scanner/Dockerfile
+new file mode 100644
+index 00000000..932f27ee
+--- /dev/null
++++ b/scanner/Dockerfile
+@@ -0,0 +1,20 @@
++FROM node:20-bookworm-slim
++
++RUN apt-get update \
++    && apt-get install -y --no-install-recommends clamav-daemon clamav-freshclam netcat-openbsd ca-certificates \
++    && rm -rf /var/lib/apt/lists/*
++
++WORKDIR /app
++COPY scanner/server.mjs /app/server.mjs
++COPY scanner/clamd.conf /etc/clamav/clamd.conf
++COPY scanner/freshclam.conf /etc/clamav/freshclam.conf
++COPY scanner/entrypoint.sh /app/entrypoint.sh
++RUN chmod 0755 /app/entrypoint.sh
++
++ENV PORT=8080 \
++    CLAMD_HOST=127.0.0.1 \
++    CLAMD_PORT=3310 \
++    MAWDA_MEDIA_SCANNER_MAX_BYTES=104857600
++
++EXPOSE 8080
++CMD ["/app/entrypoint.sh"]
+diff --git a/scanner/README.md b/scanner/README.md
+new file mode 100644
+index 00000000..d2875c4f
+--- /dev/null
++++ b/scanner/README.md
+@@ -0,0 +1,64 @@
++# Mawadda isolated malware scanner gateway
++
++This Cloud Run container runs ClamAV behind Cloud Run IAM. It does not read or write Cloud Storage. The trusted Functions dispatcher reads one exact quarantined object generation and streams its bytes to this service. The gateway scans the complete payload with ClamAV INSTREAM, computes SHA-256, and posts a signed verdict to the Functions callback.
++
++## Security properties
++
++- Cloud Run must be deployed with `--no-allow-unauthenticated`; only the Functions service account receives `roles/run.invoker`.
++- Requests additionally require a 32+ character `MAWDA_MEDIA_SCANNER_BEARER_TOKEN` in `X-Mawadda-Scanner-Token`.
++- Callback requests are HMAC-SHA256 signed over the exact JSON bytes using `MAWDA_MEDIA_SCANNER_HMAC_SECRET`.
++- The callback URL is pinned in the Cloud Run environment and must use HTTPS. The caller-supplied URL must exactly match it.
++- The service enforces a 100 MiB maximum request size by default and ClamAV independently enforces stream/file/scan/recursion/time limits.
++- ClamAV signature updates run every two hours. The gateway checks the database timestamp on both health and scan requests and fails closed if signatures are older than 48 hours or implausibly in the future. The container refuses to start if the initial signature database update fails.
++- Engine and signature database versions are attached to every verdict.
++- Any daemon error, timeout, invalid response, callback failure or hash mismatch fails closed. The Functions trigger retries; the asset remains quarantined.
++- The service binds ClamAV to loopback only. No scanner TCP port is exposed outside the container.
++
++## Required configuration
++
++Provision these Secret Manager secrets in the Firebase/GCP project:
++- `MAWDA_MEDIA_SCANNER_BEARER_TOKEN` — random high-entropy secret, at least 32 characters.
++- `MAWDA_MEDIA_SCANNER_HMAC_SECRET` — separate random high-entropy secret, at least 32 characters.
++
++Create the Firebase Functions secrets interactively in the non-production project with `firebase functions:secrets:set MAWDA_MEDIA_SCANNER_BEARER_TOKEN --project NONPROD_PROJECT_ID` and `firebase functions:secrets:set MAWDA_MEDIA_SCANNER_HMAC_SECRET --project NONPROD_PROJECT_ID`. Enter the same secret values into the Cloud Run Secret Manager versions; do not place them in shell history or commit them.
++
++Bind the same secret values to both the Cloud Run service and Firebase Functions. Never commit secret values or put them in source-controlled environment files.
++
++Set Functions parameters (for the intended non-production project first):
++- `MAWDA_MEDIA_SCANNER_URL` — Cloud Run HTTPS URL ending in `/scan`.
++- `MAWDA_MEDIA_SCANNER_CALLBACK_URL` — HTTPS URL of the deployed `receiveMediaScanVerdict` function.
++- `MAWDA_MEDIA_SCANNER_PROVIDER` — defaults to `mawadda-malware-gateway`.
++
++Cloud Run environment:
++- `MAWDA_MEDIA_SCANNER_CALLBACK_URL` — exactly the same callback URL.
++- `MAWDA_MEDIA_SCANNER_PROVIDER` — same provider string as Functions.
++- `MAWDA_MEDIA_SCANNER_MAX_BYTES` — 104857600 (100 MiB).
++- `MAWDA_MEDIA_SCANNER_MAX_SIGNATURE_AGE_MS` — optional; defaults to 172800000 (48 hours).
++
++## Build and deploy to a non-production project
++
++Run only after a dedicated non-production Firebase/GCP project and bucket are confirmed:
++
++```sh
++gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT_ID/mawadda/media-scanner:phase2 --file scanner/Dockerfile .
++gcloud run deploy mawadda-media-scanner \
++  --image REGION-docker.pkg.dev/PROJECT_ID/mawadda/media-scanner:phase2 \
++  --region REGION \
++  --no-allow-unauthenticated \
++  --memory 2Gi --cpu 2 --timeout 600 --concurrency 1 --max-instances 2 \
++  --set-env-vars MAWDA_MEDIA_SCANNER_CALLBACK_URL=HTTPS_CALLBACK_URL,MAWDA_MEDIA_SCANNER_PROVIDER=mawadda-malware-gateway,MAWDA_MEDIA_SCANNER_MAX_BYTES=104857600 \
++  --set-secrets MAWDA_MEDIA_SCANNER_BEARER_TOKEN=MAWDA_MEDIA_SCANNER_BEARER_TOKEN:latest,MAWDA_MEDIA_SCANNER_HMAC_SECRET=MAWDA_MEDIA_SCANNER_HMAC_SECRET:latest
++```
++
++Grant `roles/run.invoker` on this Cloud Run service to the exact service account used by `dispatchMediaSecurityScan`, for example with `gcloud run services add-iam-policy-binding mawadda-media-scanner --region REGION --member=serviceAccount:FUNCTIONS_SERVICE_ACCOUNT --role=roles/run.invoker`. Configure the two Firebase Functions secrets and the three Functions parameters above. Confirm the deployed callback URL and Cloud Run URL before enabling uploads in that environment.
++
++## Verification still required
++
++- Build the Docker image in CI and run the gateway unit/protocol tests.
++- In non-production, verify Cloud Run IAM denial for unauthenticated callers and successful invocation from the Functions service account.
++- Submit the standard EICAR test string (not live malware) and confirm a malicious verdict, quarantine deletion, audit event and no approval.
++- Submit clean fixtures for each allowed media type and verify exact generation/hash binding.
++- Test signature-update outage, ClamAV unavailable, timeout, oversized upload, callback outage, duplicate callback, and container restart.
++- Verify ClamAV engine/database versions in audit records and establish an owner-reviewed signature-update/incident alert process.
++
++The source code and image build do not mean the Cloud Run service has been deployed. Until the non-production integration tests pass, no uploaded file may be treated as security-approved.
+diff --git a/scanner/clamd.conf b/scanner/clamd.conf
+new file mode 100644
+index 00000000..987fd3eb
+--- /dev/null
++++ b/scanner/clamd.conf
+@@ -0,0 +1,15 @@
++LogTime yes
++LogSyslog no
++Foreground yes
++TCPSocket 3310
++TCPAddr 127.0.0.1
++User clamav
++DatabaseDirectory /var/lib/clamav
++MaxFileSize 110M
++MaxScanSize 150M
++StreamMaxLength 110M
++MaxRecursion 12
++MaxFiles 2000
++MaxScanTime 120000
++ReadTimeout 180
++CommandReadTimeout 30
+diff --git a/scanner/entrypoint.sh b/scanner/entrypoint.sh
+new file mode 100644
+index 00000000..9eaa64fa
+--- /dev/null
++++ b/scanner/entrypoint.sh
+@@ -0,0 +1,33 @@
++#!/bin/sh
++set -eu
++
++mkdir -p /run/clamav /var/log/clamav /var/lib/clamav
++chown -R clamav:clamav /run/clamav /var/log/clamav /var/lib/clamav
++
++# Do not start accepting files with an empty or stale signature database.
++freshclam --config-file=/etc/clamav/freshclam.conf
++freshclam --daemon --config-file=/etc/clamav/freshclam.conf --checks=12
++
++clamd --config-file=/etc/clamav/clamd.conf &
++CLAMD_PID=$!
++cleanup() {
++  kill "$CLAMD_PID" 2>/dev/null || true
++}
++trap cleanup EXIT INT TERM
++
++READY=0
++for attempt in $(seq 1 60); do
++  if printf 'zPING\0' | nc -w 2 127.0.0.1 3310 2>/dev/null | grep -q PONG; then
++    READY=1
++    break
++  fi
++  sleep 1
++done
++if [ "$READY" -ne 1 ]; then
++  echo "ClamAV daemon did not become ready" >&2
++  exit 1
++fi
++
++su -s /bin/sh node -c "node /app/server.mjs" &
++NODE_PID=$!
++wait "$NODE_PID"
+diff --git a/scanner/freshclam.conf b/scanner/freshclam.conf
+new file mode 100644
+index 00000000..e8b43f6e
+--- /dev/null
++++ b/scanner/freshclam.conf
+@@ -0,0 +1,5 @@
++DatabaseDirectory /var/lib/clamav
++DatabaseOwner clamav
++UpdateLogFile /var/log/clamav/freshclam.log
++LogTime yes
++Checks 12
+diff --git a/scanner/package.json b/scanner/package.json
+new file mode 100644
+index 00000000..446edbf1
+--- /dev/null
++++ b/scanner/package.json
+@@ -0,0 +1,10 @@
++{
++  "name": "mawadda-clamav-gateway",
++  "private": true,
++  "type": "module",
++  "engines": { "node": "20" },
++  "scripts": {
++    "start": "node server.mjs",
++    "test": "node --test test/*.test.mjs"
++  }
++}
+diff --git a/scanner/server.mjs b/scanner/server.mjs
+new file mode 100644
+index 00000000..8a9692df
+--- /dev/null
++++ b/scanner/server.mjs
+@@ -0,0 +1,269 @@
++import { createHash, createHmac, timingSafeEqual } from "node:crypto";
++import { createServer } from "node:http";
++import net from "node:net";
++import { pathToFileURL } from "node:url";
++
++const UUID = /^[0-9a-f-]{36}$/i;
++const SHA256 = /^[a-f0-9]{64}$/;
++const MAX_DEFAULT_BYTES = 100 * 1024 * 1024;
++
++function secureEqual(left, right) {
++  const a = Buffer.from(String(left ?? ""));
++  const b = Buffer.from(String(right ?? ""));
++  return a.length === b.length && a.length > 0 && timingSafeEqual(a, b);
++}
++
++export function parseClamAvVersion(response) {
++  const match = /^ClamAV\s+([^/\s]+)\/([^/\s]+)\/(.+)$/.exec(String(response).trim());
++  if (!match) throw new Error("CLAMAV_VERSION_RESPONSE_INVALID");
++  const signatureUpdatedAtMs = Date.parse(match[3].trim());
++  if (!Number.isFinite(signatureUpdatedAtMs)) throw new Error("CLAMAV_SIGNATURE_DATE_INVALID");
++  return {
++    engine: "ClamAV",
++    engineVersion: match[1],
++    signatureVersion: match[2],
++    signatureUpdatedAtMs,
++  };
++}
++
++export function assertSignatureFresh(version, nowMs = Date.now(), maxAgeMs = 48 * 60 * 60 * 1000) {
++  if (!Number.isFinite(version?.signatureUpdatedAtMs) ||
++      !Number.isFinite(nowMs) || !Number.isSafeInteger(maxAgeMs) || maxAgeMs <= 0) {
++    throw new Error("CLAMAV_SIGNATURE_FRESHNESS_INPUT_INVALID");
++  }
++  const ageMs = nowMs - version.signatureUpdatedAtMs;
++  if (ageMs < -5 * 60 * 1000 || ageMs > maxAgeMs) {
++    throw new Error("CLAMAV_SIGNATURE_DATABASE_STALE");
++  }
++  return true;
++}
++
++export function parseClamAvScanResponse(response) {
++  const text = String(response).trim();
++  if (/^stream:\s*OK$/i.test(text)) return "clean";
++  if (/^stream:.+\sFOUND$/i.test(text)) return "malicious";
++  throw new Error("CLAMAV_SCAN_DID_NOT_RETURN_A_VERDICT");
++}
++
++export function buildClamAvInstreamFrames(payload, chunkSize = 1024 * 1024) {
++  if (!Buffer.isBuffer(payload) || payload.length === 0 ||
++      !Number.isSafeInteger(chunkSize) || chunkSize < 1 || chunkSize > 1024 * 1024) {
++    throw new TypeError("Invalid ClamAV INSTREAM payload or chunk size.");
++  }
++  const frames = [Buffer.from("zINSTREAM\0")];
++  for (let offset = 0; offset < payload.length; offset += chunkSize) {
++    const part = payload.subarray(offset, Math.min(offset + chunkSize, payload.length));
++    const length = Buffer.alloc(4);
++    length.writeUInt32BE(part.length, 0);
++    frames.push(length, part);
++  }
++  frames.push(Buffer.alloc(4));
++  return frames;
++}
++
++function clamdCommand(config, command, payload) {
++  return new Promise((resolve, reject) => {
++    const socket = net.createConnection({ host: config.clamdHost, port: config.clamdPort });
++    let response = Buffer.alloc(0);
++    let settled = false;
++    const finish = (error, value) => {
++      if (settled) return;
++      settled = true;
++      socket.destroy();
++      error ? reject(error) : resolve(value);
++    };
++    socket.setTimeout(config.clamdTimeoutMs, () => finish(new Error("CLAMAV_TIMEOUT")));
++    socket.on("error", (error) => finish(error));
++    socket.on("end", () => finish(new Error("CLAMAV_CONNECTION_CLOSED_BEFORE_VERDICT")));
++    socket.on("data", (chunk) => {
++      response = Buffer.concat([response, chunk]);
++      if (response.includes(0)) finish(null, response.toString("utf8").replace(/\0.*$/s, ""));
++    });
++    socket.on("connect", () => {
++      if (payload) {
++        for (const frame of buildClamAvInstreamFrames(payload)) socket.write(frame);
++      } else {
++        socket.write(Buffer.from(`z${command}\0`));
++      }
++    });
++  });
++}
++
++export async function scanWithClamAv(bytes, config) {
++  const versionText = await clamdCommand(config, "VERSION");
++  const version = parseClamAvVersion(versionText);
++  assertSignatureFresh(version, Date.now(), config.maxSignatureAgeMs);
++  const scanText = await clamdCommand(config, "INSTREAM", bytes);
++  return { ...version, verdict: parseClamAvScanResponse(scanText) };
++}
++
++async function readBoundedBody(request, maxBytes) {
++  const chunks = [];
++  let total = 0;
++  for await (const chunk of request) {
++    const part = Buffer.from(chunk);
++    total += part.length;
++    if (total > maxBytes) {
++      const error = new Error("MEDIA_SCAN_SIZE_LIMIT_EXCEEDED");
++      error.statusCode = 413;
++      throw error;
++    }
++    chunks.push(part);
++  }
++  if (total === 0) {
++    const error = new Error("EMPTY_SCAN_PAYLOAD");
++    error.statusCode = 400;
++    throw error;
++  }
++  return Buffer.concat(chunks, total);
++}
++
++export function createScannerHandler(config, scan = scanWithClamAv) {
++  return async (request, response) => {
++    if (request.method === "GET" && request.url === "/healthz") {
++      try {
++        const version = parseClamAvVersion(await clamdCommand(config, "VERSION"));
++        assertSignatureFresh(version, Date.now(), config.maxSignatureAgeMs);
++        await clamdCommand(config, "PING");
++        response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
++        response.end(JSON.stringify({ status: "ready", ...version }));
++      } catch {
++        response.writeHead(503, { "cache-control": "no-store" });
++        response.end("scanner unavailable");
++      }
++      return;
++    }
++    if (request.method !== "POST" || request.url !== "/scan") {
++      response.writeHead(404, { "cache-control": "no-store" });
++      response.end("not found");
++      return;
++    }
++    if (request.headers["content-type"] !== "application/octet-stream") {
++      response.writeHead(415, { "cache-control": "no-store", "x-content-type-options": "nosniff" });
++      response.end("unsupported content type");
++      return;
++    }
++    const declaredLength = request.headers["content-length"] === undefined
++      ? null : Number(request.headers["content-length"]);
++    if (declaredLength !== null && (!Number.isSafeInteger(declaredLength) ||
++        declaredLength <= 0 || declaredLength > config.maxBytes)) {
++      response.writeHead(413, { "cache-control": "no-store" });
++      response.end("payload too large");
++      return;
++    }
++    if (!secureEqual(request.headers["x-mawadda-scanner-token"], config.bearerToken)) {
++      response.writeHead(401, { "cache-control": "no-store" });
++      response.end("unauthorized");
++      return;
++    }
++
++    try {
++      const mediaId = String(request.headers["x-mawadda-media-id"] ?? "");
++      const objectGeneration = String(request.headers["x-mawadda-object-generation"] ?? "");
++      const expectedSha256 = String(request.headers["x-mawadda-expected-sha256"] ?? "");
++      const provider = String(request.headers["x-mawadda-provider"] ?? "");
++      const callbackUrl = String(request.headers["x-mawadda-callback-url"] ?? "");
++      if (!UUID.test(mediaId) || !/^\d+$/.test(objectGeneration) ||
++          !SHA256.test(expectedSha256) || provider !== config.provider ||
++          callbackUrl !== config.callbackUrl) {
++        response.writeHead(400, { "cache-control": "no-store" });
++        response.end("invalid scan metadata");
++        return;
++      }
++
++      const bytes = await readBoundedBody(request, config.maxBytes);
++      const sha256 = createHash("sha256").update(bytes).digest("hex");
++      if (sha256 !== expectedSha256) {
++        response.writeHead(409, { "cache-control": "no-store" });
++        response.end("payload hash mismatch");
++        return;
++      }
++
++      const result = await scan(bytes, config);
++      if (!["clean", "malicious"].includes(result.verdict)) {
++        throw new Error("CLAMAV_VERDICT_INVALID");
++      }
++      const verdict = {
++        mediaId,
++        provider: config.provider,
++        engine: result.engine,
++        engineVersion: result.engineVersion,
++        signatureVersion: result.signatureVersion,
++        verdict: result.verdict,
++        objectGeneration,
++        sha256,
++        scannedAtMs: Date.now(),
++      };
++      const rawBody = Buffer.from(JSON.stringify(verdict));
++      const signature = createHmac("sha256", config.hmacSecret).update(rawBody).digest("hex");
++      const callback = await fetch(config.callbackUrl, {
++        method: "POST",
++        headers: {
++          "content-type": "application/json",
++          "x-mawadda-scanner-signature": signature,
++        },
++        body: rawBody,
++        signal: AbortSignal.timeout(config.callbackTimeoutMs),
++      });
++      if (!callback.ok) throw new Error(`SCANNER_CALLBACK_HTTP_${callback.status}`);
++      response.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
++      response.end(JSON.stringify({ accepted: true, verdict: result.verdict, sha256 }));
++    } catch (error) {
++      const status = Number(error?.statusCode) || 503;
++      response.writeHead(status, { "content-type": "text/plain", "cache-control": "no-store" });
++      response.end(status === 413 ? "payload too large" : status === 400 ? "invalid payload" : "scan unavailable");
++    }
++  };
++}
++
++export function loadScannerConfig(env = process.env) {
++  const callbackUrl = new URL(env.MAWDA_MEDIA_SCANNER_CALLBACK_URL ?? "");
++  if (callbackUrl.protocol !== "https:") throw new Error("SCANNER_CALLBACK_MUST_USE_HTTPS");
++  const bearerToken = env.MAWDA_MEDIA_SCANNER_BEARER_TOKEN ?? "";
++  const hmacSecret = env.MAWDA_MEDIA_SCANNER_HMAC_SECRET ?? "";
++  const provider = env.MAWDA_MEDIA_SCANNER_PROVIDER ?? "mawadda-malware-gateway";
++  if (bearerToken.length < 32 || hmacSecret.length < 32 || provider.length < 3) {
++    throw new Error("SCANNER_SECRETS_OR_PROVIDER_NOT_CONFIGURED");
++  }
++  const maxBytes = Number(env.MAWDA_MEDIA_SCANNER_MAX_BYTES ?? MAX_DEFAULT_BYTES);
++  const maxSignatureAgeMs = Number(env.MAWDA_MEDIA_SCANNER_MAX_SIGNATURE_AGE_MS ?? 48 * 60 * 60 * 1000);
++  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || maxBytes > MAX_DEFAULT_BYTES) {
++    throw new Error("SCANNER_MAX_BYTES_INVALID");
++  }
++  if (!Number.isSafeInteger(maxSignatureAgeMs) || maxSignatureAgeMs < 60 * 60 * 1000 ||
++      maxSignatureAgeMs > 7 * 24 * 60 * 60 * 1000) {
++    throw new Error("SCANNER_SIGNATURE_MAX_AGE_INVALID");
++  }
++  const port = Number(env.PORT ?? 8080);
++  const clamdPort = Number(env.CLAMD_PORT ?? 3310);
++  if (!Number.isInteger(port) || port < 1 || port > 65535 ||
++      !Number.isInteger(clamdPort) || clamdPort < 1 || clamdPort > 65535) {
++    throw new Error("SCANNER_PORT_CONFIGURATION_INVALID");
++  }
++  return {
++    port,
++    bearerToken,
++    hmacSecret,
++    provider,
++    callbackUrl: callbackUrl.toString(),
++    clamdHost: env.CLAMD_HOST ?? "127.0.0.1",
++    clamdPort,
++    clamdTimeoutMs: 120_000,
++    callbackTimeoutMs: 30_000,
++    maxBytes,
++    maxSignatureAgeMs,
++  };
++}
++
++export function startScannerServer(config = loadScannerConfig()) {
++  const server = createServer(createScannerHandler(config));
++  server.requestTimeout = 600_000;
++  server.headersTimeout = 65_000;
++  server.keepAliveTimeout = 5_000;
++  server.listen(config.port, "0.0.0.0");
++  return server;
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
++  startScannerServer();
++}
+diff --git a/scanner/test/server.test.mjs b/scanner/test/server.test.mjs
+new file mode 100644
+index 00000000..03a3df9a
+--- /dev/null
++++ b/scanner/test/server.test.mjs
+@@ -0,0 +1,210 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import { createServer } from "node:http";
++import { createHash, createHmac } from "node:crypto";
++import {
++  createScannerHandler,
++  parseClamAvScanResponse,
++  parseClamAvVersion,
++  assertSignatureFresh,
++  loadScannerConfig,
++  buildClamAvInstreamFrames,
++} from "../server.mjs";
++
++async function listen(server) {
++  server.testSockets = new Set();
++  server.on("connection", (socket) => {
++    server.testSockets.add(socket);
++    socket.on("close", () => server.testSockets.delete(socket));
++  });
++  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
++  return `http://127.0.0.1:${server.address().port}`;
++}
++
++async function close(server) {
++  if (server.listening) {
++    for (const socket of server.testSockets ?? []) socket.destroy();
++    await new Promise((resolve) => server.close(resolve));
++  }
++}
++
++function makeConfig(callbackUrl, overrides = {}) {
++  return {
++    bearerToken: "scanner-bearer-secret-".padEnd(48, "x"),
++    hmacSecret: "scanner-hmac-secret-".padEnd(48, "y"),
++    provider: "mawadda-malware-gateway",
++    callbackUrl,
++    maxBytes: 1024,
++    clamdHost: "127.0.0.1",
++    clamdPort: 3310,
++    clamdTimeoutMs: 1000,
++    callbackTimeoutMs: 2000,
++    ...overrides,
++  };
++}
++
++function requestHeaders(config, bytes, overrides = {}) {
++  return {
++    "content-type": "application/octet-stream",
++    "x-mawadda-scanner-token": config.bearerToken,
++    "x-mawadda-media-id": "123e4567-e89b-12d3-a456-426614174000",
++    "x-mawadda-object-generation": "17",
++    "x-mawadda-expected-sha256": createHash("sha256").update(bytes).digest("hex"),
++    "x-mawadda-provider": config.provider,
++    "x-mawadda-callback-url": config.callbackUrl,
++    ...overrides,
++  };
++}
++
++test("ClamAV response parsers require a known engine, signature database and explicit verdict", () => {
++  assert.deepEqual(parseClamAvVersion("ClamAV 1.4.2/28145/Fri Nov 13 2026"), {
++    engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "28145",
++    signatureUpdatedAtMs: Date.parse("Fri Nov 13 2026"),
++  });
++  assert.equal(parseClamAvScanResponse("stream: OK"), "clean");
++  assert.equal(parseClamAvScanResponse("stream: Eicar-Test-Signature FOUND"), "malicious");
++  assert.throws(() => parseClamAvVersion("unknown"));
++  assert.throws(() => parseClamAvScanResponse("stream: ERROR"));
++});
++
++test("scanner refuses stale or implausibly future signature databases", () => {
++  const now = 2_000_000_000_000;
++  assert.equal(assertSignatureFresh({ signatureUpdatedAtMs: now - 60_000 }, now, 3_600_000), true);
++  assert.throws(() => assertSignatureFresh({ signatureUpdatedAtMs: now - 49 * 60 * 60 * 1000 }, now, 48 * 60 * 60 * 1000), /STALE/);
++  assert.throws(() => assertSignatureFresh({ signatureUpdatedAtMs: now + 6 * 60 * 1000 }, now, 48 * 60 * 60 * 1000), /STALE/);
++});
++
++test("scanner requires HTTPS callback URL and strong secrets", () => {
++  assert.throws(() => loadScannerConfig({
++    MAWDA_MEDIA_SCANNER_CALLBACK_URL: "http://callback.invalid/scan",
++    MAWDA_MEDIA_SCANNER_BEARER_TOKEN: "b".repeat(48),
++    MAWDA_MEDIA_SCANNER_HMAC_SECRET: "h".repeat(48),
++  }), /HTTPS/i);
++  assert.throws(() => loadScannerConfig({
++    MAWDA_MEDIA_SCANNER_CALLBACK_URL: "https://callback.invalid/scan",
++    MAWDA_MEDIA_SCANNER_BEARER_TOKEN: "weak",
++    MAWDA_MEDIA_SCANNER_HMAC_SECRET: "h".repeat(48),
++  }), /secrets/i);
++});
++
++test("clean verdict is hashed, HMAC-signed and posted to the configured callback", async () => {
++  let callbackPayload;
++  const callback = createServer(async (req, res) => {
++    const chunks = [];
++    for await (const chunk of req) chunks.push(chunk);
++    const rawBody = Buffer.concat(chunks);
++    const expected = createHmac("sha256", config.hmacSecret).update(rawBody).digest("hex");
++    assert.equal(req.headers["x-mawadda-scanner-signature"], expected);
++    callbackPayload = JSON.parse(rawBody.toString("utf8"));
++    res.writeHead(200);
++    res.end("accepted");
++  });
++  const callbackUrl = await listen(callback);
++  const config = makeConfig(`${callbackUrl}/callback`);
++  const scanner = createServer(createScannerHandler(config, async (bytes) => {
++    assert.equal(bytes.toString(), "known safe fixture");
++    return { verdict: "clean", engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "db-28145" };
++  }));
++  const scannerUrl = await listen(scanner);
++  try {
++    const bytes = Buffer.from("known safe fixture");
++    const response = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes), body: bytes,
++    });
++    assert.equal(response.status, 200);
++    assert.equal(callbackPayload.verdict, "clean");
++    assert.equal(callbackPayload.engine, "ClamAV");
++    assert.equal(callbackPayload.engineVersion, "1.4.2");
++    assert.equal(callbackPayload.signatureVersion, "db-28145");
++    assert.equal(callbackPayload.objectGeneration, "17");
++    assert.equal(callbackPayload.sha256, createHash("sha256").update(bytes).digest("hex"));
++  } finally {
++    await close(scanner);
++    await close(callback);
++  }
++});
++
++test("malicious verdict is forwarded, while missing auth and altered bytes are rejected", async () => {
++  let callbacks = 0;
++  const callback = createServer(async (req, res) => {
++    callbacks += 1;
++    res.writeHead(200);
++    res.end("accepted");
++  });
++  const callbackUrl = await listen(callback);
++  const config = makeConfig(`${callbackUrl}/callback`);
++  const scanner = createServer(createScannerHandler(config, async () => ({
++    verdict: "malicious", engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "db-28145",
++  })));
++  const scannerUrl = await listen(scanner);
++  try {
++    const bytes = Buffer.from("EICAR fixture bytes");
++    const unauthorized = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes, { "x-mawadda-scanner-token": "wrong" }), body: bytes,
++    });
++    assert.equal(unauthorized.status, 401);
++    const mismatch = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes, { "x-mawadda-expected-sha256": "0".repeat(64) }), body: bytes,
++    });
++    assert.equal(mismatch.status, 409);
++    const malicious = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes), body: bytes,
++    });
++    assert.equal(malicious.status, 200);
++    assert.equal(callbacks, 1);
++  } finally {
++    await close(scanner);
++    await close(callback);
++  }
++});
++
++test("scanner rejects payloads over the configured transport limit", async () => {
++  const callback = createServer((req, res) => { res.writeHead(200); res.end("ok"); });
++  const callbackUrl = await listen(callback);
++  const config = makeConfig(`${callbackUrl}/callback`, { maxBytes: 4 });
++  const scanner = createServer(createScannerHandler(config, async () => ({
++    verdict: "clean", engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "db-1",
++  })));
++  const scannerUrl = await listen(scanner);
++  try {
++    const bytes = Buffer.from("too large");
++    const response = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes), body: bytes,
++    });
++    assert.equal(response.status, 413);
++  } finally {
++    await close(scanner);
++    await close(callback);
++  }
++});
++
++test("scanner stays fail-closed when the callback endpoint is unavailable", async () => {
++  const config = makeConfig("http://127.0.0.1:1/callback", { callbackTimeoutMs: 200 });
++  const scanner = createServer(createScannerHandler(config, async () => ({
++    verdict: "clean", engine: "ClamAV", engineVersion: "1.4.2", signatureVersion: "db-1",
++  })));
++  const scannerUrl = await listen(scanner);
++  try {
++    const bytes = Buffer.from("fixture");
++    const response = await fetch(`${scannerUrl}/scan`, {
++      method: "POST", headers: requestHeaders(config, bytes), body: bytes,
++    });
++    assert.equal(response.status, 503);
++  } finally {
++    await close(scanner);
++  }
++});
++
++
++test("ClamAV INSTREAM frames use bounded 4-byte big-endian lengths and a zero terminator", () => {
++  const bytes = Buffer.alloc(1_500_000, 0x61);
++  const frames = buildClamAvInstreamFrames(bytes, 1024 * 1024);
++  assert.equal(frames[0].toString("utf8"), "zINSTREAM\0");
++  assert.equal(frames[1].readUInt32BE(0), 1024 * 1024);
++  assert.equal(frames[2].length, 1024 * 1024);
++  assert.equal(frames[3].readUInt32BE(0), 1_500_000 - 1024 * 1024);
++  assert.equal(frames[4].length, 1_500_000 - 1024 * 1024);
++  assert.equal(frames[5].readUInt32BE(0), 0);
++  assert.throws(() => buildClamAvInstreamFrames(Buffer.alloc(0)));
++  assert.throws(() => buildClamAvInstreamFrames(bytes, 0));
++});

@@ -1,0 +1,115 @@
+# SUPERSEDED — Historical biometric policy amendment
+
+> This document records the earlier PR #77 policy only. It is retained for provenance and must not be used as the implementation source where it differs from the final owner-approved policy. The authoritative specification is [`BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md), merged by PR #82. In particular, the final policy mandates a pre-established spoken phrase, 3–5 second video, canonical gender matching, and the exact three-attempt lifecycle.
+Date: 2026-11-20
+Repository: `productionhome2022-hash/mawda-platform`
+Target integration line: `codex/mawdda-phase1-unified-2026-11-19`
+Status: Owner-directed policy amendment; implementation and tests remain required.
+
+## Authority and supersession
+
+This amendment records the Owner's latest explicit direction in the Mawdda HQ conversation on 2026-11-20. It supersedes conflicting biometric-policy details in earlier drafts and branch notes where they require automated platform attestation providers, cryptographic device attestation, automated voice/face classification, or a three-month rejection lockout.
+
+The approved initial verification decision is **manual review by the Super Owner only**. Google Play Integrity, Apple App Attest, device-key attestation and automated biometric classifiers are not approval prerequisites for this workflow. No Admin, specialist supervisor, moderator or other staff member may accept or reject a biometric request.
+
+This is a policy decision, not evidence that the feature is implemented or safe to enable. Private evidence handling, server-authoritative authorization, auditability, anti-replay request handling, wallet atomicity and deletion controls remain mandatory.
+
+## 1. Member submission and canonical identity
+
+The member initiates the voluntary process from their own account. The server snapshots canonical account values at submission; client-supplied values must not override them:
+
+- immutable account UID;
+- registered full name;
+- registered username;
+- gender value currently saved by the member in their profile/dashboard;
+- request ID, submission timestamp and server-owned attempt number;
+- voice sample / voice recording submitted for review;
+- short live video clip submitted through the in-app capture flow.
+
+The Super Owner review screen must show the identity snapshot and provide private playback/preview controls for both the audio and video. The Super Owner personally listens to the voice sample, watches the submitted video and decides whether the evidence and account details are sufficient. Do not automatically infer or classify gender, identity, face match or voice match.
+
+A member can have only one active pending request. Pending requests remain pending until the Super Owner explicitly accepts or rejects them; no automatic rejection due to review delay.
+
+## 2. Three attempts and one-calendar-month retry intervals
+
+There are **three total attempts**. A rejection starts a one-calendar-month waiting period before the next attempt becomes available:
+
+1. Attempt 1: if rejected, attempt 2 becomes available one calendar month after the rejection timestamp.
+2. Attempt 2: if rejected, attempt 3 becomes available one further calendar month after the second rejection timestamp.
+3. Attempt 3: if accepted, verification succeeds. If rejected, the process is finally closed and no fourth attempt is automatically granted.
+
+The third attempt therefore becomes available at the start of the third month measured from the first attempt/rejection sequence (after two one-month waiting intervals). Do not impose a further three-month lockout after the third rejection.
+
+The server owns attempt counters, rejection timestamps, next-eligible timestamps, state transitions and concurrency/idempotency controls. Use calendar-month arithmetic in the platform's canonical time basis, not a hard-coded 30-day duration. The UI must show the member the current attempt and the exact next eligible date when waiting.
+
+## 3. Super Owner decision and reward
+
+Only the Super Owner can make a version-checked, server-authoritative accept/reject decision.
+
+**Accept:**
+- mark the submitted request accepted and the member biometrically verified;
+- record the Super Owner actor and server timestamp;
+- set the biometric renewal due date one calendar month after this approval;
+- grant **1,500 BetaCoins once for this accepted request**, through the central wallet ledger in the same atomic/idempotent decision flow;
+- publish the biometric verification badge and member notification.
+
+Repeated calls or retries for the same request ID must never grant a second reward.
+
+**Reject:**
+- do not grant coins;
+- record actor, timestamp and decision;
+- notify the member and show remaining attempts and next eligible date, or final closure after attempt 3.
+
+No client flag, local OS biometric prompt, client-written status or replayed callable may create verification or a reward.
+
+## 4. Fully independent verification tracks — no cross-dependency
+
+Email verification and biometric verification are two independent account-verification tracks. They must have separate state, timestamps, expiry status, renewal eligibility, workflows, enforcement decisions and audit records. Neither track is a prerequisite, substitute, extension, renewal trigger or status modifier for the other.
+
+- **Email verification track:** its own verification status and last-success timestamp; renewal is due every three calendar months from the last successful email verification timestamp. Its due/overdue/failed state affects only email-verification status and email-gated capabilities, if any are separately specified by approved policy. Preserve the existing separate email-verification reward policy; this amendment does not change its amount or eligibility.
+- **Biometric verification track:** its own verification status and last-success timestamp; renewal is due every one calendar month from the last successful Super Owner biometric approval timestamp. At the due date, the member must be able to submit a new biometric review request. The renewal request follows the same Super Owner-only manual review and evidence process. Its due/overdue/failed state affects only biometric-verification status and biometric-gated capabilities, if any are separately specified by approved policy.
+
+**Mandatory isolation rules:**
+- Email verified, unverified, expired, renewed, rejected or pending must not create, approve, reject, delay, block, extend, expire, reset or reschedule biometric verification.
+- Biometric verified, unverified, expired, renewed, rejected or pending must not create, approve, reject, delay, block, extend, expire, reset or reschedule email verification.
+- Neither track may be used as proof of the other. Completing one track must never mark the other as complete.
+- Store and calculate independent fields and due dates; do not share a generic verification timestamp, expiry flag, renewal job, retry counter or state machine between the tracks.
+- A member may complete or renew either track without first completing or renewing the other, subject only to that track's own approved requirements.
+
+Each track's server-owned timestamps and next-due date use calendar-month arithmetic independently. Do not use a fixed 30/90-day approximation. Pending-request deduplication is scoped to its own track.
+
+## 5. Privacy, security and evidence lifecycle
+
+Audio/video are sensitive temporary evidence:
+- use private storage and encrypted transport/storage;
+- enforce Super Owner-only evidence access in trusted server authorization and storage rules, not merely by hiding UI controls;
+- issue short-lived, request-bound playback access and audit evidence access;
+- do not put evidence bytes, transcripts, voiceprints, face embeddings or sensitive media URLs in logs, analytics, notifications or crash reports;
+- do not retain or generate biometric templates and do not use recordings to train recognition systems;
+- after the final decision, revoke playback access and delete source media and temporary derivatives through a retryable, auditable deletion lifecycle;
+- retain only the minimum non-media decision record needed for attempts, status, actor/time, reward ledger reference, renewal timestamps and deletion completion;
+- show informed consent and explain review access, purpose, retention/deletion and consequences before capture.
+
+A legal hold or backup-retention exception must be explicit and access-restricted. Do not claim backup deletion until the configured backup lifecycle has actually completed.
+
+## 6. Required implementation and acceptance gates
+
+Before enabling this workflow, implement and test:
+1. canonical identity snapshot and member submission/status screens;
+2. Super Owner-only inbox, secure audio/video preview and accept/reject controls;
+3. server authorization denying every non-Super-Owner reviewer;
+4. one-active-request enforcement, server-owned three-attempt state machine and calendar-month retry scheduling;
+5. separate email three-month and biometric one-month renewal schedulers/status calculations;
+6. version checks, idempotency and append-only decision/access audit events;
+7. atomic 1,500 BetaCoin credit for each accepted request, with exactly-once ledger semantics;
+8. notifications, profile badge and member-facing remaining-attempt/next-date display;
+9. private media access, revocation, retryable deletion and no-media-in-logs assertions;
+10. Emulator tests for concurrent submissions, delayed review, all accept/reject paths, each retry boundary, final rejection, renewal dates, forged identity fields, unauthorized reviewers, duplicate decisions, duplicate reward attempts, deletion retries and access denial after decision;
+11. Functions compile/unit/integration tests, Flutter analysis/widget tests and Firestore/Storage security-rules tests on the exact final commit.
+
+## 7. Explicit boundaries
+
+- This amendment does not itself implement the workflow or authorize production activation.
+- Do not merge to `main`, deploy, mutate production Firebase, enable billing/paid services, or alter live member data.
+- Do not run the 5,000-persona simulation or tests outside GitHub Actions under the current work order.
+- Keep the workflow disabled until all acceptance gates above pass on the exact candidate SHA and the Owner separately approves any release/production activation.

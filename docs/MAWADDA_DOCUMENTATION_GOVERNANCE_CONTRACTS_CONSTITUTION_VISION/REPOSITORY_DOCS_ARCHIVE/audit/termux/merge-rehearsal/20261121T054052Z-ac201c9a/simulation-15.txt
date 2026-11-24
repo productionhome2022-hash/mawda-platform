@@ -1,0 +1,62 @@
+a310129aee352562a16582d307e7ee50ddaa7cce
+100644 727584269fb97af6bee6ca2e559646bbb1649208 1	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 716003d5e98b804f2bb6445585c763fe24a9dd3d 2	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 064bf45e64d6676a4a530c1deb2c9f518bbd8da9 3	docs/IMPLEMENTATION_TRACEABILITY.md
+100644 a36bd5832c64994553851b7120b3687b5b77ce16 1	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 9ee596af6be3ea7633054adae4d1e5557708a587 2	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 755d9b03b0be66c33491573994197055d3f0ca18 3	docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+100644 e5a12eaeb866df21cb2f57742062f7cb4eb0813b 1	firestore.indexes.json
+100644 55049d211ca65f2169eb528b52243d523431a790 2	firestore.indexes.json
+100644 57091377587ce37e6e99b37a406a3d65af82fd25 3	firestore.indexes.json
+100644 d9c2427bff87a87bf605455c75213b6e81613b73 1	functions/src/store-catalog.ts
+100644 3abfdca7ea55edbe4d626928224d783b1127ae12 2	functions/src/store-catalog.ts
+100644 8dba73eaba5b1b4fa603195f47f1c979229372e0 3	functions/src/store-catalog.ts
+100644 5a184229babffdaf9265e93b013dc2ec21540ce0 1	functions/test/integration/call-signaling.integration.test.js
+100644 2e35bd8b7b027e1a39d4e056dd7a8b834b7a5ca9 2	functions/test/integration/call-signaling.integration.test.js
+100644 40f775bd7085c954f8c00fbf005a49fe72514b06 3	functions/test/integration/call-signaling.integration.test.js
+100644 295526a52b624e8a5eb0d813b3cd847633556593 1	functions/test/integration/media-callables.integration.test.js
+100644 e9c54466cda57daba2fe3d58804a9dfbf7e9b542 2	functions/test/integration/media-callables.integration.test.js
+100644 9926c3ea12b210c7b5d245259ed8c7dfb9556ad2 3	functions/test/integration/media-callables.integration.test.js
+100644 1985df93d8fb2091a0de5d12a7300f947148a9f2 1	functions/test/integration/wallet-store.integration.test.js
+100644 9fb7ac986679f0b29538bdadb284fa3ef1c308bd 2	functions/test/integration/wallet-store.integration.test.js
+100644 edc53d08f436b2cbb27f9807014c702515277ef5 3	functions/test/integration/wallet-store.integration.test.js
+100644 a2fa7b35beb623514fd044ea8df4078aaddf9f4f 1	functions/test/store-catalog.test.js
+100644 63226820c27cf3b0f879948bb3be9b8ecc9f44c7 2	functions/test/store-catalog.test.js
+100644 f58a4cf145b14756224012a6b17e16fbc4eaee9e 3	functions/test/store-catalog.test.js
+100644 5de33c591161103fc23ef43fac3e3351d4518c7a 1	lib/screens/owner_coin_purchase_screen.dart
+100644 383a233af43ca14f7c936d3a1f8012530e748118 2	lib/screens/owner_coin_purchase_screen.dart
+100644 cadf0fc8922ddb2b53c5ca614e734883c44442cb 3	lib/screens/owner_coin_purchase_screen.dart
+100644 9469dbf5b82ad1e4fb251ada3a185b374323bdc2 1	lib/screens/profile_screen.dart
+100644 fbdc825999508db072db8174b93814cdbe3555c1 2	lib/screens/profile_screen.dart
+100644 829ac84c9e6a7f11fd976869547f776743b074fe 3	lib/screens/profile_screen.dart
+100644 0838c0573c715dc1a0a7e730cf4fda42c647608a 1	lib/screens/shop_screen.dart
+100644 b6dde4a0155e9c370f2113f35f4f72e2964ebebe 2	lib/screens/shop_screen.dart
+100644 a958c008188416688120e2f2b1838a056fe20079 3	lib/screens/shop_screen.dart
+
+Auto-merging docs/ADVERTISING_MEDIA_WORKSPACE_SPEC.md
+Auto-merging docs/IMPLEMENTATION_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/IMPLEMENTATION_TRACEABILITY.md
+Auto-merging docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+CONFLICT (content): Merge conflict in docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+Auto-merging firestore.indexes.json
+CONFLICT (content): Merge conflict in firestore.indexes.json
+Auto-merging functions/src/index.ts
+Auto-merging functions/src/media.ts
+Auto-merging functions/src/store-catalog.ts
+CONFLICT (content): Merge conflict in functions/src/store-catalog.ts
+Auto-merging functions/test/integration/call-signaling.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/call-signaling.integration.test.js
+Auto-merging functions/test/integration/media-callables.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/media-callables.integration.test.js
+Auto-merging functions/test/integration/wallet-store.integration.test.js
+CONFLICT (content): Merge conflict in functions/test/integration/wallet-store.integration.test.js
+Auto-merging functions/test/store-catalog.test.js
+CONFLICT (content): Merge conflict in functions/test/store-catalog.test.js
+Auto-merging lib/screens/owner_coin_purchase_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/owner_coin_purchase_screen.dart
+Auto-merging lib/screens/profile_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/profile_screen.dart
+Auto-merging lib/screens/shop_screen.dart
+CONFLICT (content): Merge conflict in lib/screens/shop_screen.dart
+Auto-merging lib/services/member_media_upload_service.dart
+Auto-merging pubspec.yaml

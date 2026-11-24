@@ -1,0 +1,971 @@
+diff --git a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+index 79ce868d..33565c29 100644
+--- a/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
++++ b/docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md
+@@ -1,132 +1,141 @@
+ # سجل القرارات المعتمدة وتتبع التنفيذ — MAWADDA 2026
+ 
+ هذا السجل يربط قرارات المالك بالرؤية والدستور والتنفيذ والاختبارات. عند التعارض، تكون أحدث موافقة صريحة للمالك هي المرجع، ويجب تصحيح الوثائق والكود قبل التنفيذ. لا تعني حالة «معتمد» أن الميزة منفذة.
+ 
+ ## قواعد الحالة
+ 
+ - **معتمد — لم يبدأ:** المتطلب ثابت لكن لا يوجد تنفيذ كافٍ.
+ - **قيد التنفيذ:** توجد تغييرات غير مكتملة.
+ - **منفذ جزئياً:** توجد أجزاء في المصدر، لكن دورة الاستخدام أو الضوابط أو الاختبارات غير مكتملة.
+ - **منفذ ومختبر آلياً:** الكود والاختبارات المحددة موجودة ونجحت على SHA معلوم.
+ - **قبول أجهزة/تشغيل حي:** اختبارات أجهزة فعلية أو موارد non-production الحية موثقة.
+ - **جاهز للإطلاق:** كل بوابات الأمن والخصوصية والقانون والتشغيل والمالك مكتملة. لا يوجد ادعاء بهذه الحالة لمجرد نجاح CI.
+ 
+ ## المراجع الرسمية
+ 
+ 1. [الرؤية الشاملة](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md) — نطاق المنتج وتجربة المستخدم والأنظمة.
+ 2. [الدستور](MAWADDA_PRODUCT_CONSTITUTION.md) — قواعد ملزمة للمنتج والأمن والاقتصاد والحوكمة.
+ 3. [العلامة وتجربة المنتج](MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md) — الهوية والألوان والشعار والخلفيات.
+ 4. [خطة المراحل السبع](SEVEN_PHASE_EXECUTION_PLAN.md) — ترتيب التسليم والمخرجات.
+ 5. [التتبع الهندسي التفصيلي](IMPLEMENTATION_TRACEABILITY.md) — المتطلبات الفنية والاختبارات.
+ 6. [قائمة قبول الإطلاق](RELEASE_READINESS_CHECKLIST.md) — بوابات القبول.
+ 7. [حدود المختبر والمستودع الأساسي](DEVELOPMENT_AND_SIMULATION_BOUNDARY.md) — فصل اختبار 5000 شخصية.
+ 
+ ## سجل القرارات والميزات
+ 
+ | المعرّف | المجال / القرار المعتمد | الحالة الحالية بحسب الأدلة المتاحة | بوابة الإغلاق |
+ |---|---|---|---|
+-| GOV-001 | مالك واحد وهوية UID واحدة؛ Owner وSuper Owner تسميتان لهوية واحدة؛ الصلاحيات خادمية وMFA وجلسة حديثة | أساس برمجي موجود؛ تهيئة المالك الفعلي وMFA والاسترداد لم تُقبل بعد | إثبات UID وMFA وsession revoke/audit على non-production |
++| GOV-001 | مالك فعلي واحد وهوية UID واحدة؛ Super Owner هو المالك الوحيد وصاحب السلطة السيادية المطلقة على جميع مفاصل المنصة. يعين Admin 1..N لمساعدته ويمنح كل واحد صلاحيات محددة صراحة. توجد خمس وظائف Admin Media لإدارة قسم الإعلانات والميديا وورك سبيس المتكامل، وخمسة «المشرف العام للإنتاج» مع صلاحيات الإرسال المحددة، وعدد غير محدود من «مشرف إنتاج الفريق» ضمن الفريق/الغرفة المعيّنة فقط. الفئات منفصلة ولا تورّث صلاحيات بعضها | توثيق التسلسل والمسميات موحّد في GOV-001؛ التنفيذ الفعلي للصلاحيات الخادمية، حدود التعيين، سجل التفويض والإلغاء، وMFA/استرداد المالك لا يزال يحتاج تدقيقاً واختبارات على HEAD | إثبات هوية المالك الوحيدة وMFA؛ اختبارات التعيين/الإلغاء/الترقيم والسعة والفصل بين النطاقات؛ deny-by-default وaudit وsession revoke على non-production |
+ | ID-001 | التسجيل والبريد والملف الشخصي والاسم الفريد والخصوصية وإقرار سياسة الخصوصية | أساس التنفيذ موجود؛ بعض دورات التحقق والاختبارات الواقعية مفتوحة | اختبارات Auth والأجهزة وتجديد البريد والقانون |
+ | GST-001 | الضيف: اسم وبلد وجنس فقط، 60 دقيقة لكل 24 ساعة، غرف all_ages، نص وصوت فقط، دون محفظة/متجر/خاص | أساس الضيف ومحاكياته موثق؛ مكافحة تكرار الهويات والاختبارات المادية مفتوحة | اختبارات abuse/App Check والأجهزة |
+ | PROF-001 | ملفات عامة/خاصة واكتشاف وحظر وإبلاغ وروابط اجتماعية موثقة | واجهات ووظائف أساسية موجودة؛ ربط OAuth الفعلي والتحقق الخارجي ما زال بوابة | اختبارات provider ownership والخصوصية والروابط |
+ | CHAT-001 | محادثات خاصة وغرف، إيصالات، إشعارات، حظر وإبلاغ واستئناف وصندوق رسائل | callable صندوق المحادثات، حالة غير المقروء، إيصالات القراءة، إخفاء المحادثة عند حظر أي طرف، وشاشة Flutter موجودة؛ قبول الأجهزة/الإشعارات الحية ما زال مفتوحاً | اختبارات تكامل عابرة للحسابات وأجهزة حقيقية |
+ | MEDIA-001 | الأعضاء: صور/GIF/صوت/فيديو فقط؛ منع PDF والمستندات؛ استثناء المالك المثبت | قواعد وسياسات وفحوص ماسح موجودة؛ GCS/Cloud Run الحي والأجهزة مفتوحة | signed URL، scanner live، MIME، deletion، أجهزة |
+ | MEDIA-002 | التدمير الذاتي لوسائط الدردشة/الغرف بعد 4 ساعات، بما فيها الأصل والمشتقات والنسخ السحابية القابلة للحذف | منطق احتفاظ/حذف واختبارات محاكي موجودة؛ إثبات الحذف الفعلي من GCS/CDN والنسخ مفتوح | تشغيل non-production وgeneration delete وrestore proof |
+ | ROOM-001 | غرف عامة/خاصة، إيجارات، مشرفون، فعاليات وRSVP | أساس الغرف والإيجارات والفعاليات موجود. أضيفت سعة مقاعد مستقلة للحدث مع تحقق ذري من الامتلاء، RSVP idempotency، وإلغاء التسجيل قبل بدء الحدث مع تحرير المقعد؛ اختبارات emulator تغطي الامتلاء والإلغاء وإعادة المحاولة. التحقق الدقيق على HEAD قيد التشغيل؛ القبول التشغيلي/الأجهزة مفتوح | lifecycle + notifications + devices + reconciliation + concurrency/seat-capacity tests |
+ | CALL-001 | صوت ومرئي منفصلان؛ باقات 24h/7d/30d؛ 5 صوت و3 مرئي لكل 24h متحركة؛ 5 دقائق لكل مكالمة | **منفذ جزئياً:** signaling/session lifecycle موجود للمحادثات المباشرة والغرف، مع قفل المشاركين، حصة محاولات 5/3، وتسقيف خادمي 300 ثانية بعد إبلاغ الطرفين بالاتصال؛ لكن لا يوجد تحقق من استحقاق صوت/فيديو لدى الطرفين عند الإنشاء/الانضمام، ولا consent/preferences كامل، ولا TURN provisioned. | ربط باقات الصوت/الفيديو بالمحرك المركزي، تحقق الطرفين خادمياً في الإنشاء والانضمام، استهلاك quota صحيح، consent/preferences، TURN/STUN، اختبارات التكامل والأجهزة؛ لا تعتبر signaling وحده مكالمات مدفوعة مكتملة |
+ | CALL-002 | المكالمة المفتوحة استمرار للباقة نفسها بعد استنفاد المتصل حصته؛ 120 صوت/400 فيديو إجمالي بالدقيقة؛ إذا استنفد الطرفان يدفع كل منهما 60/200؛ وإذا استنفد المتصل وحده يدفع 120/400 وحده | **غير منفذ:** لا يوجد metering للوقت المتصل، ولا allocation مالي بين الطرفين، ولا خصم ذري أو قيود رصيد أو ledger مرتبط بفترات الفوترة. قاعدة التقريب/وحدة الفوترة لم تُحسم بعد، لذلك لا يجوز تفعيل open calling. | allocation خادمي ذري حسب quota الطرفين، تحديد وحدة الفوترة والتقريب بموافقة المالك، disclosures وموافقة كل طرف ملزم بالدفع، خصم ذري idempotent وسجلات ledger ومصالحة، اختبارات حدود/إعادة اتصال/تزامن |
+ | WAL-001 | تحويل كوينز ذري بمعرف موحد وسجل المرسل والمستلم والمنصة والعمولة | تنفيذ backend واختبارات emulator موثقة في وثائق الحالة؛ قبول التشغيل الحي غير حاصل | مراجعة reconciliation والاختبارات الحالية وnon-prod |
+ | STORE-001 | متجر ديناميكي وأسعار ومدة واستحقاقات خادمية؛ لا تفعيل دون fulfillment فعلي | شاشة المتجر تتحقق من purchaseId وitemId وnewBalance قبل النجاح؛ اختبارات emulator تغطي الخصم الذري والسجل والاستحقاق وربطه بالملف الشخصي؛ قبول كل SKU والأجهزة ما زال مفتوحاً | كل SKU مع consumer واختبار end-to-end |
+ | STORE-002 | الإطارات المتحركة، الأسماء الملونة/المتحركة، التحليلات، التصميم الاحترافي، الأقسام المثبتة، boosts، الثيمات، التحية، VIP والشارات والألقاب | أجزاء من وظائف الاستحقاق والملف الشخصي موثقة؛ لا تعني كل المزايا مكتملة في تجربة المنتج | تحقق كل entitlement عبر كل الشاشة/السيناريو |
+ | REWARD-001 | 500 كوين لكل دورة بريد 90 يوماً بعد إثبات خادمي | تجديد البريد/المكافأة له أساس backend واختبارات؛ قبول Auth حي مفتوح | اختبارات Auth/device والـ exactly-once |
+ | REWARD-002 | 1500 كوين لكل دورة بيومترية 30 يوماً فقط بعد إثبات خادمي تشفيري مقاوم للتزوير؛ local_auth وحده غير كافٍ | **معطل fail-closed**؛ لا تمنح مكافأة أو امتيازاً من ادعاء العميل | challenge-bound key proof/attestation، nonce، signature، replay/revocation، ledger |
+ | AD-001 | الإعلانات المميزة وإعلانات المكافآت: اعتماد المالك، سلامة المادة، الاستهداف الجغرافي، المشغل، حدود المكافآت، وسجل المحفظة | **منفذ جزئياً:** دورة timed-ad المستقلة فيها إنشاء/تعديل حملات للمالك، نشر/إيقاف/أرشفة، تحقق من مادة المالك المعتمدة أمنياً، جلسات وheartbeats خادمية، حجز ميزانية، ومنح ذري مع claim وwallet ledger؛ واجتازت اختبارات emulator المحددة. وحدة featured showcase/reward تحتوي منطق اختيار وسياسة مكافأة واختبارات وحدات فقط، لكنها غير موصولة بواجهات Firestore/Cloud Functions أو شاشة عرض فعلية؛ `FeaturedAdsScreen` ما زالت تعرض حالة ثابتة، ولا يوجد سجل مكافآت متصل بها. لا يوجد تكامل مزود إعلانات خارجي. | API خادمي وملكية/موافقة واستهداف موثقة، ربط المشغل الآمن، policy owner-configured دون افتراض أسعار/حصص، منح ذري idempotent وسجل عضو، اختبارات emulator للحدود والتزامن والإلغاء/السحب، وربط واجهة فعلية واختبارات أجهزة؛ لا إعلان اكتمال قبلها |
+ | OWNER-001 | لوحة المالك: الأعضاء والسلامة والمحادثات والاقتصاد والمتجر والغرف والوسائط والخلفيات والإعلانات والسحابة والتكلفة والنسخ والاستعادة والتدقيق | أجزاء متعددة موجودة؛ مركز العمليات السيادي الكامل غير مكتمل | اختبارات owner MFA، كل وحدة backend، audit، restore |
+ | AI-001 | مساعد تقني وشخصيات اجتماعية AI مع وسم مرئي صغير، خصوصية، 18+ للرومانسي، ميزانيات وkill switches | رؤية معتمدة، غير منفذة كخدمة مكتملة | gateway، isolation، consent, moderation, safety, budget tests |
+ 
+ | TEST-001 | مركز اختبارات يدوي ومحاكيات وشخصيات تجريبية معزولة | Workflow يدوي، seed محمي بمشاريع demo ومحاكيات فقط، كتالوج personas ومصفوفة تغطية الرحلات موجودة؛ تشغيل مختبر 5000 ما زال يحتاج نجاحاً كاملاً على SHA ثابت | تشغيل كامل exact-head، مراجعة عزل البيئة، ثم تقرير 5000 موثق |
+ | SIM-5000 | مختبر منفصل لمحاكاة 5000 شخصية؛ المشروع الأساسي يحتفظ بكل الاختبارات العادية | المستودع الخاص أُنشئ ونُقلت إليه ملفات harness؛ تحقق syntax/safety CI نجح في run 43667179459؛ لم يُثبت تشغيل 5000 فعلياً بعد. يتطلب checkout للمستودع الأساسي السري Actions secret باسم MAWDDA_PLATFORM_READ_TOKEN بصلاحية Contents: read فقط | إضافة السر من إعدادات GitHub، ثم تشغيل يدوي على SHA محدد، تقرير 5000، مراجعة العزل والأداء |
+ | CI-001 | المشروع الأساسي يشغل analyze/unit/integration/security/build فقط؛ لا deploy ولا تغييرات Firebase حية من CI | شجرة التطوير تحتوي ثلاثة workflows للتحقق والبناء فقط؛ Hosting workflow محذوف، والـ native workflow يتحقق من إعدادات non-production الملتزمة دون Firebase CLI أو FIREBASE_TOKEN أو تعديل المشروع. أحدث تشغيل تحقق أساسي على SHA 3c6fdfdf9ad3445748708ac2aec409f95ddf9b9a اجتاز الوظائف الثلاث؛ Android native build اجتاز على التشغيل 43667249374، وiOS كان قيد البناء وقت تحرير هذا السجل | استمرار مراجعة scripts/terraform وملفات التشغيل؛ إثبات iOS native build و5000-persona lab على SHA ثابت؛ لا deploy |
+ | COST-001 | البقاء على Firebase Spark/Emulator-first؛ لا Blaze أو موارد مدفوعة أو WORM/retention lock دون موافقة منفصلة | خطة التكلفة والدستور يثبتان عدم تفعيل موارد مدفوعة أو WORM؛ لا Terraform apply أو نشر موارد تم بواسطة هذه الأعمال | مراجعة تكلفة/قانون وموافقة مالك مستقلة قبل أي تفعيل |
+ | REL-001 | لا دمج إلى main ولا نشر إنتاجي إلا بعد بوابات ناجحة وموافقة منفصلة | PR #2 Draft ومفتوح؛ لا دمج ولا نشر | exact-head green، 5000 lab pass، review، release checklist، موافقة مالك مستقلة |
+ 
++## Canonical administrative hierarchy — owner confirmation 2026-11-19
++
++- **Super Owner:** one actual owner only; sole sovereign authority across every platform domain and system.
++- **Admin 1..N:** open-ended appointments by Super Owner; each Admin receives only explicitly delegated permissions. The title itself grants no implicit privilege.
++- **Admin Media 1..5:** exactly five administrators for the integrated Advertising Department and Media Workspace.
++- **المشرف العام للإنتاج 1..5:** exactly five general production supervisors; preserve this exact Arabic title and their defined sending permissions.
++- **مشرف إنتاج الفريق:** open-ended capacity; each supervisor is limited to the assigned team and its assigned/rented room.
++- These are separate role families. Authorization must use stable server-side role identifiers and explicit scope checks, never display labels. Do not migrate claims/IDs or change owner identity as part of a naming-only change.
++
+ ## تصحيح التعارضات المعروفة
+ 
+ 1. **فوترة المكالمات:** بعض مسودات 15 نوفمبر القديمة وصفت 60 صوتاً/200 فيديو كسعر مستقل لكل دقيقة، ثم جاءت موافقة أوضح تحدد السعر الإجمالي 120/400. تم توحيد مادة المكالمات في الدستور إلى قاعدة واحدة: 120/400 إجمالي؛ 60/200 لكل طرف فقط إذا استنفد الطرفان الحصة؛ المتصل وحده يدفع 120/400 إذا كان المستقبل لا يزال يملك محاولات. لا يجوز إحياء الصياغات القديمة.
+ 2. **المكافأة البيومترية:** أي نص أقدم يسمح بمكافأة اعتماداً على نجاح نافذة LocalAuthentication أو BiometricPrompt من العميل فقط لا يُعمل به. السياسة الحالية: المكافأة والامتيازات البيومترية معطلة حتى إثبات خادمي تشفيري موثوق مرتبط بالتحدي والحساب والجهاز ومقاوم لإعادة التشغيل والتزوير.
+ 3. **مختبر 5000:** لا تُنقل اختبارات الوحدة أو التكامل أو قواعد Firebase أو اختبارات scanner من المستودع الأساسي. ينقل المختبر فقط مولد الشخصيات وسيناريوهات التحميل واسعة النطاق وأدواتها، ويختبر كود المنصة الأصلي من commit مثبت.
+ 4. **حالة الإنجاز:** لا يُستنتج قبول ميزة من وجود UI أو callable أو test واحد. يلزم تنفيذ end-to-end واختبار مناسب، ثم قبول أجهزة/تشغيل حي عندما يتطلب الأمر.
+ 
+ ## قاعدة تحديث هذا السجل
+ 
+ يُحدّث هذا الملف مع كل قرار جديد أو تغيير حالة. أي تعديل دستوري يجب أن يحدّث الرؤية وهذا السجل والاختبارات/المتطلبات المتأثرة في commit واحد أو سلسلة commits مترابطة. عند عدم وجود دليل كافٍ تبقى الحالة «جزئي» أو «غير مقبول»، ولا ترفع إلى «مكتمل».
+ 
+ 
+ ## Approved owner amendments — 15 November 2026
+ 
+ The following decisions are binding and are also specified in [the Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md). They must be linked to code, tests and evidence before their implementation status can be raised.
+ 
+ | ID | Approved decision | Required implementation / acceptance gate | Status |
+ |---|---|---|---|
+ | STORE-003 | One central commercial engine for every current/future store, feature, title, badge, medal, membership and product; durations 24 hours, one week, one month; separate owner-set price for each; configurable quantities, limits, renewal and enable/disable; permanent items supported | Shared catalog schema, owner settings UI/API, price snapshots, entitlement fulfillment and expiry, future-SKU contract tests | Approved — implementation to be reconciled and extended |
+ | MEDIA-003 | Mawdda Media Saver is one paid product across direct chats, public rooms and rented private rooms; saves images/GIF/video/audio locally; does not extend server retention | Backend entitlement check on every save; local save flow; expiry and retention tests; no server timer reset | Approved — implementation not yet evidenced as complete |
+ | ECON-001 | Initial financial planning baseline: 1,000 monthly active members; target no more than USD 10/month in Google/Firebase billable charges after applicable no-cost usage. Operate to an estimated USD 7.50 ceiling and retain USD 2.50 contingency. This is not a provider-guaranteed hard cap. | Added `functions/src/platform-economic-policy.ts` with project-level no-cost planning baselines and thresholds; added tests; documented protect-mode design and provider billing limitations. | Planning policy and tests committed on development branch only; not connected to live billing or usage enforcement. | Must verify actual bucket region/SKUs, enable billing export only with owner approval, implement measured storage/egress/processing ledger and project-wide quotas, wire alerts/circuit-breakers, run 1,000-MAU profile in isolated 5,000-persona lab, and reconcile actual invoices. Preserve core text chat and safety flows during protect mode. |
+ | MEDIA-004 | Owner-approved technical ceilings: images 3 MiB; GIF 3 MiB/20 seconds/50 frames (40MP aggregate frame-pixel ceiling); chat/room audio 5 MiB/60 seconds; video source 25 MiB and safe derivative 15 MiB/90 seconds; owner-verified PDF 20 MiB only. Live microphone recordings remain hard-capped at 60 seconds across direct/public/rented rooms. | Updated backend MIME ceilings for every supported image/audio type; client-side file-length preflight; scanner source-download cap 25 MiB; GIF/audio/video/PDF derivative contracts and delivery checks; scanner and backend test assertions aligned. | Partial implementation committed on development branch; exact-head validation is running and has not yet passed. | Still required: end-to-end picker/composer audit, exact-head CI success, versioned owner-configurable role/category/entitlement budgets, global system budget, verified storage byte-hours/egress/processing accounting, quota reconciliation and 5,000-persona cost/load evidence. Existing per-user reservations (5 concurrent, 150 MiB reserved active bytes, 500 MiB daily upload bytes, 100 uploads/day) are admission controls, not a storage/egress cost ledger. No prices or new entitlements are inferred. |
+ | RET-003 | Temporary direct chat deletes all text/media after 4h server inactivity; normal chat media 4h/text 7d; important chat media 4h/text 30d | Server activity timestamps, immutable mode selection at conversation start, participant notice, mode-aware text expiry, scheduled full-conversation deletion with legal-hold protection, and integration tests for boundaries/retries/derivatives | Partial implementation on development branch: text worker now applies persisted `retentionMode` (legacy/default normal = 7d; important = 30d), scans the full 30-day window, preserves temporary-mode messages for the separate full-chat sweep, and fails closed on corrupt modes. Emulator coverage added; exact-head CI pending. Still open: trusted immutable mode assignment at conversation start, participant notices, server activity writes, consent/selection semantics, and full temporary-chat deletion of text + media + derivatives. No destructive lifecycle has been enabled. |
+ | REWARD-003 | Owner-configurable daily, hourly and weekly attendance rewards | Server eligibility/cycle calculation, exactly-once grant, owner configuration, ledger and abuse tests | Approved — implementation to be verified |
+ | REWARD-004 | Ad-view rewards only after owner-defined duration and trusted server evidence of actual foreground viewing; owner-uploaded ads and future provider adapters | Campaign console, signed/validated provider events or trusted heartbeat protocol, fraud/idempotency tests and audit | Approved — implementation to be verified |
+ | OWNER-002 | Owner grant center for free coins, features, products, memberships, titles, badges and group/room rewards; target one UID, selected group, all connected users in a selected public room, or collective room/group | Owner-only server operations, attendance snapshot, recipient preview/confirmation, idempotency, recipient histories, wallet ledger and partial retry tests | Partial implementation: single/bulk free store-entitlement grants now have owner MFA authorization, 24h/7d/30d duration, expiry extension, per-target idempotency, ledger/audit, partial failures and a UID-based Super Owner screen. Still open: free coin grants, group/room audience snapshots, collective prizes, recipient history/notifications and exact-head CI. No production action enabled |
+ | GOV-002 | All future commercial items must integrate with central owner controls; no hardcoded prices/durations/limits in client code | Catalog/entitlement extension contract and CI checks for new SKU integration | Approved — ongoing invariant |
+ 
+ ### Clarifications
+ - The one-week / 200-coin Media Saver value is a provisional test baseline only, not a production price.
+ - A free administrative grant is not a purchase and must not debit the recipient.
+ - Existing price changes do not rewrite historic receipts or entitlements.
+ - The 1,500-coin biometric reward remains disabled until cryptographic server proof and all existing security gates are satisfied.
+ - These decisions do not authorize merge to main, production deployment, paid infrastructure or real-money payment activation.
+ 
+ 
+ 
+ ## GOV-003 — Technical collaborators and owner authorization (approved 15 November 2026)
+ 
+ | Decision | Binding rule | Status / evidence required |
+ |---|---|---|
+ | GOV-003 | ChatGPT and Gemini are the designated technical/software-development collaborators; the human owner remains the sole product and operational authority. No secret/credential access or use, deployment, protected-branch merge, production/live-system change, paid action, destructive operation, external publication/message, or third-party authorization without prior explicit personal approval for that exact action and scope. Routine isolated-branch coding and local/emulator tests may proceed under the standing development mandate only when no secrets, charges, live external effects, or real-user data are involved. | Approved governance rule. Apply to all future work; each approval-gated action must have an explicit approval record and evidence of execution or non-execution. |
+ 
+ 
+ ## GOV-004 — Cross-project owner-control agreement
+ **Owner direction — 15 November 2026**
+ - Establish `docs/OWNER_CONTROL_MASTER_AGREEMENT.md` (OCA-001) as the reusable governance baseline for Mawdda and future owner-controlled projects.
+ - Extend owner protections beyond coding and credentials to ownership/IP, account and asset control, data/privacy, finance, third parties, vendor lock-in, security, auditability, handover, and revocation of permissions.
+ - New projects must copy and tailor OCA-001 before substantive development; each repository must record project-specific acceptance and implementation evidence.
+ - This repository change is a governance document, not proof that external parties have signed it or that legal enforceability is guaranteed. Obtain appropriate signed IP/confidentiality/data-processing agreements and local legal review where needed.
+ - No broad blanket authorization is created: approval remains specific to each consequential action.
+ 
+ ## GOV-005 — AI assistants' financial and employment status
+ 
+ **Decision:** ChatGPT and Gemini are provider-operated AI services, not employees or contractors hired by the project owner merely through free or paid subscriptions. Subscription fees are payable to the service provider, not as wages to the assistants. The owner incurs no salary, wage, bonus, commission, profit-share, equity, or employment-benefit obligation to either assistant solely by using those services or receiving their technical outputs. Any human contractor or employee requires a separate agreement. This internal rule does not waive or determine the legal obligations of OpenAI, Google, or any other third party.
+ 
+ **Authority and scope:** Owner-approved on 15 November 2026. Applies to Mawdda governance and is incorporated into OCA-001 section 26. It is an internal project rule, not a contract binding a third party.
+ 
+ **Implementation evidence:** OCA-001 updated in the development branch; project constitution and master charter cross-reference this decision. No external provider terms or legal relationship has been modified.
+ 
+ 
+ ## MEDIA-005 — Universal 60-second live audio recording cap and economic media enforcement
+ 
+ **Owner clarification — 15 November 2026 (supersedes any earlier 10-minute direct-chat voice-note wording):**
+ - Every live microphone recording/chat-room audio message is limited to 60 seconds per recording in direct conversations, public rooms and rented private rooms. The limit applies to members and guests according to their permissions. No direct-chat exception and no 10-minute allowance.
+ - Backend and trusted scanner enforce the same maximum; the client timer is only a usability layer. Current chat/room scanner enforcement also caps uploaded audio files at 60 seconds until a distinct uploaded-audio purpose is explicitly designed and approved.
+ - Media cost controls include atomic upload quota reservations, per-user concurrent/active/daily byte budgets, actual content/type/size/duration/dimension validation, safe transcoded derivatives, retention enforcement, and quota release on rejected/abandoned/deleted media.
+ - Owner-approved technical ceilings: image 3MB; GIF 3MB/20 seconds/50 frames (40MP complexity ceiling retained); uploaded chat/room audio 5MB/60 seconds; video ingress 25MB and safe derivative 15MB/90 seconds; owner-verified PDF 20MB only. Live microphone recordings remain 60 seconds maximum. These are technical safeguards, not commercial entitlements or daily/monthly quotas; economic entitlement budgets remain owner-configurable and require a separate cost-accounted catalogue.
+ 
+ **Implementation evidence required:** scanner unit tests for both chat and room purposes; emulator integration tests for member direct chat, public room, rented private room and guest room; client recording timers set to 60 seconds; exact-head Flutter, Functions, scanner and rules CI. Physical-device and live non-production media tests remain separate release gates.
+ 
+ 
+ ## Approved owner amendment — cross-platform access and launch download choices (15 November 2026)
+ 
+ | ID | Approved decision | Required implementation / acceptance gate | Status |
+ |---|---|---|---|
+ | PLAT-001 | MAWADDA is one unified platform accessible across supported operating systems, browsers, device classes and screen sizes. One identity and shared backend govern web, installed web app and native clients; platform differences must not create separate wallets, entitlements, prices or authorization rules. | Responsive/adaptive layouts, RTL/LTR and breakpoint coverage; shared authenticated backend; documented per-platform capability matrix; security and accessibility review. | Approved — existing foundations require end-to-end reconciliation and platform acceptance. |
+ | DIST-001 | The public landing experience, before registration/login, must clearly present three access choices: (1) Android APK download/install; (2) install MAWADDA as a desktop web app where supported; (3) iOS native app marked “coming soon / in preparation” until the owner funds and approves Apple distribution. Do not expose a fake or unavailable download link. | APK button is enabled only for a verified, release-signed artifact whose signing certificate matches the owner's established Android upload/release key; desktop button uses native browser install prompt where available and accurate browser-specific fallback guidance; iOS card is explicitly informational and has no download action. | Approved — UI and release artifact acceptance remain open. |
+ | PWA-001 | Explain that browser menus may offer “Install app”, “Add to Home Screen”, or “Add to Dock”; on iOS, guide users through Share → Add to Home Screen. Distinguish an installed standalone PWA from a bookmark/shortcut that opens a browser tab. Never claim the prompt can be forced: browser/OS controls eligibility and presentation. | Test Chrome/Edge desktop install, Safari macOS Add to Dock where supported, iOS Safari home-screen installation, and fallback browsers; verify standalone display, app identity/icons, launch URL, updates, accessibility and offline behavior. | Approved — existing manifest and install guidance are partial foundations, not proof of acceptance. |
+ | ANDROID-REL-001 | Launch Android distribution must use the owner's existing Android keystore identity; do not generate a replacement key or sign public release APKs with the debug key. Private key and passwords must never enter source control or chat. | Secure secret delivery, reproducible release signing, apksigner verification, certificate SHA-256 comparison to the owner's preserved certificate, version/build metadata, clean-device install/update test and archived artifact checksum. If key bytes or credentials are not securely available, block public APK release and request secure owner-side provisioning. | Approved — local keystore creation was previously verified, but secure GitHub secret provisioning and a matching signed release artifact are not yet evidenced. |
+diff --git a/docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md b/docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+index f32487e5..7a8a2a4a 100644
+--- a/docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
++++ b/docs/MAWADDA_CANONICAL_ADMIN_TERMINOLOGY.md
+@@ -1,35 +1,36 @@
+ # Mawdda Platform 2026 — Canonical Administrative Terminology
+ 
+ **Status:** Approved naming standard. This document governs display terminology; it does not itself grant permissions or authorize a role migration.
+ 
+ ## Canonical role names
+ 
+ | Role | Display name | Capacity | Scope |
+ |---|---|---:|---|
+-| Platform owner | **Super Owner**; Arabic explanatory label **مالك المنصة** | One | Entire platform, subject to owner authentication |
+-| General administration | **Admin 1, Admin 2, Admin 3…**; Arabic **أدمن ١، أدمن ٢…** | Open-ended | Only explicitly delegated platform administration |
+-| Media administration | **Admin Media 1–5**; Arabic **أدمن ميديا ١–٥** | Exactly five | Advertising Department and general Media Workspace |
+-| General production supervision | **مشرف إنتاج عام 1–5** / **General Production Supervisor 1–5** | Exactly five | General production system |
+-| Team production supervision | **مشرف إنتاج الفريق** / **Team Production Supervisor** | Open-ended | Assigned team and its specific assigned/rented room only |
++| Platform owner | **Super Owner**; Arabic **المالك الوحيد وصاحب الصلاحيات المطلقة والسيادية** | Exactly one | Sole actual platform owner; sovereign authority over every platform domain, system and administrative function. No Admin or other role may become a co-owner or inherit owner sovereignty. |
++| General administration | **Admin 1, Admin 2, Admin 3…**; Arabic **أدمن 1، أدمن 2، أدمن 3…** | Open-ended | Appointed by Super Owner to assist with platform administration; each Admin receives only the specific permissions explicitly delegated by Super Owner. The Admin title grants no automatic sovereign or unrestricted authority. |
++| Media administration | **Admin Media 1–5**; Arabic **أدمن ميديا 1–5** | Exactly five | The five general administrators of the integrated Advertising Department and Media Workspace system, covering both advertising and the Media Workspace. This is a separate role family from platform Admin and production supervisors. |
++| General production supervision | **المشرف العام للإنتاج 1–5** / **General Production Supervisor 1–5** | Exactly five | The five general production supervisors. Preserve this exact Arabic title; they retain their defined sending permissions. They are distinct from Admin Media and Team Production Supervisors. |
++| Team production supervision | **مشرف إنتاج الفريق** / **Team Production Supervisor** | Open-ended | Open-ended number of supervisors; each is scoped to the assigned team and its specific assigned/rented room only. |
+ 
+ ## Separation and authorization
+ 
+-- Admin N is independent of Admin Media, General Production Supervisor and Team Production Supervisor.
+-- Admin Media is not a general platform Admin and does not inherit general production authority.
+-- General Production Supervisors do not inherit Admin Media authority or team-room authority.
+-- Team Production Supervisor is scoped to the assigned team/room and cannot act across other teams.
++- Super Owner is the sole platform owner and final sovereign authority across all platform domains.
++- Admin N is appointed by Super Owner and receives only individually delegated permissions; Admin N is independent of Admin Media, General Production Supervisor and Team Production Supervisor.
++- Admin Media is not a general platform Admin and does not inherit general production authority. Admin Media 1–5 jointly cover the Advertising Department and Media Workspace as one integrated administrative scope.
++- General Production Supervisors do not inherit Admin Media authority or team-room authority. Their canonical Arabic title is exactly «المشرف العام للإنتاج» (five seats), not «مشرف إنتاج عام».
++- Team Production Supervisor is scoped to the assigned team/room and cannot act across other teams. Its canonical Arabic title is exactly «مشرف إنتاج الفريق» and its capacity is open-ended.
+ - Each role is deny-by-default and server-authorized. Display labels must never be parsed to make authorization decisions.
+ - Admin N sequence numbers are permanent and must never be reused. The reappointment/number-reuse rule for the fixed five-seat Admin Media and General Production groups remains unresolved; do not infer or implement a reuse policy until the owner explicitly approves it.
+-- Super Owner authority remains the existing trusted owner identity and must not be obtainable through any administrator appointment.
++- Super Owner authority belongs exclusively to the single actual owner identity and covers the entire platform. No Admin appointment, Admin Media appointment, production assignment or delegated permission can grant, reproduce or transfer Super Owner authority.
+ 
+ ## Compatibility
+ 
+-This is a user-facing naming standard, not a wholesale identifier migration. Preserve stable claims, role IDs, Firestore fields, collection names and callable names where required for compatibility. Legacy identifiers may remain internal-only and must not leak into user-visible copy.
++This is a user-facing naming standard, not a wholesale identifier migration. Preserve stable claims, role IDs, Firestore fields, collection names and callable names where required for compatibility. Legacy identifiers may remain internal-only and must not leak into user-visible copy. In the inspected implementation, `SuperAdminScreen`, `SuperAdminSecurityService`, `isSuperAdmin`, and the callable display-mode key `super_admin` are legacy/internal compatibility identifiers; they are not canonical user-facing role names. Preserve them until a separately reviewed, tested migration proves all call sites and authorization contracts remain safe. The backend owner authority is checked through the trusted `platformOwner` claim/session helpers; never replace that check with a client-side display label or boolean.
+ 
+ ## Required coverage
+ 
+ Apply the terminology consistently to Android, iOS, PWA and web; profiles, badges, chat participants, room member lists, workspaces, advertising, production screens, notifications, push messages, email templates, audit-log presentation, errors/success messages, and all supported locales.
+ 
+ ## Acceptance gate
+ 
+ Before release, run a repository-wide search for legacy owner and supervisor labels, classify each match as display text, documentation, historical note or internal compatibility identifier, and verify every user-visible match. Add regression tests for role capacity, numbering, scope separation and display terminology. Do not claim global completion based only on a few screen labels.
+diff --git a/docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md b/docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+index 4e7265b2..67957272 100644
+--- a/docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
++++ b/docs/MAWADDA_MASTER_DEVELOPMENT_CHARTER_2026.md
+@@ -1,467 +1,467 @@
+ # الميثاق الموحد للتطوير والبرمجة — Mawdda Platform 2026
+ 
+ > **مرجع توحيد الوثائق — 19 نوفمبر 2026:** [الدستور الموحد](MAWADDA_UNIFIED_CONSTITUTION_2026.md) و[الرؤية الموحدة](MAWADDA_UNIFIED_PLATFORM_VISION_2026.md) و[فهرس المصادر](MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md). يبقى هذا الميثاق المرجع الهندسي التفصيلي، ولا تحل وثائق التوحيد محل سجلات الاختبارات أو العقود الأصلية.
+ 
+ 
+ **الحالة:** ميثاق عمل هندسي موحد مشتق من الرؤية الشاملة ودستور المنتج والقرارات المعتمدة، مع دمج التعديلات التي اعتمدها المالك حتى 15 نوفمبر 2026.  
+ **الفرع المستهدف:** `codex/mawda-full-platform-implementation`  
+ **المنتج:** مودة | MAWADDA — Mawdda Platform 2026  
+-**المالك:** هوية واحدة canonical UID، والاسمان Owner وSuper Admin يشيران إلى الشخص نفسه.
++**المالك:** هوية واحدة canonical UID، والاسمان Owner وSuper Owner يشيران إلى المالك الوحيد نفسه.
+ 
+ > هذا الملف هو نقطة الدخول التنفيذية الموحدة لفريق التطوير والوكيل البرمجي. لا يستبدل التفاصيل المتخصصة في الوثائق المرتبطة؛ بل يجمعها، ويحدد ترتيب سلطتها، ويحوّلها إلى قواعد إلزامية للتصميم والهندسة والبرمجة والاختبار. وجود المتطلب في وثيقة لا يعني أنه نُفذ أو أصبح جاهزاً للإطلاق.
+ 
+ ---
+ 
+ ## 1. المراجع الرسمية وترتيب السلطة
+ 
+ يجب قراءة الوثائق التالية كوحدة واحدة:
+ 
+ 1. [دستور مودة](MAWADDA_PRODUCT_CONSTITUTION.md) — أعلى مرجع للسياسات والضوابط الملزمة.
+ 2. [الرؤية الشاملة للمنتج](MAWADDA_COMPREHENSIVE_PRODUCT_VISION_2026.md) — النطاق الكامل وتجربة المستخدم والأنظمة.
+ 3. [سجل القرارات المعتمدة والتتبع](MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md) — معرفات القرارات وحالتها وبوابات قبولها.
+ 4. [مواصفات العلامة وتجربة المنتج](MAWADDA_BRAND_AND_PRODUCT_EXPERIENCE.md) — الهوية المرئية وتجربة الاستخدام.
+ 5. [خطة التنفيذ ذات المراحل السبع](SEVEN_PHASE_EXECUTION_PLAN.md) — ترتيب البناء والتسليم.
+ 6. [التتبع الهندسي التفصيلي](IMPLEMENTATION_TRACEABILITY.md) — ربط المتطلبات بالملفات والخدمات والاختبارات والأدلة.
+ 7. [قائمة جاهزية الإصدار](RELEASE_READINESS_CHECKLIST.md) — بوابات القبول قبل الإصدار.
+ 8. [خطة كفاءة التكلفة والتوسع العالمي](COST_EFFICIENCY_AND_GLOBAL_SCALE_PLAN.md) — التكلفة والأداء والتوسع.
+ 9. [عمليات الاحتفاظ بالوسائط](PHASE2_RETENTION_OPERATIONS.md) — آليات الحذف والاحتفاظ والاختبارات التشغيلية.
+ 10. [حدود التطوير ومحاكاة 5000 شخصية](DEVELOPMENT_AND_SIMULATION_BOUNDARY.md) — الفصل بين كود المنتج ومختبر الحمل.
+ 
+ **قاعدة التعارض:** أحدث موافقة صريحة من المالك تتقدم على المسودات أو القرارات الأقدم، ويجب تحديث الدستور والرؤية وسجل القرارات والتتبع والاختبارات المتأثرة. لا يجوز اختيار نص أقدم لأنه أسهل برمجياً. عند غموض القرار أو تعارض متطلبين، يتوقف الجزء المتأثر ويُسجل التعارض بدلاً من اختراع سياسة.
+ 
+ ## 2. نطاق المنتج الكامل
+ 
+ مودة منصة اجتماعية عربية متعددة اللغات والثقافات للصداقة والتواصل الإنساني والتعارف الهادف والعلاقات الجادة ضمن القانون والسلامة. النطاق يشمل:
+ 
+ - الهوية والعلامة واللغات والمنصات وتجربة الترحيب.
+ - التسجيل وتسجيل الدخول والتحقق من البريد واستعادة الحساب وإقرار الخصوصية.
+ - الضيوف وتجربتهم المحدودة وسياسات أعمار الغرف.
+ - الملفات الشخصية والاهتمامات والاكتشاف والروابط الاجتماعية والخصوصية.
+ - المنشورات والقصص والألبومات والتفاعلات والتعليقات والمشاركة.
+ - المحادثات الثنائية ورسائل الغرف والإشعارات والحظر والبلاغات والاستئناف.
+ - الوسائط والرفع والفحص والمعالجة الآمنة والحذف والاحتفاظ.
+ - الغرف العامة والخاصة والإيجار والسعة والمشرفون والفعاليات وRSVP.
+ - المكالمات الصوتية والمرئية وفق باقاتها وحصصها وتسعيرها المعتمد.
+ - المحافظ والكوينز والتحويلات والعمولات والشراء والتسويات.
+ - المتاجر والمنتجات والعضويات وVIP والألقاب والأوسمة والشارات والميزات المميزة.
+ - الحضور والمكافآت والإعلانات والهدايا والمنح الفردية والجماعية.
+ - لوحة المالك ومركز العمليات السحابي والأمن والتدقيق والتكلفة والنسخ والاستعادة.
+ - MAWADDA AI بوحدتي المساعدة التقنية والشخصيات الاصطناعية المعلنة بوضوح.
+ - اختبارات الشخصيات الاصطناعية واسعة النطاق عبر مختبر منفصل.
+ - Android وiOS والويب، وأي منصة أخرى فقط بعد بناء واختبار فعليين.
+ 
+ ## 3. قواعد الهوية والمالك والحوكمة
+ 
+-1. يوجد مالك بشري واحد وهوية UID canonical واحدة. Owner وSuper Admin اسمان للدور نفسه، وليسا حسابين مستقلين.
++1. يوجد مالك بشري واحد وهوية UID canonical واحدة. Owner وSuper Owner اسمان وصفيان لهوية المالك الوحيد نفسها، وليسا حسابين مستقلين.
+ 2. كل صلاحية حساسة تُثبت في الخادم وتُربط بهوية المالك؛ لا تُقبل أعلام يرسلها العميل مثل isSuperAdmin أو isRoomOwner كدليل صلاحية.
+ 3. تتطلب العمليات الحساسة MFA حديثاً أو step-up authentication، وتسجيل السبب والأثر والمستفيدين.
+ 4. يمكن تفويض مهام محدودة لمشرف أو مشغل عند وجود صلاحية محددة، لكن لا تنتقل ملكية المنصة ولا صلاحيات المالك.
+ 5. كل تغيير إداري ومالي ومنح وحظر ومراجعة محتوى يُسجل في سجل تدقيق قابل للمراجعة.
+ 6. لا يجوز للمشرف ترقية نفسه أو منح نفسه صلاحية المالك.
+ 7. المراجعة الصامتة للمحتوى، إن فُعلت وفق الإفصاح القانوني والدستور، لا تغيّر إيصالات القراءة أو مؤشرات الكتابة أو إشعارات الأطراف. هوية المالك الحقيقية تبقى محفوظة في سجلات الخادم حتى عند استخدام اسم عرض «مجهول».
+ 
+ ## 4. الهوية البصرية واللغات والمنصات
+ 
+ - الاسم العربي مودة، والإنجليزي MAWADDA بحرفي D، واسم الإصدار Mawdda Platform 2026.
+ - الشعار العربي: «حين تلتقي القلوب… تبدأ الحكايات.» والإنجليزي: “Where Hearts Find Their Story.”
+ - الألوان الأساسية خمري عميق وذهبي شامبانيا، مع الوردي الرومانسي والسماوي الكريستالي والأزرق الملكي كألوان مساندة.
+ - الأسلوب أنيق وسينمائي ومتوازن، مع زجاجية مقروءة وحركة قابلة للإيقاف ودعم تقليل الحركة.
+ - اللغات الأساسية: العربية والإنجليزية والفرنسية والإسبانية، مع RTL/LTR والنص المختلط والتواريخ والأرقام وإمكانية الوصول.
+ - معرف التطبيق المعتمد Android/iOS: `com.mawdda.platform.app`.
+ - خلفية الإطلاق المعتمدة تُحزم محلياً وتبقى fallback ثابتة عند فشل الخلفية البعيدة. الخلفيات العامة لا تستبدل خلفيات المحادثات الفردية أو الغرف المؤجرة.
+ 
+ ## 5. الحسابات والعضويات والضيوف والملفات
+ 
+ ### العضو المسجل
+ - مصادقة حقيقية، تحقق بريد، استعادة آمنة، خروج وإبطال جلسات.
+ - رابط تحقق أحادي الاستخدام ومحدود المدة؛ لا يكفي علم عميل لإثبات التحقق.
+ - مكافأة البريد 500 كوينز لكل دورة تحقق مؤهلة مدتها 90 يوماً، مرة واحدة فقط، بعد إثبات خادمي.
+ - الملف يتضمن حقول الهوية والاسم الفريد والعمر والمهنة والبلد والمنطقة والجنس والحالة الاجتماعية والنبذة والاهتمامات وأهداف التواصل وفق الدستور.
+ - موافقة الخصوصية بإصدار ولغة محددين قبل التسجيل أو دخول المحتوى؛ الموافقة البيومترية الاختيارية منفصلة.
+ 
+ ### الضيف
+ - بيانات الدخول الأولية: الاسم والبلد والجنس فقط؛ لا يُطلب العمر أو تاريخ الميلاد للضيف.
+ - مدة الاستخدام 60 دقيقة في كل نافذة متحركة من 24 ساعة، محسوبة خادمياً ومرتبطة بهوية جلسة الضيف.
+ - غرف عامة مصنفة all_ages فقط، مع النص والصوت فقط.
+ - لا محادثات خاصة أو غرف خاصة أو محفظة أو متجر أو مكافآت أو هدايا أو تحويلات أو إيجار.
+ - لا صور أو GIF أو فيديو أو PDF أو مستندات أو ملفات عشوائية.
+ - Anonymous UID وحده لا يمنع إنشاء هويات متعددة؛ مكافحة الإساءة وقيود إعادة الإنشاء وسلامة الجهاز بوابات مستقلة.
+ - لا يتجاوز الضيف قيود العمر أو الجمهور أو سياسة الغرفة.
+ 
+ ### الملف والاكتشاف
+ - ملفات عامة أو محدودة الخصوصية، صور رمزية وغلاف واهتمامات ومهنة ونبذة وأهداف.
+ - اكتشاف شفاف قابل للتحكم، يحترم العمر والحظر والخصوصية والقيود القانونية.
+ - الروابط الاجتماعية لا توصف بأنها موثقة إلا عبر مسار تحقق رسمي يدعمه المزود؛ لا OAuth وهمياً ولا اعتماداً على URL ملصوق.
+ - تعزيز الظهور المدفوع يُوسم بوضوح ولا يتجاوز الحظر أو ضوابط العمر.
+ 
+ ## 6. المحادثات والرسائل وسياسة الاحتفاظ
+ 
+ تدعم المنصة المحادثات الثنائية ورسائل الغرف العامة والخاصة، والإرسال والقراءة والحذف والإشعارات والحظر والإبلاغ والاستئناف. يجب فرض جميع الضوابط في الخادم.
+ 
+ - صندوق الرسائل جزء من تجربة العضو الأساسية: قائمة محادثات حديثة محدودة خادمياً، معاينة آمنة، حالة غير مقروءة، تحديث قراءة خادمي، وإخفاء المحادثة ومنعها عند الحظر من أي طرف.
+ - لا تُظهر شاشة المتجر نجاح الشراء قبل إيصال خادمي مكتمل يطابق purchaseId وSKU/itemId والرصيد الجديد؛ اختبارات التكامل تربط الخصم الذري والسجل والاستحقاق باستهلاك الميزة في الملف الشخصي.
+ - مركز الاختبارات اليدوي وكتالوج الشخصيات التجريبية يعملان على محاكيات ومشاريع demo فقط، مع رفض seed خارج بيئة emulator، ومصفوفة تغطية تربط كل رحلة بأوامر الاختبار. مختبر 5000 شخصية منفصل عن التطبيق الأساسي.
+ 
+ 
+ ### صندوق الرسائل وخصوصية الحظر
+ - يعرض صندوق العضو أحدث المحادثات الثنائية المؤهلة مع اسم الطرف الآخر، معاينة آمنة لآخر رسالة، الوقت وحالة غير المقروء.
+ - استعلام القائمة خادمي ومحدود، مع فهرس مركب على participantUids وlastMessageAt؛ لا يقرأ العميل مجموعة directChats مباشرة.
+ - إذا حظر أي طرف الآخر، تُخفى المحادثة من الصندوق للطرفين وتُرفض قراءة الرسائل وتحديث إيصالات القراءة. تتحقق callable من حالة الحساب والحظر المتبادل في كل طلب.
+ - فك الحظر يعيد الإتاحة فقط بعد إعادة تحقق صلاحية الطرفين؛ لا يغير سجلات الرسائل ولا يرسل رسالة تلقائية.
+ 
+ 
+ ### أوضاع المحادثة الثلاثة
+ 
+ **أ. مؤقتة**
+ - يختار المستخدم هذا الوضع عند بدء المحادثة الثنائية.
+ - تُحذف المحادثة كاملة، النصوص والوسائط، بعد أربع ساعات من عدم النشاط.
+ - كل نشاط جديد يعيد ضبط مؤقت عدم النشاط.
+ - إغلاق التطبيق أو انقطاع الشبكة وحده لا يُعد نشاطاً أو دليلاً على انتهاء النشاط؛ يعتمد القرار على آخر نشاط موثوق مسجل خادمياً.
+ - يُبلّغ الطرفان بوضوح أن المحادثة مؤقتة وأن كامل محتواها سيُحذف بعد أربع ساعات من عدم النشاط.
+ 
+ **ب. عادية**
+ - تُحذف الوسائط بعد أربع ساعات من إرسال كل ملف.
+ - تُحذف الرسائل النصية بعد سبعة أيام من إرسالها.
+ 
+ **ج. مهمة**
+ - تُحذف الوسائط بعد أربع ساعات من إرسال كل ملف.
+ - تُحذف الرسائل النصية بعد ثلاثين يوماً من إرسالها.
+ 
+ ### قواعد تنفيذ الحذف
+ - الحذف خادمي ومجدول وقابل لإعادة المحاولة، ولا يعتمد على جهاز المستخدم.
+ - يجب أن يشمل الأصل والنسخ المشتقة والصور المصغرة والمراجع والنسخ السحابية القابلة للحذف والكاش حيث يمكن.
+ - لا تدّعي المنصة حذف نسخة حفظها شخص خارجها أو لقطة شاشة أو نسخة خارج سيطرتها.
+ - لا يجوز أن تمسح عمليات التنظيف أدلة مالية أو أمنية أو بلاغات أو legal hold واجب الاحتفاظ بها.
+ - سياسة الثلاثة أوضاع أعلاه هي التعديل الأحدث المعتمد على سياسة النصوص السابقة ذات السبعة أيام؛ السبعة أيام هي الوضع العادي، والثلاثون يوماً للوضع المهم، وأربع ساعات من عدم النشاط للمؤقت.
+ 
+ ## 7. سياسة المرفقات وأمن الوسائط
+ 
+ - الأعضاء العاديون يرسلون ويستقبلون الصور العادية وGIF والصوت والفيديو فقط.
+ - يُمنع PDF والمستندات وسائر الملفات غير المسموحة للأعضاء داخل المحادثات والغرف.
+-- الاستثناء الوحيد المالك/Super Admin المثبت خادمياً وبجلسة MFA حديثة، ويجوز له إرسال جميع أنواع المستندات والوسائط وفق صلاحياته.
++- الاستثناء الوحيد المالك/Super Owner المثبت خادمياً وبجلسة MFA حديثة، ويجوز له إرسال جميع أنواع المستندات والوسائط وفق صلاحياته.
+ - الضيف نص وصوت فقط وفق سياسة الضيوف.
+ - لا يُتاح أصل قبل الفحص الأمني والمعالجة الآمنة. الرفع إلى quarantine، والفحص والتحقق من التوقيع والحجم والنوع والملكية والجيل، ثم النشر بعد verdict موثوق.
+ - حدود الرسائل الصوتية المرفوعة في المحادثات الخاصة والعامة والغرف العامة والمستأجرة: 60 ثانية و5MB كحدين أقصيين؛ التسجيل المباشر بالميكروفون لا يتجاوز 60 ثانية في أي من هذه السياقات. الصور حتى 3MB؛ GIF حتى 3MB و20 ثانية و50 إطاراً؛ الفيديو الأصلي حتى 25MB والمشتق الآمن حتى 15MB وبحد مدة 90 ثانية؛ PDF حتى 20MB للمالك المثبت فقط. لا تخلط الرسائل الصوتية بمنتج المكالمات الصوتية/المرئية الحية، ولا تخلط حدود الملفات بحصص الاستخدام أو أسعارها.
+ - مسار الرفع والتنزيل خادمي ومقيّد؛ لا كتابة Storage مباشرة من العميل.
+ - لا تُفعل إتاحة الوسائط للأعضاء قبل اكتمال الماسح الموثوق والمعالجة والاختبارات الحية غير الإنتاجية.
+ 
+ ## 8. Mawdda Media Saver — منتج مدفوع
+ 
+ ميزة موحدة من متجر مودة تتيح للمستفيد صاحب entitlement فعال حفظ الوسائط المستلمة على جهازه قبل موعد حذفها، وتعمل في:
+ - المحادثات الثنائية.
+ - الغرف العامة.
+ - الغرف الخاصة المؤجرة.
+ 
+ الوسائط المدعومة: الصور العادية وGIF والفيديو والتسجيلات الصوتية.
+ 
+ الضوابط:
+ - زر «حفظ على الجهاز» لا يظهر إلا عند وجود استحقاق فعال، لكن إخفاء الزر ليس حماية كافية؛ الخادم يتحقق من entitlement عند كل طلب.
+ - الحفظ المحلي لا يوقف مؤقت الحذف ولا يمدد الاحتفاظ على خوادم مودة.
+ - النسخة المحلية تصبح خارج سيطرة المنصة.
+ - المنتج واحد لكل أنواع المحادثات والغرف، وليس منتجات منفصلة.
+ - يدعم خيارات المدة 24 ساعة وأسبوع وشهر، ولكل مدة سعر مستقل يحدده المالك.
+ - القيمة الأولية للاختبار فقط: أسبوع مقابل 200 كوينز؛ ليست سعراً نهائياً ولا تنشر دون ضبط المالك.
+ 
+ ## 9. الغرف والمجتمعات والفعاليات والمكالمات
+ 
+ ### الغرف
+ - غرف عامة وخاصة، إنشاء وملكية وإدارة وإشراف وانضمام ومغادرة ودعوات وحضور وفعاليات وRSVP.
+ - سعات الإيجار المعتمدة: 5 و10 و25 و100 و1000 عضو.
+ - المالك يحدد سعر الإيجار ومدته والكميات والحدود.
+ - صلاحية مشرف الغرفة محدودة ولا تمنحه سلطة المالك.
+ - روابط البث والمشاهدة الخارجية تخضع للتحقق وحقوق المحتوى؛ لا تجاوز DRM أو paywall أو تسجيل الدخول.
+ 
+ ### المكالمات الصوتية والمرئية
+ - الصوت والمرئي منتجان منفصلان؛ باقات صلاحيتها 24 ساعة أو 7 أيام أو 30 يوماً.
+ - الحصة المتحركة: 5 محاولات/جلسات عادية يبدأها العضو للصوت، و3 للمرئي، لكل 24 ساعة متحركة.
+ - المستقبل لا يستهلك حصته بمجرد استقبال مكالمة.
+ - المحاولة تحتسب عند إنشاء الخادم جلسة مقبولة؛ المحاولة المرفوضة قبل الجلسة لا تحتسب، والجلسة المنشأة تحتسب ولو لم يرد الطرف الآخر.
+ - الحد الأقصى للمكالمة الواحدة خمس دقائق من وقت الاتصال المعتمد خادمياً.
+ - بعد استنفاد حصة المتصل يمكن استمرار المكالمة المفتوحة مدفوعة بالدقيقة ضمن الاستحقاق نفسه، لا كشراء باقة جديدة.
+ - السعر الإجمالي 120 كوينز/دقيقة للصوت و400 كوينز/دقيقة للمرئي.
+ - إذا استنفد الطرفان حصتيهما يدفع كل طرف 60 للصوت أو 200 للمرئي.
+ - إذا استنفد المتصل حصته وبقيت لدى المستقبل محاولات، يدفع المتصل وحده السعر الإجمالي 120/400، ولا يدفع المستقبل ولا تُستهلك محاولاته.
+ - الخادم يقرر الحصص والتوزيع المالي ويخصم ذرياً وبـ idempotency؛ لا رصيد سالب ولا ديون.
+ - لا تفعّل المكالمات تجارياً قبل WebRTC وsignaling وTURN/STUN والصلاحيات والفوترة والقبول الفعلي للأجهزة والإفصاحات.
+ 
+ ## 10. الاقتصاد والكوينز والمحافظ
+ 
+ - رصيد الخادم هو مصدر الحقيقة الوحيد.
+ - كل تحويل بين عضوين معاملة ذرية واحدة بمعرف موحد، وتُنشأ قيود مترابطة في سجل المرسل والمستلم والمنصة/العمولة.
+ - سجل المرسل يعرض الإجمالي المخصوم والعمولة ومعرف المستلم والصافي ومعرف التحويل والتوقيت.
+ - سجل المستلم يعرض الصافي ومعرف المرسل ومعرف التحويل والتوقيت.
+ - يمنع التكرار والخصم المزدوج، وتوجد مصالحة مالية.
+ - المالك يحدد رسوم التحويل وباقات الكوينز والأسعار وقنوات الشراء.
+ - شراء الكوينز اليدوي عبر المالك هو المسار الافتراضي المدعوم؛ الطلبات المخصصة تتم في المحادثة الثنائية مع المالك، ولا تصدر الكوينز إلا بعد التحقق الخارجي واعتماد المالك خادمياً.
+ - الدفع الآلي مستقبل اختياري ولا يفعل دون مزود متعاقد وتحقق webhook موقّع واسترداد وتسوية ومكافحة احتيال ومراجعة قانونية وموافقة المالك.
+ - لا تُصدر كوينز من صورة إيصال أو redirect أو تصريح عميل أو webhook غير موثوق.
+ - مفاتيح إيقاف منفصلة للشحن والشراء والتحويلات والمكافآت والتسويات، مع تجميد مالي عند الحاجة.
+ 
+ ## 11. المحرك التجاري المركزي للمدد والأسعار والكميات
+ 
+ هذا حكم عام على كل المنتجات والميزات الحالية والمستقبلية، وليس خاصاً بـ Media Saver.
+ 
+ يجب بناء محرك تجاري مركزي موحد تستخدمه:
+ - كل المتاجر والأقسام والمنتجات.
+ - كل الميزات المدفوعة.
+ - الألقاب والأوسمة والشارات.
+ - العضويات وVIP.
+ - الإطارات والصور الرمزية والأسماء المتحركة والملونة.
+ - الخلفيات والثيمات والتحليلات والملفات الاحترافية والتثبيت وتعزيز الظهور.
+ - إيجارات الغرف والباقات والخدمات المستقبلية.
+ - كل منتج جديد يضاف في أي تحديث بعد الإطلاق.
+ 
+ خيارات المدة الأساسية:
+ 1. 24 ساعة.
+ 2. أسبوع.
+ 3. شهر.
+ 
+ لكل مدة سعر مستقل يضعه المالك ويعدله. ويستطيع المالك تشغيل أو إيقاف أي خيار مدة، وتحديد الكمية وحدود الشراء والتجديد وتفعيل المنتج وتعطيله ومراجعة المبيعات والمشترين والاستحقاقات.
+ 
+ - لا تُثبت الأسعار التجارية أو مدد الصلاحية في كود العميل.
+ - الأسعار الافتراضية للاختبارات لا تُعامل كسعر إنتاج.
+ - تغيير السعر لا يغير بأثر رجعي إيصال شراء سابق أو مدة استحقاق قائم.
+ - العناصر التي يقرر المالك أنها دائمة يجب أن تدعم الاستحقاق الدائم دون فرض انتهاء.
+ - كل SKU جديد يربط بالمحرك المركزي وبمستهلِك entitlement فعلي؛ لا يُعرض للبيع قبل اكتمال التنفيذ والاختبار.
+ 
+ - واجهة الشراء لا تعرض النجاح قبل تحقق إيصال الخادم واكتمال purchaseId وitemId المطابق للـ SKU وnewBalance. اختبارات القبول تربط الشراء بالخصم الذري وإيصال العملية وسجل المحفظة والاستحقاق وظهور الميزة في الملف الشخصي وانتهائها.
+ 
+ - طبيعة التجديد والشراء المتكرر لا تُفترض؛ تضبط وفق قرار المالك لكل فئة.
+ 
+ ## 12. نظام المكافآت المركزي
+ 
+ يشمل النظام التلقائي:
+ - الحضور اليومي.
+ - الحضور الساعي.
+ - الحضور الأسبوعي.
+ - مكافآت النشاط والإنجازات وفق القواعد التي يحددها المالك.
+ - مكافأة البريد 500 كوينز لكل دورة تحقق 90 يوماً مؤهلة، مرة واحدة.
+ - المكافأة البيومترية 1500 كوينز لكل دورة 30 يوماً تبقى معطلة fail-closed حتى وجود إثبات تشفيري خادمي مرتبط بتحدٍ وجهاز وحساب ومقاوم للتزوير وإعادة التشغيل. نجاح نافذة BiometricPrompt/LocalAuthentication أو تصريح العميل وحده لا يكفي ولا يمنح مكافأة أو شارة أو امتيازاً.
+ 
+ ### الحضور اليومي والساعي والأسبوعي
+ - يحدد المالك شروط الأهلية والفترات الزمنية وقيم الجوائز والكميات وحدود التكرار.
+ - يحتسب الخادم الحضور والاستحقاق ويمنع تكرار المكافأة داخل الدورة نفسها.
+ - تُسجل كل مكافأة في سجل المستفيد والمحفظة عند كونها مالية.
+ - يتيح المالك تفعيل كل نوع وإيقافه وتعديل قواعده.
+ 
+ ### مكافآت مشاهدة الإعلانات
+ - المالك يرفع إعلاناته بنفسه، مع إمكانية إضافة مزودي إعلانات مستقبلاً.
+ - يحدد المالك مدة الإعلان والمواضع والحملة والمكافأة وشروط الأهلية والتكرار.
+ - لا يحصل العضو على المكافأة إلا بعد إكمال مدة المشاهدة المطلوبة.
+ - يجب التحقق خادمياً من الظهور الفعلي والاستمرار وإشارات/نبضات المشاهدة المقبولة؛ لا يكفي مؤقت عميل أو فتح الإعلان.
+ - يجب تسجيل الحملة ومحاولة المشاهدة والاكتمال والمكافأة، مع idempotency ومكافحة الاحتيال.
+ - لا تُمنح المكافأة عند الانقطاع أو عدم اكتمال المشاهدة أو فشل التحقق.
+ - يمكن إيقاف الحملة أو المكافأة فوراً من لوحة المالك.
+ 
+ ## 13. مركز المنح المجاني والهدايا الإدارية
+ 
+-يجب توفير وحدة مستقلة في لوحة Super Admin تمنح المالك قدرة مباشرة على توزيع أي جائزة أو ميزة مجاناً، دون شراء من المستفيد ودون خصم كوينز منه.
++يجب توفير وحدة مستقلة في لوحة Super Owner تمنح المالك قدرة مباشرة على توزيع أي جائزة أو ميزة مجاناً، دون شراء من المستفيد ودون خصم كوينز منه.
+ 
+ ### ما يمكن منحه
+ - كوينز بأي كمية يحددها المالك.
+ - ميزة أو منتج مدفوع.
+ - لقب أو وسام أو شارة.
+ - VIP أو عضوية أو إطار أو ثيم أو منتج متجر.
+ - أي عنصر حالي أو مستقبلي يدعم المنح الإدارية.
+ - جائزة غرفة أو مجموعة أو صندوق مساهمات/دعم بالكوينز.
+ 
+ ### المستفيدون
+ 1. مستخدم واحد عبر UID.
+ 2. قائمة أو مجموعة مستخدمين محددة.
+ 3. جميع المستخدمين المتصلين في غرفة عامة يحددها المالك، وفق snapshot خادمي للحضور عند لحظة تنفيذ المنحة.
+ 4. غرفة أو مجموعة بوصفها مستفيداً جماعياً لجائزة أو صندوق مساهمات.
+ 
+ ### ضوابط المنح
+ - يحدد المالك نوع الجائزة والقيمة/الكمية والمدة إذا كانت مؤقتة والسبب والرسالة.
+ - معاينة عدد المستفيدين والأثر المتوقع قبل التأكيد.
+ - تأكيد صريح قبل التنفيذ، ومنع التكرار العرضي باستخدام idempotency key.
+ - تنفيذ خادمي فقط بصلاحية المالك وMFA حديث.
+ - تسجيل العملية في سجل الإدارة وسجل كل مستفيد.
+ - المنحة المالية تقيد في دفتر الكوينز بصورة صحيحة ولا تُسجل كشراء.
+ - المنحة المجانية لا تخصم من رصيد المستفيد.
+ - دعم حالة جزئية/فشل قابل للاستئناف دون مضاعفة الجوائز، مع تقرير واضح بمن استلم ومن لم يستلم.
+ - لا يستطيع مشرف أو عضو منح نفسه أو غيره دون تفويض صريح ومحدود من المالك.
+ 
+ ## 14. الإعلانات والجوائز الجماعية
+ 
+ إلى جانب مكافآت مشاهدة الإعلان، يستطيع المالك إدارة حملات الإعلان ومددها ومواقعها وأصولها، ومكافآتها، ومواعيدها وحالاتها.
+ 
+ يتضمن نطاق الإعلانات وجهتين منفصلتين على الرئيسية: **Media Workspace** لإدارة طلبات التعاون والإعلان والتواصل، و**Watch Ads** لتجربة مشاهدة الأعضاء. يتكون Media Workspace من ستة مسارات مستقلة: التعاون والانضمام؛ مراسلة المشرفين العامين المعينين فعلياً؛ مراسلة الإدارة العامة؛ الإعلان المباشر؛ وعرض محتوى المؤثرين وصنّاع المحتوى؛ ومكافآت مشاهدة الإعلانات المميزة لشرح الاستحقاق وعرض سجل العضو. يخضع كل مسار لصلاحياته وسجل طلباته الخاص، ولا يعني وجوده في الميثاق اكتمال تنفيذه.
+ 
+ مسار المؤثرين وصنّاع المحتوى منفصل عن الإعلان المباشر، ويتيح عرض قناة أو رابط أو مقترح مكتوب أو مادة تمر عبر خط الوسائط الآمن، ثم مراجعة الإدارة والتفاوض على شروط ذات إصدارات. لا نشر أو حجز تلقائي، ولا أولوية مجانية أو مكافآت مشاهدة للمؤثر.
+ 
+ تضاف على الرئيسية وجهة مستقلة **الإعلانات المميزة والمكافآت** تفتح تجربة المشاهدة مباشرة، ويضاف إلى Media Workspace المسار السادس **مكافآت مشاهدة الإعلانات المميزة** لعرض شروط الاستحقاق وسجل العضو. لا تمنح ضغطة الزر أو فتح الشاشة مكافأة؛ المكافأة بعد تحقق الخادم من مشاهدة كاملة مؤهلة، وتستخدم الحدود الاقتصادية المعتمدة دون مضاعفة الرصيد. تفاصيل التنفيذ والقبول في `ADVERTISING_MEDIA_WORKSPACE_SPEC.md`.
+ 
+ ويستطيع أيضاً تخصيص جوائز للغرف والمناسبات، مثل:
+ - صندوق مساهمات بالكوينز.
+ - دعم مالي جماعي للغرفة.
+ - جائزة لجميع الحاضرين المتصلين وقت التنفيذ.
+ - مكافآت مناسبات وفعاليات.
+ 
+ يجب التمييز بين:
+ - مكافأة مشاهدة إعلان مستحقة بعد تحقق الإكمال.
+ - منحة إدارية مجانية يطلقها المالك.
+ - جائزة جماعية يخصصها المالك لغرفة أو مجموعة.
+ 
+ لكل نوع سجل وسبب ومستفيدون وقواعد محاسبية واضحة.
+ 
+-## 15. لوحة Super Admin ومركز العمليات السيادي
++## 15. لوحة Super Owner ومركز العمليات السيادي
+ 
+ تتضمن لوحة المالك وحدات مترابطة:
+ - الأعضاء والحسابات والبحث والحظر والتعليق والاستئناف.
+ - البلاغات والسلامة والإشراف والمراجعة.
+ - المحادثات والملفات وفق السياسة والإفصاح وسجلات الوصول.
+ - الغرف العامة والخاصة والإيجارات والسعات والمشرفين والفعاليات.
+ - الكوينز والمحافظ والتحويلات والعمولات والشراء والتسويات والتجميد.
+ - المتاجر والكتالوج والأسعار والمدد والكميات والحدود والاستحقاقات.
+ - مركز المنح والهدايا الفردية والجماعية.
+ - الحضور والمكافآت والإعلانات وحملاتها ومشاهدة الإعلانات.
+ - الألقاب والأوسمة والشارات والعضويات والميزات.
+ - الوسائط والفحص والحذف والاحتفاظ وlegal hold.
+ - الهوية والخلفيات والشعارات واللغات والمحتوى.
+ - MAWADDA AI وميزانياته وصلاحياته ومفاتيح إيقافه.
+ - صحة الخدمات والتكلفة والتنظيف والنسخ والاستعادة والصيانة ومفاتيح الطوارئ.
+ - سجل تدقيق وتصدير ومصالحة وسجل الحوادث.
+ 
+ كل إجراء حساس يحتاج تفويضاً خادمياً وMFA حديثاً وسبباً ومعاينة أثر وتأكيداً مستقلاً. العمليات التدميرية وظائف خلفية محدودة قابلة للتدقيق، لا زر حذف شامل.
+ 
+ ## 16. MAWADDA AI
+ 
+ وحدتان منفصلتان:
+ 1. مساعد دعم تقني يساعد في الشرح والتشخيص وإعداد الحالات، بصلاحيات محدودة وموافقة صريحة قبل أي فعل مؤثر.
+ 2. شخصيات اجتماعية اصطناعية قابلة للتخصيص بالاسم والسيرة والأسلوب واللهجات واللغات والاهتمامات والفعاليات، مع علامة AI واضحة وعدم ادعاء أنها بشر.
+ 
+ ضوابط الخصوصية والسلامة والعمر والميزانية والمراجعة ومفاتيح الإيقاف موضحة في الدستور. لا تدريب عام على المحادثات الخاصة، ولا كشف محتوى عضو لعضو آخر، ولا ضغط عاطفي للشراء، ولا صناعة شعبية أو شهادات مزيفة.
+ 
+ ## 17. الأمن والخصوصية والبيانات والبنية الهندسية
+ 
+ - Firebase Auth وخدمات خادمية موثوقة؛ Firestore وStorage بنهج default-deny.
+ - App Check وIAM وMFA وSecret Manager حيث يلزم.
+ - لا أسرار أو رموز وصول أو مفاتيح خاصة في Git أو تطبيق العميل أو Firestore.
+ - لا تعديل مباشر من العميل للأرصدة أو الاستحقاقات أو إعدادات المالك أو حالات التحقق.
+ - العمليات المالية والمنح والشراء والمكافآت والحصص خادمية وذرية وidempotent.
+ - فحص كل callable boundary لصلاحية المستخدم وحالة الحساب والعمر والخصوصية والحظر والـ entitlement.
+ - سجل التدقيق والأدلة القانونية والمالية منفصل عن عمليات تنظيف المحتوى.
+ - الاحتفاظ والأرشفة والاستعادة تختبر فعلياً؛ لا WORM أو retention lock أو حذف تدميري غير قابل للعكس دون موافقة مالك مستقلة ومراجعة تكلفة وقانون.
+ - لا تدريب عام على الرسائل الخاصة أو ملفات الأعضاء.
+ - لا يُدعى الامتثال القانوني أو حذف البيانات بالكامل دون دليل.
+ 
+ ## 18. البنية التقنية ومصدر الحقيقة الواحد
+ 
+ - المستودع الأساسي `productionhome2022-hash/mawda-platform` هو المصدر الوحيد لكود Flutter والخدمات الخلفية والقواعد والكتالوج والدستور والاختبارات العادية.
+ - مختبر `mawdda-5000-simulation-lab` منفصل؛ يحتوي مولد الشخصيات واختبارات الحمل واسعة النطاق فقط، ويختبر commit محدداً من المستودع الأساسي. لا تنقل إليه اختبارات الوحدة أو التكامل أو القواعد أو scanner من المستودع الأساسي.
+ - لا تكرر منطق المنتج أو الكتالوج في المختبر.
+ - بيئة التطوير Emulator-first وعلى Firebase Spark/no-cost الحالية.
+ - مشروع التطوير non-production هو `mawda-platform-nonprod-2026`؛ مشروع الإنتاج `mawda-app-2026` لا يكون هدفاً افتراضياً للاختبارات أو البناء.
+ - لا ترقية Blaze أو تفعيل billing أو إنشاء موارد مدفوعة أو تشغيل Cloud Run أو خدمات تخزين/egress مدفوعة دون موافقة مالك منفصلة صريحة.
+ - CI للتحليل والاختبارات والبناء والتحقق فقط؛ لا Hosting/Functions/scanner deployment ولا تغييرات إعدادات Firebase الحية.
+ - تثبيت نسخ الأدوات والاعتماديات والـ lockfiles.
+ - لا حذف ملف أو خدمة قبل جرد المراجع واختبارات عدم الانقطاع.
+ 
+ ## 19. عقد تحويل كل متطلب إلى كود
+ 
+ كل ميزة أو مادة دستورية يجب أن تتحول إلى حزمة تسليم قابلة للتحقق تتضمن، حسب طبيعتها:
+ 
+ 1. Requirement ID ثابت ومصدر القرار وتاريخه.
+ 2. وصف رحلة المستخدم وقواعد الأعمال والحالات الاستثنائية.
+ 3. نموذج البيانات ومخطط الترحيل والتوافق الخلفي.
+ 4. واجهات Flutter وحالات التحميل والخطأ والفراغ والاتصال الضعيف.
+ 5. API/Callable أو خدمة خلفية موثوقة وعقد إدخال/إخراج.
+ 6. قواعد Firestore/Storage وIAM والتحقق الخادمي.
+ 7. سجل تدقيق ومحفظة/دفتر مالي عند انطباقه.
+ 8. اختبارات وحدة وتكامل ومحاكيات وأمن وidempotency والتزامن.
+ 9. اختبارات رحلة كاملة بين حسابات مختلفة، واختبار أجهزة فعلية عند الحاجة.
+ 10. أدلة commit SHA وGitHub Actions run ونتيجة الاختبار.
+ 11. تحديث سجل القرارات والتتبع وقائمة جاهزية الإصدار.
+ 
+ لا يكفي بناء الشاشة أو الزر أو callable وحده. الميزة لا تعتبر منفذة حتى تعمل الرحلة كاملة وتُفرض قواعدها في الخادم وتنجح اختبارات قبولها.
+ 
+ ## 20. مراحل التنفيذ وبوابات الإغلاق
+ 
+ تُحافظ الخطة الاستراتيجية ذات المراحل السبع على ترتيبها:
+ 
+ 1. Firebase والأمان والأساس الهندسي.
+ 2. العضويات والهوية والملفات الشخصية.
+ 3. المحادثات والتواصل والغرف والوسائط والاحتفاظ.
+ 4. المحافظ والكوينز والمتاجر والمكافآت والمنح.
+-5. Super Admin ومركز العمليات السيادي.
++5. Super Owner ومركز العمليات السيادي.
+ 6. التحقق المتقدم والذكاء الاصطناعي والمكافآت المتقدمة.
+ 7. القبول والإطلاق الآمن والتشغيل.
+ 
+ تُدمج متطلبات هذا الميثاق في المرحلة المناسبة، ولا تؤجل أو تسقط لمجرد عدم وجودها في خطة قديمة. إغلاق المرحلة يتطلب أدلة على كل المخرجات لا مجرد وجود كود.
+ 
+ ### حالات المتطلبات الإلزامية
+ - معتمد — لم يبدأ.
+ - قيد التنفيذ.
+ - منفذ جزئياً.
+ - منفذ ومختبر آلياً على SHA محدد.
+ - مقبول تكاملياً/على المحاكيات.
+ - مقبول على الأجهزة أو في non-production الحي عند الحاجة.
+ - مراجع أمنياً وقانونياً.
+ - جاهز للإطلاق بعد موافقة المالك.
+ 
+ لا تستخدم «مكتمل» أو «جاهز للإطلاق» دون أدلة متوافقة مع طبيعة المتطلب.
+ 
+ ## 21. اختبار 5000 شخصية اصطناعية
+ 
+ - المختبر مشروع منفصل ولا يستبدل اختبارات التطبيق اليومية.
+ - الاختبار الفعلي يجب أن يستهدف SHA ثابتاً من المنصة ويغطي دورة حياة الحسابات والمحادثات والغرف والمحافظ والمتاجر والمكافآت والصلاحيات والحذف والأخطاء.
+ - لا يُعلن نجاح محاكاة 5000 شخصية حتى ينفذ workflow فعلياً ويصدر تقريراً مرتبطاً بالـ SHA.
+ - لا تستخدم حسابات أو بيانات إنتاج حقيقية في الاختبارات التدميرية.
+ - Mawdda Test Center workflow مخصص لمحاكيات Firebase فقط، ويستخدم شخصيات اصطناعية مع capabilities وdeniedCapabilities صريحة؛ يمنع استهداف الإنتاج ويختبر منع ترقية حساب عضو/ضيف إلى صلاحيات المالك.
+ - مصفوفة feature-coverage-matrix تربط كل رحلة بأمر اختبار وحالات قبول؛ يجب تحديثها عند إضافة رحلة inbox أو إيصال شراء أو حد وسائط جديد.
+ - مختبر 5000 شخصية يبقى مستودعاً منفصلاً؛ لا تدمج منه مولد الشخصيات أو سيناريوهات التحميل في كود المنصة.
+ 
+ 
+ ## 22. ضوابط الدمج والنشر والتكلفة
+ 
+ - لا دمج إلى `main` دون موافقة صريحة منفصلة من المالك.
+ - لا نشر إنتاجي أو تغيير Firebase حي أو تفعيل معاملات مالية أو حذف دوري تدميري دون موافقة صريحة منفصلة.
+ - PR #2 يبقى Draft إلى حين استيفاء بوابات القبول ومراجعة diff على exact head وموافقة المالك.
+ - لا تعني نتيجة CI نجاح المنتج كاملاً أو قبول الأجهزة أو تشغيل الخدمات الخارجية.
+ - لا تنشأ موارد مدفوعة ولا يُفعّل Blaze أو WORM/retention lock دون موافقة مستقلة.
+ - لا تُطلب كلمات مرور أو PAT أو مفاتيح خاصة في المحادثة؛ تُدار الأسرار من GitHub/Firebase Secret Manager.
+ 
+ ## 23. سجل التغيير والتزامن الوثائقي
+ 
+ أي موافقة جديدة من المالك تتطلب تحديثاً مترابطاً للآتي:
+ - الدستور إذا غيّرت سياسة أو قاعدة ملزمة.
+ - الرؤية إذا أضافت نطاق منتج أو رحلة مستخدم.
+ - سجل القرارات إذا أضافت قراراً أو غيّرت حالته.
+ - التتبع الهندسي إذا أثرت في ملفات أو خدمات أو اختبارات.
+ - خطة المرحلة وقائمة الإصدار إذا أضافت بوابة أو مخرجاً.
+ - الكود والاختبارات عند بدء التنفيذ.
+ 
+ إذا تعارضت وثيقة أو كود مع قرار أحدث، لا يُخفى التعارض؛ يُسجل ويُصحح قبل التسليم.
+ 
+ ---
+ 
+ ## ملحق A — التعديلات التي أُدخلت في هذا التوحيد بتاريخ 15 نوفمبر 2026
+ 
+ 1. تعميم محرك المدد والأسعار 24 ساعة/أسبوع/شهر على كل المتاجر والميزات والألقاب والأوسمة والمنتجات الحالية والمستقبلية، بسعر مستقل لكل مدة يحدده المالك.
+ 2. إضافة Mawdda Media Saver كمنتج مدفوع موحد للمحادثات الثنائية والغرف العامة والخاصة المؤجرة، مع عدم تمديد الحذف عند الحفظ المحلي.
+ 3. توحيد أوضاع المحادثة: مؤقتة (كل المحتوى بعد 4 ساعات من عدم النشاط)، عادية (وسائط 4 ساعات ونصوص 7 أيام)، مهمة (وسائط 4 ساعات ونصوص 30 يوماً).
+ 4. إضافة الحضور اليومي والساعي والأسبوعي إلى نظام المكافآت القابل للتحكم من المالك.
+ 5. تثبيت مكافآت الإعلانات على أساس مدة يحددها المالك وإكمال مشاهدة موثوق خادمياً، لا مؤقت العميل.
+ 6. إضافة مركز المنح المجاني: فردي عبر UID، مجموعات، جميع الحاضرين في غرفة عامة محددة، وجوائز جماعية للغرف وصناديق المساهمات.
+ 7. تعميم سلطة المالك على أسعار المنتجات ومددها وكمياتها وحدودها وتجديدها وتفعيلها وإيقافها.
+ 8. إضافة سجل منح مستقل وسجلات مستفيدين وعمليات مالية ذرية وidempotency ومراجعة أثر قبل التنفيذ.
+ 
+ **القيم التجريبية غير التجارية:** Mawdda Media Saver: أسبوع/200 كوينز للاختبار فقط. لا يُنشر هذا السعر كقرار تجاري نهائي.
+ 
+ ## ملحق B — الحالة التنفيذية
+ 
+ هذا الميثاق يوثق قرارات ونطاقاً هندسياً. لا يعلن أن جميع البنود نُفذت. تُحدّث الحالة الفعلية حصراً في سجل القرارات والتتبع، مع ربط كل ادعاء بملف وcommit واختبار وWorkflow Run ودليل قبول. 
+ 
+ 
+ 
+ ## 24. Technical collaborators, credentials, and owner approval (GOV-003)
+ 
+ - Designated technical/software-development collaborators: **ChatGPT (OpenAI) and Gemini (Google)**. Within their actual available tools and permissions, they are responsible for architecture, programming, implementation, defect correction, security-gap analysis, testing, and technical documentation. They are not product owners and cannot approve on the human owner's behalf.
+ - The human owner remains the sole authority for product decisions, commercial terms, credentials, external accounts, releases, and consequential operations.
+ - No password, API key, PAT, access token, private/signing key, certificate, recovery code, webhook secret, or cloud credential may be created, requested, read, copied, used, transmitted, stored, configured, rotated, or revoked without the owner's prior explicit personal approval for that exact credential/action, project, environment, purpose, and scope. Never ask the owner to paste secret values into chat or commit secrets to Git.
+ - No deployment, protected/default-branch merge, production or live Firebase/cloud change, billing upgrade, paid-resource activation, payment/purchase, live-data migration, destructive or irreversible deletion, retention/legal-hold change, external communication/publication, or third-party account authorization may occur without the owner's prior explicit personal approval for that exact operation. General project approval is not blanket approval.
+ - Routine source edits, commits on isolated development branches, static analysis, and local/emulator/sandbox tests may proceed under the standing development mandate only if they use no secrets, incur no charges, do not contact or mutate live systems, and do not affect real users/data. If uncertain, stop and ask.
+ - Every approval-gated action requires a pre-action explanation of target, purpose, scope, risks, reversibility, and cost, followed by a wait for explicit approval. Every completed action requires evidence-based reporting. No approval means no action.
+ - All project decisions and implementation evidence must be recorded in the relevant repository's constitution/charter, decision register, traceability matrix, code, tests, and CI evidence as applicable. Chat discussion alone does not constitute implementation.
+ 
+diff --git a/docs/RELEASE_READINESS_CHECKLIST.md b/docs/RELEASE_READINESS_CHECKLIST.md
+index 216e1184..8644a0e8 100644
+--- a/docs/RELEASE_READINESS_CHECKLIST.md
++++ b/docs/RELEASE_READINESS_CHECKLIST.md
+@@ -63,283 +63,283 @@ This checklist is a release gate, not a statement that the listed work is comple
+ - [ ] Bundle the approved launch background locally as the stable fallback for remote background load failures.
+ - [ ] Test background previews, responsive crops, contrast, reduced motion, rollback, and fallback behavior.
+ - [ ] Before the Web/PWA/desktop release candidate is approved, present the owner with the complete visual review set: final backgrounds, palette, typography, logo/icon treatments, navigation, buttons, cards, dialogs, and representative phone/tablet/desktop screens. Record the owner's explicit approval; do not independently finalize or silently change the visual direction.
+ - [ ] Inventory every user-facing screen, navigation destination, button and actionable control; verify each has a defined purpose, working route/action, loading/empty/error/success states where applicable, and responsive behavior. No placeholder or inert control may pass release acceptance.
+ - [ ] Verify the same approved visual system across Web, installed PWA and supported desktop browsers, including RTL/LTR where offered, keyboard navigation, focus visibility, contrast and reduced-motion behavior.
+ - [ ] Complete age assurance, minor-safety, moderation, reporting, blocking, appeals, and privacy workflows.
+ - [ ] Complete applicable legal and policy review for each launch market.
+ 
+ ## 6. Cross-platform release verification
+ 
+ - [x] CI generated and built an Android debug APK on run `43603789539`.
+ - [ ] Android release: build a universal APK plus ABI-specific APKs and a signed AAB from the same immutable SHA using the owner's existing keystore; verify every APK with apksigner and aapt, verify the AAB signature and Gradle package/version metadata plus required bundle structure, and confirm the matching owner certificate SHA-256; record hashes, file sizes, version and package identity; scan the candidate artifacts; install/update on physical Android phones and tablets; test sign-in, core workflows, microphone, push, portrait and landscape. The Debug APK is not a public release.
+ - [ ] Google Play App Signing continuity: before Play rollout, explicitly select the existing Mawdda key as the app-signing key if direct-installed APK users must update through Play; verify the Play Console app-signing certificate. Do not treat the upload key as interchangeable with the app-signing key.
+ - [ ] Increase the base Android versionCode for each release; before first Play rollout, use a base versionCode greater than the highest APK versionCode already distributed outside Play. The Universal APK and AAB share that base versionCode; Flutter ABI-split APKs use the documented +1000/+2000/+4000 offsets and must have unique versionCodes.
+ - [ ] Android APK download link remains disabled until the signed Release artifact is verified and explicitly approved for experimental distribution.
+ - [ ] Publish no AAB as a sideload download; retain AAB for the separately approved Google Play submission path only.
+ - [ ] Public pre-authentication portal: show Android APK, desktop PWA install, and iOS coming-soon option before sign-in/registration; no iOS native download URL.
+ - [ ] Desktop PWA: verify install prompt/event, browser-menu fallback, standalone launch, app icon, update flow, offline shell, and responsive layouts on current Chrome/Edge/Firefox/Safari across Windows/macOS/Linux where supported. Distinguish installable PWA from a browser bookmark/shortcut.
+ - [ ] Mobile web/PWA: verify Android browser installation and iPhone/iPad Safari Add to Home Screen guidance; verify touch, safe areas, portrait/landscape, responsive breakpoints and keyboard/screen-reader behavior.
+ - [ ] PWA privacy: confirm service-worker caching never stores private chat content, wallet data, credentials, or authenticated API responses; test logout/account switching and stale-cache invalidation.
+ - [x] CI completed an unsigned iOS build on run `43603789539`.
+ - [ ] Native iOS application: deferred by owner for the experimental launch. Do not build/sign/distribute it now. Keep only the iOS coming-soon notice in the public portal and provide the web/PWA route. Revisit native iOS only after a separate owner decision and funding approval.
+ - [ ] Windows, macOS, and Linux: build and smoke-test supported desktop workflows.
+ - [ ] Web: test supported browsers, responsive breakpoints, refresh/deep links, and authentication redirects.
+ - [ ] Test touch, mouse, keyboard navigation, accessibility, screen readers, and reduced-motion settings.
+ - [ ] Run performance, crash, network-failure, monitoring, backup, and recovery-drill checks.
+ 
+ ## 6.1. Audio/video calling — implementation now, live acceptance after Web launch
+ 
+ The approved CALL-001/CALL-002 product requirements remain in the implementation scope. Deferring live call tests does **not** authorize omitting the feature's code, server-side authorization, entitlement checks, quota rules, billing safeguards, or fail-closed behavior.
+ 
+ **Pre-launch engineering requirements (continue now):**
+ - [ ] Implement separate audio and video call products with owner-controlled 24-hour, 7-day and 30-day entitlement validity and editable prices.
+ - [x] Enforce five ordinary audio-call attempts and three ordinary video-call attempts per member in each rolling 24-hour window (server-side rolling quota; exact-head emulator integration passed).
+ - [ ] Count an attempt only when the server creates an accepted call session; rejected pre-session requests do not count. The receiver does not consume quota merely by receiving a call.
+ - [x] Enforce a five-minute maximum call duration from a server-recorded connection timestamp after both endpoints report WebRTC connected. Reconnects and client clocks do not reset the deadline; live browser/device acceptance remains open.
+ - [ ] Implement paid continuation and the approved asymmetric allocation rules, with explicit consent, no debt/negative balance, and server-authoritative atomic/idempotent ledger operations.
+ - [ ] Resolve and document the approved rounding/billing unit before enabling paid continuation; do not assume per-second, per-minute ceiling, or grace-period behavior.
+ - [ ] Implement server-authoritative signaling, participant authorization, TURN/STUN integration points, expiry, abuse limits, disconnect/reconnect handling and audit events.
+ - [ ] Keep call entitlements, paid continuation and any UI claim of operational availability fail-closed until the implementation is complete and the owner approves activation.
+ 
+ **Post-launch validation (not a pre-launch release gate by owner direction):**
+ - [ ] Validate incoming/outgoing audio and video calls on real supported browsers/devices, permissions, background/foreground, network transitions and TURN relay.
+ - [ ] Validate quota boundaries, rolling windows, accepted/rejected attempt counting, timeout, paid allocation, consent denial, insufficient funds, retries and concurrent billing against the live test environment.
+ - [ ] Record defects from real usage, fix them on the development branch, and rerun the affected acceptance checks before enabling the relevant call capability.
+ 
+ The call feature remains part of the product scope; only its live acceptance testing is deferred to the post-launch phase.
+ 
+ ## 6.2. Five-thousand-persona simulation — explicitly deferred
+ 
+ By the owner's current delivery instruction, the 5,000-persona load simulation and its separate simulation-lab workflow are **excluded from the current Web build, development completion and launch gate**. Do not block the Web release candidate on that simulation. Ordinary unit, security, rules, backend and emulator regression tests remain in scope; the existing seeded multi-user wallet regression is not the 5,000-persona load simulation and remains part of ordinary backend regression.
+ 
+ - [ ] Revisit the 5,000-persona simulation only in a separately planned post-launch performance/capacity phase.
+ - [ ] Do not describe the platform as having passed a 5,000-persona load test until that separate run is actually completed and its SHA, scenario, duration and results are recorded.
+ 
+ ## 7. Release authorization
+ 
+ - [ ] All blocking checks are green on the exact release candidate commit.
+ - [ ] Security review and operational review are complete and recorded.
+ - [ ] Production Firebase configuration and deployment target have been independently verified.
+ - [ ] Owner explicitly approves merging to `main`.
+ - [ ] Owner separately approves production deployment.
+ - [ ] Verify post-deployment health, authentication, Firestore access, Cloud Functions, and rollback readiness.
+ 
+ **Current known blockers (15 November 2026):** Exact-head platform CI [run 43728964878](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728964878) passed on code SHA `6e79f360f13c20ebec1f3214f78f822f554a290c`: Flutter analysis (no issues), 15 Flutter tests, Web release build, Cloud Functions compile/unit/integration suites, Firestore/Storage emulator rules, scanner tests, Node.js 22 container build, sanitization and EICAR detection. Node.js 22.23.4 and upload-artifact v7.0.2 are in use. Native workflow [run 43728956968](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43728956968) completed successfully for both Android debug APK and unsigned iOS build on ancestor SHA `82fedea62e09d5fc2a3c7472d3dd35f4cb40c917`; these are not signed releases or physical-device acceptance. The corrected 5,000-persona lab harness validation passed [run 43728976974](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/43728976974), but the full 5,000-persona simulation has not been rerun on the exact current platform SHA. Current `functions/src/retention.ts` still applies a single seven-day text sweep: the approved temporary (4h inactivity/full conversation), normal (7d text), and important (30d text) modes are not implemented end-to-end. Current scanner code enforces MEDIA-005's 60-second audio cap for both chat and room purposes; stale PR #17 contains an older direct-chat 120-second patch and must not be merged without correction/reconciliation. Live non-production Storage/Cloud Run scanner validation, bucket reconciliation, physical-device acceptance, owner MFA verification/recovery, App Check and anonymous-account abuse resistance, independent security/privacy/legal review, observability and recovery drills remain open. Biometric rewards remain fail-closed pending cryptographic device-bound proof. No production merge/deployment, live Firebase mutation, billing upgrade, paid-resource activation, or irreversible retention/legal-hold change has been performed. CI success does not clear these release blockers.
+ ## Direct messaging implementation status
+ 
+ - [x] Flutter one-to-one conversation screen includes message history, composer, refresh, and safe empty-conversation state; it calls trusted `getDirectMessages` and `sendDirectMessage` functions.
+ - [x] Server-side deterministic conversation ID helper is symmetric and covered by unit tests; reading a not-yet-created conversation returns an empty history without creating chat data.
+ - [ ] Complete callable/emulator integration coverage for cross-account reads, blocked/banned members, age policy, message replay, and notification privacy; complete device and accessibility tests.
+ - [x] Shared in-app audio recording and playback controls are integrated into member direct chats and member public-room chats; Flutter analysis/tests and Web build passed in run `43606233324`. Physical-device microphone permission, upload, playback and interruption tests remain open.
+ 
+ ## MAWADDA AI release gates (not yet implemented)
+ 
+ - [ ] Technical support assistant is isolated behind a trusted backend gateway with case-scoped data access and an explicit tool/permission allowlist.
+ - [ ] High-impact operations require separate owner confirmation, recent authentication/MFA where appropriate, and immutable audit records.
+ - [ ] AI character profiles and platform information clearly identify them as AI; no impersonation or fabricated human popularity/activity.
+ - [ ] Social/romantic character access requires approved 18+ age assurance; confirmed under-18 accounts are blocked from social characters while technical support/reporting remains available.
+ - [ ] Private-message access is purpose-bound, case-scoped, least-privilege, disclosed, legally reviewed, and logged; no blanket private-chat training.
+ - [ ] Adult character interactions pass safety review for coercion, dependency, emotional manipulation, purchase pressure, and prohibited sexual content.
+-- [ ] Link permissions are enforced server-side by role and verified status: unverified ordinary members are blocked; biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement in DMs and public/rented-private room chats; room owners/moderators retain their room-scoped allowlist; Super Admin retains the separately gated any-domain HTTP/HTTPS exception.
++- [ ] Link permissions are enforced server-side by role and verified status: unverified ordinary members are blocked; biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement in DMs and public/rented-private room chats; room owners/moderators retain their room-scoped allowlist; Super Owner retains the separately gated any-domain HTTP/HTTPS exception.
+ - [ ] One-to-one private chats accept direct YouTube, Facebook, Instagram, and X/Twitter links only from biometrically verified members; unverified members are blocked. Shortener (including t.co), redirect, lookalike, obfuscation, and bypass tests pass.
+ - [ ] AI cannot bypass moderation, age, privacy, wallet, or link controls.
+ - [ ] Global, per-module, and per-character kill switches are tested, including active-session shutdown.
+ - [ ] Daily/monthly budgets, per-character quotas, alerts, hard caps, and automatic fail-closed shutdown are tested.
+ - [ ] Cost, access, tool-call, moderation, and administrative audit records are reviewable without retaining unnecessary private message bodies.
+ - [ ] AI prompts/tooling pass prompt-injection, cross-member data isolation, secret-exposure, and unauthorized-action tests.
+ - [ ] Privacy/legal review, member-facing disclosures, consent where required, retention/deletion rules, and incident procedures are complete.
+ 
+ 
+ 
+ ### Additional MAWADDA AI identity and link-policy release gates
+ 
+ - [ ] Every AI character displays a persistent, accessible AI badge on avatar/cover and profile header; activating it explains the AI identity; it is not styled as human verification.
+ - [ ] AI activity, followers, reactions, and popularity are separately labeled and never counted as human-member activity.
+ - [ ] Members without successful biometric verification cannot post links in any chat or room. Biometrically verified members receive the free YouTube, Facebook, Instagram, and X/Twitter entitlement across DMs and public/rented-private room chats.
+ - [ ] Authenticated room owners and authorized moderators can post only verified YouTube, Instagram/Reels, and Facebook URLs in public/private rented rooms; authorization is server-side and moderator revocation takes effect immediately.
+-- [ ] One-to-one private messages allow YouTube, Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Admin exception remains separately gated.
++- [ ] One-to-one private messages allow YouTube, Facebook, Instagram, and X/Twitter URLs only for members whose biometric status is server-confirmed as verified; the platform Super Owner exception remains separately gated.
+ - [ ] URL tests cover redirects, shorteners, lookalikes, IDN/punycode, deceptive subdomains, credentials, unsafe schemes, obfuscation, embedded URLs, rich previews, and authorization bypass.
+ - [ ] Global/module/character shutdown stops active generation promptly and revokes AI tool permissions.
+ 
+ 
+-### Super Admin link exception and AI badge presentation
++### Super Owner link exception and AI badge presentation
+ 
+-- [ ] Platform Super Admin, verified server-side by platformOwner claim and fresh MFA/step-up session, can send ordinary HTTP/HTTPS links to any domain in direct chats, public rooms, and rented private rooms.
++- [ ] Platform Super Owner, verified server-side by platformOwner claim and fresh MFA/step-up session, can send ordinary HTTP/HTTPS links to any domain in direct chats, public rooms, and rented private rooms.
+ - [ ] Dangerous executable schemes, malformed links, and credential-bearing URLs remain blocked; safe-preview and phishing/malware controls are tested.
+ - [ ] Unverified ordinary members remain blocked from all links. Biometrically verified members receive free YouTube, Facebook, Instagram, and X/Twitter links across DMs and public/rented-private room chats; room owners/moderators retain their room-scoped YouTube, Instagram/Reels, and Facebook allowlist.
+ - [ ] AI badge appears as a small visual AI marker on avatar or cover only; no explanatory pop-up and no AI announcements inside direct chats or rooms.
+ 
+ 
+ ### Free biometric-verification link entitlement release gates
+ 
+ - [ ] A trusted biometric verification workflow is implemented and independently tested; a client cannot set or forge status, expiry, or revocation fields; eligibility requires a future server-owned `expiresAt` and no `revokedAt`.
+ - [ ] The entitlement is free and available in direct messages, public-room chats, and rented-private-room chats only while the server-owned biometric verification remains valid.
+ - [ ] Expired, revoked, failed, or pending biometric status immediately loses the link entitlement; tests cover stale state, cross-account attempts, and status changes.
+ - [ ] Approved destinations include YouTube, Facebook, Instagram, and X/Twitter official domains (including youtu.be and youtube-nocookie.com). Shorteners such as `t.co` remain blocked until safe redirect verification is implemented.
+ 
+ 
+ ## Additional approved profile and financial-control release gates
+ 
+ ### Biometrically verified member profile links
+ 
+ **Current status: partial backend and Flutter UI implementation; not release-ready.** Server-side save authorization, biometric-gated profile projection, URL validation, profile editor/display, and clear-after-expiry behavior are implemented. Unit tests cover URL rules and the publish-versus-clear policy. Callable authorization/privacy integration tests, per-link temporary hide controls, and the actual biometric capture/provider workflow remain release blockers. Keep all release gates below unchecked until independently validated.
+ - [ ] Active verified members can save optional Instagram, X/Twitter, Facebook, and WhatsApp profile links; each is individually editable, removable, and hideable.
+ - [ ] Visitors see only links the member explicitly published and only when profile visibility permits.
+ - [ ] Only normalized HTTPS URLs on the provider's approved official domains are accepted; malformed/deceptive URLs, credentials, unsafe schemes, and shorteners are rejected.
+ - [ ] Expired/revoked biometric verification immediately hides published links and blocks publishing/editing; clients cannot forge verification state or bypass profile read authorization.
+ - [ ] Cross-account, privacy, expiry, revocation, and URL-validation tests pass.
+ 
+-### Super Admin financial freeze and coin adjustments
++### Super Owner financial freeze and coin adjustments
+ - [ ] Owner-only global and per-operation switches pause/resume top-ups/purchases, coin crediting, transfers, refunds/redemptions/withdrawals where supported, rewards, and administrative adjustments.
+ - [ ] Member-level restrictions independently control sending, receiving, top-ups, and refunds/redemptions; enforcement is server-side across all callable/transaction paths and open sessions.
+ - [ ] In-flight transfers and payment-provider callbacks are safely frozen/reconciled; no duplicate credit or silent loss occurs when resuming.
+ - [ ] Suspected fraud triggers reversible hold/freeze and investigation by default; partial/full forfeiture requires a substantiated case and recorded reason.
+ - [ ] Every freeze, deduction, or zero-balance action requires fresh MFA, explicit target/action/amount, impact preview, separate confirmation, idempotency, and immutable audit.
+ - [ ] Coin forfeiture is an atomic double-entry ledger transaction to the platform treasury/forfeiture account; historical entries are never edited/deleted, balances never go negative, and real-money refunds remain separate provider workflows.
+ - [ ] Member notice, appeal/review, compensating reversal, bulk-action alerts, unauthorized-access tests, and audit completeness are verified.
+ - [ ] Owner can grant supported free entitlements to one UID or a UID list with 24h/7d/30d duration; active time extends rather than being overwritten.
+ - [ ] Bulk grants use owner MFA, a reason, preview/confirmation, stable request idempotency, bounded technical chunks, per-recipient partial results, immutable grant ledger and audit.
+ - [ ] Free administrative grants never debit coins or create a paid purchase receipt; coin grants, group/room snapshots and collective rewards remain separate release gates until implemented.
+ 
+ 
+ ## Email ownership and external account verification release gates
+ - [ ] Registration sends a real, single-use, expiring activation link to the submitted email; only provider-confirmed redemption sets verified status.
+ - [ ] Pending screen explicitly directs members to Inbox and Spam/Junk, explains the message may land in Spam, and asks them to mark it important/move to Inbox/trust the sender where supported; delivery is not falsely guaranteed.
+ - [ ] Successful activation returns via a validated app/deep link to profile completion; expired/replayed/tampered links fail safely; resend is rate-limited and resistant to account enumeration.
+ - [ ] The 500-coin verified-email reward is server-side, issued exactly once per successful eligible 90-day verification cycle, and unavailable before provider-confirmed verification.
+ - [ ] Sender domain has SPF, DKIM, and DMARC; deliverability and bounce/complaint monitoring are configured; action codes are not logged.
+ - [ ] Instagram/Facebook/X badges require official provider OAuth, backend validation of the provider subject ID, state/PKCE protections, least privilege, token protection, revocation/disconnect, and periodic revalidation. A pasted URL alone never earns a badge.
+ - [ ] Instagram eligibility accurately distinguishes Professional Business/Creator accounts from ordinary personal accounts; unsupported accounts are not falsely marked verified.
+ - [ ] WhatsApp personal contact is labeled phone-number verified after OTP proof, not OAuth-connected; WhatsApp Business integration uses official Business Platform onboarding if required.
+ - [ ] Expiry, revocation, disconnect, privacy visibility, wrong-account linking, token exposure, and all provider-specific failure paths are tested.
+ 
+ 
+ ## High-assurance biometric verification and 1,500-coin reward release gates
+ 
+ **Security status — 14 November 2026:** the previous callable credited 1,500 coins from a client-supplied `localAuthenticationSucceeded` boolean and client attempt ID. This was not server-verifiable proof and could be forged by a modified client. The callable now fails closed with `failed-precondition` and does not write wallet balance, biometric verification status, or reward ledger entries. Regression tests enforce this behavior. Legacy verification records whose method is `local_os_biometric_prompt` or trust model is `client_claim_after_local_os_prompt` are also rejected by biometric entitlement checks, so old client-only claims no longer unlock biometric-gated links. Historical wallet credits are not automatically clawed back: they require a separate ledger audit and owner-approved remediation to avoid debiting legitimate balances. The 1,500-coin reward is intentionally unavailable until a device-bound cryptographic challenge/attestation is verified server-side (fresh nonce, UID/platform/key binding, replay protection, revocation/expiry, and atomic idempotent credit). This is a security containment fix, not completion of biometric verification.
+ 
+ - [ ] Select and assess a qualified identity-verification provider/stack; document supported jurisdictions, assurance level, provider security evidence, data locations, subprocessors, retention, and incident procedures.
+ - [ ] Complete a DPIA and applicable legal review before collection, including GDPR special-category biometric-data requirements where applicable; implement explicit consent where required, purpose limitation, member rights, retention/deletion, and withdrawal handling.
+ - [ ] The product's “real identity verified” claim is backed by appropriate identity proofing (for example, accepted identity-document validation and live-face match). A selfie video, voice challenge, device biometric unlock, or profile photo alone is not identity proof.
+ - [ ] Implement randomized, session-bound liveness challenges and validated presentation-attack detection for printed photos, screen replay, prerecorded video/audio, masks, face swaps, deepfakes/synthetic media, virtual cameras, injected streams, and replayed sessions.
+ - [ ] Treat moving selfie (3–5 seconds) and voice liveness (~20 seconds) only as supporting signals unless a validated provider confirms the required assurance; never infer gender or other sensitive traits from voice.
+ - [ ] Provider results are verified server-to-server or through signed callbacks; nonce/session, provider transaction, authenticated UID, assurance level, timestamp, expiry, and revocation are checked. Client status, uploaded files, and local device biometric results cannot grant verification.
+ - [ ] Prevent cross-account result reuse, replay, duplicate-account reward farming, and status transfer. Use privacy-preserving provider anti-duplication signals; no unrestricted biometric database.
+ - [ ] Grant the 1,500-coin reward after each successful eligible 30-day cycle only after final server-confirmed approval at the required assurance level; enforce exactly-once-per-cycle atomic ledger posting, idempotency, and no reward for pending/failed/replayed/expired attempts.
+ - [ ] Badge, profile social-link eligibility, and link-sharing permissions are server-derived and become active only after approval; expiry/revocation removes them immediately, including stale-cache and already-open-session tests.
+ - [ ] Define validity period, renewal, risk-triggered re-verification, rate limits, provider outage behavior, false-rejection appeal, and human review. Automated risk scores alone do not permanently label members as fraudulent.
+ - [ ] Raw face/voice media and biometric templates are minimized, encrypted, access-restricted, audited, and deleted on a documented schedule; no unrelated use, advertising, or model training.
+ - [ ] Test spoof/replay/deepfake/injection, webhook forgery, UID/session mismatch, expiry/revocation, account recovery, duplicate reward attempts, deletion/withdrawal, unauthorized staff access, provider outage, false rejection, and ledger exactly-once behavior.
+ - [ ] Member-facing badge wording accurately states the check completed and does not imply absolute fraud-proofing or permanent identity assurance.
+ 
+ 
+ 
+ ## Recurring email/biometric verification and member notice release gates
+ 
+ - [ ] Registration form shows a prominent localized notice before submission: email ownership renewal every 90 days; optional biometric renewal every 30 days to retain biometric-gated permissions; expiry consequences; biometric data/provider/retention/rights; and 500 coins are awarded after each successful 90-day email verification cycle and 1,500 coins after each successful 30-day biometric verification cycle; each cycle is rewarded exactly once.
+ - [ ] Notice acknowledgement is recorded with notice/policy version and timestamp. Biometric consent is separate, explicit, and obtained at capture where legally required; optional biometric verification is not forced for basic registration.
+ - [ ] Email verification lease expires exactly 90 days after server-confirmed success; fresh single-use email action link renews it. Email changes require verification of the new address. Historical provider emailVerified state cannot bypass the Mawadda lease.
+ - [ ] Biometric verification lease expires exactly 30 days after final server-confirmed approval; all biometric-gated permissions, badge, and dependent link entitlements are disabled immediately at expiry/revocation until successful renewal.
+ - [ ] Server time controls expiry and every backend authorization/public-read path enforces it; client clock, UI state, and stale caches cannot preserve access.
+ - [ ] Just-in-time notice appears before initial verification and each renewal; successful verification shows exact expiry date/time.
+ - [ ] Deduplicated reminders are sent 7, 3, and 1 days before expiry and at expiry; notification preferences/quiet hours are respected and a secure renewal route is provided.
+ - [ ] Email expiry gates only features/actions explicitly requiring a current verified email; basic account access and stored data are not deleted by expiry alone.
+ - [ ] The 500-coin email reward is issued after every successful eligible 90-day verification cycle and the 1,500-coin biometric reward after every successful eligible 30-day verification cycle. Each cycle is credited once only through a unique cycle/reward ID and atomic idempotent ledger transaction; repeated attempts/replays in the same cycle cannot earn extra credits.
+ - [ ] Replace the current first-profile-only email reward with a trusted 90-day email lease renewal flow: server-authorized renewal after expiry, invalidate prior Firebase emailVerified state before sending a fresh action link, verify the pending cycle and unchanged email server-side, then atomically extend the lease and credit 500 coins once for that cycle.
+ - [ ] Implement and independently validate biometric provider sessions, signed server callbacks/server-to-server verification, 30-day lease renewal, and atomic 1,500-coin per-cycle reward before enabling the biometric reward.
+ - [ ] Test 90-/30-day boundaries, server/device clock mismatch, timezone display, email changes, expired/replayed renewal links, reminder deduplication, active-session expiry, cache invalidation, backend enforcement, localized notice/acknowledgement, and reward idempotency.
+ 
+ ## 12. Sovereign Cloud Operations & Data Lifecycle Center
+ 
+ - [ ] Inventory every target Firestore collection, Storage bucket/path, ad asset, metadata reference, derivative, CDN/cache layer, retention job, legal hold, and protected record before implementation.
+ - [ ] Implement server-generated dry-run previews with exact scope, paths, date range, counts, bytes, affected parties, exclusions, recoverability, preview ID/hash, expiry, and stale-preview rejection.
+ - [ ] Require server-verified platformOwner, fresh MFA/step-up, scope-specific typed confirmation, reason/ticket, and additional confirmation for global/irreversible purges.
+ - [ ] Implement idempotent resumable background jobs with bounded batches, checkpoints, retries, concurrency locks, safe pause/cancel, emergency stop, progress, and failure reporting.
+ - [ ] Chat purge tests prove only explicitly selected message history is removed; member accounts, financial data, security/audit logs, reports, appeals, moderation evidence, legal holds, and unrelated conversations remain intact.
+ - [ ] Media cleanup tests reconcile Storage objects with Firestore metadata, thumbnails/derivatives, temporary uploads, CDN/cache copies, and lifecycle queues; verify no orphaned metadata or inaccessible retained object remains.
+ - [ ] Advertising cleanup tests archive/purge only ended eligible campaigns and obsolete creative assets; active/scheduled campaigns, billing, accounting evidence, disputes, consent and legal records remain intact.
+ - [ ] Maintenance mode, health checks, retention retry, storage reconciliation, derived cache/index refresh and project identity checks are verified; no unsupported Firebase “restart” claim or destructive infrastructure recreation.
+ - [ ] Verify backups and complete restore drills; use quarantine/soft-delete where appropriate and clearly identify irreversible provider/CDN deletion boundaries.
+ - [ ] Immutable audit covers requester, MFA freshness, reason, preview hash, exact scope, exclusions, job/batch IDs, counts/bytes, timestamps, retries, denials, cancellations, outcome and recovery status.
+ - [ ] Production/test environment separation, budget alerts, anomaly detection, legal-hold enforcement, emergency stop, and documented operator runbook pass independent security review.
+-- [ ] Super Admin UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
++- [ ] Super Owner UI distinguishes available, preview-only, and disabled/not implemented operations; no destructive control is enabled before backend and recovery gates pass.
+ 
+ ## Sole-owner content review and mandatory privacy acknowledgement release gates
+ 
+ - [ ] Confirm the privacy policy describes the sole owner's ability to review available direct conversations (active and ended) and member/guest files, silent versus announced modes, member-facing anonymous participation, internal audit, data categories, purposes, retention, rights, and contact/complaint routes.
+ - [ ] Complete jurisdiction-specific privacy/legal review and DPIA as applicable; confirm a valid legal basis and necessity/proportionality for each processing purpose. A click-to-accept acknowledgement is not treated as a waiver or standalone legal basis.
+ - [ ] Registration cannot be submitted until the current localized policy version is displayed and affirmatively acknowledged; no preselected checkbox or implied consent.
+ - [ ] Guest session issuance and access to protected guest/member content are blocked until a guest-specific notice is displayed and acknowledged. Public landing/policy access remains available without granting a guest session.
+ - [ ] Store policy version/hash, locale, server timestamp, actor type, UID or pseudonymous guest-session ID, app version, and acceptance event; verify material policy updates trigger renewed acknowledgement where required.
+ - [ ] Owner-only review is server-authorized by the sole owner's platformOwner claim plus recent authentication and fresh MFA/step-up; non-owner, moderator, support, AI, and client-flag attempts are denied.
+ - [ ] Owner can open any available direct conversation (active or ended) and member/guest file without a report/case as a product-level precondition; deleted/expired/held/unavailable data is represented accurately.
+ - [ ] Silent review causes no push/in-app participant notification, read receipt/read-state change, presence/typing signal, membership change, or content mutation. Announced review displays the chosen administrative notice.
+ - [ ] Every successful and failed review/file access is recorded in append-only, tamper-evident audit with true actor UID, target, data category, mode, timestamp, authentication assurance, outcome, and policy version. Reason/case is optional context, not an access prerequisite.
+ - [ ] Owner participation modes display exactly the selected “إدارة منصة مودة”, “السوبر أدمن”, or “مجهول” label. Anonymous messages remain internally attributed to the owner's UID and cannot impersonate a real member.
+ - [ ] File previews/downloads/exports use scoped short-lived authorization, do not leak public storage URLs, and are separately audited; bulk export receives additional controls.
+ - [ ] Test all non-owner denials, MFA freshness, session revocation, guest bypasses, policy version changes, cross-account isolation, silent-mode side effects, audit tamper resistance, and legal-hold/retention behavior.
+ - [ ] The capability remains disabled for production until privacy/legal approval, full backend and UI implementation, and all release evidence are complete.
+ 
+ ## Guest Preview public-room participation release gates — approved 14 November 2026
+ 
+ - [ ] Guest entry collects username, country, and gender only; no age, date of birth, or age-band question/default/storage is present in the guest flow.
+ - [ ] Guest receives exactly 60 minutes of protected access per rolling 24-hour window, enforced with trusted server time and bound to the anonymous Firebase Auth identity; logout, restart, reinstall, new device and client-clock changes do not reset it.
+ - [ ] After guest privacy acknowledgement and minimal guest profile entry, the Flutter guest experience supports public discovery and joining eligible general-audience public rooms; it is not limited to the current upgrade-only screen.
+ - [ ] Guest may send and receive text and audio/voice messages in eligible public rooms only.
+ - [ ] Guest is denied direct/private messages, private rooms, room rental, moderation, gifts, wallet reads/writes, transfers, top-ups, rewards, purchases, store access, member-profile features, and all non-text/non-audio media.
+ - [ ] Every server callable that joins a room, sends/reads messages, or finalizes audio media checks anonymous Auth provider, guest session, expiry/cooldown, general-audience room eligibility, membership and allowed message/media type. Client-side hiding is not authorization.
+ - [ ] Unknown-age guests are never assigned a fabricated age or age band and are never admitted to age-restricted/adult-only rooms. Guest-accessible rooms must be explicitly classified and moderated for a general audience.
+ - [ ] Member upgrade opens the normal member onboarding flow, where member-specific age/date-of-birth or age-band data, email verification, optional biometric verification and other required fields are collected; guest data is not silently treated as completed member verification.
+ - [ ] Emulator integration tests cover guest profile validation, session start, use before expiry, exact 60-minute expiry, denial throughout the remaining rolling 24-hour window, re-entry at the eligible boundary, general-audience room access, text/audio send and receive, member-upgrade transition, and every prohibited operation.
+ - [ ] Emulator clock advancement/reset is confined to test fixture setup; no production client or callable accepts client-supplied timestamps or clock overrides.
+ - [ ] Session expiry blocks protected room access immediately without deleting privacy acknowledgement, audit records or unrelated account data. Guest upgrade/conversion preserves only records that are explicitly safe and policy-compatible.
+ 
+ ## Guest preview runtime acceptance — 14 November 2026
+ 
+ Implementation review on the development branch confirms the following code is present; these checkmarks mean implementation is present in source, not that the newest commit has passed CI or production acceptance:
+ 
+ - [x] Guest entry collects username, country and gender only; no age, date-of-birth or age-band is stored for the anonymous guest.
+ - [x] Trusted callables exist for anonymous-provider enforcement, guest session start/status/end, 60-minute expiry, 24-hour cooldown and idempotent start.
+ - [x] Guest public-room discovery filters to active public rooms explicitly approved as `all_ages`; room approval is owner-controlled.
+ - [x] Guest room UI supports text and audio attachments; in-app microphone recording (24 kHz mono PCM to WAV, 60-second/8 MiB cap) and playback are implemented. Server-side guest authorization is included in join, send, read and audio attachment delivery paths.
+ - [x] Guest/member integration test source covers no-age persistence, provider rejection, room approval, member/guest room interaction, private/adult/unapproved room denial, direct-message and member-feature denial, and cooldown/session lifecycle cases.
+ - [x] Guest-session and seeded five-persona interaction workflows passed on later development commits; the current full backend/emulator suite passed in run `43606233324` on head `7aa8e7c031001ebdf326552225021182c116fd4e`. This does not replace device E2E or anti-abuse testing.
+ - [ ] Add/verify native Flutter UI-to-callable end-to-end tests for guest entry, room discovery, join, text send/receive, audio send/receive, expiry, session end and upgrade.
+ - [ ] Add a deterministic emulator clock-advance test for the 60-minute expiry and 24-hour cooldown boundaries.
+ - [x] Guest-room microphone capture (24 kHz mono PCM converted to WAV), a 60-second/8 MiB cap, secure media-intake upload/finalization, and in-app playback controls are included in the latest green Flutter analysis/tests/Web build and Android/iOS native builds; real-device permission, browser microphone/CORS and playback smoke tests remain open.
+ - [ ] Verify guest session limits against anonymous-account recreation, App Check/device attestation and abuse controls; same-UID cooldown alone does not prevent a new anonymous UID on another device or after identity loss.
+ - [ ] Complete real Android/iOS microphone permission and media-delivery smoke tests. Native Firebase app configuration, generated runners, Android debug APK and unsigned iOS CI build have passed; physical-device installation, permission prompts, recording, upload, playback, interruption and CORS checks remain required.
+ 
+ Latest exact-head automated validation: [run 43607804675](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43607804675) passed on `570bfe410d33a8aa698dd1d2bcd2d8b76788743c`; it includes the guest-session and seeded persona interactions, member/guest privacy, wallet/store, media, retention, legal-hold and rules suites. Native CI builds are green in [run 43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297). Physical-device and live-cloud acceptance remain open. No production deployment or merge is authorized by these implementation notes.
+ 
+ 
+ ## Latest development-head reconciliation — 14 November 2026
+ 
+ - Current development head at this documentation update: `dec6f66e6f49858c436b0b5709a59b84f91de31c` (documentation-only reconciliation after the validated code head).
+ - Exact application-code head immediately before this documentation update: `f4e69e166f6ad7651f63fdf5391f1844ee124c9e`.
+ - Validation run [43611868764](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43611868764) passed all three jobs on that exact application-code head: Flutter analysis/tests/Web release build; Cloud Functions compile, unit/integration and Firestore/Storage emulator rules suites; isolated ClamAV scanner image and sanitization/security tests.
+ - Documentation-only commits do not change the application code covered by that run. Any subsequent application-code change must receive fresh exact-head validation before being marked verified.
+ - Earlier native bootstrap run [43606228297](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/43606228297) produced an Android debug APK and unsigned iOS build on an earlier code head. These are not signed release artifacts and do not replace final-candidate native builds or physical-device acceptance.
+ - PR #2 remains Draft/open/unmerged. Production Firebase deployment, live data mutation, irreversible retention locking, destructive cleanup and payment activation remain unauthorized.
+ 
+ ### Firebase owner-side evidence request — read-only
+ 
+ Before enabling live media, independently confirm the actual Storage bucket name(s) in Firebase Console / Google Cloud Storage for project `mawda-app-2026`. The historical owner-supplied configuration record lists `mawda-app-2026.appspot.com`; current FlutterFire-generated client configuration lists `mawda-app-2026.firebasestorage.app`. Record which bucket is the default Firebase Storage bucket, whether the other bucket exists and what purpose it serves, and the region. Then verify the non-production Functions runtime bucket, `MAWDA_MEDIA_TEST_BUCKET`, IAM and CORS. Do not test uploads or deletions against production data. Never paste access tokens, private keys, service-account JSON, or full credential files into chat.
+ 
+ 
+ ## Cross-platform installation and Android signing — owner-approved release gate (15 November 2026)
+ 
+ The public portal is a required product surface, not a marketing extra. It must be available before authentication and expose three truthful choices:
+ 
+ 1. **Android:** APK download remains disabled until the existing owner keystore is securely provisioned to the release workflow, the Release APK signature is verified against the recorded certificate fingerprint, and physical-device install/update acceptance passes.
+ 2. **Desktop:** install Mawdda as a standalone PWA when the browser supports it. Capture `beforeinstallprompt` where available, invoke the native prompt only after an explicit user click, and retain a browser-menu fallback. Do not describe a bookmark/ordinary shortcut as a standalone PWA.
+ 3. **iOS:** no native iOS app distribution during the current experimental launch. The iOS portal option opens a localized coming-soon notice and directs the user to the web version; Safari users receive Add to Home Screen guidance.
+ 
+ Current implementation changes on the development branch:
+ - Added public portal distribution controls to `lib/widgets/mawdda_app_downloads.dart`; Android remains disabled without a configured HTTPS release URL; iOS opens a coming-soon/web-fallback dialog; desktop/mobile web users receive installation guidance.
+ - Added widget tests for the disabled Android release gate, iOS notice and desktop/mobile browser installation guidance.
+ - Updated `web/install-prompt.js` to capture the browser's install event, request installation only from a user action, detect standalone mode, and tailor fallback instructions for desktop, Android and iOS.
+ - Updated the web manifest with explicit 192/512 SVG icon declarations and standalone display preferences; updated browser metadata for PWA and iOS home-screen behavior.
+ - Added `.github/workflows/android-signed-release.yml`. It is manual-only, branch-scoped, expects the four previously agreed owner-provisioned GitHub Actions secrets (`MAWDDA_IDENTITY_KEY_B64`, `MAWDDA_STORE_PASSWORD`, `MAWDDA_KEY_PASSWORD`, `MAWDDA_KEY_ALIAS`), builds ABI-split Release APKs, verifies every APK with apksigner against the existing owner certificate fingerprint, and uploads a short-lived private workflow artifact. It does not publish or deploy.
+ - The workflow has **not** been run: the actual JKS was created locally in Termux at `~/mawdda-signing/mawdda-identity-key.jks`, but prior conversation evidence shows only terminal verification output was shared; the binary file was not attached or transferred to GitHub, and the four Actions secrets were not created. The owner previously required encrypted backups before any GitHub Secrets provisioning. Preserve that sequence; do not request the JKS/password in chat or commit them. Do not claim a signed APK exists.
+ - The SVG icon assets and manifest changes still require actual browser installability checks. Verify generated Flutter service-worker output and privacy-safe cache behavior in the built Web artifact; no offline/private-data acceptance is implied by source changes alone.

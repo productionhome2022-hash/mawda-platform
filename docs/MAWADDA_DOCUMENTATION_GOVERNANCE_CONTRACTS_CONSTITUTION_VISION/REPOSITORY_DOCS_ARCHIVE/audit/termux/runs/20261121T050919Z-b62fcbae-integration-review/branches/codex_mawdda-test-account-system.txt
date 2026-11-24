@@ -1,0 +1,74 @@
+BRANCH: codex/mawdda-test-account-system
+REF: refs/remotes/origin/codex/mawdda-test-account-system
+SHA: d89d30a623369e5b687525297b97257192a27462
+
+MERGE BASE: df4d2ff0f66297a27573b99c20034253f0aa0b54
+
+=== DIVERGENCE ===
+1521	37
+
+=== FILE STATUS ===
+A	.github/workflows/mawdda-test-center.yml
+M	.gitignore
+A	docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md
+A	docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md
+M	functions/package.json
+A	functions/scripts/seed-test-accounts.cjs
+A	functions/test/feature-coverage-matrix.test.js
+A	functions/test/fixtures/feature-coverage-matrix.json
+A	functions/test/fixtures/test-account-personas.json
+A	functions/test/integration/test-persona-interaction.integration.test.js
+A	functions/test/test-account-personas.test.js
+
+=== CHANGE SUMMARY ===
+ .github/workflows/mawdda-test-center.yml           |  69 ++++
+ .gitignore                                         |   5 +
+ docs/testing/MAWDDA_TEST_ACCOUNT_SYSTEM.md         |  59 +++
+ docs/testing/MAWDDA_TEST_CENTER_RUNBOOK.md         |  84 +++++
+ functions/package.json                             |   7 +-
+ functions/scripts/seed-test-accounts.cjs           | 194 ++++++++++
+ functions/test/feature-coverage-matrix.test.js     | 103 +++++
+ .../test/fixtures/feature-coverage-matrix.json     | 420 +++++++++++++++++++++
+ functions/test/fixtures/test-account-personas.json | 344 +++++++++++++++++
+ .../test-persona-interaction.integration.test.js   | 104 +++++
+ functions/test/test-account-personas.test.js       |  92 +++++
+ 11 files changed, 1479 insertions(+), 2 deletions(-)
+
+=== UNIQUE COMMITS ===
+d89d30a6 docs: clarify emulator wallet fixture is not a reward
+a72583bd fix: seed complete canonical member profile fixtures
+86a6ff9a test: allow biometric persona dedicated challenge capability
+05fa7425 docs: record guest public room implementation release blocker
+cf71fc42 test: prevent overstating guest integration coverage
+b64cd644 test: mark guest room session journey as blocked until implemented
+f58a9194 test: assert explicit guest room message directions
+7996e27f test: clarify guest room send and receive capabilities
+2c5a2bbb Update Test Center runbook with guest public-room text/audio rules
+252539a3 Document guest public-room participation and restricted message types
+0f2545bb Extend guest journey matrix for public rooms and text/audio-only messaging
+a17c3206 Add guest public-room text/audio permissions and negative capability tests
+d1ae2d6a Define guest-preview as one hour per rolling 24 hours with public-room text/audio participation
+bccd91a4 Verify seeded Auth identities and profile wallet fixtures before interaction
+e8b33e47 Keep seeded profile wallet fixtures consistent with emulator balances
+001d49c5 Document cross-persona seeded interaction test
+3541dd84 Add cross-persona live emulator interaction journey
+23774c8b Add seeded account interaction test to complete test-center run
+47a61407 Test real seeded Mawdda member-to-member wallet interaction
+111ee1b1 Provision test personas as usable emulator member records
+04a09d01 Fix coverage matrix test command and capability comparison checks
+946a78de Align counterparty persona with full member feature permissions
+8038080e Validate complete feature coverage and persona interaction matrix
+e6920ea0 Define complete Mawdda persona interaction and release coverage matrix
+2fbc0443 Ignore local Mawdda emulator credentials and test data
+b201a009 Validate complete persona profile fixture coverage
+a2c38672 Seed complete isolated persona profile fixtures
+8e91401b Add complete isolated sample profiles for Mawdda test personas
+e5536e46 Add pull request validation workflow for Mawdda Test Center
+c90ddf28 Include emulator account provisioning in full test-center run
+3c8a9e22 Add unified Mawdda emulator test suite command and fix seed project guard
+ce6790d4 Document Mawdda Test Center operations and release gates
+cc227b5b Wire emulator-only test account seeding into backend scripts
+39a9a2dc Add emulator-only Mawdda test account provisioner
+3c38f663 Add Mawdda test-account system foundation
+d6b62228 Add Mawdda test-account system foundation
+0e449f67 Add Mawdda test-account system foundation

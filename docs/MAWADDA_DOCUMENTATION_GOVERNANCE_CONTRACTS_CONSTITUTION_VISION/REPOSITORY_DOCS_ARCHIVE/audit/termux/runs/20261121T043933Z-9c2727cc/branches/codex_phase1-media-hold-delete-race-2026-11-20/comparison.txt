@@ -1,0 +1,36 @@
+Branch: codex/phase1-media-hold-delete-race-2026-11-20
+Branch SHA: 43471705e469f09e55658660b8b9f921401a00d4
+Target: codex/mawda-full-platform-implementation
+Target SHA: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+
+--- Ahead / behind counts (target...source) ---
+199	7
+
+--- Merge base ---
+78d0b982723abd76b6ef098ef2c96e79f8e36821
+
+--- Changed files relative to common ancestor ---
+M	functions/src/index.ts
+M	functions/src/media.ts
+M	functions/test/integration/media-callables.integration.test.js
+
+--- Diff statistics ---
+ functions/src/index.ts                             |   9 +-
+ functions/src/media.ts                             |  19 ++-
+ .../media-callables.integration.test.js            | 162 ++++++++++++++++++++-
+ 3 files changed, 182 insertions(+), 8 deletions(-)
+
+--- Whitespace / patch validation ---
+DIFF_CHECK: PASS
+
+--- Source-only commits ---
+43471705 (origin/codex/phase1-media-hold-delete-race-2026-11-20) test(rooms): deny room message reads for suspended members
+5ed86e7e fix(rooms): revalidate account standing before room message reads
+d6f80679 test(media): deny room media delivery after suspension or closure
+ceaa6905 fix(media): recheck room account and active status before delivery
+192ac5b9 test(media): verify tombstone retry removes late derivatives
+397afd48 test(media): use canonical quarantine path in deletion race fixture
+d1127aa8 test(media): cover concurrent legal hold and deletion race
+
+--- Merge-tree compatibility check ---
+MERGE_TREE: CONFLICT

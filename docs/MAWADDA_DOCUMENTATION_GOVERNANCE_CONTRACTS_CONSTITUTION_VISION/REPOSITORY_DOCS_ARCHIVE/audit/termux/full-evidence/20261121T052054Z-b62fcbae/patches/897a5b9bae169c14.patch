@@ -1,0 +1,390 @@
+diff --git a/functions/src/media.ts b/functions/src/media.ts
+index 5308f631..1cc1b463 100644
+--- a/functions/src/media.ts
++++ b/functions/src/media.ts
+@@ -1158,169 +1158,166 @@ export const getChatImageAttachmentUrl = onCall(async (request) => {
+   }
+   let message: Record<string, unknown> | undefined;
+   let conversationId = "";
+   let directPeerUid = "";
+   if (scope === "direct") {
+     const chatId = typeof data.chatId === "string" ? data.chatId.trim() : "";
+     conversationId = chatId;
+     if (!chatId || chatId.length > 128) throw new HttpsError("invalid-argument", "معرف المحادثة غير صالح.");
+     const chatRef = mediaDb().collection("directChats").doc(chatId);
+     const [chat, msg] = await Promise.all([
+       chatRef.get(), chatRef.collection("messages").doc(messageId).get(),
+     ]);
+     const participants = chat.data()?.participantUids;
+     if (!chat.exists || !Array.isArray(participants) || participants.length !== 2 ||
+         !participants.includes(viewerUid) || participants.some((value) => typeof value !== "string") ||
+         participants[0] === participants[1] || !msg.exists) {
+       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى هذه المحادثة.");
+     }
+     directPeerUid = participants.find((participant) => participant !== viewerUid)!;
+     message = msg.data();
+   } else {
+     const roomId = typeof data.roomId === "string" ? data.roomId.trim() : "";
+     conversationId = roomId;
+     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+     const roomRef = mediaDb().collection("rooms").doc(roomId);
+     const ownerSession = request.auth?.token.platformOwner === true &&
+       hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
+     const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
+     const [room, member, msg, viewer] = await Promise.all([
+       roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
+       roomRef.collection("messages").doc(messageId).get(),
+       viewerType === "guest" || ownerSession
+         ? Promise.resolve(null)
+         : mediaDb().collection("users").doc(viewerUid).get(),
+     ]);
+     if (!room.exists || room.data()?.status !== "active" ||
+         (!member.exists && !ownerSession) || !msg.exists) {
+       throw new HttpsError("permission-denied", "ليس لديك حق الوصول إلى مرفقات هذه الغرفة.");
+     }
+     if (viewerType !== "guest" && !ownerSession &&
+         (!viewer?.exists || !isMemberAccountInGoodStanding(viewer.data()))) {
+       throw new HttpsError("permission-denied", "حالة العضوية لا تسمح بالوصول إلى مرفقات هذه الغرفة.");
+     }
+     if (viewerType === "guest") {
+       const [guestProfile, guestSession] = await Promise.all([
+         mediaDb().collection("guestProfiles").doc(viewerUid).get(),
+         mediaDb().collection("guestSessions").doc(viewerUid).get(),
+       ]);
+       if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+           room.data()?.kind !== "public" || room.data()?.audience !== "all_ages" ||
+           member.data()?.accountType !== "guest") {
+         throw new HttpsError("permission-denied", "انتهت جلسة الزائر أو لا تسمح سياسة الغرفة بالوصول.");
+       }
+     }
+     message = msg.data();
+   }
+   const deletedForUids = Array.isArray(message?.deletedForUids) ? message.deletedForUids : [];
+   if (deletedForUids.includes(viewerUid)) {
+     throw new HttpsError("permission-denied", "حذفت هذا المرفق من محادثتك ولم يعد متاحاً لحسابك.");
+   }
+   if (!message || message.mediaId !== mediaId || message.attachmentStatus !== "ready" ||
+       message.isDeleted === true || message.deletionPending === true) {
+     throw new HttpsError("failed-precondition", "المرفق غير متاح.");
+   }
+   const assetRef = mediaDb().collection("mediaAssets").doc(mediaId);
+   const assetSnapshot = await assetRef.get();
+   if (!assetSnapshot.exists) throw new HttpsError("not-found", "سجل المرفق غير موجود.");
+   const asset = assetSnapshot.data() ?? {};
+   if (scope === "direct") {
+     const [viewerSnapshot, peerSnapshot] = await Promise.all([
+       mediaDb().collection("users").doc(viewerUid).get(),
+       mediaDb().collection("users").doc(directPeerUid).get(),
+     ]);
+     const viewer = viewerSnapshot.data() ?? {};
+     const peer = peerSnapshot.data() ?? {};
+     const viewerToken = (request.auth?.token ?? {}) as Record<string, unknown>;
+     const viewerIsOwner = viewerToken.platformOwner === true &&
+       hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
+     const peerIsOwner = asset.uploaderRole === "platform_owner" &&
+       asset.ownerUid === directPeerUid;
+-    const inactiveStatuses = ["suspended", "banned", "disabled", "deleted"];
+-    const viewerStatus = String(viewer.accountStatus ?? "active").toLowerCase();
+-    const peerStatus = String(peer.accountStatus ?? "active").toLowerCase();
+     const viewerBlocks = Array.isArray(viewer.blockedUids) ? viewer.blockedUids : [];
+     const peerBlocks = Array.isArray(peer.blockedUids) ? peer.blockedUids : [];
+     if ((!viewerSnapshot.exists && !viewerIsOwner) ||
+         (!peerSnapshot.exists && !peerIsOwner) ||
+-        (viewerSnapshot.exists && (viewer.profileCompleted !== true || inactiveStatuses.includes(viewerStatus))) ||
+-        (peerSnapshot.exists && (peer.profileCompleted !== true || inactiveStatuses.includes(peerStatus))) ||
++        (viewerSnapshot.exists && (viewer.profileCompleted !== true || !isMemberAccountInGoodStanding(viewer))) ||
++        (peerSnapshot.exists && (peer.profileCompleted !== true || !isMemberAccountInGoodStanding(peer))) ||
+         viewerBlocks.includes(directPeerUid) || peerBlocks.includes(viewerUid)) {
+       throw new HttpsError("permission-denied", "لم يعد هذا المرفق متاحاً بسبب الحظر أو حالة العضوية.");
+     }
+   }
+   const artifact = resolveChatMediaDeliveryArtifact(
+     asset as never, asset.uploaderRole === "platform_owner",
+   );
+   if (mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>) === "guest" &&
+       (scope !== "room" || artifact?.category !== "audio")) {
+     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
+   }
+   const maxBytes = artifact?.category === "video" ? 15 * 1024 * 1024 :
+     artifact?.category === "audio" ? 5 * 1024 * 1024 :
+       artifact?.category === "document" ? 20 * 1024 * 1024 : 3 * 1024 * 1024;
+   if (!artifact || asset.status !== "security_approved" ||
+       asset.deliveryState !== "ready" || asset.linkedMessageId !== messageId ||
+       asset.linkedScope !== scope || asset.linkedConversationId !== conversationId ||
+       !(asset.retentionExpiresAt instanceof Timestamp) || asset.retentionExpiresAt.toMillis() <= Date.now() ||
+       asset.legalHoldStatus === "released") {
+     throw new HttpsError("failed-precondition", "انتهت صلاحية المرفق أو لم يجتز المعالجة الآمنة.");
+   }
+   const file = mediaBucket().file(artifact.objectPath, { generation: Number(artifact.generation) });
+   const [metadata] = await file.getMetadata();
+   const customMetadata = metadata.metadata as Record<string, unknown> | undefined;
+   const actualArtifactHash = await sha256Object(file);
+   if (String(metadata.generation) !== artifact.generation ||
+       metadata.contentType !== artifact.contentType || Number(metadata.size) <= 0 ||
+       Number(metadata.size) > maxBytes || actualArtifactHash !== artifact.sha256 ||
+       customMetadata?.mediaId !== mediaId ||
+       customMetadata?.sourceGeneration !== String(asset.storageGeneration) ||
+       customMetadata?.sourceSha256 !== String(asset.scannerSha256) ||
+       customMetadata?.scannerProvider !== String(asset.scannerProvider) ||
+       customMetadata?.processing !== String(asset.processingPipelineVersion)) {
+     throw new HttpsError("failed-precondition", "تعذر التحقق من النسخة الآمنة للمرفق.");
+   }
+   const expiresAt = Date.now() + 2 * 60 * 1000;
+   const disposition = artifact.category === "document"
+     ? "attachment; filename=mawadda-document.pdf" : "inline";
+   const [url] = await file.getSignedUrl({
+     version: "v4", action: "read", expires: expiresAt,
+     responseType: artifact.contentType, responseDisposition: disposition,
+   });
+   await auditMediaAccess({
+     actorUid: viewerUid, mediaId, action: "chat_media_delivery_url_issued",
+     outcome: "success", scope, messageId, category: artifact.category,
+     objectGeneration: artifact.generation,
+   });
+   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
+ });
+ 
+ export const createMediaUploadIntent = onCall(async (request) => {
+   const uid = requireUid(request.auth?.uid);
+   let input;
+   try {
+     input = normalizeMediaRequest(request.data ?? {});
+   } catch (error) {
+     throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الملف غير صالحة.");
+   }
+   const policy = mediaPolicyFor(input.contentType);
+   if (!policy) throw new HttpsError("invalid-argument", "نوع الملف غير مسموح به.");
+   const token = (request.auth?.token ?? {}) as Record<string, unknown>;
+   const isPlatformOwner = token.platformOwner === true && hasPlatformOwnerSession(token, undefined, uid);
+   if (!mediaUploadAllowedForRole(input, isPlatformOwner)) {
+     throw new HttpsError(
+       "permission-denied",
+       "إرسال المستندات محصور بمالك المنصة، ووسائط الأعضاء تقتصر على الصور والصوت والفيديو.",
+     );
+   }
+   const uploaderType = mediaUploaderTypeFromToken(token);
+   if (uploaderType === "guest") {
+     const [guestProfile, guestSession] = await Promise.all([
+       mediaDb().collection("guestProfiles").doc(uid).get(),
+       mediaDb().collection("guestSessions").doc(uid).get(),
+     ]);
+     if (!guestProfile.exists || !isGuestSessionActive(guestSession.data()) ||
+         input.purpose !== "room" || policy.category !== "audio") {
+       throw new HttpsError("permission-denied", "يسمح للزائر برفع رسائل صوتية فقط داخل غرفة عامة مؤهلة وخلال الجلسة النشطة.");
+     }
+   }
+   if (input.declaredSizeBytes > policy.maxBytes) {
+diff --git a/functions/test/integration/media-callables.integration.test.js b/functions/test/integration/media-callables.integration.test.js
+index 45dff6fa..c0fdf934 100644
+--- a/functions/test/integration/media-callables.integration.test.js
++++ b/functions/test/integration/media-callables.integration.test.js
+@@ -738,160 +738,209 @@ async function createReadyTypedChatMedia({ uid, category, purpose = "chat", medi
+       metadata: {
+         mediaId, sourceGeneration, sourceSha256,
+         scannerProvider: "clamav-mawadda-gateway",
+         processing: spec.pipeline,
+       },
+     },
+   });
+   const [stored] = await file.getMetadata();
+   await db.collection("mediaAssets").doc(mediaId).set({
+     mediaId, ownerUid: uid, uploaderRole: owner ? "platform_owner" : "member",
+     uploaderType: "member", mediaPurpose: purpose, mediaCategory: category,
+     detectedContentType: spec.source, status: "security_approved",
+     processingStatus: spec.status, processingPipelineVersion: spec.pipeline,
+     storageGeneration: sourceGeneration, scannerSha256: sourceSha256,
+     scannerProvider: "clamav-mawadda-gateway",
+     [spec.path]: objectPath, [spec.generation]: String(stored.generation), [spec.hash]: digest,
+     retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+     legalHoldStatus: "none", deliveryState: "pending",
+   });
+   return mediaId;
+ }
+ 
+ for (const item of [
+   { category: "gif", owner: false },
+   { category: "audio", owner: false },
+   { category: "video", owner: false },
+   { category: "document", owner: true },
+ ]) {
+   test("safe " + item.category + " attachment links and delivers only after its dedicated processor", async () => {
+     const senderUid = (item.owner ? "platform-owner" : "member") + "-" + item.category + "-" + randomUUID();
+     const recipientUid = "recipient-" + item.category + "-" + randomUUID();
+     await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+     if (!item.owner) {
+       await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+     }
+     const mediaId = await createReadyTypedChatMedia({
+       uid: senderUid, category: item.category, owner: item.owner,
+     });
+     const clientMessageId = "typed_" + randomUUID().replace(/-/g, "");
+     const auth = item.owner ? ownerRequest(senderUid).auth :
+       { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } };
+     const sent = await sendChatMediaAttachment.run({
+       data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+       auth,
+     });
+     const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+     const message = await db.collection("directChats").doc(sent.chatId)
+       .collection("messages").doc(messageId).get();
+     assert.equal(message.data().mediaCategory, item.category);
+     const delivered = await getChatMediaAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     });
+     assert.match(delivered.url, /^https?:\/\//);
+     assert.equal(delivered.category, item.category);
+     assert.ok(delivered.contentType);
+   });
+ }
+ 
+ test("safe image can be linked to a direct message and delivered only to its participant", async () => {
+   const senderUid = `attachment-sender-${randomUUID()}`;
+   const recipientUid = `attachment-recipient-${randomUUID()}`;
+   await db.collection("users").doc(senderUid).set({ profileCompleted: true, age: 30, blockedUids: [] });
+   await db.collection("users").doc(recipientUid).set({ profileCompleted: true, age: 28, blockedUids: [] });
+   const mediaId = await createReadyChatImage({ uid: senderUid });
+   const clientMessageId = `img_${randomUUID().replace(/-/g, "")}`;
+   const sent = await sendChatImageAttachment.run({
+     data: { scope: "direct", recipientUid, mediaId, clientMessageId, caption: "صورة اختبار" },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(sent.replayed, false);
+   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+   const message = await db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId).get();
+   assert.equal(message.data().mediaId, mediaId);
+   assert.equal(message.data().attachmentStatus, "ready");
+   const delivered = await getChatImageAttachmentUrl.run({
+     data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+     auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.match(delivered.url, /^https?:\/\//);
++
++  // Delivery is callable-only and requires a live, eligible account on both
++  // sides of the direct conversation.
++  await assert.rejects(
++    () => getChatImageAttachmentUrl.run({
++      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
++    }),
++    (error) => error && error.code === "unauthenticated",
++  );
++  await db.collection("users").doc(senderUid).update({ accountStatus: "suspended" });
++  await assert.rejects(
++    () => getChatImageAttachmentUrl.run({
++      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
++      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
++    }),
++    (error) => error && error.code === "permission-denied",
++  );
++  await db.collection("users").doc(senderUid).update({ accountStatus: "active" });
++  await db.collection("users").doc(recipientUid).update({ accountStatus: "suspended" });
++  await assert.rejects(
++    () => getChatImageAttachmentUrl.run({
++      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
++      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
++    }),
++    (error) => error && error.code === "permission-denied",
++  );
++  await db.collection("users").doc(recipientUid).update({ accountStatus: "active" });
++
++  // Reuse the canonical account-standing predicate: boolean bans/suspensions
++  // and unknown explicit statuses must fail closed for both conversation sides.
++  for (const [uid, deniedState, restoredState] of [
++    [recipientUid, { isSuspended: true }, { isSuspended: false }],
++    [recipientUid, { isBanned: true }, { isBanned: false }],
++    [senderUid, { isSuspended: true }, { isSuspended: false }],
++    [senderUid, { isBanned: true }, { isBanned: false }],
++    [recipientUid, { accountStatus: "review_pending" }, { accountStatus: "active" }],
++    [senderUid, { accountStatus: "review_pending" }, { accountStatus: "active" }],
++  ]) {
++    await db.collection("users").doc(uid).update(deniedState);
++    await assert.rejects(
++      () => getChatImageAttachmentUrl.run({
++        data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
++        auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
++      }),
++      (error) => error && error.code === "permission-denied",
++    );
++    await db.collection("users").doc(uid).update(restoredState);
++  }
++
+   await db.collection("users").doc(recipientUid).update({ blockedUids: [senderUid] });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+   await db.collection("users").doc(recipientUid).update({ blockedUids: [] });
+   const messageRef = db.collection("directChats").doc(sent.chatId).collection("messages").doc(messageId);
+   await messageRef.update({ deletedForUids: [recipientUid] });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+   await messageRef.update({ deletedForUids: [] });
+   await db.collection("mediaAssets").doc(mediaId).update({ linkedScope: "room" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "failed-precondition",
+   );
+   await db.collection("mediaAssets").doc(mediaId).update({ linkedScope: "direct" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+       auth: { uid: `intruder-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+ });
+ 
+ test("safe image can be linked to a room message; non-members cannot retrieve it", async () => {
+   const senderUid = `room-attachment-sender-${randomUUID()}`;
+   const roomId = `room-${randomUUID()}`;
+   await db.collection("users").doc(senderUid).set({ status: "active" });
+   await db.collection("rooms").doc(roomId).set({ status: "active", ownerUid: senderUid });
+   await db.collection("rooms").doc(roomId).collection("members").doc(senderUid).set({ role: "member" });
+   const mediaId = await createReadyChatImage({ uid: senderUid, purpose: "room" });
+   const clientMessageId = `roomimg_${randomUUID().replace(/-/g, "")}`;
+   const sent = await sendChatImageAttachment.run({
+     data: { scope: "room", roomId, mediaId, clientMessageId, caption: "صورة غرفة" },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.equal(sent.replayed, false);
+   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+   const delivered = await getChatImageAttachmentUrl.run({
+     data: { scope: "room", roomId, messageId, mediaId },
+     auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+   });
+   assert.match(delivered.url, /^https?:\/\//);
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "room", roomId, messageId, mediaId },
+       auth: { uid: `outsider-${randomUUID()}`, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+ 
+   // A still-present membership record must not outlive an account suspension.
+   await db.collection("users").doc(senderUid).update({ accountStatus: "suspended" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "room", roomId, messageId, mediaId },
+       auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+     }),
+     (error) => error && error.code === "permission-denied",
+   );
+   await db.collection("users").doc(senderUid).update({ accountStatus: "active" });
+ 
+   // A closed room cannot issue new media URLs, even while its membership record remains.
+   await db.collection("rooms").doc(roomId).update({ status: "closed" });
+   await assert.rejects(
+     () => getChatImageAttachmentUrl.run({
+       data: { scope: "room", roomId, messageId, mediaId },

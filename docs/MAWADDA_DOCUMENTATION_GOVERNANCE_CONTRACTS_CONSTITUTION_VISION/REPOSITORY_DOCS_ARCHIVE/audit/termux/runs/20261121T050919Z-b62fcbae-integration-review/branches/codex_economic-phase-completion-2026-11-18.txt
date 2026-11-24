@@ -1,0 +1,286 @@
+BRANCH: codex/economic-phase-completion-2026-11-18
+REF: refs/remotes/origin/codex/economic-phase-completion-2026-11-18
+SHA: 0914885232ff8bcfb64536c6655e7bff01b78361
+
+MERGE BASE: 7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1
+
+=== DIVERGENCE ===
+489	181
+
+=== FILE STATUS ===
+A	.github/workflows/economic-phase-verification.yml
+M	.github/workflows/flutter-ci.yml
+A	docs/ECONOMIC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md
+A	docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md
+M	firestore.indexes.json
+A	functions/src/call-usage-policy.ts
+M	functions/src/coin-purchase-requests.ts
+M	functions/src/default-store-catalog.ts
+A	functions/src/economy-payment-policy.ts
+M	functions/src/economy-pricing.ts
+M	functions/src/engagement-rewards.ts
+A	functions/src/featured-ad-finance.ts
+A	functions/src/group-call-economy.ts
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/src/room-rental.ts
+M	functions/src/store-catalog.ts
+A	functions/src/store-gifting.ts
+M	functions/src/store-purchase.ts
+A	functions/src/wallet-reconciliation.ts
+A	functions/test/call-usage-policy.test.js
+M	functions/test/coin-purchase-requests.test.js
+A	functions/test/economy-payment-policy.test.js
+M	functions/test/economy-pricing.test.js
+M	functions/test/engagement-rewards.test.js
+A	functions/test/featured-ad-finance.test.js
+A	functions/test/group-call-economy.test.js
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/integration/featured-ad-finance.integration.test.js
+A	functions/test/integration/store-gifting.integration.test.js
+M	functions/test/integration/wallet-store.integration.test.js
+A	functions/test/room-call-policy.test.js
+M	functions/test/store-catalog.test.js
+A	functions/test/store-gifting.test.js
+M	functions/test/store-purchase.test.js
+A	functions/test/wallet-reconciliation.test.js
+A	lib/screens/call_usage_policy_screen.dart
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/coin_purchase_screen.dart
+M	lib/screens/economy_pricing_screen.dart
+M	lib/screens/mawdda_call_screen.dart
+M	lib/screens/owner_coin_purchase_screen.dart
+M	lib/screens/room_rental_pricing_screen.dart
+M	lib/screens/shop_screen.dart
+M	lib/screens/super_admin_screen.dart
+
+=== CHANGE SUMMARY ===
+ .github/workflows/economic-phase-verification.yml  |   56 +
+ .github/workflows/flutter-ci.yml                   |   18 +
+ ...IC_PHASE_GITHUB_INTEGRATION_AUDIT_2026-11-18.md |   58 +
+ docs/GROUP_CALL_P0_ENGINEERING_AUDIT_2026-11-19.md |   54 +
+ firestore.indexes.json                             |   14 +
+ functions/src/call-usage-policy.ts                 |   69 +
+ functions/src/coin-purchase-requests.ts            |   16 +-
+ functions/src/default-store-catalog.ts             |   38 +-
+ functions/src/economy-payment-policy.ts            |  115 ++
+ functions/src/economy-pricing.ts                   |  120 +-
+ functions/src/engagement-rewards.ts                |   14 +-
+ functions/src/featured-ad-finance.ts               |  206 +++
+ functions/src/group-call-economy.ts                |  141 ++
+ functions/src/index.ts                             | 1890 ++++++++++++++++++--
+ functions/src/room-call-policy.ts                  |   46 +
+ functions/src/room-rental.ts                       |    9 +-
+ functions/src/store-catalog.ts                     |   38 +-
+ functions/src/store-gifting.ts                     |   75 +
+ functions/src/store-purchase.ts                    |    2 +
+ functions/src/wallet-reconciliation.ts             |  108 ++
+ functions/test/call-usage-policy.test.js           |   63 +
+ functions/test/coin-purchase-requests.test.js      |   22 +
+ functions/test/economy-payment-policy.test.js      |   84 +
+ functions/test/economy-pricing.test.js             |  123 +-
+ functions/test/engagement-rewards.test.js          |    7 +-
+ functions/test/featured-ad-finance.test.js         |  141 ++
+ functions/test/group-call-economy.test.js          |   97 +
+ .../integration/call-signaling.integration.test.js |  628 ++++++-
+ .../featured-ad-finance.integration.test.js        |  129 ++
+ .../integration/store-gifting.integration.test.js  |  105 ++
+ .../integration/wallet-store.integration.test.js   |  180 +-
+ functions/test/room-call-policy.test.js            |   50 +
+ functions/test/store-catalog.test.js               |   38 +-
+ functions/test/store-gifting.test.js               |   77 +
+ functions/test/store-purchase.test.js              |   13 +-
+ functions/test/wallet-reconciliation.test.js       |   60 +
+ lib/screens/call_usage_policy_screen.dart          |  295 +++
+ lib/screens/chat_room_screen.dart                  |   95 +-
+ lib/screens/coin_purchase_screen.dart              |   67 +-
+ lib/screens/economy_pricing_screen.dart            |  296 ++-
+ lib/screens/mawdda_call_screen.dart                |  148 +-
+ lib/screens/owner_coin_purchase_screen.dart        |   34 +-
+ lib/screens/room_rental_pricing_screen.dart        |   19 +-
+ lib/screens/shop_screen.dart                       |  170 +-
+ lib/screens/super_admin_screen.dart                |   14 +-
+ 45 files changed, 5536 insertions(+), 506 deletions(-)
+
+=== UNIQUE COMMITS ===
+09148852 fix: use canonical Super Owner sender label
+93c8ab15 docs: use canonical Super Owner title
+70004765 docs: use canonical Super Owner title
+612ed8af feat(admin): expose owner-controlled group-call pricing settings
+8290fd08 docs(calls): record P0 audit and remaining group-call blockers
+c09a1080 test(economy): prevent charges without verified media and per-member consent
+4d293743 fix(economy): block group-call charges without verified media and matching consent
+04dc9a7c test(calls): verify bounded lock cleanup for large audio rooms
+f6108e42 test(calls): cover concurrent video approvals and duplicate settlement retries
+a17de95f fix(economy): verify wallet ledger exists for settled call receipts
+eafd928c chore(firestore): index latest room-call discovery by room and creation time
+408ec77d fix(calls): prioritize newest room calls when discovering active sessions
+1aede3a5 perf(economy): settle group-call member shares in bounded parallel batches
+56c872ce fix(calls): clear locks for expired ringing calls safely
+949fe485 fix(calls): use member lock snapshot for room participant leave
+a02b32ef fix(calls): clear member locks after ending calls without oversized transactions
+645c699e fix(calls): clear group-call locks in bounded transactions
+2b247663 fix(economy): mark never-connected group calls as not billable
+576c989e fix(economy): mark failed group-call settlement attempts for scheduled retry
+c89c47ce test(calls): verify equal-share settlement and safe insufficient-balance retry
+91dfac3b feat(economy): retry pending group-call wallet settlements safely
+5a1c5c55 feat(calls): trigger equal-share wallet settlement when group call ends
+752f281c feat(calls): settle group-call wallet shares on shared timer expiry
+e1c2da95 feat(economy): add idempotent per-member group-call wallet settlement
+563ee97f fix(economy): cap final billing duration without rejecting late end requests
+671a888b test(economy): cover reservation bounds and equal shares for late joiners
+d6dbb7e9 feat(economy): add safe group-call reservation and final equal-share calculations
+dbdad7a8 fix(economy): replace deprecated dropdown value with initialValue
+1f436f53 fix(economy): correct room rental pricing Wrap layout
+1aa3071c fix(economy): use valid Wrap layout arguments in pricing screen
+869ed7e2 fix(economy): remove duplicated trailing owner purchase screen fragment
+2d358eff fix(calls): close creator lobby when shared call deadline expires
+21d3f15f test(calls): reject group call mode without owner price
+16400d51 fix(calls): block group-call modes without an active owner price
+e2d99fb4 ci(flutter): run analyze and tests for room call changes
+f67c7979 fix(calls): retry creator join request processing after transient errors
+42c9b74b fix(calls): resume approved room-call joins without duplicate requests
+effbb5d8 fix(calls): retain creator billing consent across room join approvals
+69d583bc feat(calls): add creator room-call lobby and approval flow
+4b7773f1 feat(calls): wire room join request and separate financial consent in Flutter
+fd29355a test(calls): verify financial consent may precede join request
+06498954 feat(calls): allow room members to consent before requesting entry
+8286d5f1 test(calls): cover client room-call discovery and join request state
+44b12882 feat(calls): expose room join request state to clients
+c0ac4e3e fix(calls): allow pending join requester to consent before creator approval
+f5c36890 test(calls): verify immutable pricing snapshot and separate billing consent
+f4aced96 feat(calls): snapshot owner pricing and require separate billing consent
+e6056473 feat(economy): expose owner group-call pricing policy read
+64dd9c97 test(calls): verify creator approval, idempotency and shared expiry
+47641309 test(calls): define video call reference for cleanup
+fc4d5793 fix(calls): revalidate creator room membership transactionally
+9be83138 test(calls): cover creator-approved room join lifecycle and capacity
+816fe8b7 fix(calls): persist room rental reference for join approval
+c1942677 feat(calls): require creator approval for room call joins
+9dc4cd84 test(economy): verify equal group call shares for late joiners
+2a695791 fix(economy): split group call cost evenly without initiator bias
+3d4bcaec test(calls): align room signaling flow with accepted-member authorization
+f5f6f95c test(calls): deny room signaling before acceptance
+ebf1de8e fix(calls): block room signaling and ICE before participant acceptance
+6df24ff6 fix(calls): record late room media connections without resetting timer
+662b850d test(calls): cover late room participant shared timer
+d13709b3 test(economy): assert nullable catalog version projection
+8e3676f4 test(economy): align catalog fixtures with versioned purchases
+93d0117e fix(economy): preserve precise catalog validation errors
+b307c02f fix(economy): narrow purchasable catalog price type
+96c9f6ec ci: add isolated economic phase verification workflow
+afd6b97f Test fixed group-call duration limits
+d7f63bc1 Apply fixed duration to rented-room group calls
+4bbbef3d Fix immutable group-call audio/video durations
+70ad5b96 test(economy): reject unknown group call mode values
+e1ec6103 fix(economy): correct group call mode validation syntax
+6b8ce30c fix: return only explicitly configured payment modes
+564eddaf fix: ignore legacy payment switches unless owner publishes a new explicit policy
+e4a24ba1 test: enable manual advertiser receipts only inside isolated fixture
+b15cb811 feat: expose supported manual payment mode controls to Super Admin
+d2a21fda fix: preserve idempotent advertiser receipt replay after policy changes
+c86892e4 fix: require owner-enabled manual advertising payments before recording receipts
+d4e3aa30 feat: allow owner to configure only supported manual payment services
+5f42e6df feat: bind owner payment modes to versioned economy policy
+2347863b fix: preserve currency precision in manual payment receipts and ledger
+e7844284 fix: enable Dart interpolation in economy pricing summaries
+c57b21de feat: rebuild owner economy editor without commercial defaults
+9a1b7403 test: verify store purchase ledger balance snapshots and audit record
+11013022 fix: reconcile store purchase replay against immutable wallet and audit records
+7213124e test: cover atomic store gifting and idempotent wallet settlement
+632844ff fix: make store purchase and gifting controls responsive on mobile
+2890a4a9 feat: add member-to-member store gifting UI
+eab0ff45 fix: validate gift recipient username whitespace
+16049cde feat: resolve store gift recipients through reserved usernames
+cdaaf12c test: cover gift replay catalog version mismatch
+39bc0acb test: require immutable catalog version for gift replay
+0eb8702c fix: stack gifted discovery boosts from the latest active expiry
+7b7e6c4c fix: verify gift ledger replay and merge recipient entitlement updates atomically
+4c5d79e7 feat: implement atomic store gifting with immutable entitlement terms
+b74b088b fix: bind gift replay to immutable catalog version
+21f208ea test: preserve pre-existing store catalog data during fixture cleanup
+36f396c3 test: bind premium store purchases to owner-set catalog versions
+f2b4dbd3 test: ensure store seed never publishes example prices or durations
+c384121d test: use immutable store catalog version in purchase lifecycle
+5629e459 feat: bind store checkout to exact catalog version
+a837ab62 test: require immutable catalog version for store purchase eligibility
+97c7e9fd test: bind store purchase idempotency to catalog version
+d6783bc7 fix: bind store purchase replay to immutable catalog version
+5258648e feat: version store catalog terms and bind purchases to immutable catalog versions
+af7eb25d feat: require versioned store catalog entries for purchases
+c0afbd34 test: cover audio room capacities and four-person video ceiling
+a68c08ba fix: derive audio group capacity from rented room and cap video at four
+8a89a903 test: verify immutable campaign policy version creation
+2edd1865 test: add advertiser finance ledger integration coverage
+869fc2f2 test: cover multiple advertiser receipts and currency consistency
+dcee83f8 feat: add immutable owner-only advertiser financial event ledger
+b5cdc549 fix: support multiple advertiser receipts while preserving currency and refund balances
+f3122b7c feat: version ad campaign terms and preserve session reward snapshots
+60ae0121 test: allow owner-selected ad duration, claim limit and reward budget
+b1f215bf fix: remove fixed commercial caps from owner-controlled ad and reward policies
+30702aed test: snapshot owner call duration policy in connection fixture
+6c01771b feat: expose owner-configurable call policy in Super Admin
+a91f3aa9 feat: add Super Admin call usage policy controls
+8d4abbfd docs: clarify owner-configured call duration enforcement
+1b2828f3 test: configure call policy and require rented room fixtures
+9634d5d2 fix: apply immutable call duration snapshot instead of fixed five-minute constant
+e7913484 feat: enforce owner-configured call quotas and immutable usage policy snapshots
+fcef5388 test: cover owner-configurable call usage policy
+570df6c4 feat: add owner-configurable call usage policy model
+30246165 test: cover optional owner-configured store duration
+e0fbcf02 fix: treat null store duration as an owner-selected no-expiry option
+c0f7c396 feat: version attendance reward policies immutably and snapshot reward claims
+18f9acfe feat: snapshot room rental pricing policy on every rental and renewal
+b7636337 fix: remove default rental prices and allow owner to clear plans
+e9d3f1c3 test: require configured price for purchasable store items
+9b275f7d test: ensure unpriced store drafts never become purchasable
+a34ebd1a chore: remove duplicate shop spacing
+290e6803 chore: keep call entitlements out of store seed until lifecycle is ready
+b094da1f fix: repair shop layout and use BetaCoins without hardcoded pricing
+a0c5676c fix: remove hardcoded commercial call prices and store fallback prices
+98da7b51 fix: remove default store price from owner editor
+d5e65b93 fix: allow unpriced catalog drafts without enabling purchases
+f41baa44 fix: remove illustrative store prices and fixed durations from seed catalog
+59d6bb43 fix: require owner-configured room rental policy with immutable versions
+a3dbba55 fix: remove commercial room rental defaults from server policy
+2e3c0834 fix: import Firestore Timestamp for reconciliation fixture
+5d4e34d1 test: cover read-only owner wallet reconciliation
+96ad69da fix: validate economy policy version and custom bounds on reads
+565326d0 fix: include legacy ledger rows and fail incomplete when chronology is missing
+78e61fce feat: add read-only owner wallet reconciliation callable
+c2dd5172 fix: require active rented private room for room calls
+16a5a740 port: add fail-closed rented-room call eligibility policy
+9ec5a9da port: add fail-closed rented-room call eligibility policy
+dc4fa41c test: enforce owner-configured custom coin request bounds
+ba9c33ec test: cover claim-only payment report and immutable instruction version
+51ce062a test: enforce fail-closed owner pricing and immutable policy snapshots
+39efa1af feat: connect member payment report and owner-configured coin purchase limits
+24cdadde fix: repair owner currency input validation
+406047f0 feat: align owner manual payment screen with versioned multi-currency quotes
+00371a7f feat: expose owner custom purchase bounds and freeze quote currency precision
+75d46e4a fix: display owner-selected payment currency and expose verification queue
+8b378db0 feat: harden manual payment instructions and owner-only coin issuance
+f8348434 test: cover multi-currency manual payment quotes and versions
+a21129b8 fix: support owner-selected currency and versioned payment instructions
+a6fa3586 port: use owner-selected currencies and policy-only economy pricing
+34562888 port: use owner-selected currencies and policy-only economy pricing
+f91be2af fix: fail closed on missing economy pricing and version snapshots
+5d4d4162 port: add reviewed store-gifting.test.js module
+f3e57add port: add reviewed store-gifting.ts module
+1ffbe692 port: add reviewed wallet-reconciliation.test.js module
+ddcbb985 port: add reviewed wallet-reconciliation.ts module
+377c0b1c port: add reviewed featured-ad-finance.test.js module
+194c3634 port: add reviewed featured-ad-finance.ts module
+29365a17 port: add reviewed economy-payment-policy.test.js module
+ef5f062b port: add reviewed economy-payment-policy.ts module
+b1459d83 docs: record economic branch integration audit
+202346f8 test: cover independent group call mode controls
+7eb14d83 feat: preserve immutable group call pricing versions
+12ca19c7 test: align group call policy with independently disabled modes
+34a3916c fix: harden owner pricing policy version history
+3158cd13 fix: repair group call economy syntax and validate mode
+7f978886 test(economy): cover owner-controlled per-mode disable
+75c7d1db fix(economy): allow owner to disable one group call mode
+551699ce feat(economy): add owner-only versioned group call pricing control
+0c65042d test(economy): cover owner-configured group call settlement math
+08b2ba5d feat(economy): add owner-configured group call pricing and settlement math

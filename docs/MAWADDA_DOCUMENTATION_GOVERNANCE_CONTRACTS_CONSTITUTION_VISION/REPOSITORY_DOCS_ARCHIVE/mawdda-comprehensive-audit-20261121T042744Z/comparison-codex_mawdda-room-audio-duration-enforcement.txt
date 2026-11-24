@@ -1,0 +1,34 @@
+Compared branch: codex/mawdda-room-audio-duration-enforcement
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1365	5
+
+=== CHANGE SUMMARY ===
+ functions/src/media-scanner.ts              |  6 +++++-
+ functions/src/media.ts                      | 10 ++++++++--
+ functions/test/media-scanner.test.js        |  6 +++++-
+ lib/screens/chat_room_screen.dart           |  2 +-
+ lib/screens/guest_room_chat_screen.dart     |  2 +-
+ lib/widgets/chat_audio_controls.dart        |  3 ++-
+ scanner/processors.js                       | 17 ++++++++++++-----
+ scanner/security.js                         |  5 ++++-
+ scanner/server.js                           |  1 +
+ scanner/test/processors.integration.test.js |  1 +
+ scanner/test/processors.test.js             |  8 ++++++--
+ scanner/test/security.test.js               |  3 ++-
+ 12 files changed, 48 insertions(+), 16 deletions(-)
+
+=== CHANGED PATHS ===
+M	functions/src/media-scanner.ts
+M	functions/src/media.ts
+M	functions/test/media-scanner.test.js
+M	lib/screens/chat_room_screen.dart
+M	lib/screens/guest_room_chat_screen.dart
+M	lib/widgets/chat_audio_controls.dart
+M	scanner/processors.js
+M	scanner/security.js
+M	scanner/server.js
+M	scanner/test/processors.integration.test.js
+M	scanner/test/processors.test.js
+M	scanner/test/security.test.js

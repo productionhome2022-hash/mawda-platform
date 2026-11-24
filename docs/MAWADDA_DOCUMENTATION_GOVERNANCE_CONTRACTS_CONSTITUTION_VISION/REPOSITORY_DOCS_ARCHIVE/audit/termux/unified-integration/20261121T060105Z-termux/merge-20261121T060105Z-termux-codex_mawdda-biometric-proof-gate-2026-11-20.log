@@ -1,0 +1,14 @@
+Auto-merging docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+CONFLICT (content): Merge conflict in docs/PHASE1_BRANCH_RECONCILIATION_AND_GAP_REGISTER_2026-11-20.md
+Auto-merging docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+CONFLICT (add/add): Merge conflict in docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md
+Auto-merging functions/src/biometric-verification.ts
+CONFLICT (content): Merge conflict in functions/src/biometric-verification.ts
+Auto-merging functions/src/index.ts
+Auto-merging functions/test/biometric-verification.test.js
+CONFLICT (content): Merge conflict in functions/test/biometric-verification.test.js
+Auto-merging functions/test/member-social-links-access.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links-access.test.js
+Auto-merging functions/test/member-social-links.test.js
+CONFLICT (content): Merge conflict in functions/test/member-social-links.test.js
+Automatic merge failed; fix conflicts and then commit the result.

@@ -1,0 +1,15 @@
+Target commit: e37f0c7d114bdb2b2833fb2588652b60343dd6c7
+Total tracked files:
+622
+
+GitHub workflows:
+.github/workflows/android-signed-release.yml
+.github/workflows/biometric-platform-smoke.yml
+.github/workflows/bootstrap-native-platforms.yml
+.github/workflows/flutter-ci.yml
+.github/workflows/mawdda-domain-regression.yml
+.github/workflows/mawdda-test-center.yml
+.github/workflows/resolve-flutter-lock.yml
+.github/workflows/validate.yml
+
+Sensitive-looking filenames (names only; no contents read):

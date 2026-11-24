@@ -1,0 +1,21 @@
+BRANCH: codex/mawdda-store-entitlement-coverage
+REF: refs/remotes/origin/codex/mawdda-store-entitlement-coverage
+SHA: 7b53ad8e3418d3e9494517862ade66a010871564
+
+MERGE BASE: ba9211fb35fb154bfd1d821d9229eadc72bbf10d
+
+=== DIVERGENCE ===
+1568	2
+
+=== FILE STATUS ===
+M	functions/test/integration/wallet-store.integration.test.js
+M	lib/screens/shop_screen.dart
+
+=== CHANGE SUMMARY ===
+ .../integration/wallet-store.integration.test.js   | 136 +++++++++++++++++++++
+ lib/screens/shop_screen.dart                       |  72 ++++++++++-
+ 2 files changed, 202 insertions(+), 6 deletions(-)
+
+=== UNIQUE COMMITS ===
+7b53ad8e feat: separate Mawdda store categories in shop UI
+52465056 test: cover every enabled store entitlement and idempotent purchase

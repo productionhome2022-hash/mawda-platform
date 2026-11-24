@@ -1,0 +1,3 @@
+b72522af9c3eaf7e4c3585514c23c53e5cfa9f7e	production home	2026-11-20T14:11:25+03:00	test(media): reject all non-good-standing direct participants
+6645cdb0ddb817c5971bae40a2e7e3864ed84736	production home	2026-11-20T14:11:15+03:00	fix(media): use canonical account standing for direct delivery
+45b80fb4dc6d0b09dec5432e2bb52c088b9150ed	production home	2026-11-20T14:09:50+03:00	test(media): cover unauthenticated and suspended direct delivery

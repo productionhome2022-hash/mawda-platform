@@ -1,0 +1,41 @@
+BRANCH: codex/phase1-rented-room-call-gate-2026-11-20
+SHA: 41dc2c2fd679f736d48f912c1e248f8615554649
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: d857497c50eca8d7dcf105e938c8060402ae85e3
+
+=== DIVERGENCE target-only / branch-only ===
+223	6
+
+=== BRANCH UNIQUE COMMITS ===
+41dc2c2fd679f736d48f912c1e248f8615554649 test(calls): assert inactive rental creates no call record
+a004cbf6df8c17cd5ff6c699b65415195affbb23 test(calls): cover mismatched rental identity
+c17db1718a556580a6f1ff0cb1e40594e5ce0071 test(calls): require active private room rental in emulator
+f66bb37f9d5a2e736bf087365d5ad57b7e85e99f fix(calls): revalidate active room rental before starting calls
+8375e577066eb67af23f8ecbb24344d4f1aedce9 test(calls): cover rented room eligibility boundaries
+48fe4df068724cbaacda4143cbfc0497b58ade53 feat(calls): add fail-closed rented room eligibility policy
+
+=== CHERRY STATUS ===
+- 48fe4df068724cbaacda4143cbfc0497b58ade53 feat(calls): add fail-closed rented room eligibility policy
++ 8375e577066eb67af23f8ecbb24344d4f1aedce9 test(calls): cover rented room eligibility boundaries
+- f66bb37f9d5a2e736bf087365d5ad57b7e85e99f fix(calls): revalidate active room rental before starting calls
++ c17db1718a556580a6f1ff0cb1e40594e5ce0071 test(calls): require active private room rental in emulator
++ a004cbf6df8c17cd5ff6c699b65415195affbb23 test(calls): cover mismatched rental identity
++ 41dc2c2fd679f736d48f912c1e248f8615554649 test(calls): assert inactive rental creates no call record
+
+=== FILE STATUS ===
+M	functions/src/index.ts
+A	functions/src/room-call-policy.ts
+M	functions/test/integration/call-signaling.integration.test.js
+A	functions/test/room-call-policy.test.js
+
+=== NUMSTAT ===
+25	2	functions/src/index.ts
+45	0	functions/src/room-call-policy.ts
+82	2	functions/test/integration/call-signaling.integration.test.js
+43	0	functions/test/room-call-policy.test.js
+
+=== DIFF CHECK ===
+functions/test/integration/call-signaling.integration.test.js:188: trailing whitespace.
++ 
+DIFF_CHECK=WARNING

@@ -1,0 +1,29 @@
+BRANCH: codex/phase1-specialized-callable-auth-inventory-2026-11-20
+SHA: 315c8d53dc4b7e6df0af1803191df7bf5786adcc
+TARGET: 51106aa973aefafc20b9bd30080e09f3fb1738d0
+
+MERGE_BASE: 78d0b982723abd76b6ef098ef2c96e79f8e36821
+
+=== DIVERGENCE target-only / branch-only ===
+201	1
+
+=== BRANCH UNIQUE COMMITS ===
+315c8d53dc4b7e6df0af1803191df7bf5786adcc docs(security): inventory specialized callable authorization gaps
+
+=== CHERRY STATUS ===
+- 315c8d53dc4b7e6df0af1803191df7bf5786adcc docs(security): inventory specialized callable authorization gaps
+
+=== FILE STATUS ===
+A	docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md
+
+=== NUMSTAT ===
+69	0	docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md
+
+=== DIFF CHECK ===
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:3: trailing whitespace.
++Date: 2026-11-20  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:4: trailing whitespace.
++Audited candidate: `codex/mawdda-phase1-unified-2026-11-19`  
+docs/phase1/SPECIALIZED_CALLABLE_AUTHORIZATION_INVENTORY_2026-11-20.md:5: trailing whitespace.
++Audited SHA: `78d0b982723abd76b6ef098ef2c96e79f8e36821`  
+DIFF_CHECK=WARNING

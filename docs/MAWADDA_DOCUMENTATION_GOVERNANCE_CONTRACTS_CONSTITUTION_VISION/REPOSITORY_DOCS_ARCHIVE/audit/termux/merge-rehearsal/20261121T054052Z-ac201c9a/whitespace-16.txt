@@ -1,0 +1,8 @@
+docs/IMPLEMENTATION_TRACEABILITY.md:663: trailing whitespace.
++**Current integration branch:** `codex/governance-biometric-integration-2026-11-19`  
+docs/IMPLEMENTATION_TRACEABILITY.md:664: trailing whitespace.
++**Draft PR:** [#33](https://github.com/productionhome2022-hash/mawda-platform/pull/33)  
+docs/IMPLEMENTATION_TRACEABILITY.md:665: trailing whitespace.
++**Current inspected PR head at last update:** `bdbd0ac42e45ffcd5e1f5089f8485bb5b22ea1ef`  
+docs/STRUCTURAL_GOVERNANCE_AND_BIOMETRIC_VERIFICATION_2026-11-19.md:3: trailing whitespace.
++**Decision date:** 2026-11-19  

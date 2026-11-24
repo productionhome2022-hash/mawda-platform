@@ -1,0 +1,18 @@
+Compared branch: codex/mawdda-premium-effects
+Target branch: codex/mawda-full-platform-implementation
+
+=== COMMIT RELATIONSHIP ===
+1601	5
+
+=== CHANGE SUMMARY ===
+ lib/screens/guest_session_screen.dart    |  42 +++++++++++-
+ lib/screens/profile_screen.dart          |  70 +++++++++----------
+ lib/services/auth_service.dart           |  14 ++++
+ lib/widgets/premium_profile_effects.dart | 113 +++++++++++++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 35 deletions(-)
+
+=== CHANGED PATHS ===
+M	lib/screens/guest_session_screen.dart
+M	lib/screens/profile_screen.dart
+M	lib/services/auth_service.dart
+A	lib/widgets/premium_profile_effects.dart
