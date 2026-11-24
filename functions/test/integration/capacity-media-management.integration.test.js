@@ -1,12 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { getFirestore } = require("firebase-admin/firestore");
 const {
   getOwnerCapacityMediaManagement,
   setOwnerCapacityMediaManagement,
 } = require("../../lib/index");
-
-const db = getFirestore();
 const ownerUid = "capacity_media_owner_test";
 const ownerRequest = (data = {}) => ({
   data,
