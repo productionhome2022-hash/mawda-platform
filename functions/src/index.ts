@@ -47,6 +47,7 @@ import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VE
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
+import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, projectCapacityMediaMeasurement, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
 import {
   validateFeaturedAdFinancialEvent,
   applyFeaturedAdFinancialEvent,
@@ -7198,6 +7199,74 @@ export {
 
 export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
 
+
+const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement");
+
+/** Observe-only owner capacity controls; they never enforce quotas or connect billing. */
+export const getOwnerCapacityMediaManagement = onCall(async (request) => {
+  await requireOwnerForReview(request, "capacity_media_management_read");
+  const currentMonthUtc = new Date().toISOString().slice(0, 7);
+  const [snapshot, capacityMeter] = await Promise.all([
+    CAPACITY_MEDIA_SETTINGS.get(),
+    db.collection("platformCapacityMeters").doc(currentMonthUtc).get(),
+  ]);
+  const data = snapshot.data() ?? {};
+  const meter = capacityMeter.data() ?? {};
+  const measurement = projectCapacityMediaMeasurement({
+    monthUtc: currentMonthUtc,
+    meterExists: capacityMeter.exists,
+    monthlyUploadBytes: meter.monthlyUploadBytes,
+    finalizedUploadCount: meter.finalizedUploadCount,
+  });
+  let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"] = {
+    ...CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas,
+  };
+  if (data.monthlyMediaQuotas && typeof data.monthlyMediaQuotas === "object" && !Array.isArray(data.monthlyMediaQuotas)) {
+    try { monthlyMediaQuotas = validateCapacityMediaQuotaInput(data.monthlyMediaQuotas); }
+    catch { /* Corrupt settings remain unset and cannot activate enforcement. */ }
+  }
+  return {
+    policy: {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas),
+      version: Number.isSafeInteger(data.version) && Number(data.version) >= 0 ? Number(data.version) : 0,
+      updatedAtMs: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : null,
+    },
+    measurement,
+    enforcement: { status: "observe_only", coreServicesExemptFromQuota: true, productionBillingConnected: false },
+    generatedAtMs: Date.now(),
+  };
+});
+
+export const setOwnerCapacityMediaManagement = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "capacity_media_management_policy_update");
+  let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"];
+  try { monthlyMediaQuotas = validateCapacityMediaQuotaInput(request.data?.monthlyMediaQuotas); }
+  catch { throw new HttpsError("invalid-argument", "قيم حصص الوسائط الشهرية غير صالحة."); }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || Number(expectedVersion) < 0) {
+    throw new HttpsError("invalid-argument", "إصدار إعدادات السعة غير صالح.");
+  }
+  const nextVersion = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(CAPACITY_MEDIA_SETTINGS);
+    const data = snapshot.data() ?? {};
+    const currentVersion = Number.isSafeInteger(data.version) && Number(data.version) >= 0 ? Number(data.version) : 0;
+    if (currentVersion !== Number(expectedVersion)) {
+      throw new HttpsError("aborted", "تغيرت الإعدادات منذ فتح اللوحة. حدّث البيانات ثم أعد المحاولة.");
+    }
+    const next = currentVersion + 1;
+    transaction.set(CAPACITY_MEDIA_SETTINGS, {
+      ...projectCapacityMediaPolicy(monthlyMediaQuotas), version: next, updatedBy: actorUid,
+      updatedAt: FieldValue.serverTimestamp(), enforcementStatus: "observe_only",
+    });
+    return next;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: "capacity_media_management_policy_update", outcome: "success",
+    policyVersion: nextVersion, monthlyMediaQuotas, enforcementStatus: "observe_only",
+    coreServicesExemptFromQuota: true,
+  });
+  return { saved: true, version: nextVersion, enforcementStatus: "observe_only" };
+});
 
 const ROOM_RENTAL_SETTINGS = db.doc("platformSettings/roomRentals");
 
