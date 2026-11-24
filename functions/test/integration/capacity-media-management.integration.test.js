@@ -20,7 +20,7 @@ const ownerRequest = (data = {}) => ({
 
 test("owner capacity management is observe-only, versioned and fail-closed", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const initial = await getOwnerCapacityMediaManagement(ownerRequest());
+  const initial = await getOwnerCapacityMediaManagement.run(ownerRequest());
   assert.equal(initial.enforcement.status, "observe_only");
   assert.equal(initial.enforcement.productionBillingConnected, false);
   assert.equal(initial.policy.monthlyMediaQuotas.uploadBytesPerMember, null);
@@ -33,7 +33,7 @@ test("owner capacity management is observe-only, versioned and fail-closed", asy
     storageBytesPerMember: null,
     processingMinutesPerMember: null,
   };
-  const saved = await setOwnerCapacityMediaManagement(ownerRequest({
+  const saved = await setOwnerCapacityMediaManagement.run(ownerRequest({
     expectedVersion: 0,
     monthlyMediaQuotas: quotas,
   }));
@@ -41,14 +41,14 @@ test("owner capacity management is observe-only, versioned and fail-closed", asy
   assert.equal(saved.version, 1);
   assert.equal(saved.enforcementStatus, "observe_only");
 
-  const after = await getOwnerCapacityMediaManagement(ownerRequest());
+  const after = await getOwnerCapacityMediaManagement.run(ownerRequest());
   assert.equal(after.policy.version, 1);
   assert.deepEqual(after.policy.monthlyMediaQuotas, quotas);
   assert.equal(after.enforcement.status, "observe_only");
   assert.equal(after.enforcement.coreServicesExemptFromQuota, true);
 
   await assert.rejects(
-    setOwnerCapacityMediaManagement(ownerRequest({
+    setOwnerCapacityMediaManagement.run(ownerRequest({
       expectedVersion: 0,
       monthlyMediaQuotas: quotas,
     })),
