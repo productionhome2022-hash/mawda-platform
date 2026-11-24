@@ -132,7 +132,6 @@ import {
   type ContractStatus,
 } from "./contracts-workflow";
 import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
-import { selectFeaturedAdShowcase } from "./featured-advertising";
 import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
@@ -9108,8 +9107,8 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
   const explicitType = request.data?.adType !== undefined;
   const requestedType = request.data?.adType ?? "standard";
   const selectedTarget = request.data?.geographicTarget;
-  if (requestedType !== "standard" && requestedType !== "featured") {
-    throw new HttpsError("invalid-argument", "نوع الإعلان المطلوب غير صالح.");
+  if (requestedType !== "standard") {
+    throw new HttpsError("failed-precondition", "الإعلانات المميزة تستخدم دورة عرض مستقلة عن الإعلانات العادية.");
   }
   if (requestedType === "standard" && selectedTarget !== undefined &&
       (typeof selectedTarget !== "string" ||
@@ -9117,7 +9116,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "النطاق الجغرافي المطلوب غير صالح.");
   }
   const now = Date.now();
-  const placement = requestedType === "featured" ? "home" : "reward_center";
+  const placement = "reward_center";
   // Apply time and placement filters in Firestore before the result cap.
   // Otherwise expired or future campaigns can occupy the first 100 documents
   // and hide currently eligible campaigns from member discovery.
@@ -9132,10 +9131,7 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
       const data = doc.data();
       const type = data.adType ?? "standard";
       if (explicitType && data.adType === undefined) return false;
-      const placementMatches = requestedType === "featured"
-        ? data.placement === "home"
-        : data.placement === "reward_center";
-      return type === requestedType && placementMatches &&
+      return type === requestedType && data.placement === "reward_center" &&
         data.startsAtMs <= now && data.endsAtMs > now &&
         data.spentRewardCoins + (data.reservedRewardCoins ?? 0) + data.rewardCoins <= data.rewardBudgetCoins &&
         campaignMatchesTimedAdAudience(data, userSnapshot.data() ?? {}, selectedTarget);
@@ -9154,30 +9150,6 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
         mediaId: data.mediaId ?? null, creativeType: data.creativeType ?? "text",
       };
     });
-  if (requestedType === "featured") {
-    const selection = selectFeaturedAdShowcase({
-      campaigns: campaigns.map((campaign) => ({
-        campaignId: campaign.campaignId,
-        status: "published",
-        ownerApproved: true,
-        ownerWithdrawn: false,
-        paymentConfirmed: true,
-        creativeApproved: true,
-        startsAtMs: campaign.startsAtMs,
-        endsAtMs: campaign.endsAtMs,
-        featuredPlacement: campaign.featuredPlacement,
-        priorityOrder: campaign.priorityOrder,
-      })),
-      nowMs: now,
-      rewardEligible: true,
-    });
-    const byId = new Map(campaigns.map((campaign) => [campaign.campaignId, campaign] as const));
-    return {
-      campaigns: selection.campaignIds
-        .map((campaignId) => byId.get(campaignId))
-        .filter((campaign): campaign is NonNullable<typeof campaign> => campaign !== undefined),
-    };
-  }
   return { campaigns };
 });
 
@@ -9241,6 +9213,9 @@ export const startTimedAdvertisement = onCall(async (request) => {
     }
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
     const data = campaign.data()!;
+    if (data.adType === "featured" || request.data?.adType === "featured") {
+      throw new HttpsError("failed-precondition", "الإعلانات المميزة لا تستخدم جلسات الإعلانات العادية.");
+    }
     const requestedAdType = request.data?.adType;
     if (data.adType !== undefined && requestedAdType !== data.adType) {
       throw new HttpsError("failed-precondition", "نوع الحملة لا يطابق مشغل الإعلان المطلوب.");
