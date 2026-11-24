@@ -28,6 +28,8 @@ permissions:
 
 jobs:
   verify:
+    # Disabled: this phase does not access real GCS buckets or perform live deletion tests.
+    if: false
     name: Verify signed URLs and permanent object deletion (non-production only)
     runs-on: ubuntu-latest
     timeout-minutes: 30
