@@ -52,9 +52,8 @@ function randomized<T>(items: T[], random: () => number): T[] {
 }
 
 /**
- * Selects ordering for the featured showcase only; the caller explicitly opts
- * into reward eligibility when those campaigns use the shared timed-ad session.
- * Featured selection is deliberately non-geographic.
+ * Selects ordering for the independent featured showcase only. Preview selection
+ * never creates or authorizes a rewarded session; the featured lifecycle owns that flow.
  */
 export function selectFeaturedAdShowcase(args: {
   campaigns: FeaturedAdCampaignCandidate[];
