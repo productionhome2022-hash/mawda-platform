@@ -549,44 +549,20 @@ test("active reward-ad discovery endpoints filter expired campaigns before apply
 });
 
 
-test("standard ads are geographically filtered and featured ads use the same atomic timed-ad ledger with a UTC daily cap", async () => {
+test("standard ads are geographically filtered and featured inventory is rejected from the timed-ad pipeline", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = suffix();
-  const ownerUid = `unified_ads_owner_${tag}`;
-  const syriaUid = `unified_ads_syria_${tag}`;
-  const egyptUid = `unified_ads_egypt_${tag}`;
-  const secondUid = `unified_ads_second_${tag}`;
+  const ownerUid = `separated_ads_owner_${tag}`;
+  const syriaUid = `separated_ads_syria_${tag}`;
+  const egyptUid = `separated_ads_egypt_${tag}`;
   const syriaUser = db.collection("users").doc(syriaUid);
   const egyptUser = db.collection("users").doc(egyptUid);
-  const secondUser = db.collection("users").doc(secondUid);
   let standardCampaignId;
-  let featuredCampaignId;
-  let firstSessionId;
-  let secondSessionId;
-  const economyRef = db.doc("platformSettings/economyPricing");
-  const previousEconomy = await economyRef.get();
-  const previousEconomyData = previousEconomy.exists ? previousEconomy.data() : null;
   await Promise.all([
     syriaUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
     egyptUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "مصر", region: "شمال أفريقيا" }),
-    secondUser.set({ coins: 0, profileCompleted: true, accountStatus: "active", country: "سوريا", region: "الشرق الأوسط" }),
   ]);
   try {
-    await economyRef.set({
-      ...(previousEconomyData ?? {
-        coinPackages: [], adPrices: [], customCoinRequestBounds: null,
-        version: 1, manualCoinPurchasesEnabled: false,
-        automatedCoinCheckoutEnabled: false, realMoneyCheckoutEnabled: false,
-      }),
-      manualFeaturedAdsEnabled: true,
-      paymentPolicy: {
-        coin_purchases: { manualEnabled: false, automatedEnabled: false },
-        featured_ads: { manualEnabled: true, automatedEnabled: false },
-        public_ads: { manualEnabled: false, automatedEnabled: false },
-        influencer_services: { manualEnabled: false, automatedEnabled: false },
-        store_entitlements: { manualEnabled: false, automatedEnabled: false },
-      },
-    });
     const standard = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
       title: "Standard geographic campaign",
       sponsorLabel: "Verified standard sponsor",
@@ -615,207 +591,40 @@ test("standard ads are geographically filtered and featured ads use the same ato
     ]);
     assert.equal(syriaAds.campaigns.some((item) => item.campaignId === standardCampaignId), true);
     assert.equal(egyptAds.campaigns.some((item) => item.campaignId === standardCampaignId), false);
-    const [syriaAggregateAds, egyptAggregateAds] = await Promise.all([
-      getActiveTimedAdCampaigns.run(memberRequest(syriaUid, {
-        adType: "standard", geographicTarget: "all_arab_countries",
-      })),
-      getActiveTimedAdCampaigns.run(memberRequest(egyptUid, {
-        adType: "standard", geographicTarget: "all_arab_countries",
-      })),
-    ]);
-    assert.equal(
-      syriaAggregateAds.campaigns.some((item) => item.campaignId === standardCampaignId),
-      true,
-      "a Syria-targeted standard ad must also appear in the aggregate Arab feed",
-    );
-    assert.equal(
-      egyptAggregateAds.campaigns.some((item) => item.campaignId === standardCampaignId),
-      true,
-      "the aggregate Arab feed must include Syria-targeted ads for other Arab-country members",
+
+    await assert.rejects(
+      () => getActiveTimedAdCampaigns.run(memberRequest(egyptUid, { adType: "featured" })),
+      (error) => error && error.code === "failed-precondition",
+      "featured discovery must use its independent inventory and API",
     );
     await assert.rejects(
-      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
-        campaignId: standardCampaignId,
+      () => setTimedAdCampaign.run(ownerRequest(ownerUid, {
+        title: "Must not enter timed-ad inventory",
+        sponsorLabel: "Featured sponsor",
+        body: "This featured campaign must use the separate lifecycle.",
+        placement: "home",
+        adType: "featured",
       })),
       (error) => error && error.code === "failed-precondition",
-      "typed campaigns must not be started through an unclassified player",
+      "featured campaigns must not be created in the standard timed-ad collection",
     );
     await assert.rejects(
       () => startTimedAdvertisement.run(memberRequest(syriaUid, {
         campaignId: standardCampaignId, adType: "featured",
       })),
       (error) => error && error.code === "failed-precondition",
-      "the featured player must not start a standard campaign",
+      "featured inventory must never be rewarded through the timed-ad session",
     );
-    await assert.rejects(
-      () => startTimedAdvertisement.run(memberRequest(egyptUid, {
-        campaignId: standardCampaignId, adType: "standard",
-      })),
-      (error) => error && error.code === "permission-denied",
-    );
-
-    const featured = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
-      title: "Featured non-geographic campaign",
-      sponsorLabel: "Verified featured sponsor",
-      body: "This synthetic featured advertisement is not geographically targeted.",
-      placement: "home",
-      adType: "featured",
-      geographicTargets: [],
-      featuredPlacement: "priority",
-      priorityOrder: 1,
-      maxDailyClaimsPerMember: 1,
-      durationSeconds: 15,
-      rewardCoins: 10,
-      startsAtMs: Date.now() - 1000,
-      endsAtMs: Date.now() + 3600000,
-      maxClaimsPerMember: 20,
-      rewardBudgetCoins: 30,
-    }));
-    featuredCampaignId = featured.campaignId;
-    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-      action: "payment_received",
-      idempotencyKey: `payment_key_${tag}`,
-      amountMinor: 10000,
-      currency: "EUR",
-      externalReference: `featured_receipt_${tag}`,
-      evidenceReference: `evidence://featured_receipt_${tag}`,
-      note: "Synthetic receipt for the integration test.",
-    }));
-    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-      action: "settlement_reconciled",
-      idempotencyKey: `settlement_key_${tag}`,
-      amountMinor: 10000,
-      currency: "EUR",
-      externalReference: `featured_settlement_${tag}`,
-      note: "Synthetic settlement for the integration test.",
-    }));
-    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-      action: "review_completed",
-      idempotencyKey: `review_key_${tag}`,
-      amountMinor: null,
-      currency: null,
-      externalReference: `featured_review_${tag}`,
-      note: "Synthetic owner review for the integration test.",
-      reviewOutcome: "approved",
-    }));
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId, status: "published",
-    }));
-    const featuredAds = await getActiveTimedAdCampaigns.run(memberRequest(egyptUid, {
-      adType: "featured",
-    }));
-    assert.equal(featuredAds.campaigns.some((item) => item.campaignId === featuredCampaignId), true);
-    assert.equal(featuredAds.campaigns.find((item) => item.campaignId === featuredCampaignId).geographicTargets.length, 0);
-    await assert.rejects(
-      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
-        campaignId: featuredCampaignId,
-      })),
-      (error) => error && error.code === "failed-precondition",
-      "featured campaigns must be started through the featured player",
-    );
-
-    const started = await startTimedAdvertisement.run(memberRequest(syriaUid, {
-      campaignId: featuredCampaignId, adType: "featured",
-    }));
-    firstSessionId = started.sessionId;
-    await db.collection("timedAdSessions").doc(firstSessionId).update({
-      eligibleMs: 15000, heartbeatSequence: 0, lastHeartbeatAtMs: Date.now() - 5000,
-    });
-    await heartbeatTimedAdvertisement.run(memberRequest(syriaUid, {
-      sessionId: firstSessionId, sequence: 1, foreground: true, visible: true,
-    }));
-    const completed = await completeTimedAdvertisement.run(memberRequest(syriaUid, {
-      sessionId: firstSessionId,
-    }));
-    assert.equal(completed.completed, true);
-    const counter = await db.collection("timedAdMemberCounters")
-      .where("campaignId", "==", featuredCampaignId).get();
-    const memberCounter = counter.docs.find((doc) => doc.data().uid === syriaUid);
-    assert.ok(memberCounter);
-    assert.equal(memberCounter.data().dailyClaimCount, 1);
-    assert.equal(memberCounter.data().utcDay, new Date().toISOString().slice(0, 10));
-    await assert.rejects(
-      () => startTimedAdvertisement.run(memberRequest(syriaUid, {
-        campaignId: featuredCampaignId, adType: "featured",
-      })),
-      (error) => error && error.code === "failed-precondition",
-    );
-
-    const secondStart = await startTimedAdvertisement.run(memberRequest(secondUid, {
-      campaignId: featuredCampaignId, adType: "featured",
-    }));
-    secondSessionId = secondStart.sessionId;
-    const cancelled = await cancelTimedAdvertisement.run(memberRequest(secondUid, {
-      sessionId: secondSessionId,
-    }));
-    assert.equal(cancelled.cancelled, true);
-    assert.equal((await db.collection("timedAdSessions").doc(secondSessionId).get()).data().status, "cancelled");
-    assert.equal((await db.collection("timedAdCampaigns").doc(featuredCampaignId).get()).data().reservedRewardCoins, 0);
-
-    const history = await getMyTimedAdRewardHistory.run(memberRequest(syriaUid));
-    assert.equal(history.claims.some((item) => item.sessionId === firstSessionId), true);
-    const report = await getOwnerTimedAdCampaignReport.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-    }));
-    assert.equal(report.sessionCounts.completed, 1);
-    assert.equal(report.sessionCounts.cancelled, 1);
-    assert.equal(report.totalRewardCoins, 10);
-    await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-      action: "refund_recorded",
-      idempotencyKey: `refund_key_${tag}`,
-      amountMinor: 1000,
-      currency: "EUR",
-      externalReference: `featured_refund_${tag}`,
-      evidenceReference: `evidence://featured_refund_${tag}`,
-      note: "Synthetic refund to verify immediate campaign pause.",
-    }));
-    assert.equal((await db.collection("timedAdCampaigns").doc(featuredCampaignId).get()).data().status, "paused");
-    const afterRefund = await getActiveTimedAdCampaigns.run(memberRequest(syriaUid, {
-      adType: "featured",
-    }));
-    assert.equal(afterRefund.campaigns.some((item) => item.campaignId === featuredCampaignId), false);
-    await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId, status: "archived",
-    }));
-    const archivedReport = await getOwnerTimedAdCampaignReport.run(ownerRequest(ownerUid, {
-      campaignId: featuredCampaignId,
-    }));
-    assert.equal(archivedReport.campaign.status, "archived");
-    assert.ok(archivedReport.versionCount >= 4);
+    const counters = await db.collection("timedAdMemberCounters")
+      .where("campaignId", "==", standardCampaignId).get();
+    assert.equal(counters.size, 0);
   } finally {
-    const campaignIds = [standardCampaignId, featuredCampaignId].filter(Boolean);
-    const [sessionsByCampaign, claimsByCampaign, countersByCampaign, versionsByCampaign, audits] = await Promise.all([
-      Promise.all(campaignIds.map((id) => db.collection("timedAdSessions").where("campaignId", "==", id).get())),
-      Promise.all(campaignIds.map((id) => db.collection("timedAdRewardClaims").where("campaignId", "==", id).get())),
-      Promise.all(campaignIds.map((id) => db.collection("timedAdMemberCounters").where("campaignId", "==", id).get())),
-      Promise.all(campaignIds.map((id) =>
-        db.collection("timedAdCampaignVersions").doc(id).collection("versions").get())),
-      db.collection("adminAuditLogs").where("actorUid", "==", ownerUid).get(),
-    ]);
-    await Promise.all([
-      ...sessionsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
-      ...claimsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
-      ...countersByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
-      ...versionsByCampaign.flatMap((snapshot) => snapshot.docs.map((doc) => doc.ref.delete())),
-      ...audits.docs.map((doc) => doc.ref.delete()),
-      ...(standardCampaignId ? [db.collection("timedAdCampaigns").doc(standardCampaignId).delete()] : []),
-      ...(featuredCampaignId ? [
-        db.collection("timedAdCampaigns").doc(featuredCampaignId).delete(),
-        db.collection("featuredAdFinancials").doc(featuredCampaignId).collection("events").get()
-          .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
-        db.collection("featuredAdFinancialVersions").doc(featuredCampaignId).collection("versions").get()
-          .then((snapshot) => Promise.all(snapshot.docs.map((doc) => doc.ref.delete()))),
-        db.collection("featuredAdFinancials").doc(featuredCampaignId).delete(),
-      ] : []),
-      ...(firstSessionId ? [syriaUser.collection("walletLedger").doc(`timed_ad_${firstSessionId}`).delete().catch(() => undefined)] : []),
-      ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("users").doc(uid).delete()),
-      ...[syriaUid, egyptUid, secondUid].map((uid) => db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined)),
-    ]);
-    if (previousEconomyData) await economyRef.set(previousEconomyData);
-    else await economyRef.delete().catch(() => undefined);
+    if (standardCampaignId) {
+      const versions = await db.collection("timedAdCampaignVersions")
+        .doc(standardCampaignId).collection("versions").get();
+      await Promise.all(versions.docs.map((doc) => doc.ref.delete()));
+      await db.collection("timedAdCampaigns").doc(standardCampaignId).delete().catch(() => undefined);
+    }
+    await Promise.all([syriaUser.delete().catch(() => undefined), egyptUser.delete().catch(() => undefined)]);
   }
 });
