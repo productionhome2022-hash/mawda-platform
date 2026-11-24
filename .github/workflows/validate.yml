@@ -254,6 +254,9 @@ jobs:
       - name: Run specialized role capacity and seat lifecycle integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:specialized-role-capacity-integration
+      - name: Run owner capacity media management integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:capacity-media-integration
       - name: Run featured-ad financial event and replay integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:featured-ad-finance-integration
