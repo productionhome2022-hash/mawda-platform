@@ -196,3 +196,104 @@
 - وجود هذا الملف في GitHub يثبت التوثيق فقط؛ ولا يثبت تنفيذ الجرد أو النقل أو الاختبارات أو التنظيف أو جاهزية الدمج.
 - تُسجل نتائج كل مرحلة لاحقاً داخل Full Platform مع SHA وروابط تشغيل GitHub Actions ونتائجها.
 - يبقى الدمج إلى `main` والنشر وأي إجراء إنتاجي محظوراً دون موافقة مستقلة صريحة من المالك.
+
+
+## 14. سجل التنفيذ الفعلي — المرحلة الأولى (2026-11-25)
+
+### 14.1 نقطة القياس ومصدر الأدلة
+
+- المستودع: `productionhome2022-hash/mawda-platform`.
+- فرع العمل الوحيد: `codex/mawda-full-platform-implementation`.
+- SHA فرع Full Platform عند إغلاق الجرد الأولي: `8e3360355d620d3bbd87c28be43b2be1ba8634d0`.
+- SHA الشجرة المقابلة: `13d9e5efbb1d7119aa4f60049e192876c3b337ae`.
+- لم يُعدّل `main` ولم يُدمج إليه شيء.
+- المستودعات الخمسة الظاهرة في حساب المالك: `mawda-platform` و`mawdda-5000-simulation-lab` و`mawdda-X-archive` و`salonat-alghayth` و`syriacash`. المستودعان الأخيران غير تابعين لنطاق Mawdda ولم يُلمسا. مستودع X archive حجمه صفر ولا تظهر له فروع؛ لم يُحذف.
+- لم تظهر مراجع Tags؛ طلب `git/refs/tags` أعاد 404، لذلك لا توجد Tags مثبتة في جرد هذه الجولة.
+
+### 14.2 جرد الفروع والمقارنات
+
+- عدد فروع مستودع المنصة: 37 فرعاً، منها Full Platform و`main` وRecovery و34 فرع عمل آخر.
+- أُجريت مقارنة مرجعية لكل فرع من الفروع الـ36 الأخرى مع Full Platform. لم يُحذف أي فرع ولم يُدمج أي فرع أثناء الجرد.
+- أسماء الفروع وقت الجرد:
+
+```text
+codex/biometric-server-lifecycle-2026-11-20
+codex/canonical-role-terminology-owner-confirmation-2026-11-19
+codex/economic-phase1-closeout-2026-11-18
+codex/economic-phase-completion-2026-11-18
+codex/economic-phase-controlled-integration-2026-11-19
+codex/economy-official-port-2026-11-18
+codex/economy-recovery-2026-11-18
+codex/featured-ads-secure-lifecycle-20261118
+codex/featured-ads-serving-foundation
+codex/governance-biometric-integration-2026-11-19
+codex/mawda-full-platform-implementation
+codex/mawda-recovery-integration-2026-11-21
+codex/mawda-unified-constitution-vision-2026-11-19
+codex/mawdda-biometric-proof-gate-2026-11-20
+codex/mawdda-deep-governance-audit-2026-11-19
+codex/mawdda-economy-selective-port-2026-11-19
+codex/mawdda-group-call-capacity-2026-11-20-r2
+codex/mawdda-group-call-capacity-2026-11-20
+codex/mawdda-independent-verification-cycles-2026-11-20
+codex/mawdda-independent-verification-cycles-dev-2026-11-20
+codex/mawdda-retention-approval-ci-repair-2026-11-19
+codex/mawdda-role-capacity-after-retention-2026-11-19
+codex/mawdda-role-capacity-consolidation-2026-11-19
+codex/mawdda-role-capacity-final-2026-11-19
+codex/mawdda-step1-role-reconcile-2026-11-19
+codex/mawdda-super-owner-biometric-state-machine-2026-11-20
+codex/mawdda-unified-test-2026-11-18
+codex/phase1-ci-coverage-role-store-2026-11-20
+codex/phase1-direct-call-transaction-revalidation-2026-11-20
+codex/phase1-featured-ad-geography-all-arab-2026-11-20
+codex/phase1-media-direct-delivery-denials-2026-11-20
+codex/phase1-media-hold-delete-race-2026-11-20
+codex/phase1-rented-room-call-gate-2026-11-20
+codex/phase1-scanner-error-callback-test-2026-11-20
+codex/phase1-store-gift-concurrency-2026-11-20
+codex/structural-governance-biometric-roles-2026-11-19
+main
+```
+
+### 14.3 مقارنة Full Platform مع main وRecovery
+
+- مقارنة Full Platform مع `main`: حالة التاريخ متباعدة؛ Full Platform متقدم بـ3538 التزاماً ووراء `main` بأربعة التزامات، ونقطة الالتقاء `460a79a7dc2e16f4ad146af22fc5a63324ab26f`. لا يُستنتج من ذلك إذن دمج أو جاهزية PR.
+- مقارنة Full Platform مع Recovery: Recovery متقدم بـ288 التزاماً وFull Platform متقدم بـ46 التزاماً، ونقطة الالتقاء `d4dc7399877f5aeafc2ca95422fc5a63324ab26f`. هذا اختلاف تاريخي جوهري يمنع الدمج الشامل الأعمى.
+- شجرة Full Platform تضم 3268 مدخلاً و2910 ملفات؛ شجرة Recovery تضم 3238 مدخلاً و2887 ملفات.
+- لا يوجد أي مسار ملفي موجود في شجرة Recovery وغائب عن Full Platform. توجد 23 ملفات في Full Platform غير موجودة في Recovery، تشمل الوثيقة الحاكمة والأرشيفات وسجلات البيئة وأربع وحدات/اختبارات أحدث للإعلانات المميزة وإدارة السعة.
+- توجد 47 ملفات مشتركة ذات محتوى مختلف بين الشجرتين بعد تحديثات تعطيل Workflows. لذلك فإن اكتمال المسارات لا يعني تطابق السلوك أو اكتمال استيعاب الالتزامات؛ يجب مراجعة كل اختلاف على مستوى الوظيفة والاختبار.
+- سجل SHA السابق `MAWDDA_SECOND_STAGE_SHA_DEDUP_REVIEW_20261124.md` وملف المرشحين CSV موجودان داخل Full Platform. يصفان 1665 SHA مرشحاً غير مطابق ضمن نافذة 17–21 نوفمبر مقارنةً بنطاق Recovery المحدد، ولا يثبتان أن هذه الأعمال مفقودة من كامل تاريخ Recovery أو من Full Platform. يلزم إعادة فحص المرشحين مقابل كامل التاريخ وFull Platform قبل أي نقل.
+
+### 14.4 طلبات الدمج والمختبر
+
+- طلبات الدمج التاريخية في مستودع المنصة: 71، وجميعها مغلقة؛ لا توجد PR مفتوحة في مستودع المنصة عند الجرد.
+- PR رقم 88 أُغلق بالدمج في 2026-11-22 إلى فرع Recovery، لا إلى `main`؛ شمل 117 التزاماً و34 ملفاً. لا يُعامل هذا الدمج التاريخي على أنه اعتماد Recovery كجسم تطوير حالي.
+- مختبر المحاكاة مستقل: 6 فروع و4 PRs، منها اثنتان مفتوحتان كمسودتين (#2 و#4) واثنتان مغلقتان (#1 و#3).
+- آخر تشغيل ناجح لمحاكاة 5000 شخصية ظاهر في السجل هو التشغيل رقم `44594096755` بتاريخ 2026-11-19 على SHA المختبر `380b35c3eb0d7700d4dc4cbeaa526abeddbde838`. لم تُشغّل محاكاة جديدة في هذه المرحلة، ولا تعد شرطاً لإغلاق خطة التوحيد.
+
+### 14.5 مراجعة Workflows والإجراء الوقائي
+
+- جرى حصر 15 Workflow في مستودع المنصة ومراجعة مسارات التشغيل.
+- عُطلت بوابة التنفيذ لأربعة Workflows داخل فرع Full Platform فقط، بإضافة شرط `if: false` وتعليق يوضح سبب التعطيل:
+  - `.github/workflows/firebase-hosting-merge.yml` — منع النشر إلى Firebase Hosting.
+  - `.github/workflows/deploy-nonproduction-media-scanner.yml` — منع نشر ماسح الوسائط إلى بيئة سحابية.
+  - `.github/workflows/live-nonproduction-validation.yml` — منع اختبارات GCS الحية.
+  - `.github/workflows/nonproduction-media-verification.yml` — منع التحقق الحي والحذف الفعلي في GCS.
+- لم تُشغّل هذه Workflows، ولم تُجرَ أي عملية نشر أو تعديل سحابي. بقيت Workflows الاختبار والبناء الداخلي متاحة. لم يظهر استدعاء لمختبر 5000 شخصية من Workflows المنصة.
+- تشغيل التحقق الاقتصادي على SHA `8e3360355d620d3bbd87c28be43b2be1ba8634d0` انتهى بنجاح (Run `45490939338`). تشغيل Mawdda Test Center والتحقق العام على SHA نفسه كانا قيد الانتظار وقت تسجيل هذه الحالة؛ لذلك لا يُعلن نجاحهما قبل قراءة النتيجة النهائية. يوجد تشغيل Test Center سابق ناجح على SHA `d5f64a082b65629565c04562eb224b1bb407c855`، لكنه ليس SHA الحالي.
+
+### 14.6 نتائج الفحص الوظيفي الأولي والعوائق
+
+- اختلاف الإعلانات المميزة: نسخة Full Platform تفصل معاينة الإعلانات المميزة عن مسار الإعلانات المؤقتة المدفوعة وتمنع تحويل الاختيار المميز إلى مكافأة مشاهدة؛ نسخة Recovery تسمح بذلك. تُحفظ قاعدة Full Platform الحالية، ولا يُستوعب السلوك الأقدم.
+- شاشة مراجعة التوثيق البيومتري في Full Platform تستخدم أسماء Callables أحدث وتفرض تأكيد مراجعة الدليل؛ نسخة Recovery تشير إلى أسماء أقدم وتضيف إعدادات واجهة لا يجوز نقلها دون مطابقة الخادم.
+- سياسة احتفاظ الملصقات لمدة ساعة معتمدة وموجودة في Full Platform، لكن ربطها الكامل بمسار الرفع والماسح والتنظيف غير موجود في Full Platform. Recovery يحتوي أجزاء تنفيذ واختبارات خاصة بالملصقات، بما فيها مسار تنظيف مستقل؛ صُنفت هذه كأعمال فريدة/جزئية تتطلب نقلاً انتقائياً ومراجعة أمنية واختبارات Emulator، وليس دمج Recovery كاملاً.
+- اختبارات Recovery تحتوي أيضاً تأكيداً إضافياً على منع الوصول إلى مسارات السجلات المالية والإعلانات في Firestore؛ يجب استيعاب التغطية الاختبارية بعد التأكد من توافقها مع القواعد الحالية.
+- لم يُحذف أي فرع أو مستودع، ولم تُنقل بيانات إنتاجية، ولم يُعدّل Firebase أو `main`، ولم تُفعّل فوترة أو خدمة مدفوعة.
+
+### 14.7 حالة المرحلة وبوابات الانتقال
+
+- **المرحلة الأولى — جرد المصادر والفروع وPRs وWorkflows والشجرات: مكتملة.**
+- **المرحلة الثانية — مطابقة الاختلافات على مستوى SHA والملفات والسلوك والاختبارات: قيد التنفيذ.**
+- الأعمال المعلقة قبل إعلان اكتمال التوحيد: إعادة فحص مرشحي SHA مقابل كامل تاريخ Full Platform وRecovery، مراجعة الملفات الـ47 المختلفة، استيعاب دورة الملصقات المعتمدة انتقائياً، إكمال تغطية اختبارات Firestore، ثم مراجعة بقية الفروع المرشحة.
+- لا يبدأ حذف Recovery أو الفروع الأخرى قبل إغلاق هذه البنود وإثبات الاستيعاب وإعادة التحقق من الشجرة والاختبارات. لا يعني إغلاق هذه المرحلة أن Full Platform جاهز للدمج مع `main`.
