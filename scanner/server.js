@@ -9,7 +9,7 @@ const { Transform } = require("node:stream");
 const { promisify } = require("node:util");
 const { execFile } = require("node:child_process");
 const sharp = require("sharp");
-const { processSafeDerivative } = require("./processors");
+const { processSafeDerivative, inspectStickerMedia } = require("./processors");
 const { Storage } = require("@google-cloud/storage");
 const { equalSecret, validateScanRequest, isSafeDerivativeMetadata, sanitizeScannerError, isSignatureDatabaseFresh } = require("./security");
 
@@ -134,7 +134,9 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
     }
   }
   const outputPath = path.join(path.dirname(sourcePath), "preview.webp");
-  let width = 4096;
+  const stickerPreview = request.purpose === "sticker";
+  const maxPreviewBytes = stickerPreview ? 256 * 1024 : MAX_SAFE_PREVIEW_BYTES;
+  let width = stickerPreview ? 512 : 4096;
   let quality = 82;
   let outputStat;
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -146,11 +148,11 @@ async function createSafeImageDerivative(sourcePath, request, sourceSha256) {
       withoutEnlargement: true,
     }).webp({ quality, effort: 5 }).toFile(outputPath);
     outputStat = await fs.stat(outputPath);
-    if (outputStat.size > 0 && outputStat.size <= MAX_SAFE_PREVIEW_BYTES) break;
+    if (outputStat.size > 0 && outputStat.size <= maxPreviewBytes) break;
     width = Math.max(512, Math.floor(width * 0.75));
     quality = Math.max(55, quality - 7);
   }
-  if (!outputStat || !outputStat.size || outputStat.size > MAX_SAFE_PREVIEW_BYTES) {
+  if (!outputStat || !outputStat.size || outputStat.size > maxPreviewBytes) {
     throw new Error("SAFE_DERIVATIVE_SIZE_INVALID");
   }
 
@@ -265,8 +267,22 @@ async function handleScan(request, response) {
     if (!scannerIdentity) throw new Error("CLAMAV_VERSION_UNAVAILABLE");
     const verdict = await scanWithClamAv(sourcePath);
     let derivative = null;
+    let stickerMetadata;
     if (verdict === "clean") {
-      derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
+      if (scanRequest.purpose === "sticker") {
+        stickerMetadata = await inspectStickerMedia({
+          sourcePath,
+          contentType: scanRequest.contentType,
+        });
+      }
+      if (scanRequest.purpose === "sticker" && stickerMetadata.kind === "animated") {
+        derivative = await processSafeDerivative({
+          sourcePath, tempDir, request: scanRequest, sourceSha256,
+          storage, bucketName: BUCKET_NAME, provider: PROVIDER,
+        });
+      } else {
+        derivative = await createSafeImageDerivative(sourcePath, scanRequest, sourceSha256);
+      }
       if (!derivative) {
         derivative = await processSafeDerivative({
           sourcePath, tempDir, request: scanRequest, sourceSha256,
@@ -286,6 +302,7 @@ async function handleScan(request, response) {
       sha256: sourceSha256,
       scannedAtMs: Date.now(),
       ...(derivative || {}),
+      ...(stickerMetadata ? { stickerMetadata } : {}),
     }, scanRequest.callbackUrl);
     console.info(JSON.stringify({
       event: "media_scan_completed",

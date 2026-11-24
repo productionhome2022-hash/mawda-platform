@@ -90,3 +90,85 @@ test("catalog exposes only published approved clean assets", () => {
     status: "draft", approved: true, title: "Starter", stickers: [],
   }), null);
 });
+
+
+test("sticker message replay must match sender, media, pack and sticker identity", () => {
+  const { stickerMessageReplayMatches } = require("../lib/sticker-policy.js");
+  const expected = { senderUid: "sender", mediaId: "media-1", packId: "pack-1", stickerId: "sticker-1" };
+  const message = {
+    type: "sticker", senderUid: "sender", mediaId: "media-1",
+    stickerPackId: "pack-1", stickerId: "sticker-1",
+  };
+  assert.equal(stickerMessageReplayMatches(message, expected), true);
+  assert.equal(stickerMessageReplayMatches({ ...message, stickerId: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, stickerPackId: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, senderUid: "other" }, expected), false);
+  assert.equal(stickerMessageReplayMatches({ ...message, type: "attachment" }, expected), false);
+  assert.equal(stickerMessageReplayMatches(null, expected), false);
+});
+
+
+test("catalog rejects unapproved, unscanned and malformed asset references", () => {
+  const base = {
+    status: "published",
+    approved: true,
+    title: "Starter",
+    stickers: [{
+      stickerId: "hello",
+      assetId: "asset_hello",
+      scanStatus: "clean",
+      kind: "static",
+      contentType: "image/png",
+      width: 128,
+      height: 128,
+      sizeBytes: 1000,
+    }],
+  };
+  assert.equal(projectPublishedStickerPack("starter", { ...base, approved: false }), null);
+  assert.equal(projectPublishedStickerPack("starter", {
+    ...base,
+    stickers: [{ ...base.stickers[0], scanStatus: "pending" }],
+  }), null);
+  assert.equal(projectPublishedStickerPack("starter", {
+    ...base,
+    stickers: [{ ...base.stickers[0], assetId: "../private" }],
+  }), null);
+});
+
+test("sticker pack count accepts the configured boundary and rejects empty or oversized packs", () => {
+  assert.equal(validateStickerPackSize(STICKER_LIMITS.maxPackStickers), true);
+  assert.equal(validateStickerPackSize(STICKER_LIMITS.maxPackStickers + 1), false);
+  assert.equal(validateStickerPackSize(0), false);
+});
+
+test("sticker pack manifest rejects malformed identifiers and media metadata", () => {
+  const entry = {
+    stickerId: "hello", kind: "static", contentType: "image/png",
+    width: 128, height: 128, sizeBytes: 1024,
+  };
+  assert.throws(() => validateStickerPackManifest({
+    packId: "../private", title: "Starter", stickers: [entry],
+  }), /INVALID_STICKER_PACK_ID/);
+  assert.throws(() => validateStickerPackManifest({
+    packId: "starter", title: "Starter", stickers: [{ ...entry, width: 0 }],
+  }), /INVALID_STICKER_DIMENSIONS/);
+});
+
+test("published catalog projection excludes private moderation and storage metadata", () => {
+  const projected = projectPublishedStickerPack("starter", {
+    status: "published", approved: true, title: "Starter",
+    internalModerationNote: "private owner note",
+    storagePath: "private/sticker-packs/starter",
+    stickers: [{
+      stickerId: "hello", assetId: "asset_hello", scanStatus: "clean",
+      kind: "static", contentType: "image/webp", width: 128, height: 128,
+      sizeBytes: 1200, storagePath: "private/asset.webp",
+      downloadUrl: "https://private.invalid",
+    }],
+  });
+  assert.equal(projected?.stickers[0].assetId, "asset_hello");
+  assert.equal("internalModerationNote" in (projected ?? {}), false);
+  assert.equal("storagePath" in (projected ?? {}), false);
+  assert.equal("storagePath" in (projected?.stickers[0] ?? {}), false);
+  assert.equal("downloadUrl" in (projected?.stickers[0] ?? {}), false);
+});

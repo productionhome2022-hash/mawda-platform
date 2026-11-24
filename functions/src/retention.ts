@@ -8,6 +8,7 @@ import { logger } from "firebase-functions";
 import { resolveChatRetentionMode, isChatTextDeletionDue, chatTextRetentionMs, type ChatRetentionMode } from "./chat-retention-policy";
 
 export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
+export const STICKER_MEDIA_RETENTION_MS = 60 * 60 * 1000;
 export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const RETENTION_BATCH_SIZE = 150;
 const RETENTION_PAGES_PER_RUN = 10;
@@ -103,23 +104,32 @@ const ACTIVE_MEDIA_STATES = [
 ];
 const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
 
-export async function runChatMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+export const CHAT_MEDIA_RETENTION_PURPOSES = ["chat", "room", "profile_album", "story", "avatar_cover"] as const;
+export const STICKER_MEDIA_RETENTION_PURPOSES = ["sticker"] as const;
+type MediaRetentionPurpose = typeof CHAT_MEDIA_RETENTION_PURPOSES[number] | typeof STICKER_MEDIA_RETENTION_PURPOSES[number];
+
+export async function runChatMediaRetentionSweep(
+  purposes: readonly MediaRetentionPurpose[] = CHAT_MEDIA_RETENTION_PURPOSES,
+): Promise<{ assets: number; objects: number; failures: number }> {
   const db = getFirestore();
   const now = Timestamp.fromMillis(Date.now());
   let assets = 0;
   let objects = 0;
   let failures = 0;
 
-  for (const purpose of ["chat", "room", "profile_album", "story", "avatar_cover"] as const) {
+  for (const purpose of purposes) {
     const lifetimeMs = purpose === "profile_album" ? 7 * 24 * 60 * 60 * 1000
-      : purpose === "story" || purpose === "avatar_cover" ? null : CHAT_MEDIA_RETENTION_MS;
+      : purpose === "sticker" ? STICKER_MEDIA_RETENTION_MS
+        : purpose === "story" || purpose === "avatar_cover" ? null : CHAT_MEDIA_RETENTION_MS;
     const cutoff = lifetimeMs === null ? null : Timestamp.fromMillis(Date.now() - lifetimeMs);
     const deletedPolicyStatus = purpose === "profile_album" ? "seven_day_profile_album_deleted"
-      : purpose === "story" ? "story_expired_deleted"
-        : purpose === "avatar_cover" ? "thirty_day_avatar_cover_expired" : "four_hour_self_destructed";
+      : purpose === "sticker" ? "one_hour_sticker_asset_deleted"
+        : purpose === "story" ? "story_expired_deleted"
+          : purpose === "avatar_cover" ? "thirty_day_avatar_cover_expired" : "four_hour_self_destructed";
     const deletionAuditAction = purpose === "profile_album" ? "profile_album_media_deleted"
-      : purpose === "story" ? "story_media_expired"
-        : purpose === "avatar_cover" ? "avatar_cover_media_expired" : "chat_media_self_destructed";
+      : purpose === "sticker" ? "sticker_asset_expired_deleted"
+        : purpose === "story" ? "story_media_expired"
+          : purpose === "avatar_cover" ? "avatar_cover_media_expired" : "chat_media_self_destructed";
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
@@ -332,20 +342,27 @@ export async function runChatMediaRetentionSweep(): Promise<{ assets: number; ob
       if (succeededThisPage === 0) break;
     }
   }
-  // Expired story documents are removed immediately; media deletion remains
-  // independently generation-safe and retryable through the media asset sweep.
-  const expiredStories = await db.collection("stories")
-    .where("status", "==", "active")
-    .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
-    .limit(RETENTION_BATCH_SIZE)
-    .get();
-  if (!expiredStories.empty) {
-    const batch = db.batch();
-    for (const story of expiredStories.docs) batch.delete(story.ref);
-    await batch.commit();
+  // Expired story documents are part of the general media sweep only.
+  // Purpose-scoped sweeps (notably stickers) must not mutate unrelated stories.
+  if (purposes.includes("story")) {
+    const expiredStories = await db.collection("stories")
+      .where("status", "==", "active")
+      .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
+      .limit(RETENTION_BATCH_SIZE)
+      .get();
+    if (!expiredStories.empty) {
+      const batch = db.batch();
+      for (const story of expiredStories.docs) batch.delete(story.ref);
+      await batch.commit();
+    }
   }
 
   return { assets, objects, failures };
+}
+
+/** Runs only the owner sticker asset lifecycle; never part of the general five-minute sweep. */
+export async function runStickerMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  return runChatMediaRetentionSweep(STICKER_MEDIA_RETENTION_PURPOSES);
 }
 
 export async function runChatTextRetentionSweep(): Promise<{ messages: number; failures: number }> {
@@ -550,16 +567,18 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
   if (!assetSnapshot.exists) return;
   const asset = assetSnapshot.data() ?? {};
   if (asset.ownerUid !== ownerUid ||
-      !["chat", "room", "profile_album", "story", "avatar_cover"].includes(String(asset.mediaPurpose)) ||
+      !["chat", "room", "profile_album", "story", "avatar_cover", "sticker"].includes(String(asset.mediaPurpose)) ||
       asset.legalHoldStatus === "active" ||
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
   const manualDeletionState = ["manual_deletion_pending", "manually_deleted", "rejected"].includes(String(asset.status));
   const expiry = asset.retentionExpiresAt instanceof Timestamp
     ? asset.retentionExpiresAt
-    : asset.createdAt instanceof Timestamp
-      ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
-      : null;
+    : asset.mediaPurpose === "sticker" && asset.finalizedAt instanceof Timestamp
+      ? Timestamp.fromMillis(asset.finalizedAt.toMillis() + STICKER_MEDIA_RETENTION_MS)
+      : asset.createdAt instanceof Timestamp
+        ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+        : null;
   if (!manualDeletionState && asset.status !== "self_destructed" &&
       (!expiry || expiry.toMillis() > Date.now())) return;
 
@@ -589,13 +608,23 @@ export const removeLateExpiredChatMediaDerivative = configuredBucket
   ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
   : undefined;
 
-/** Reconciles expired chat, gallery and story media every five minutes; disabled by default and requires an exact production project allowlist. */
+/** Reconciles chat, gallery and story media every five minutes; disabled by default and project-allowlisted. */
 export const enforceChatMediaRetention = onSchedule(
   { schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
     const result = await runChatMediaRetentionSweep();
     logger.info("Chat media retention sweep completed.", result);
+  },
+);
+
+/** Reconciles owner sticker assets on their independent one-hour UTC lifecycle. */
+export const enforceStickerMediaRetention = onSchedule(
+  { schedule: "every 1 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runStickerMediaRetentionSweep();
+    logger.info("Sticker media retention sweep completed.", result);
   },
 );
 

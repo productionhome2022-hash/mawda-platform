@@ -108,7 +108,7 @@ import {
   isStorePurchaseReplayCompatible,
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
-import { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
@@ -7193,10 +7193,13 @@ export {
   enqueueMediaSecurityScan,
   dispatchMediaSecurityScan,
   receiveMediaScanVerdict,
+  saveStickerPack,
+  getStickerAssetUrl,
+  sendStickerMessage,
   getTimedAdCreativeUrl,
 } from "./media";
 
-export { enforceChatMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+export { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
 
 
 const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement");
@@ -12004,4 +12007,17 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
     .sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0))
     .slice(0, 50);
   return { entries, truncated: sent.size === 50 || received.size === 50 || coinPackageReceived.size === 50 };
+});
+
+
+/** Member catalog remains empty until sticker retention, publication and delivery lifecycle tests are complete. */
+export const getStickerCatalog = onCall(async (request) => {
+  requireAuthenticatedUid(request.auth?.uid);
+  return {
+    packs: [],
+    enabled: false,
+    publicationEnabled: false,
+    sendEnabled: false,
+    disabledReason: "sticker_lifecycle_implementation_pending",
+  };
 });

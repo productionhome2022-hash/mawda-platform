@@ -161,3 +161,25 @@ test("biometric requests, playback grants and verification audit records are ser
   }));
   await assertFails(getDoc(doc(alice, "verificationAuditLogs/biometric_reward_fake")));
 });
+
+
+test("featured-ad viewing, reward-policy, campaign-version, financial-ledger and audit paths are server-only", async () => {
+  const alice = env.authenticatedContext("alice").firestore();
+  const protectedPaths = [
+    "featuredAdCampaigns/campaign-12345678",
+    "featuredAdViewingSessions/00000000-0000-4000-8000-000000000001",
+    "users/alice/featuredAdRewardDays/2026-11-23",
+    "featuredAdCampaignMembers/alice_campaign-12345678",
+    "platformSettings/featuredAdRewardPolicy",
+    "timedAdCampaigns/campaign-12345678",
+    "timedAdCampaignVersions/campaign-12345678/versions/1",
+    "featuredAdFinancials/campaign-12345678",
+    "featuredAdFinancials/campaign-12345678/events/event-12345678",
+    "featuredAdFinancialVersions/campaign-12345678/versions/1",
+    "adminAuditLogs/featured_ad_finance_event-12345678",
+  ];
+  for (const path of protectedPaths) {
+    await assertFails(getDoc(doc(alice, path)));
+    await assertFails(setDoc(doc(alice, path), { status: "published", coins: 999999 }));
+  }
+});

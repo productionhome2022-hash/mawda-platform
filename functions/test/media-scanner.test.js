@@ -198,3 +198,37 @@ test("scanner callback accepts only ClamAV-clean biometric audio and video safe 
     else assert.equal(changedPurpose?.purpose, "advertisement");
   }
 });
+
+test("clean sticker verdicts require measured metadata while malicious sticker verdicts remain rejectable", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "sticker",
+    provider: "clamav-mawadda-gateway",
+    verdict: "clean",
+    objectGeneration: "123456",
+    sha256: "a".repeat(64),
+    scannedAtMs: now,
+    scanEngine: "ClamAV",
+    engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202",
+    signatureDatabaseAgeMs: 60 * 60 * 1000,
+  };
+  const stickerMetadata = {
+    kind: "static", contentType: "image/png",
+    width: 128, height: 128, sizeBytes: 12000,
+  };
+  assert.equal(validateScannerVerdict({
+    ...base, stickerMetadata,
+  }, "clamav-mawadda-gateway", now).stickerMetadata.kind, "static");
+  assert.equal(validateScannerVerdict(base, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({
+    ...base, stickerMetadata: { ...stickerMetadata, width: 2048 },
+  }, "clamav-mawadda-gateway", now), null);
+  assert.equal(validateScannerVerdict({
+    ...base, verdict: "malicious",
+  }, "clamav-mawadda-gateway", now).verdict, "malicious");
+  assert.equal(validateScannerVerdict({
+    ...base, stickerMetadata: { ...stickerMetadata, unexpected: true },
+  }, "clamav-mawadda-gateway", now), null);
+});

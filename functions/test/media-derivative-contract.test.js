@@ -37,3 +37,11 @@ test("safe derivative categories accept only purposes allowed by the media uploa
   assert.equal(safeDerivativePurposeAllowed("document", "room", "member"), false);
   assert.equal(safeDerivativePurposeAllowed("document", "profile_album", "platform_owner"), false);
 });
+
+test("sticker animation derivatives are restricted to owner sticker assets", () => {
+  const { safeDerivativePurposeAllowed } = require("../lib/media-derivative-contract");
+  assert.equal(safeDerivativePurposeAllowed("gif", "sticker", "platform_owner"), true);
+  assert.equal(safeDerivativePurposeAllowed("gif", "sticker", "member"), false);
+  assert.equal(safeDerivativePurposeAllowed("audio", "sticker", "platform_owner"), false);
+  assert.equal(safeDerivativePurposeAllowed("video", "sticker", "platform_owner"), false);
+});

@@ -2,6 +2,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   CHAT_MEDIA_RETENTION_MS,
+  STICKER_MEDIA_RETENTION_MS,
+  CHAT_MEDIA_RETENTION_PURPOSES,
+  STICKER_MEDIA_RETENTION_PURPOSES,
   CHAT_TEXT_RETENTION_MS,
   retentionDeadline,
   isRetentionDue,
@@ -16,6 +19,20 @@ test("chat media retention is exactly four hours from validated upload finalizat
   assert.equal(deadline, createdAt + 4 * 60 * 60 * 1000);
   assert.equal(isRetentionDue(createdAt, CHAT_MEDIA_RETENTION_MS, deadline - 1), false);
   assert.equal(isRetentionDue(createdAt, CHAT_MEDIA_RETENTION_MS, deadline), true);
+});
+
+test("sticker cleanup is isolated from the five-minute chat media sweep", () => {
+  assert.deepEqual(CHAT_MEDIA_RETENTION_PURPOSES, ["chat", "room", "profile_album", "story", "avatar_cover"]);
+  assert.deepEqual(STICKER_MEDIA_RETENTION_PURPOSES, ["sticker"]);
+});
+
+test("sticker media retention is exactly one hour and expires at the boundary", () => {
+  const acceptedAt = 1_800_000_000_000;
+  assert.equal(STICKER_MEDIA_RETENTION_MS, 60 * 60 * 1000);
+  const deadline = retentionDeadline(acceptedAt, STICKER_MEDIA_RETENTION_MS);
+  assert.equal(deadline, acceptedAt + 60 * 60 * 1000);
+  assert.equal(isRetentionDue(acceptedAt, STICKER_MEDIA_RETENTION_MS, deadline - 1), false);
+  assert.equal(isRetentionDue(acceptedAt, STICKER_MEDIA_RETENTION_MS, deadline), true);
 });
 
 test("legacy/default normal chat text retention remains exactly seven days", () => {

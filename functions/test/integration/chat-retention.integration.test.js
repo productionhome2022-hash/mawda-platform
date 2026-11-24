@@ -12,7 +12,7 @@ const app = initializeApp({
   storageBucket: `${projectId}.appspot.com`,
 });
 const db = getFirestore();
-const { runChatTextRetentionSweep, runChatMediaRetentionSweep } = require("../../lib/retention");
+const { runChatTextRetentionSweep, runChatMediaRetentionSweep, runStickerMediaRetentionSweep } = require("../../lib/retention");
 
 test("mode-aware sweep deletes normal text at seven days, important text at thirty days, and preserves temporary messages pending full-chat expiry", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -306,3 +306,102 @@ test("manual message-media deletion pending state is retried and reconciled", as
     ]);
   }
 });
+
+test("sticker media stays outside the five-minute sweep and is deleted by the isolated hourly lifecycle", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
+  const bucket = getStorage().bucket();
+  const suffix = Date.now().toString();
+  const ownerUid = `sticker-owner-${suffix}`;
+  const mediaId = `eeeeeeee-ffff-aaaa-bbbb-${suffix.padStart(12, "0").slice(-12)}`;
+  const heldMediaId = `ffffffff-aaaa-bbbb-cccc-${suffix.padStart(12, "0").slice(-12)}`;
+  const objectPath = `quarantine/${ownerUid}/${mediaId}`;
+  const previewPath = `processed/${ownerUid}/${mediaId}/preview.webp`;
+  const heldObjectPath = `quarantine/${ownerUid}/${heldMediaId}`;
+  const original = bucket.file(objectPath);
+  const preview = bucket.file(previewPath);
+  const heldOriginal = bucket.file(heldObjectPath);
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const heldAssetRef = db.collection("mediaAssets").doc(heldMediaId);
+  const storyRef = db.collection("stories").doc(`sticker-sweep-story-${suffix}`);
+  const expiredAt = Timestamp.fromMillis(Date.now() - 2 * 60 * 60 * 1000);
+  const expiredStory = {
+    ownerUid, mediaId: "sticker-sweep-story-media", status: "active",
+    createdAt: expiredAt, expiresAt: expiredAt,
+  };
+
+  await Promise.all([
+    original.save(Buffer.from("expired sticker asset"), { resumable: false }),
+    preview.save(Buffer.from("expired sticker preview"), { resumable: false }),
+    heldOriginal.save(Buffer.from("held sticker asset"), { resumable: false }),
+    storyRef.set(expiredStory),
+    assetRef.set({
+      mediaId, ownerUid, uploaderType: "owner", mediaPurpose: "sticker",
+      objectPath, safePreviewPath: previewPath, status: "security_approved",
+      retentionPolicyStatus: "one_hour_sticker_asset",
+      retentionExpiresAt: expiredAt, createdAt: expiredAt,
+      legalHoldStatus: "none",
+    }),
+    heldAssetRef.set({
+      mediaId: heldMediaId, ownerUid, uploaderType: "owner", mediaPurpose: "sticker",
+      objectPath: heldObjectPath, status: "security_approved",
+      retentionPolicyStatus: "one_hour_sticker_asset",
+      retentionExpiresAt: expiredAt, createdAt: expiredAt,
+      legalHoldStatus: "active", activeLegalHoldId: "test-sticker-hold",
+    }),
+  ]);
+
+  try {
+    const generalSweep = await runChatMediaRetentionSweep();
+    assert.equal(generalSweep.failures, 0);
+    assert.equal((await assetRef.get()).data().status, "security_approved");
+    assert.equal((await heldAssetRef.get()).data().status, "security_approved");
+    assert.equal((await original.exists())[0], true);
+    assert.equal((await preview.exists())[0], true);
+    assert.equal((await heldOriginal.exists())[0], true);
+
+    // A purpose-scoped sticker sweep must not remove expired story documents.
+    await storyRef.set(expiredStory);
+    const stickerSweep = await runStickerMediaRetentionSweep();
+    assert.equal(stickerSweep.failures, 0);
+    assert.equal((await assetRef.get()).data().status, "self_destructed");
+    assert.equal((await assetRef.get()).data().retentionPolicyStatus, "one_hour_sticker_asset_deleted");
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+    assert.equal((await heldAssetRef.get()).data().status, "security_approved");
+    assert.equal((await heldOriginal.exists())[0], true);
+    assert.equal((await storyRef.get()).exists, true);
+
+    const audit = await db.collection("mediaAccessAudit").where("mediaId", "==", mediaId).get();
+    assert.ok(audit.docs.some((doc) =>
+      doc.data().action === "sticker_asset_expired_deleted" && doc.data().outcome === "success"));
+
+    // Releasing a legal hold allows the next hourly sweep to complete deletion.
+    await heldAssetRef.update({ legalHoldStatus: "released" });
+    const afterHoldRelease = await runStickerMediaRetentionSweep();
+    assert.equal(afterHoldRelease.failures, 0);
+    assert.equal((await heldAssetRef.get()).data().status, "self_destructed");
+    assert.equal((await heldOriginal.exists())[0], false);
+
+    // A late scanner/upload replay must be removed by tombstone reconciliation.
+    await Promise.all([
+      original.save(Buffer.from("late sticker replay"), { resumable: false }),
+      preview.save(Buffer.from("late sticker preview replay"), { resumable: false }),
+    ]);
+    await assetRef.update({ retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000) });
+    const reconciled = await runStickerMediaRetentionSweep();
+    assert.equal(reconciled.failures, 0);
+    assert.equal((await original.exists())[0], false);
+    assert.equal((await preview.exists())[0], false);
+  } finally {
+    await Promise.all([
+      assetRef.delete().catch(() => undefined),
+      heldAssetRef.delete().catch(() => undefined),
+      storyRef.delete().catch(() => undefined),
+      original.delete({ ignoreNotFound: true }).catch(() => undefined),
+      preview.delete({ ignoreNotFound: true }).catch(() => undefined),
+      heldOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
+    ]);
+  }
+});
+

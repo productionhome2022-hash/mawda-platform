@@ -40,6 +40,9 @@ const {
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
   createMediaScanVerdictHandler,
+  saveStickerPack,
+  getStickerAssetUrl,
+  sendStickerMessage,
 } = require("../../lib/media");
 
 const { createMemberStory, listMemberStories, placeMediaLegalHold, getRoomMessages } = require("../../lib/index");
@@ -1426,4 +1429,56 @@ test("Media Saver requires an active owner-issued entitlement on every request a
       ),
     ]);
   }
+});
+
+
+test("sticker upload receives a server-owned one-hour retention deadline while unimplemented delivery stays fail-closed", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const ownerUid = `sticker-owner-retention-${randomUUID()}`;
+  const memberUid = `sticker-member-gate-${randomUUID()}`;
+  const bytes = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a,0x00,0x00,0x00,0x00]);
+  const intent = await createMediaUploadIntent.run({
+    data: {
+      originalName: "sticker.png", contentType: "image/png",
+      sizeBytes: bytes.length, purpose: "sticker",
+    },
+    auth: ownerRequest(ownerUid).auth,
+  });
+  const assetRef = db.collection("mediaAssets").doc(intent.mediaId);
+  const before = await assetRef.get();
+  assert.equal(before.data().retentionPolicyStatus, "one_hour_sticker_asset");
+  assert.equal(before.data().retentionExpiresAt, null);
+  const file = getStorage().bucket().file(before.data().objectPath);
+  await file.save(bytes, { metadata: { contentType: "image/png" } });
+  const accepted = await finalizeMediaUpload.run({
+    data: { mediaId: intent.mediaId },
+    auth: ownerRequest(ownerUid).auth,
+  });
+  assert.equal(accepted.status, "pending_security_scan");
+  const after = await assetRef.get();
+  assert.ok(after.data().retentionExpiresAt instanceof Timestamp);
+  assert.ok(after.data().retentionExpiresAt.toMillis() >= Date.now() + 59 * 60 * 1000);
+  assert.ok(after.data().retentionExpiresAt.toMillis() <= Date.now() + 60 * 60 * 1000 + 5000);
+
+  await assert.rejects(
+    () => saveStickerPack.run(ownerRequest(ownerUid, {
+      packId: "retention-gated-pack", title: "Retention gated",
+      status: "published", stickers: [],
+    })),
+    (error) => error && error.code === "failed-precondition",
+  );
+  await assert.rejects(
+    () => getStickerAssetUrl.run(memberRequest(memberUid)),
+    (error) => error && error.code === "failed-precondition",
+  );
+  await assert.rejects(
+    () => sendStickerMessage.run(memberRequest(memberUid)),
+    (error) => error && error.code === "failed-precondition",
+  );
+
+  await Promise.all([
+    assetRef.delete().catch(() => undefined),
+    db.collection("mediaUploadQuotas").doc(ownerUid).delete().catch(() => undefined),
+    file.delete({ ignoreNotFound: true }).catch(() => undefined),
+  ]);
 });

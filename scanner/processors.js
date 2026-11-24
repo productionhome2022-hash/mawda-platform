@@ -135,10 +135,42 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "animation.gif", contentType: "image/gif",
-    pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: LIMITS.gif.maxBytes,
+    pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: request.purpose === "sticker" ? 512 * 1024 : LIMITS.gif.maxBytes,
   });
   return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
 }
+
+async function inspectStickerMedia({ sourcePath, contentType }) {
+  const stat = await fs.stat(sourcePath);
+  if (!stat.isFile() || stat.size < 1) throw new Error("STICKER_SOURCE_INVALID");
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v", "error", "-count_frames", "-select_streams", "v:0",
+    "-show_entries", "format=duration:stream=width,height,nb_read_frames",
+    "-of", "json", sourcePath,
+  ], { timeout: 15_000, maxBuffer: 64 * 1024 });
+  const result = JSON.parse(stdout);
+  const stream = Array.isArray(result.streams) ? result.streams[0] : null;
+  const width = Number(stream && stream.width);
+  const height = Number(stream && stream.height);
+  const frames = Number(stream && stream.nb_read_frames);
+  if (!Number.isSafeInteger(width) || width < 1 || width > 512 ||
+      !Number.isSafeInteger(height) || height < 1 || height > 512 ||
+      !Number.isSafeInteger(frames) || frames < 1 || frames > 50) {
+    throw new Error("STICKER_DIMENSIONS_OR_FRAMES_INVALID");
+  }
+  if (contentType === "image/gif") {
+    const durationMs = Math.round(Number(result.format && result.format.duration) * 1000);
+    if (!Number.isSafeInteger(durationMs) || durationMs < 1 || durationMs > 5000 ||
+        stat.size > 512 * 1024) throw new Error("STICKER_ANIMATION_LIMIT_EXCEEDED");
+    return { kind: "animated", contentType, width, height, sizeBytes: stat.size, durationMs, frameCount: frames };
+  }
+  if (!["image/png", "image/webp"].includes(contentType) ||
+      frames !== 1 || stat.size > 256 * 1024) {
+    throw new Error("STICKER_STATIC_LIMIT_EXCEEDED");
+  }
+  return { kind: "static", contentType, width, height, sizeBytes: stat.size };
+}
+
 
 function audioDurationLimitForPurpose(purpose) {
   if (purpose === "room" || purpose === "chat" || purpose === "biometric") return 60;
@@ -240,4 +272,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+module.exports = { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath, probeMedia, probeGif, inspectStickerMedia, processSafeDerivative };

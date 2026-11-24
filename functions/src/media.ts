@@ -9,6 +9,7 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } from "./media-derivative-contract";
+import { validateStickerMediaMetadata, validateStickerPackManifest } from "./sticker-policy";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -423,6 +424,13 @@ export function createMediaScanVerdictHandler(
       response.status(409).send("Safe preview metadata mismatch");
       return;
     }
+    const previewSizeBytes = Number(previewMetadata.size);
+    const previewMaxBytes = asset.mediaPurpose === "sticker" ? 256 * 1024 : 2 * 1024 * 1024;
+    if (!Number.isSafeInteger(previewSizeBytes) || previewSizeBytes <= 0 ||
+        previewSizeBytes > previewMaxBytes) {
+      response.status(409).send("Safe preview size exceeds its purpose limit");
+      return;
+    }
     const previewHash = await sha256Object(previewFile);
     if (previewHash !== verdict.safePreviewSha256) {
       response.status(409).send("Safe preview hash mismatch");
@@ -433,7 +441,7 @@ export function createMediaScanVerdictHandler(
       generation: verdict.safePreviewGeneration!,
       sha256: previewHash,
       contentType: "image/webp",
-      sizeBytes: Number(previewMetadata.size),
+      sizeBytes: previewSizeBytes,
     };
   }
   let safeNonImageDerivative: {
@@ -468,7 +476,8 @@ export function createMediaScanVerdictHandler(
     const sizeBytes = Number(derivativeMetadata.size);
     if (String(derivativeMetadata.generation) !== derivative.generation ||
         derivativeMetadata.contentType !== derivative.contentType ||
-        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > expected.maxBytes ||
+        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 ||
+        sizeBytes > (asset.mediaPurpose === "sticker" ? 512 * 1024 : expected.maxBytes) ||
         custom?.mediaId !== verdict.mediaId ||
         custom?.sourceGeneration !== verdict.objectGeneration ||
         custom?.sourceSha256 !== verdict.sha256 ||
@@ -498,6 +507,7 @@ export function createMediaScanVerdictHandler(
     transaction.update(assetRef, {
       status: nextStatus,
       scannerEngine: verdict.scanEngine,
+      ...(verdict.stickerMetadata ? { stickerMetadata: verdict.stickerMetadata } : {}),
       scannerEngineVersion: verdict.engineVersion,
       scannerSignatureDatabaseVersion: verdict.signatureDatabaseVersion,
       scannerSignatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
@@ -1449,7 +1459,9 @@ export const createMediaUploadIntent = onCall(async (request) => {
             ? "delete_at_story_expiry"
             : input.purpose === "avatar_cover"
               ? "thirty_day_avatar_cover"
-              : "owner_approval_required",
+              : input.purpose === "sticker"
+                ? "one_hour_sticker_asset"
+                : "owner_approval_required",
       ...(input.purpose === "story" && input.storyExpiresAtMs !== undefined ? {
         storyExpiresAt: Timestamp.fromMillis(input.storyExpiresAtMs),
       } : {}),
@@ -1605,6 +1617,9 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : asset.mediaPurpose === "avatar_cover" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      } : asset.mediaPurpose === "sticker" ? {
+        mediaUploadedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -2247,3 +2262,120 @@ export const ownerMediaPreview = onRequest(
 // Backward-compatible callable names; both routes enforce the same typed safe-derivative contract.
 export const sendChatMediaAttachment = sendChatImageAttachment;
 export const getChatMediaAttachmentUrl = getChatImageAttachmentUrl;
+
+export const saveStickerPack = onCall(async (request) => {
+  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_sticker_pack_save_attempt");
+  const data = request.data ?? {};
+  const allowedRoot = new Set(["packId", "title", "description", "sortOrder", "status", "stickers"]);
+  if (Object.keys(data).some((key) => !allowedRoot.has(key))) {
+    throw new HttpsError("invalid-argument", "حقول حزمة الملصقات غير مدعومة.");
+  }
+  const status = data.status === "draft" ? "draft" : "";
+  if (!status) throw new HttpsError("failed-precondition", "نشر الملصقات معطل حتى اكتمال تنفيذ دورة الاحتفاظ والتنظيف والتحقق منها.");
+  if (data.sortOrder !== undefined &&
+      (!Number.isSafeInteger(data.sortOrder) || data.sortOrder < 0 || data.sortOrder > 100000)) {
+    throw new HttpsError("invalid-argument", "ترتيب الحزمة غير صالح.");
+  }
+  if (!Array.isArray(data.stickers)) {
+    throw new HttpsError("invalid-argument", "قائمة الملصقات غير صالحة.");
+  }
+  const allowedStickerFields = new Set([
+    "stickerId", "assetId", "kind", "contentType", "width", "height",
+    "sizeBytes", "durationMs", "frameCount",
+  ]);
+  for (const item of data.stickers) {
+    if (!item || typeof item !== "object" || Array.isArray(item) ||
+        Object.keys(item).some((key) => !allowedStickerFields.has(key))) {
+      throw new HttpsError("invalid-argument", "تحتوي الحزمة على حقول ملصق غير مدعومة.");
+    }
+    if (typeof (item as Record<string, unknown>).assetId !== "string" ||
+        !/^[0-9a-f-]{36}$/i.test((item as Record<string, string>).assetId)) {
+      throw new HttpsError("invalid-argument", "معرف أصل الملصق غير صالح.");
+    }
+  }
+  let manifest: ReturnType<typeof validateStickerPackManifest>;
+  try { manifest = validateStickerPackManifest(data); } catch (error) {
+    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحزمة غير صالحة.");
+  }
+  const assetIds: string[] = data.stickers.map((item: Record<string, unknown>) => String(item.assetId));
+  if (new Set(assetIds).size !== assetIds.length) {
+    throw new HttpsError("invalid-argument", "لا يمكن تكرار أصل الملصق داخل الحزمة.");
+  }
+  const packRef = mediaDb().collection("stickerPacks").doc(manifest.packId);
+  await mediaDb().runTransaction(async (transaction) => {
+    const [packSnapshot, ...assetSnapshots] = await Promise.all([
+      transaction.get(packRef),
+      ...assetIds.map((id: string) => transaction.get(mediaDb().collection("mediaAssets").doc(id))),
+    ]);
+    const persistedStickers = manifest.stickers.map((sticker, index) => {
+      const assetSnapshot = assetSnapshots[index];
+      const asset = assetSnapshot.data();
+      if (!assetSnapshot.exists || !asset ||
+          asset.ownerUid !== actorUid || asset.uploaderRole !== "platform_owner" ||
+          asset.mediaPurpose !== "sticker" || asset.status !== "security_approved" ||
+          asset.scannerVerdict !== "clean") {
+        throw new HttpsError("failed-precondition", "يوجد أصل ملصق لم يجتز الفحص أو لا يخص جلسة المالك.");
+      }
+      let scanned: ReturnType<typeof validateStickerMediaMetadata>;
+      try { scanned = validateStickerMediaMetadata(asset.stickerMetadata); } catch {
+        throw new HttpsError("failed-precondition", "بيانات أصل الملصق المفحوص غير صالحة.");
+      }
+      if (scanned.kind !== sticker.kind || scanned.contentType !== sticker.contentType ||
+          scanned.width !== sticker.width || scanned.height !== sticker.height ||
+          scanned.sizeBytes !== sticker.sizeBytes ||
+          (scanned.kind === "animated" &&
+            (scanned.durationMs !== sticker.durationMs || scanned.frameCount !== sticker.frameCount))) {
+        throw new HttpsError("failed-precondition", "بيانات الحزمة لا تطابق نتائج فحص أحد الأصول.");
+      }
+      const derivativeReady = scanned.kind === "animated"
+        ? asset.processingStatus === "safe_animation_derivative_ready" &&
+          asset.safeAnimationPath === `processed/${actorUid}/${assetSnapshot.id}/animation.gif`
+        : asset.processingStatus === "safe_raster_derivative_ready" &&
+          asset.safePreviewPath === `processed/${actorUid}/${assetSnapshot.id}/preview.webp`;
+      if (!derivativeReady) {
+        throw new HttpsError("failed-precondition", "النسخة الآمنة لأحد الملصقات لم تجهز.");
+      }
+      return { ...sticker, assetId: assetSnapshot.id, scanStatus: "clean" as const };
+    });
+    transaction.set(packRef, {
+      packId: manifest.packId,
+      title: manifest.title,
+      ...(manifest.description !== undefined ? { description: manifest.description } : {}),
+      sortOrder: data.sortOrder ?? 0,
+      stickers: persistedStickers,
+      status,
+      approved: false,
+      approvedByUid: null,
+      approvedAt: null,
+      updatedByUid: actorUid,
+      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: packSnapshot.exists ? packSnapshot.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
+      actorUid, action: "owner_sticker_pack_saved", outcome: "success",
+      packId: manifest.packId, status, stickerCount: persistedStickers.length,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { packId: manifest.packId, status, stickerCount: manifest.stickers.length };
+});
+
+/**
+ * Atomically sends a reference to an approved shared sticker asset.
+ * Sticker bytes remain in the owner-managed media catalog and are not copied
+ * into a member upload or charged against the sender's media quota.
+ */
+
+
+/** Shared sticker delivery remains unavailable until owner-approved retention is defined. */
+export const getStickerAssetUrl = onCall(async (request) => {
+  requireUid(request.auth?.uid);
+  throw new HttpsError("failed-precondition", "تسليم الملصقات معطل حتى اكتمال دورة الأصل والتحقق منها.");
+});
+
+/** Member sticker sends remain unavailable until the shared-asset lifecycle is approved and verified. */
+export const sendStickerMessage = onCall(async (request) => {
+  requireUid(request.auth?.uid);
+  throw new HttpsError("failed-precondition", "إرسال الملصقات معطل حتى اكتمال دورة الأصل واختباراتها.");
+});
+
