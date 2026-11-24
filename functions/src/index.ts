@@ -9161,6 +9161,9 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
 
 export const startTimedAdvertisement = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  if (request.data?.adType === "featured") {
+    throw new HttpsError("failed-precondition", "الإعلانات المميزة لا تستخدم جلسات الإعلانات العادية.");
+  }
   const campaignId = request.data?.campaignId;
   if (typeof campaignId !== "string" || !/^[A-Za-z0-9_-]{8,80}$/.test(campaignId)) {
     throw new HttpsError("invalid-argument", "معرف الحملة غير صالح.");
@@ -9189,6 +9192,11 @@ export const startTimedAdvertisement = onCall(async (request) => {
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "الحساب غير مؤهل لمشاهدة الإعلانات.");
     }
+    if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const data = campaign.data()!;
+    if (data.adType === "featured") {
+      throw new HttpsError("failed-precondition", "الإعلانات المميزة لا تستخدم جلسات الإعلانات العادية.");
+    }
     if (active.exists) {
       const activeSession = await transaction.get(db.collection("timedAdSessions").doc(String(active.data()?.sessionId ?? "")));
       if (activeSession.exists &&
@@ -9216,11 +9224,6 @@ export const startTimedAdvertisement = onCall(async (request) => {
           expiredAt: FieldValue.serverTimestamp(),
         });
       }
-    }
-    if (!campaign.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
-    const data = campaign.data()!;
-    if (data.adType === "featured" || request.data?.adType === "featured") {
-      throw new HttpsError("failed-precondition", "الإعلانات المميزة لا تستخدم جلسات الإعلانات العادية.");
     }
     const requestedAdType = request.data?.adType;
     if (data.adType !== undefined && requestedAdType !== data.adType) {
