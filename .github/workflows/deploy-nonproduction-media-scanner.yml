@@ -45,6 +45,8 @@ permissions:
 
 jobs:
   deploy:
+    # Disabled: consolidation validation must remain inside GitHub with no cloud deployment.
+    if: false
     name: Build, deploy and connect scanner in non-production
     runs-on: ubuntu-latest
     timeout-minutes: 45
