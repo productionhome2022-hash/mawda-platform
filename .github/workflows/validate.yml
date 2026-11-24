@@ -85,6 +85,8 @@ jobs:
         run: npm run test:coin-package-gifts-integration
       - name: Run featured advertising financial integration tests
         run: npm run test:featured-ad-finance-integration
+      - name: Run featured-ad owner policy authorization, versioning and audit integration tests
+        run: npm run test:featured-ad-reward-policy-integration
       - name: Run engagement and timed-ad reward integration tests
         run: npm run test:engagement-rewards-integration
       - name: Run biometric evidence, Super Owner authorization, reward and concurrency integration tests
@@ -255,6 +257,9 @@ jobs:
       - name: Run featured-ad financial event and replay integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:featured-ad-finance-integration
+      - name: Run featured-ad owner policy authorization, versioning and audit integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:featured-ad-reward-policy-integration
       - name: Run room rental pricing and lifecycle integration tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:room-rental-integration
