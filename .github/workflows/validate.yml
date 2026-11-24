@@ -81,6 +81,12 @@ jobs:
           java-version: "21"
       - name: Run media callable authorization and audit integration tests
         run: npm run test:media-integration
+      - name: Run coin package gifting integration tests
+        run: npm run test:coin-package-gifts-integration
+      - name: Run featured advertising financial integration tests
+        run: npm run test:featured-ad-finance-integration
+      - name: Run engagement and timed-ad reward integration tests
+        run: npm run test:engagement-rewards-integration
       - name: Run biometric evidence, Super Owner authorization, reward and concurrency integration tests
         run: npm run test:biometric-integration
 

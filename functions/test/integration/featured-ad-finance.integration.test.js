@@ -82,6 +82,13 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
       externalReference: `bank_receipt_1_${tag}`,
       amountMinor: 10000, currency: "EUR",
     };
+    const originalCampaignVersion = (await campaignVersionRef.doc("2").get()).data();
+    await campaignVersionRef.doc("2").update({ title: "Tampered campaign snapshot" });
+    await assert.rejects(
+      () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),
+      (error) => error && error.code === "failed-precondition",
+    );
+    await campaignVersionRef.doc("2").set(originalCampaignVersion);
     const first = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(first.idempotentReplay, false);
     assert.equal(first.snapshot.receivedMinor, 10000);
@@ -91,6 +98,14 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     assert.equal(firstEvent.reconciledMinor, 0);
     assert.equal(firstEvent.reviewStatus, "in_review");
     assert.equal(firstEvent.paymentStatus, "paid");
+    const expectedCampaignVersionPath = `timedAdCampaignVersions/${campaignId}/versions/2`;
+    assert.equal(firstEvent.campaignVersion, 2);
+    assert.equal(firstEvent.campaignVersionPath, expectedCampaignVersionPath);
+    assert.equal(firstEvent.financialSnapshot.version, first.version);
+    assert.equal(firstEvent.financialSnapshot.currency, "EUR");
+    assert.equal(firstEvent.financialSnapshot.receivedMinor, 10000);
+    assert.equal(firstEvent.financialSnapshot.campaignVersion, 2);
+    assert.equal(firstEvent.financialSnapshot.campaignVersionPath, expectedCampaignVersionPath);
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await campaignRef.get()).data().status, "draft");
@@ -98,6 +113,10 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     const paymentVersionRef = versionRef.doc(String(first.version));
     const savedPaymentAudit = (await paymentAuditRef.get()).data();
     const savedPaymentVersion = (await paymentVersionRef.get()).data();
+    assert.equal(savedPaymentAudit.campaignVersion, 2);
+    assert.equal(savedPaymentAudit.campaignVersionPath, expectedCampaignVersionPath);
+    assert.equal(savedPaymentVersion.campaignVersion, 2);
+    assert.equal(savedPaymentVersion.campaignVersionPath, expectedCampaignVersionPath);
     await paymentAuditRef.delete();
     await assert.rejects(
       () => recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment)),

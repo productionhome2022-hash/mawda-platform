@@ -15,7 +15,7 @@ import {
 } from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
-import { getAuth } from "firebase-admin/auth";
+import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
 import { validateMemberProfile } from "./member-profile";
@@ -109,7 +109,7 @@ import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, c
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
 import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
-import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification } from "./coin-purchase-requests";
+import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification, coinGiftPackageTermsMatch, coinGiftApprovalReplayMatches } from "./coin-purchase-requests";
 import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
@@ -7634,37 +7634,90 @@ export const getAvailableCoinPackages = onCall(async () => {
 /** Member requests a fixed package or a negotiated custom coin quantity. No coins are issued here. */
 export const createCoinPurchaseRequest = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  if (firebaseIdentity && typeof firebaseIdentity === "object" &&
+      (firebaseIdentity as Record<string, unknown>).sign_in_provider === "anonymous") {
+    throw new HttpsError("permission-denied", "شراء باقات BetaCoins وإهداؤها متاح للأعضاء المسجلين فقط.");
+  }
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
-  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الكوينز غير صالحة."); }
+  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الBetaCoins غير صالحة."); }
   const userRef = db.collection("users").doc(uid);
+  const giftRecipientUid = input.giftRecipientUid;
+  if (giftRecipientUid === uid) throw new HttpsError("failed-precondition", "لا يمكن إهداء باقة إلى حسابك نفسه.");
+  const recipientRef = giftRecipientUid ? db.collection("users").doc(giftRecipientUid) : null;
+  const guestProfileRef = giftRecipientUid ? db.collection("guestProfiles").doc(giftRecipientUid) : null;
+  const guestSessionRef = giftRecipientUid ? db.collection("guestSessions").doc(giftRecipientUid) : null;
   const settingsRef = db.doc("platformSettings/economyPricing");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${uid}_${input.requestId}`);
+  // Existing request retries must not depend on the recipient's current Auth state.
+  const existingPreflight = await requestRef.get();
+  if (!existingPreflight.exists && giftRecipientUid) {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(giftRecipientUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
   const result = await db.runTransaction(async (transaction) => {
-    const [user, settings, existing] = await Promise.all([
-      transaction.get(userRef), transaction.get(settingsRef), transaction.get(requestRef),
+    const [user, settings, existing, recipient, guestProfile, guestSession] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(settingsRef),
+      transaction.get(requestRef),
+      recipientRef ? transaction.get(recipientRef) : Promise.resolve(null),
+      guestProfileRef ? transaction.get(guestProfileRef) : Promise.resolve(null),
+      guestSessionRef ? transaction.get(guestSessionRef) : Promise.resolve(null),
     ]);
     if (!user.exists || user.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(user.data())) {
       throw new HttpsError("permission-denied", "يجب أن يكون حساب العضو مكتملاً ونشطاً.");
     }
+    if (existing.exists) {
+      const prior = existing.data() ?? {};
+      const sameRequest = prior.requesterUid === uid &&
+        prior.kind === input.kind &&
+        prior.packageId === (input.packageId ?? null) &&
+        (input.kind === "custom" ? prior.requestedCoins === input.requestedCoins : true) &&
+        (prior.giftRecipientUid ?? null) === (giftRecipientUid ?? null);
+      if (!sameRequest) {
+        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
+      }
+      // The request already owns its immutable package and payment-policy snapshot.
+      // A current catalogue/policy change must not invalidate an exact retry.
+      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
+    }
+    if (giftRecipientUid) {
+      const recipientData = recipient?.data();
+      if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
+          recipientData?.profileCompleted !== true ||
+          guestProfile?.exists || guestSession?.exists) {
+        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
+      }
+    }
     const economy = settings.data() ?? {};
-    const paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
-      manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
-      manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
-    });
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ أوقفنا إنشاء الطلب حتى مراجعتها.");
+    }
     if (!settings.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
         paymentPolicy.coin_purchases.automatedEnabled !== false ||
         economy.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(economy.version) ||
-        economy.version < 1) {
-      throw new HttpsError("failed-precondition", "سياسة الشراء اليدوي غير مهيأة أو غير فعالة؛ لم ننشئ طلباً مالياً.");
+        economy.version < 1 || !Array.isArray(economy.coinPackages)) {
+      throw new HttpsError("failed-precondition", "لم يعتمد المالك باقات الشراء اليدوي أو أن الطلبات متوقفة حالياً.");
     }
     let packageSnapshot: Record<string, unknown> | null = null;
     let requestedCoins: number | null = null;
     if (input.kind === "package") {
       let packages;
       try { packages = validateCoinPackages(economy.coinPackages); }
-      catch { throw new HttpsError("failed-precondition", "قائمة باقات الكوينز غير صالحة."); }
+      catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
@@ -7681,29 +7734,23 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       }
       requestedCoins = input.requestedCoins;
     }
-    if (existing.exists) {
-      const prior = existing.data() ?? {};
-      if (prior.requesterUid !== uid || prior.kind !== input.kind ||
-          prior.packageId !== (input.packageId ?? null) ||
-          prior.requestedCoins !== requestedCoins) {
-        throw new HttpsError("already-exists", "معرف الطلب مستخدم لطلب مختلف.");
-      }
-      return { requestId: input.requestId, status: prior.status, idempotentReplay: true };
-    }
     transaction.create(requestRef, {
       requestId: input.requestId, requesterUid: uid, kind: input.kind,
       packageId: input.packageId ?? null, packageSnapshot,
+      giftRecipientUid: giftRecipientUid ?? null,
       requestedCoins, pricingPolicyVersion: economy.version,
       pricingPolicyPath: `platformSettings/economyPricingVersions/versions/${economy.version}`,
       status: "pending_owner_contact",
-      paymentChannel: "manual_owner_contact", currency: packageSnapshot?.currency ?? economy.currency ?? null,
-      currencyExponent: packageSnapshot?.currencyExponent ?? null,
+      paymentChannel: "manual_owner_contact",
       paymentPolicySnapshot: {
         service: "coin_purchases",
         manualEnabled: paymentPolicy.coin_purchases.manualEnabled,
         automatedEnabled: paymentPolicy.coin_purchases.automatedEnabled,
         policyVersion: economy.version, pricingPolicyVersion: economy.version,
+        capturedAt: FieldValue.serverTimestamp(),
       },
+      currency: packageSnapshot?.currency ?? null,
+      currencyExponent: packageSnapshot?.currencyExponent ?? null,
       createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
     });
     return { requestId: input.requestId, status: "pending_owner_contact", idempotentReplay: false };
@@ -7761,6 +7808,11 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const prior = snapshot.data()!;
+    if (prior.giftRecipientUid) {
+      if (!coinGiftPackageTermsMatch(prior.packageSnapshot, input)) {
+        throw new HttpsError("failed-precondition", "لا يمكن تغيير كمية أو سعر الباقة المحددة كهدية؛ يجب اعتماد شروط الباقة التي اختارها المرسل.");
+      }
+    }
     if (prior.status !== "pending_owner_contact") {
       throw new HttpsError("failed-precondition", "تعليمات الدفع المرسلة لا تُعدّل؛ إذا لزم تصحيح الاتفاق فأغلق الطلب وافتح طلباً جديداً.");
     }
@@ -7930,24 +7982,71 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
   if (typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
       requesterUid === actorUid) throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
   const requestRef = db.collection("coinPurchaseRequests").doc(`${requesterUid}_${input.requestId}`);
-  const userRef = db.collection("users").doc(requesterUid);
-  const ledgerId = `coin_purchase_${input.requestId}`;
-  const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
   const auditRef = db.collection("adminAuditLogs").doc(`coin_purchase_approval_${requesterUid}_${input.requestId}`);
-  return db.runTransaction(async (transaction) => {
-    const [purchase, user, ledger, approvalAudit] = await Promise.all([
-      transaction.get(requestRef), transaction.get(userRef), transaction.get(ledgerRef),
-      transaction.get(auditRef),
-    ]);
+  const preflightPurchase = await requestRef.get();
+  if (!preflightPurchase.exists || preflightPurchase.data()?.requesterUid !== requesterUid) {
+    throw new HttpsError("not-found", "طلب الشراء غير موجود.");
+  }
+  const preflightTargetUid = typeof preflightPurchase.data()?.giftRecipientUid === "string"
+    ? preflightPurchase.data()!.giftRecipientUid as string : requesterUid;
+  if (preflightTargetUid !== requesterUid && preflightPurchase.data()?.status !== "approved") {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(preflightTargetUid); }
+    catch { throw new HttpsError("permission-denied", "تعذر التحقق من حساب مستلم الباقة."); }
+    if (recipientAuth.disabled || !recipientAuth.providerData.length ||
+        recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+      throw new HttpsError("permission-denied", "حساب الزائر لا يمكنه استلام باقة مهداة.");
+    }
+  }
+  let notifyRecipientUid: string | null = null;
+  const result = await db.runTransaction(async (transaction) => {
+    const purchase = await transaction.get(requestRef);
     if (!purchase.exists || purchase.data()?.requesterUid !== requesterUid) {
       throw new HttpsError("not-found", "طلب الشراء غير موجود.");
     }
     const data = purchase.data()!;
+    const targetUid = typeof data.giftRecipientUid === "string" ? data.giftRecipientUid : requesterUid;
+    if (targetUid !== preflightTargetUid) throw new HttpsError("aborted", "تغير مستلم طلب الباقة؛ أعد المحاولة.");
+    if (targetUid === actorUid || targetUid === requesterUid && data.giftRecipientUid) {
+      throw new HttpsError("failed-precondition", "مستلم باقة الهدية غير صالح.");
+    }
+    const userRef = db.collection("users").doc(targetUid);
+    const ledgerId = `coin_purchase_${input.requestId}`;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const giftRef = db.collection("coinPackageGifts").doc(`${requesterUid}_${input.requestId}`);
+    const historyRef = userRef.collection("coinPackageGiftHistory").doc(input.requestId);
+    const notificationRef = userRef.collection("notifications").doc(`coin_package_gift_${input.requestId}`);
+    const [user, ledger, approvalAudit, guestProfile, guestSession, gift, history, notification] = await Promise.all([
+      transaction.get(userRef),
+      transaction.get(ledgerRef),
+      transaction.get(auditRef),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestProfiles").doc(targetUid))
+        : Promise.resolve(null),
+      data.giftRecipientUid
+        ? transaction.get(db.collection("guestSessions").doc(targetUid))
+        : Promise.resolve(null),
+      data.giftRecipientUid ? transaction.get(giftRef) : Promise.resolve(null),
+      data.giftRecipientUid ? transaction.get(historyRef) : Promise.resolve(null),
+      data.giftRecipientUid ? transaction.get(notificationRef) : Promise.resolve(null),
+    ]);
+    if (data.paymentChannel !== "manual_owner_contact" ||
+        data.paymentPolicySnapshot?.service !== "coin_purchases" ||
+        data.paymentPolicySnapshot?.manualEnabled !== true ||
+        data.paymentPolicySnapshot?.automatedEnabled !== false ||
+        data.paymentPolicySnapshot?.policyVersion !== data.pricingPolicyVersion) {
+      throw new HttpsError("failed-precondition", "لقطة طلب الشراء لا تسمح بالاعتماد عبر المسار اليدوي.");
+    }
     if (data.status === "approved") {
+      const expectedLedgerType = data.giftRecipientUid
+        ? "coin_package_gift_credit" : "coin_purchase_manual_credit";
       const ledgerData = ledger.data() ?? {};
       const auditData = approvalAudit.data() ?? {};
+      const expectedAuditAction = data.giftRecipientUid
+        ? "coin_package_gift_manually_verified_and_approved"
+        : "coin_purchase_manually_verified_and_approved";
       if (!ledger.exists || !approvalAudit.exists ||
-          ledgerData.type !== "coin_purchase_manual_credit" ||
+          ledgerData.type !== expectedLedgerType ||
           ledgerData.amount !== data.creditedCoins ||
           ledgerData.purchaseRequestId !== input.requestId ||
           ledgerData.externalPaymentReference !== input.externalPaymentReference ||
@@ -7959,17 +8058,21 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           ledgerData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           ledgerData.instructionsVersion !== data.instructionsVersion ||
           ledgerData.actorUid !== data.verifiedBy ||
+          ledgerData.purchaserUid !== requesterUid ||
+          ledgerData.giftedByUid !== (data.giftRecipientUid ? requesterUid : null) ||
           !Number.isSafeInteger(ledgerData.balanceBefore) ||
           !Number.isSafeInteger(ledgerData.balanceAfter) ||
           ledgerData.balanceBefore < 0 ||
           ledgerData.balanceAfter !== ledgerData.balanceBefore + ledgerData.amount ||
           data.externalPaymentVerified !== true ||
           data.externalPaymentReference !== input.externalPaymentReference ||
+          data.creditedToUid !== targetUid ||
           !Number.isSafeInteger(data.creditedCoins) || data.creditedCoins < 1 ||
-          auditData.action !== "coin_purchase_manually_verified_and_approved" ||
+          auditData.action !== expectedAuditAction ||
           auditData.actorUid !== data.verifiedBy ||
-          auditData.targetUid !== requesterUid ||
           auditData.requestId !== input.requestId ||
+          auditData.purchaserUid !== requesterUid ||
+          auditData.targetUid !== targetUid ||
           auditData.externalPaymentReference !== input.externalPaymentReference ||
           auditData.creditedCoins !== data.creditedCoins ||
           auditData.priceMinor !== data.agreedPriceMinor ||
@@ -7979,62 +8082,81 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
           auditData.paymentPolicyVersion !== data.paymentPolicySnapshot?.policyVersion ||
           auditData.pricingPolicyVersion !== data.pricingPolicyVersion ||
           auditData.instructionsVersion !== data.instructionsVersion ||
-          auditData.verificationNote !== data.verificationNote) {
-        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وسجل المالك؛ يلزم تدقيق مالي.");
+          auditData.verificationNote !== data.verificationNote ||
+          (data.giftRecipientUid && (!gift || !history || !notification ||
+            !coinGiftApprovalReplayMatches(
+            gift.data(), history.data(), notification.data(), {
+              giftId: giftRef.id, notificationId: notificationRef.id,
+              senderUid: requesterUid, recipientUid: targetUid,
+              packageId: String(data.packageId ?? ""),
+              requestId: input.requestId,
+              coins: data.creditedCoins,
+              priceMinor: data.agreedPriceMinor,
+              currency: String(data.currency ?? ""),
+              currencyExponent: data.currencyExponent,
+            },
+          )))) {
+        throw new HttpsError("failed-precondition", "طلب الشراء المعتمد لا يطابق قيد المحفظة وإثبات الدفع؛ يلزم تدقيق السجل.");
       }
-      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null };
-    }
-    if (data.paymentChannel !== "manual_owner_contact" ||
-        data.paymentPolicySnapshot?.service !== "coin_purchases" ||
-        data.paymentPolicySnapshot?.manualEnabled !== true ||
-        data.paymentPolicySnapshot?.automatedEnabled !== false ||
-        data.paymentPolicySnapshot?.policyVersion !== data.pricingPolicyVersion) {
-      throw new HttpsError("failed-precondition", "لقطة الطلب لا تسمح بالاعتماد اليدوي.");
+      return { status: "approved", idempotentReplay: true, newBalance: user.data()?.coins ?? null, creditedToUid: targetUid };
     }
     if (!["payment_instructions_sent", "awaiting_payment_verification"].includes(String(data.status))) {
       throw new HttpsError("failed-precondition", "لا يمكن اعتماد الطلب قبل إرسال تعليمات الدفع.");
     }
-    if (!user.exists || !isMemberAccountInGoodStanding(user.data())) {
-      throw new HttpsError("permission-denied", "حساب العضو غير مؤهل لاستلام BetaCoins.");
+    if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
+        user.data()?.profileCompleted !== true ||
+        (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
+      throw new HttpsError("permission-denied", "حساب مستلم الBetaCoins غير مؤهل.");
     }
-    if (ledger.exists || approvalAudit.exists) {
-      throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
-    }
+
+    if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
     const coins = data.agreedCoins;
-    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000 ||
-        !Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
-        typeof data.currency !== "string" || currencyExponentForCode(data.currency) === null ||
-        data.currencyExponent !== currencyExponentForCode(data.currency) ||
+    if (data.giftRecipientUid && (!data.packageSnapshot ||
+        coins !== data.packageSnapshot.coins ||
+        data.agreedPriceMinor !== data.packageSnapshot.priceMinor ||
+        data.currency !== data.packageSnapshot.currency ||
+        data.currencyExponent !== data.packageSnapshot.currencyExponent)) {
+      throw new HttpsError("failed-precondition", "شروط باقة الهدية تغيرت عن الباقة التي اختارها المرسل.");
+    }
+    if (!Number.isSafeInteger(data.agreedPriceMinor) || data.agreedPriceMinor < 1 ||
+        data.agreedPriceMinor > 100000000 ||
+        currencyExponentForCode(data.currency) === null ||
+        currencyExponentForCode(data.currency) !== data.currencyExponent ||
         !Number.isSafeInteger(data.instructionsVersion) || data.instructionsVersion < 1) {
-      throw new HttpsError("failed-precondition", "الكمية أو السعر أو لقطة تعليمات الدفع غير صالحة.");
+      throw new HttpsError("failed-precondition", "عملة الاتفاق أو دقتها غير صالحة؛ لم يتم اعتماد أي دفعة.");
+    }
+    if (!Number.isSafeInteger(coins) || coins < 1 || coins > 1000000000) {
+      throw new HttpsError("failed-precondition", "الكمية المتفق عليها غير صالحة.");
     }
     const oldBalance = user.data()?.coins ?? 0;
-    if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 ||
-        oldBalance + coins > Number.MAX_SAFE_INTEGER) {
+    if (!Number.isSafeInteger(oldBalance) || oldBalance < 0 || oldBalance + coins > Number.MAX_SAFE_INTEGER) {
       throw new HttpsError("failed-precondition", "رصيد العضو لا يسمح بإتمام العملية.");
     }
     const now = FieldValue.serverTimestamp();
     transaction.update(userRef, { coins: oldBalance + coins, walletUpdatedAt: now });
     transaction.create(ledgerRef, {
-      type: "coin_purchase_manual_credit", amount: coins, balanceBefore: oldBalance,
-      balanceAfter: oldBalance + coins, purchaseRequestId: input.requestId,
-      externalPaymentReference: input.externalPaymentReference,
+      type: data.giftRecipientUid ? "coin_package_gift_credit" : "coin_purchase_manual_credit",
+      amount: coins, balanceBefore: oldBalance, balanceAfter: oldBalance + coins,
+      purchaseRequestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
       currencyExponent: data.currencyExponent,
       paymentPolicySnapshot: data.paymentPolicySnapshot,
       paymentPolicyVersion: data.paymentPolicySnapshot.policyVersion,
       pricingPolicyVersion: data.pricingPolicyVersion,
       instructionsVersion: data.instructionsVersion,
-      actorUid, createdAt: now,
+      actorUid, purchaserUid: requesterUid, giftedByUid: data.giftRecipientUid ? requesterUid : null,
+      createdAt: now,
     });
     transaction.update(requestRef, {
       status: "approved", externalPaymentVerified: true,
       externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, verifiedBy: actorUid,
-      verifiedAt: now, creditedCoins: coins, updatedAt: now,
+      verifiedAt: now, creditedCoins: coins, creditedToUid: targetUid, updatedAt: now,
     });
     transaction.create(auditRef, {
-      actorUid, targetUid: requesterUid, action: "coin_purchase_manually_verified_and_approved",
+      actorUid, targetUid, purchaserUid: requesterUid,
+      action: data.giftRecipientUid ? "coin_package_gift_manually_verified_and_approved" :
+        "coin_purchase_manually_verified_and_approved",
       requestId: input.requestId, externalPaymentReference: input.externalPaymentReference,
       verificationNote: input.verificationNote, creditedCoins: coins,
       priceMinor: data.agreedPriceMinor, currency: data.currency,
@@ -8044,9 +8166,46 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
       pricingPolicyVersion: data.pricingPolicyVersion,
       instructionsVersion: data.instructionsVersion, createdAt: now,
     });
-    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins };
+    if (data.giftRecipientUid) {
+      transaction.create(giftRef, {
+        giftId: giftRef.id, senderUid: requesterUid, recipientUid: targetUid,
+        packageId: data.packageId, packageSnapshot: data.packageSnapshot ?? null,
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.currencyExponent,
+        purchaseRequestId: input.requestId, status: "credited",
+        creditedByOwnerUid: actorUid, createdAt: now,
+      });
+      transaction.create(historyRef, {
+        giftId: giftRef.id, senderUid: requesterUid, packageId: data.packageId,
+        packageName: (data.packageSnapshot as Record<string, unknown> | null)?.name ?? "باقة BetaCoins",
+        coins, priceMinor: data.agreedPriceMinor, currency: data.currency,
+        currencyExponent: data.currencyExponent,
+        purchaseRequestId: input.requestId, createdAt: now,
+      });
+      transaction.create(notificationRef, {
+        notificationId: notificationRef.id, type: "coin_package_gift_received",
+        senderUid: requesterUid, title: "وصلتك هدية BetaCoins",
+        body: `تمت إضافة ${coins} BetaCoins إلى محفظتك كهدية.`,
+        isRead: false, createdAt: now,
+      });
+      notifyRecipientUid = targetUid;
+    }
+    return { status: "approved", idempotentReplay: false, newBalance: oldBalance + coins, creditedToUid: targetUid };
   });
+  if (notifyRecipientUid && !result.idempotentReplay) {
+    try {
+      await sendPushToMember(notifyRecipientUid, "وصلتك هدية BetaCoins",
+        "تمت إضافة باقة BetaCoins إلى محفظتك كهدية.", { type: "coin_package_gift_received" });
+    } catch (error) {
+      logger.warn("Coin package gift push notification failed after committed settlement", {
+        recipientUid: notifyRecipientUid, requestId: input.requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return result;
 });
+
 /** Owner rejection requires a bounded reason and never modifies a wallet. */
 export const rejectCoinPurchaseRequest = onCall(async (request) => {
   const actorUid = requireOwner(request);
@@ -8461,6 +8620,36 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     ]);
     if (!campaign.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
 
+    const campaignData = campaign.data() ?? {};
+    const priorEventData = priorEvent.data() ?? {};
+    const campaignVersion = priorEvent.exists
+      ? priorEventData.campaignVersion : campaignData.version;
+    if (!Number.isSafeInteger(campaignVersion) || campaignVersion < 1) {
+      throw new HttpsError("failed-precondition", "إصدار الحملة الإعلانية غير صالح؛ أوقفنا الحركة المالية.");
+    }
+    const campaignVersionPath = `timedAdCampaignVersions/${event.campaignId}/versions/${campaignVersion}`;
+    const campaignSnapshotRef = db.collection("timedAdCampaignVersions").doc(event.campaignId)
+      .collection("versions").doc(String(campaignVersion));
+    const campaignVersionSnapshot = await transaction.get(campaignSnapshotRef);
+    const campaignVersionData = campaignVersionSnapshot.data() ?? {};
+    if (!campaignVersionSnapshot.exists ||
+        campaignVersionData.campaignId !== event.campaignId ||
+        campaignVersionData.version !== campaignVersion) {
+      throw new HttpsError("failed-precondition", "لقطة إصدار الحملة الإعلانية غير موجودة أو غير مطابقة.");
+    }
+    if (!priorEvent.exists &&
+        (campaignVersion !== campaignData.version ||
+         campaignVersionData.title !== campaignData.title ||
+         campaignVersionData.sponsorLabel !== campaignData.sponsorLabel ||
+         campaignVersionData.placement !== campaignData.placement ||
+         campaignVersionData.durationSeconds !== campaignData.durationSeconds ||
+         campaignVersionData.rewardCoins !== campaignData.rewardCoins ||
+         campaignVersionData.rewardBudgetCoins !== campaignData.rewardBudgetCoins ||
+         campaignVersionData.creativeType !== campaignData.creativeType ||
+         campaignVersionData.mediaId !== campaignData.mediaId)) {
+      throw new HttpsError("failed-precondition", "إعدادات الحملة لا تطابق لقطة الإصدار الحالية.");
+    }
+
     const currentData = financial.data() ?? {};
     const currentVersion = financial.exists ? currentData.version : 0;
     if (financial.exists) {
@@ -8483,6 +8672,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           currentVersionData.reconciledMinor !== currentData.reconciledMinor ||
           currentVersionData.reviewStatus !== currentData.reviewStatus ||
           currentVersionData.paymentStatus !== currentData.paymentStatus ||
+          currentVersionData.campaignVersion !== currentData.campaignVersion ||
+          currentVersionData.campaignVersionPath !== currentData.campaignVersionPath ||
           currentVersionData.currencyExponent !== (currentData.currency === null
             ? null : currencyExponentForCode(currentData.currency))) {
         throw new HttpsError("failed-precondition", "لقطة السجل المالي لا تطابق إصدارها المحفوظ.");
@@ -8497,7 +8688,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
         prior.action === event.action && prior.amountMinor === event.amountMinor &&
         prior.currency === event.currency && prior.externalReference === event.externalReference &&
         prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
-        prior.reviewOutcome === event.reviewOutcome;
+        prior.reviewOutcome === event.reviewOutcome &&
+        prior.campaignVersion === campaignVersion && prior.campaignVersionPath === campaignVersionPath;
       if (!matches || !financial.exists || !audit.exists ||
           !Number.isSafeInteger(prior.snapshotVersion) || prior.snapshotVersion < 1 ||
           currentVersion < prior.snapshotVersion) {
@@ -8508,18 +8700,27 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       const priorVersionSnapshot = await transaction.get(priorVersionRef);
       const priorVersion = priorVersionSnapshot.data() ?? {};
       const auditData = audit.data() ?? {};
+      const priorSnapshot = prior.financialSnapshot ?? {};
       const priorExponent = prior.currency === null ? null : currencyExponentForCode(prior.currency);
       if (!priorVersionSnapshot.exists ||
           priorVersion.version !== prior.snapshotVersion ||
           priorVersion.lastEventId !== eventId ||
-          priorVersion.currency !== prior.currency ||
-          priorVersion.receivedMinor !== prior.receivedMinor ||
-          priorVersion.refundedMinor !== prior.refundedMinor ||
-          priorVersion.reconciledMinor !== prior.reconciledMinor ||
-          priorVersion.reviewStatus !== prior.reviewStatus ||
-          priorVersion.paymentStatus !== prior.paymentStatus ||
+          priorSnapshot.version !== prior.snapshotVersion ||
+          priorVersion.campaignVersion !== campaignVersion ||
+          priorVersion.campaignVersionPath !== campaignVersionPath ||
+          priorSnapshot.campaignVersion !== campaignVersion ||
+          priorSnapshot.campaignVersionPath !== campaignVersionPath ||
+          priorVersion.currency !== priorSnapshot.currency ||
+          priorVersion.receivedMinor !== priorSnapshot.receivedMinor ||
+          priorVersion.refundedMinor !== priorSnapshot.refundedMinor ||
+          priorVersion.reconciledMinor !== priorSnapshot.reconciledMinor ||
+          priorVersion.reviewStatus !== priorSnapshot.reviewStatus ||
+          priorVersion.paymentStatus !== priorSnapshot.paymentStatus ||
           priorVersion.currencyExponent !== priorExponent ||
+          priorSnapshot.currencyExponent !== priorExponent ||
           JSON.stringify(priorVersion.paymentPolicySnapshot ?? null) !==
+            JSON.stringify(priorSnapshot.paymentPolicySnapshot ?? null) ||
+          JSON.stringify(priorSnapshot.paymentPolicySnapshot ?? null) !==
             JSON.stringify(prior.paymentPolicySnapshot ?? null) ||
           prior.currencyExponent !== priorExponent ||
           auditData.actorUid !== actorUid ||
@@ -8532,6 +8733,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
           auditData.currencyExponent !== priorExponent ||
           auditData.externalReference !== event.externalReference ||
           auditData.snapshotVersion !== prior.snapshotVersion ||
+          auditData.campaignVersion !== campaignVersion ||
+          auditData.campaignVersionPath !== campaignVersionPath ||
           JSON.stringify(auditData.paymentPolicySnapshot ?? null) !==
             JSON.stringify(prior.paymentPolicySnapshot ?? null)) {
         throw new HttpsError("failed-precondition", "الحركة المالية لا تطابق نسخة السجل وسجل التدقيق.");
@@ -8586,7 +8789,6 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     if (nextVersionSnapshot.exists) {
       throw new HttpsError("failed-precondition", "إصدار مالي موجود دون مؤشر حالي؛ يلزم التدقيق.");
     }
-    const campaignData = campaign.data() ?? {};
     const pausePublishedFeaturedCampaign = campaignData.adType === "featured" &&
       campaignData.status === "published" &&
       (next.paymentStatus !== "paid" || next.reviewStatus !== "reconciled");
@@ -8605,15 +8807,32 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     transaction.create(versionRef, {
       campaignId: event.campaignId, ...next, version,
       lastEventId: eventId, currencyExponent, paymentPolicySnapshot,
+      campaignVersion, campaignVersionPath,
       createdAt: now, createdBy: actorUid,
     });
     transaction.create(eventRef, {
       ...event, ...next, currencyExponent, paymentPolicySnapshot,
-      eventId, actorUid, snapshotVersion: version, createdAt: now,
+      campaignVersion, campaignVersionPath,
+      eventId, actorUid, snapshotVersion: version,
+      financialSnapshot: {
+        currency: next.currency,
+        receivedMinor: next.receivedMinor,
+        refundedMinor: next.refundedMinor,
+        reconciledMinor: next.reconciledMinor,
+        reviewStatus: next.reviewStatus,
+        paymentStatus: next.paymentStatus,
+        version,
+        currencyExponent,
+        paymentPolicySnapshot,
+        campaignVersion,
+        campaignVersionPath,
+      },
+      createdAt: now,
     });
     transaction.set(financialRef, {
       campaignId: event.campaignId, ...next, version,
-      lastEventId: eventId, updatedAt: now, updatedBy: actorUid,
+      lastEventId: eventId, campaignVersion, campaignVersionPath,
+      updatedAt: now, updatedBy: actorUid,
       createdAt: currentData.createdAt ?? now,
       currentVersionPath: versionRef.path,
     });
@@ -8622,7 +8841,8 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
       campaignId: event.campaignId, eventId, eventType: event.action,
       amountMinor: event.amountMinor, currency: event.currency,
       currencyExponent, externalReference: event.externalReference,
-      paymentPolicySnapshot, snapshotVersion: version, createdAt: now,
+      paymentPolicySnapshot, snapshotVersion: version,
+      campaignVersion, campaignVersionPath, createdAt: now,
     });
     if (pausePublishedFeaturedCampaign && campaignVersionRef) {
       transaction.update(campaignRef, {
@@ -8763,6 +8983,11 @@ const TIMED_AD_GEOGRAPHY_ALIASES: Record<string, string[]> = {
   asia_middle_east: ["آسيا", "الشرق الأوسط", "asia", "middle east", "india", "الهند", "pakistan", "باكستان", "bangladesh", "بنغلاديش", "indonesia", "إندونيسيا", "malaysia", "ماليزيا", "singapore", "سنغافورة", "china", "الصين", "japan", "اليابان", "south korea", "كوريا الجنوبية", "iran", "إيران", "afghanistan", "أفغانستان", "turkey", "تركيا"],
 };
 
+const ARABIC_STANDARD_AD_TARGETS = new Set([
+  "syria", "lebanon_palestine", "iraq_jordan", "gcc",
+  "egypt", "tunisia_libya_sudan", "algeria_morocco",
+]);
+
 function memberMatchesTimedAdGeography(
   user: Record<string, unknown>,
   target: string,
@@ -8788,9 +9013,12 @@ function campaignMatchesTimedAdAudience(
   // must carry an explicit target at validation time.
   if (campaign.adType === undefined && targets.length === 0) return selectedTarget === undefined;
   if (targets.length === 0) return false;
-  const allowedByCampaign = selectedTarget
-    ? targets.includes(selectedTarget) || targets.includes("all_arab_countries")
-    : true;
+  const allowedByCampaign = selectedTarget === "all_arab_countries"
+    ? targets.some((target) =>
+        target === "all_arab_countries" || ARABIC_STANDARD_AD_TARGETS.has(target))
+    : selectedTarget
+      ? targets.includes(selectedTarget) || targets.includes("all_arab_countries")
+      : true;
   if (!allowedByCampaign) return false;
   if (selectedTarget) return memberMatchesTimedAdGeography(user, selectedTarget);
   return targets.some((target) => memberMatchesTimedAdGeography(user, target));
@@ -11620,16 +11848,35 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
       !isMemberAccountInGoodStanding(member.data())) {
     throw new HttpsError("permission-denied", "سجل الهدايا متاح للأعضاء المسجلين النشطين فقط.");
   }
-  const [sent, received] = await Promise.all([
+  const [sent, received, coinPackageReceived] = await Promise.all([
     db.collection("storeGifts").where("senderUid", "==", uid).orderBy("createdAt", "desc").limit(50).get(),
     db.collection("storeGifts").where("recipientUid", "==", uid).orderBy("createdAt", "desc").limit(50).get(),
+    db.collection("users").doc(uid).collection("coinPackageGiftHistory")
+      .orderBy("createdAt", "desc").limit(50).get(),
   ]);
-  const entries = [
+  const storeEntries = [
     ...sent.docs,
     ...received.docs.filter((doc) => !sent.docs.some((sentDoc) => sentDoc.id === doc.id)),
   ].map((doc) => projectStoreGiftHistoryEntry(doc.data(), uid))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+  const packageEntries = coinPackageReceived.docs.map((doc) => {
+    const data = doc.data();
+    const createdAt = data.createdAt;
+    return {
+      giftId: typeof data.giftId === "string" ? data.giftId : doc.id,
+      giftKind: "coin_package",
+      senderUid: typeof data.senderUid === "string" ? data.senderUid : null,
+      recipientUid: uid,
+      packageId: typeof data.packageId === "string" ? data.packageId : null,
+      packageName: typeof data.packageName === "string" ? data.packageName : "باقة BetaCoins",
+      coins: Number.isSafeInteger(data.coins) && data.coins > 0 ? data.coins : 0,
+      priceMinor: Number.isSafeInteger(data.priceMinor) && data.priceMinor > 0 ? data.priceMinor : null,
+      currency: typeof data.currency === "string" ? data.currency : null,
+      createdAtMs: createdAt && typeof createdAt.toMillis === "function" ? createdAt.toMillis() : null,
+    };
+  }).filter((entry) => entry.coins > 0);
+  const entries = [...storeEntries, ...packageEntries]
     .sort((left, right) => (right.createdAtMs ?? 0) - (left.createdAtMs ?? 0))
     .slice(0, 50);
-  return { entries, truncated: sent.size === 50 || received.size === 50 };
+  return { entries, truncated: sent.size === 50 || received.size === 50 || coinPackageReceived.size === 50 };
 });

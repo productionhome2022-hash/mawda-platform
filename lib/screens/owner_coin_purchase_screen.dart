@@ -143,9 +143,14 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     } finally { if (mounted) setState(() => _busy = false); }
   }
 
+  String _formatMinor(int amount, int exponent, String currency) {
+    final scale = exponent == 0 ? 1 : exponent == 1 ? 10 : exponent == 2 ? 100 : 1000;
+    return (amount / scale).toStringAsFixed(exponent) + ' ' + currency;
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('طلبات شراء الكوينز اليدوية'),
+    appBar: AppBar(title: const Text('طلبات شراء وإهداء BetaCoins اليدوية'),
       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
         icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
@@ -160,11 +165,22 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           final id = item['requestId'] as String? ?? '';
           final amount = item['requestedCoins'] ?? item['agreedCoins'] ??
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
+          final currency = item['agreedCurrency'] as String? ??
+              item['currency'] as String? ??
+              ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['currency'] as String? ?? '—' : '—');
+          final exponent = (item['agreedCurrencyExponent'] as num?)?.toInt() ??
+              ((item['packageSnapshot'] is Map)
+                ? (item['packageSnapshot']['currencyExponent'] as num?)?.toInt() ?? 2 : 2);
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
+              Text('صاحب الطلب: ' + (item['requesterUid'] as String? ?? '')),
+              if (item['giftRecipientUid'] is String)
+                Text('مستلم الهدية: ' + (item['giftRecipientUid'] as String)),
               Text('الطلب: ' + id),
-              Text('الكمية: ' + amount.toString() + ' كوين'),
+              Text('الكمية: ' + amount.toString() + ' BetaCoins'),
+              if (item['agreedPriceMinor'] is num)
+                Text('السعر المتفق عليه: ' + _formatMinor(
+                  (item['agreedPriceMinor'] as num).toInt(), exponent, currency)),
               Text('الحالة: ' + status),
               if (item['paymentInstructions'] is String)
                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),

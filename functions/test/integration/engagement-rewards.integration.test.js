@@ -615,6 +615,24 @@ test("standard ads are geographically filtered and featured ads use the same ato
     ]);
     assert.equal(syriaAds.campaigns.some((item) => item.campaignId === standardCampaignId), true);
     assert.equal(egyptAds.campaigns.some((item) => item.campaignId === standardCampaignId), false);
+    const [syriaAggregateAds, egyptAggregateAds] = await Promise.all([
+      getActiveTimedAdCampaigns.run(memberRequest(syriaUid, {
+        adType: "standard", geographicTarget: "all_arab_countries",
+      })),
+      getActiveTimedAdCampaigns.run(memberRequest(egyptUid, {
+        adType: "standard", geographicTarget: "all_arab_countries",
+      })),
+    ]);
+    assert.equal(
+      syriaAggregateAds.campaigns.some((item) => item.campaignId === standardCampaignId),
+      true,
+      "a Syria-targeted standard ad must also appear in the aggregate Arab feed",
+    );
+    assert.equal(
+      egyptAggregateAds.campaigns.some((item) => item.campaignId === standardCampaignId),
+      true,
+      "the aggregate Arab feed must include Syria-targeted ads for other Arab-country members",
+    );
     await assert.rejects(
       () => startTimedAdvertisement.run(memberRequest(syriaUid, {
         campaignId: standardCampaignId,

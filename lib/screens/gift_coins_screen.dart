@@ -202,11 +202,22 @@ class _GiftCoinsScreenState extends State<GiftCoinsScreen> {
               ..._packages.map((item) {
                 final coins = (item['coins'] as num?)?.toInt() ?? 0;
                 final priceMinor = (item['priceMinor'] as num?)?.toInt() ?? 0;
-                final currency = item['currency'] as String? ?? 'EUR';
+                final currency = item['currency'] as String? ?? '';
+                final exponent = (item['currencyExponent'] as num?)?.toInt();
+                final divisor = switch (exponent) {
+                  0 => 1,
+                  1 => 10,
+                  2 => 100,
+                  3 => 1000,
+                  _ => null,
+                };
+                final priceLabel = divisor == null
+                    ? 'السعر غير متاح'
+                    : '${(priceMinor / divisor).toStringAsFixed(exponent!)} $currency';
                 return Card(
                   child: ListTile(
                     title: Text(item['name'] as String? ?? 'باقة BetaCoins'),
-                    subtitle: Text('$coins BetaCoins • ${(priceMinor / 100).toStringAsFixed(2)} $currency'),
+                    subtitle: Text('$coins BetaCoins • $priceLabel'),
                     trailing: FilledButton(
                       onPressed: _busy ? null : () => _giftPackage(item),
                       child: const Text('إهداء الباقة'),
