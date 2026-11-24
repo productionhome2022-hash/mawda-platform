@@ -9107,7 +9107,10 @@ export const getActiveTimedAdCampaigns = onCall(async (request) => {
   const explicitType = request.data?.adType !== undefined;
   const requestedType = request.data?.adType ?? "standard";
   const selectedTarget = request.data?.geographicTarget;
-  if (requestedType !== "standard") {
+  if (requestedType !== "standard" && requestedType !== "featured") {
+    throw new HttpsError("invalid-argument", "نوع الإعلان المطلوب غير صالح.");
+  }
+  if (requestedType === "featured") {
     throw new HttpsError("failed-precondition", "الإعلانات المميزة تستخدم دورة عرض مستقلة عن الإعلانات العادية.");
   }
   if (requestedType === "standard" && selectedTarget !== undefined &&
