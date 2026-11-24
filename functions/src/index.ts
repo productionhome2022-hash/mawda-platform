@@ -54,6 +54,10 @@ import {
   defaultFeaturedAdFinancialSnapshot,
 } from "./featured-ad-finance";
 import {
+  defaultFeaturedAdRewardPolicy,
+  validateFeaturedAdRewardPolicy,
+} from "./featured-ad-rewards";
+import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
   canSendApprovedPlatformLinks,
@@ -142,6 +146,7 @@ initializeApp();
 
 const db = getFirestore();
 const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+const FEATURED_AD_REWARD_POLICY_SETTINGS = db.doc("platformSettings/featuredAdRewardPolicy");
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
 const legalHoldExpiryEnabled = defineString("MAWDA_LEGAL_HOLD_EXPIRY_ENABLED", { default: "false" });
@@ -11838,6 +11843,73 @@ export const setOwnerGroupCallPricingPolicy = onCall(async (request) => {
     billingEnabled: false, environment: "test_only", outcome: "success",
   });
   return { saved: true, policy, billingEnabled: false, environment: "test_only" };
+});
+
+
+/**
+ * Owner-only featured-ad reward policy controls.
+ * Reads are fail-closed; writes are version-checked, transactional and audited.
+ */
+export const getOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  await requireOwnerForReview(request, "featured_ad_reward_policy_read");
+  const snapshot = await FEATURED_AD_REWARD_POLICY_SETTINGS.get();
+  if (!snapshot.exists) {
+    return { configured: false, policy: defaultFeaturedAdRewardPolicy(), version: 0 };
+  }
+  const data = snapshot.data() ?? {};
+  try {
+    return {
+      configured: true,
+      policy: validateFeaturedAdRewardPolicy(data.policy),
+      version: Number.isSafeInteger(data.version) && data.version >= 0 ? data.version : 0,
+    };
+  } catch {
+    throw new HttpsError("failed-precondition", "سياسة مكافآت الإعلانات المخزنة غير صالحة؛ لم نعرضها.");
+  }
+});
+
+export const setOwnerFeaturedAdRewardPolicy = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_reward_policy_update");
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) {
+    throw new HttpsError("invalid-argument", "إصدار سياسة المكافآت المتوقع غير صالح.");
+  }
+  let policy;
+  try {
+    policy = validateFeaturedAdRewardPolicy(request.data?.policy);
+  } catch {
+    throw new HttpsError("invalid-argument", "إعدادات سياسة مكافآت الإعلانات غير صالحة.");
+  }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(FEATURED_AD_REWARD_POLICY_SETTINGS);
+    const currentVersion = previous.exists ? previous.data()?.version : 0;
+    if (!Number.isSafeInteger(currentVersion) || currentVersion < 0) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة مكافآت الإعلانات المخزنة غير صالح.");
+    }
+    if (expectedVersion !== currentVersion) {
+      throw new HttpsError("aborted", "تغيرت سياسة المكافآت؛ أعد قراءتها قبل التحديث.");
+    }
+    const nextVersion = currentVersion + 1;
+    if (!Number.isSafeInteger(nextVersion)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكافآت.");
+    }
+    transaction.set(FEATURED_AD_REWARD_POLICY_SETTINGS, {
+      policy,
+      version: nextVersion,
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      createdAt: previous.data()?.createdAt ?? FieldValue.serverTimestamp(),
+    });
+    return nextVersion;
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "featured_ad_reward_policy_updated",
+    version,
+    policy,
+    outcome: "success",
+  });
+  return { saved: true, version, policy };
 });
 
 /** Member-visible sent/received gift history; only whitelisted fields leave the server. */
