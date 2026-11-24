@@ -103,12 +103,11 @@ test("featured campaigns are selected independently of viewer geography", () => 
   assert.deepEqual(result.campaignIds.sort(), ["all_market_campaign", "another_market_campaign"]);
 });
 
-test("unified timed-ad serving can explicitly mark selected featured campaigns as reward eligible", () => {
+test("featured preview selection can never become a rewarded timed-ad session", () => {
   const result = selectFeaturedAdShowcase({
     campaigns: [{ ...base, campaignId: "featured_rewarded_ad" }],
     nowMs: 500,
-    rewardEligible: true,
   });
   assert.equal(result.campaignIds[0], "featured_rewarded_ad");
-  assert.equal(result.rewardEligible, true);
+  assert.equal(result.rewardEligible, false);
 });
