@@ -8571,6 +8571,9 @@ export const claimAttendanceReward = onCall(async (request) => {
 });
 
 export const setTimedAdCampaign = onCall(async (request) => {
+  if (request.data?.adType === "featured" || request.data?.placement === "home") {
+    throw new HttpsError("failed-precondition", "الإعلانات المميزة تُدار عبر دورة مستقلة ولا تُنشأ ضمن حملات الإعلانات العادية.");
+  }
   const actorUid = requireOwner(request);
   let input;
   try {
