@@ -14,7 +14,8 @@ permissions:
 
 jobs:
   build_and_deploy:
-    if: github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == true && github.actor == 'productionhome2022-hash'
+    # Disabled for the consolidation/CI-only phase. Production deployment requires a separate owner-approved change.
+    if: false && github.ref == 'refs/heads/main' && inputs.confirm_production_deploy == true && github.actor == 'productionhome2022-hash'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
