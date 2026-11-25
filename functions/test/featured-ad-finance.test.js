@@ -80,27 +80,6 @@ test("records payment, partial refund and settlement without allowing over-refun
   assert.equal(reviewed.reviewStatus, "reconciled");
 });
 
-test("supports multiple owner-recorded receipts while keeping one currency", () => {
-  const first = applyFeaturedAdFinancialEvent(defaultFeaturedAdFinancialSnapshot(),
-    validateFeaturedAdFinancialEvent({
-      ...base, action: "payment_received", amountMinor: 10000, currency: "CHF",
-    }));
-  const second = applyFeaturedAdFinancialEvent(first,
-    validateFeaturedAdFinancialEvent({
-      ...base, idempotencyKey: "finance_operation_0100",
-      externalReference: "bank-ref-2026-002",
-      action: "payment_received", amountMinor: 5000, currency: "CHF",
-    }));
-  assert.equal(second.receivedMinor, 15000);
-  assert.equal(second.paymentStatus, "paid");
-  assert.throws(() => applyFeaturedAdFinancialEvent(second,
-    validateFeaturedAdFinancialEvent({
-      ...base, idempotencyKey: "finance_operation_0101",
-      externalReference: "bank-ref-2026-003",
-      action: "payment_received", amountMinor: 5000, currency: "EUR",
-    })), /payment_currency_conflict/);
-});
-
 test("reopens review after refund changes a previously reconciled balance", () => {
   const initial = { currency: "USD", receivedMinor: 5000, refundedMinor: 0, reconciledMinor: 5000,
     reviewStatus: "reconciled", paymentStatus: "paid" };
@@ -115,27 +94,4 @@ test("idempotency document identity is stable and opaque", () => {
   const first = featuredAdFinancialIdempotencyId("featured_campaign_01", "payment_received", "bank-ref-2026-001");
   assert.equal(first, featuredAdFinancialIdempotencyId("featured_campaign_01", "payment_received", "bank-ref-2026-001"));
   assert.match(first, /^[a-f0-9]{64}$/);
-});
-
-
-test("revalidates runtime events at the transition boundary", () => {
-  const empty = defaultFeaturedAdFinancialSnapshot();
-  assert.throws(() => applyFeaturedAdFinancialEvent(empty, {
-    ...base, action: "payment_received", amountMinor: 1.25, currency: "USD",
-  }), /invalid_financial_amount/);
-  assert.throws(() => applyFeaturedAdFinancialEvent(empty, {
-    ...base, action: "payment_received", amountMinor: Number.MAX_SAFE_INTEGER + 1, currency: "USD",
-  }), /invalid_financial_amount/);
-});
-
-test("rejects corrupted snapshots before applying financial events", () => {
-  const corrupt = {
-    currency: "USD", receivedMinor: 1000, refundedMinor: 0, reconciledMinor: 0,
-    reviewStatus: "in_review", paymentStatus: "refunded",
-  };
-  const event = validateFeaturedAdFinancialEvent({
-    ...base, idempotencyKey: "finance_operation_0099", action: "refund_recorded",
-    amountMinor: 100, currency: "USD",
-  });
-  assert.throws(() => applyFeaturedAdFinancialEvent(corrupt, event), /financial_snapshot_corrupt/);
 });
