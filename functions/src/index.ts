@@ -1,3 +1,6 @@
+import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser, calculateStoreGiftExpiryMs } from "./store-gifting";
+import { validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled, projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot, evaluateCallParticipantEntitlements } from "./call-entitlements";
+import { assertPlatformRoleCapacity, platformRoleCapacity, PLATFORM_ROLE_CAPACITY, type NumberedPlatformRole } from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, isCallMemberBusyInSession, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
@@ -17,6 +20,7 @@ import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile, projectCoinVisibility } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
+import { canChangeMemberSocialLinkVisibility, projectMemberSocialLinks, validateMemberSocialLinks } from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
 import { createDirectChatId } from "./direct-chat-id";
@@ -28,6 +32,9 @@ import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-s
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, projectCapacityMediaMeasurement, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
+import { validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent, featuredAdFinancialIdempotencyId, defaultFeaturedAdFinancialSnapshot } from "./featured-ad-finance";
+import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { assertMessageLinksAllowed, BIOMETRIC_APPROVED_HOSTS, canSendApprovedPlatformLinks } from "./link-policy";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
 import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } from "./room-call-policy";
@@ -35,7 +42,12 @@ import { callMaxDurationEnd, validateCallUsagePolicy, callModeQuotaLimit } from 
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+import { OWNER_AUDIT_ARCHIVE_BATCH_SIZE, OWNER_AUDIT_ARCHIVE_MIN_AGE_MS, OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS, ADDITIONAL_AUDIT_COLLECTIONS, isOwnerAuditArchiveEligible, validateLockedAuditArchiveBucket, verifyOwnerAuditArchiveChunk, ownerAuditArchiveObjectName, serializeOwnerAuditArchive, auditCollectionArchiveObjectName, serializeAuditCollectionArchive } from "./audit-archive";
 import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+import { validateOwnerChatReviewRequest, validateOwnerConversationPageRequest, encodeOwnerMessagePageToken, decodeOwnerMessagePageToken, validateOwnerReviewAnnouncementRequest, validateOwnerChatParticipationRequest } from "./owner-chat-review";
+import { PRIVACY_POLICY_HASH, PRIVACY_POLICY_VERSION, validatePrivacyAcknowledgement } from "./privacy-acknowledgement";
+import { isStoreItemPurchasable, projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
+import { calculateStorePurchaseBalance, isStoreEntitlementActive, isStorePurchasePriceCurrent, isStorePurchaseReplayCompatible, projectStoreEntitlementFeatures } from "./store-purchase";
 import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage, getMawddaMediaBucket } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
@@ -47,96 +59,78 @@ import { validateOwnerLiveStreamInput } from "./owner-live-stream";
 import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
 import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError, AD_INTAKE_GEOGRAPHIES } from "./advertising-intake";
 import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+import { applyContractSignature, assertContractStatusTransition, canMakeContractEffective, computeContractContentHash, validateContractDraftInput, validateContractReadyForSignature, type ContractDraftInput, type ContractSignatureEvidence, type ContractSigningState, type ContractStatus } from "./contracts-workflow";
 import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
+import { defaultAttendanceRewardPolicy, validateAttendanceRewardPolicy, utcRewardPeriod, validateTimedAdCampaignInput, eligibleHeartbeatDelta, timedAdMemberCounterId, TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER, AttendanceRewardType } from "./engagement-rewards";
 import { projectPublishedStickerPack } from "./sticker-catalog";
-import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs } from "./store-gifting";
 import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
-import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
-import { defaultFeaturedAdFinancialSnapshot, validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent, featuredAdFinancialIdempotencyId } from "./featured-ad-finance";
-import {
+import { validateGroupCallPricingPolicy, calculateGroupCallFinalSettlement } from "./group-call-economy";
 
 export { getMyBiometricVerificationStatus, getBiometricVerificationPhrase, startBiometricVerificationRequest, submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests, getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, cleanupDecidedBiometricEvidence } from "./biometric-lifecycle";
-  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser,
-  calculateStoreGiftExpiryMs,
-} from "./store-gifting";
-  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
-  projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot,
-  evaluateCallParticipantEntitlements,
-} from "./call-entitlements";
-  assertPlatformRoleCapacity,
-  platformRoleCapacity,
-  PLATFORM_ROLE_CAPACITY,
-  type NumberedPlatformRole,
-} from "./platform-role-identities";
-  canChangeMemberSocialLinkVisibility,
-  projectMemberSocialLinks,
-  validateMemberSocialLinks,
-} from "./member-social-links";
-  validateFeaturedAdFinancialEvent,
-  applyFeaturedAdFinancialEvent,
-  featuredAdFinancialIdempotencyId,
-  defaultFeaturedAdFinancialSnapshot,
-} from "./featured-ad-finance";
-  defaultFeaturedAdRewardPolicy,
-  validateFeaturedAdRewardPolicy,
-} from "./featured-ad-rewards";
-  assertMessageLinksAllowed,
-  BIOMETRIC_APPROVED_HOSTS,
-  canSendApprovedPlatformLinks,
-} from "./link-policy";
-  OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
-  OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
-  OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
-  ADDITIONAL_AUDIT_COLLECTIONS,
-  isOwnerAuditArchiveEligible,
-  validateLockedAuditArchiveBucket,
-  verifyOwnerAuditArchiveChunk,
-  ownerAuditArchiveObjectName,
-  serializeOwnerAuditArchive,
-  auditCollectionArchiveObjectName,
-  serializeAuditCollectionArchive,
-} from "./audit-archive";
-  validateOwnerChatReviewRequest,
-  validateOwnerConversationPageRequest,
-  encodeOwnerMessagePageToken,
-  decodeOwnerMessagePageToken,
-  validateOwnerReviewAnnouncementRequest,
-  validateOwnerChatParticipationRequest,
-} from "./owner-chat-review";
-  PRIVACY_POLICY_HASH,
-  PRIVACY_POLICY_VERSION,
-  validatePrivacyAcknowledgement,
-} from "./privacy-acknowledgement";
-  isStoreItemPurchasable,
-  projectStoreCatalogItem,
-  validateStoreCatalogItemInput,
-} from "./store-catalog";
-  calculateStorePurchaseBalance,
-  isStoreEntitlementActive,
-  isStorePurchasePriceCurrent,
-  isStorePurchaseReplayCompatible,
-  projectStoreEntitlementFeatures,
-} from "./store-purchase";
-  applyContractSignature,
-  assertContractStatusTransition,
-  canMakeContractEffective,
-  computeContractContentHash,
-  validateContractDraftInput,
-  validateContractReadyForSignature,
-  type ContractDraftInput,
-  type ContractSignatureEvidence,
-  type ContractSigningState,
-  type ContractStatus,
-} from "./contracts-workflow";
-  defaultAttendanceRewardPolicy,
-  validateAttendanceRewardPolicy,
-  utcRewardPeriod,
-  validateTimedAdCampaignInput,
-  eligibleHeartbeatDelta,
-  timedAdMemberCounterId,
-  TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
-  AttendanceRewardType,
-} from "./engagement-rewards";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 initializeApp();
 
@@ -12112,8 +12106,7 @@ export const getStickerCatalog = onCall(async (request) => {
   };
 });
 
-
-// Recovered callable endpoints from the 18-19 Nov domain branches; unique names only.
+// Recovered unique callable endpoints from the 18-19 Nov feature branches.
 export const setMemberGhostMode = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const enabled = request.data?.enabled;
