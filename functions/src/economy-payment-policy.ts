@@ -8,10 +8,9 @@ export const ECONOMIC_PAYMENT_SERVICES = [
 
 export type EconomicPaymentService = typeof ECONOMIC_PAYMENT_SERVICES[number];
 
-// These are the only manual financial-recording flows with owner-attestation
-// and audit paths currently implemented. Featured-ad records do not activate
-// campaigns; campaign fulfilment/serving remains a separate owner-controlled step.
-// Keep the remaining service switches fail-closed until their full workflows exist.
+// These are the only manual-payment flows whose request, owner-attestation,
+// ledger/fulfilment and audit paths currently exist end-to-end. Keep the
+// remaining service switches fail-closed until their workflows are integrated.
 export const MANUAL_PAYMENT_READY_SERVICES = [
   "coin_purchases",
   "featured_ads",
@@ -74,20 +73,21 @@ export function validateEconomicPaymentPolicy(value: unknown): EconomicPaymentPo
   return result;
 }
 
-/**
- * Project only the explicit owner-published service policy.
- * Legacy top-level booleans are intentionally ignored: absence of a policy
- * must never enable a payment workflow by implication.
- */
-export function projectEconomicPaymentPolicy(stored: unknown): EconomicPaymentPolicy {
+/** Legacy fields seed missing service modes only; explicit per-service policy always wins. */
+export function projectEconomicPaymentPolicy(
+  stored: unknown,
+  legacy: { manualCoinPurchasesEnabled?: unknown; manualFeaturedAdsEnabled?: unknown } = {},
+): EconomicPaymentPolicy {
   const defaults = {
-    coin_purchases: disabledModes(),
-    featured_ads: disabledModes(),
+    coin_purchases: { manualEnabled: legacy.manualCoinPurchasesEnabled === true, automatedEnabled: false as const },
+    featured_ads: { manualEnabled: legacy.manualFeaturedAdsEnabled === true, automatedEnabled: false as const },
     public_ads: disabledModes(),
     influencer_services: disabledModes(),
     store_entitlements: disabledModes(),
   };
   if (stored === undefined || stored === null) return defaults;
+  // Old UI builds could persist switches before their service workflows existed.
+  // Project those legacy values as disabled, then let the owner save the safe state.
   const storedInput = stored as Record<string, unknown>;
   const safeStoredInput = { ...storedInput };
   for (const service of ECONOMIC_PAYMENT_SERVICES) {
@@ -100,8 +100,16 @@ export function projectEconomicPaymentPolicy(stored: unknown): EconomicPaymentPo
       };
     }
   }
+  const validated = validateEconomicPaymentPolicy(safeStoredInput);
   return {
     ...defaults,
-    ...validateEconomicPaymentPolicy(safeStoredInput),
+    ...validated,
+    // A stored explicit policy takes precedence; legacy flags only seed absent policy.
+    coin_purchases: stored && typeof stored === "object" &&
+      Object.prototype.hasOwnProperty.call(stored, "coin_purchases")
+      ? validated.coin_purchases : defaults.coin_purchases,
+    featured_ads: stored && typeof stored === "object" &&
+      Object.prototype.hasOwnProperty.call(stored, "featured_ads")
+      ? validated.featured_ads : defaults.featured_ads,
   };
 }
