@@ -356,7 +356,7 @@ function readSafeInteger(value: unknown, field: string): number {
 }
 
 /**
- * تحويل ذري للكوينز:
+ * تحويل ذري لـBetaCoins:
  * - يخصم المبلغ الإجمالي من المرسل.
  * - يضيف صافي المبلغ للمستلم.
  * - يسجل عمولة المنصة في دفتر مستقل.
@@ -2186,7 +2186,7 @@ export const completeBiometricVerificationCycle = onCall(async (request) => {
   requireAuthenticatedUid(request.auth?.uid);
   throw new HttpsError(
     "failed-precondition",
-    "مكافأة وامتيازات التوثيق البيومتري معلّقة حتى اكتمال المراجعة اليدوية الخادمية بواسطة Super Owner وضوابطها الذرية. لا تمنح نافذة النظام المحلية أي توثيق أو كوينز.",
+    "مكافأة وامتيازات التوثيق البيومتري معلّقة حتى اكتمال المراجعة اليدوية الخادمية بواسطة Super Owner وضوابطها الذرية. لا تمنح نافذة النظام المحلية أي توثيق أو BetaCoins.",
   );
 });
 
@@ -6769,7 +6769,7 @@ export const purchaseStoreItem = onCall(async (request) => {
     const currentBalance = memberData.coins ?? 0;
     const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
     if (newBalance === null) {
-      throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ أو يحتوي على قيمة غير صالحة.");
+      throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو يحتوي على قيمة غير صالحة.");
     }
 
     const createdAt = FieldValue.serverTimestamp();
@@ -7389,7 +7389,7 @@ export const createRentedRoom = onCall(async (request) => {
     }
     const userData = user.data()!;
     const newBalance = calculateRoomRentalBalance(userData.coins ?? 0, plan.priceCoins);
-    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للاستئجار.");
+    if (newBalance === null) throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ للاستئجار.");
     let audience;
     try { audience = audienceForAge(userData.age); }
     catch { throw new HttpsError("failed-precondition", "أكمل ملفك العمري قبل إنشاء غرفة."); }
@@ -7483,7 +7483,7 @@ export const renewRoomRental = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "تغير سعر التجديد؛ حدّث الأسعار قبل التأكيد.");
     }
     const balance = calculateRoomRentalBalance(user.data()?.coins ?? 0, plan.priceCoins);
-    if (balance === null) throw new HttpsError("failed-precondition", "رصيد الكوينز غير كافٍ للتجديد.");
+    if (balance === null) throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ للتجديد.");
     const previousExpiry = room.data()?.expiresAt instanceof Timestamp
       ? room.data()!.expiresAt.toMillis() : nowMs;
     const previousRentalId = room.data()?.rentalId;
@@ -7921,12 +7921,12 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
       participantUids: [actorUid, requesterUid].sort(),
       createdAt: chatSnapshot.exists ? chatSnapshot.data()?.createdAt ?? now : now,
       lastMessageAt: now, lastMessageId: messageId, lastMessageSenderUid: actorUid,
-      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب الكوينز.",
+      lastMessagePreview: "أرسل مالك المنصة تعليمات دفع طلب BetaCoins.",
     }, { merge: true });
     if (!existingMessage.exists) {
       transaction.create(messageRef, {
         messageId, chatId, senderUid: actorUid, recipientUid: requesterUid,
-        text: "تعليمات الدفع لطلب شراء الكوينز رقم " + input.requestId +
+        text: "تعليمات الدفع لطلب شراء BetaCoins رقم " + input.requestId +
           "\nالكمية المتفق عليها: " + input.agreedCoins + " كوين" +
           "\nالسعر: " + (input.agreedPriceMinor / Math.pow(10, input.currencyExponent)).toFixed(input.currencyExponent) + " " + input.currency +
           "\nالتعليمات: " + input.instructions,
@@ -7938,7 +7938,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     transaction.set(notificationRef, {
       notificationId, type: "coin_purchase_payment_instructions", senderUid: actorUid,
       chatId, messageId, title: "تعليمات دفع من مالك مودة",
-      body: "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+      body: "أرسل مالك المنصة تعليمات الدفع لطلب BetaCoins. افتح المحادثة للاطلاع عليها.",
       isRead: false, createdAt: now,
     });
     transaction.update(ref, {
@@ -7962,7 +7962,7 @@ export const setCoinPurchasePaymentInstructions = onCall(async (request) => {
     });
   });
   await sendPushToMember(requesterUid, "تعليمات دفع من مالك مودة",
-    "أرسل مالك المنصة تعليمات الدفع لطلب الكوينز. افتح المحادثة للاطلاع عليها.",
+    "أرسل مالك المنصة تعليمات الدفع لطلب BetaCoins. افتح المحادثة للاطلاع عليها.",
     { type: "coin_purchase_payment_instructions", chatId, messageId });
   return { requestId: input.requestId, status: "payment_instructions_sent", chatId, messageId };
 });
