@@ -95,8 +95,8 @@
 
 ## New hardening in this execution pass
 
-- Timed-ad reward caps are now enforced server-side for the development environment: maximum 10 rewarded ad claims per member per UTC day, maximum 20 BetaCoins from rewarded ads per member per UTC day, and maximum 3 rewarded claims per member per campaign.
-- The daily cap is stored in a dedicated per-member/per-UTC-day counter inside the same transaction as the wallet credit and reward claim, preventing concurrent requests from bypassing the cap.
+- Historical source-branch work proposed 10 rewarded-ad claims and 20 BetaCoins per member per UTC day, alongside a 3-claim campaign ceiling. The global 10/20 quotas were later reverted as unapproved and are not enforced by current Full Platform. The retained standard-campaign ceiling is 3 per member per campaign.
+- Current Full Platform does not persist a global per-member/per-UTC-day timed-ad counter. The prior daily-counter implementation was removed by the unapproved-quota revert; do not claim global daily enforcement.
 - Campaign validation rejects a per-member campaign limit above the experimental maximum.
 
 ## Source audit findings — call economy and Media Saver (2026-11-18)
@@ -115,10 +115,10 @@ The inspected Flutter call screen reports connection and uses a five-minute disp
 
 ## Daily rewarded-ad cap testability hardening — 2026-11-18
 
-- Extracted the daily claim/coin cap decision into the pure `decideTimedAdDailyCap` guard used by the existing Firestore transaction.
+- A pure `decideTimedAdDailyCap` helper existed in the historical source branch but was removed with the unapproved global daily quotas; it is not used by current Full Platform.
 - The guard validates all counter inputs as safe non-negative integers, rejects a zero/invalid next reward, and returns a stable rejection reason for claim-count or coin-budget exhaustion.
-- Added exact-boundary unit cases for 9/10 claims, 20/21 daily coins, and malformed inputs. These tests are committed but have **not** been executed in this environment.
-- The transaction still reads the per-member UTC-day counter before writes and applies the wallet credit, reward claim, campaign budget, and daily counter atomically. Cap rejection continues through the existing cancellation path, which releases the reserved campaign reward and grants no coins.
+- Exact-boundary tests for the proposed global 10/20 daily quotas are historical source-branch tests and are not part of current Full Platform. The current target retains tests for the separate campaign-level ceiling.
+- Current completeTimedAdvertisement does not read or write a global daily counter. Campaign reservation, wallet credit, reward claim and per-campaign counter remain transactional.
 
 
 ## Store fulfillment safety correction — Hide Coins SKU
