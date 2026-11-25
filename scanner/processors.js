@@ -127,6 +127,12 @@ async function inspectStickerMedia({ sourcePath, contentType }) {
   }
   const stat = await fs.stat(sourcePath);
   if (!stat.isFile() || stat.size < 1) throw new Error("STICKER_SOURCE_INVALID");
+  if (contentType === "image/gif" && stat.size > 512 * 1024) {
+    throw new Error("STICKER_ANIMATION_LIMIT_EXCEEDED");
+  }
+  if (contentType !== "image/gif" && stat.size > 256 * 1024) {
+    throw new Error("STICKER_STATIC_LIMIT_EXCEEDED");
+  }
   const { stdout } = await execFileAsync("ffprobe", [
     "-v", "error", "-count_frames", "-select_streams", "v:0",
     "-show_entries", "format=duration:stream=width,height,nb_read_frames",
