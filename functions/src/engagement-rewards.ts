@@ -38,12 +38,6 @@ const MAX_REWARD_COINS = 100_000;
 const MAX_AD_DURATION_SECONDS = 15 * 60;
 const MAX_AD_BUDGET_COINS = 100_000_000;
 
-// Owner-authorized development safety rails; production commercial policy remains separately controlled.
-export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
-export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
-export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
-
-
 export function validateAttendanceRewardPolicy(value: unknown): AttendanceRewardPolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("ATTENDANCE_POLICY_INVALID");
@@ -159,7 +153,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
       maxClaimsPerMember < 1 ||
-      (adType === "standard" && maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER) ||
+      (adType === "standard" && maxClaimsPerMember > 100) ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
@@ -178,32 +172,6 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
     rewardBudgetCoins,
   };
 }
-
-export type TimedAdDailyCapDecision =
-  | { eligible: true; reason: "within_daily_caps" }
-  | { eligible: false; reason: "daily_claim_cap" | "daily_coin_cap" };
-
-/** Pure guard shared by the transactional claim path and boundary tests. */
-export function decideTimedAdDailyCap(input: {
-  claimCount: number;
-  rewardCoins: number;
-  nextRewardCoins: number;
-}): TimedAdDailyCapDecision {
-  const { claimCount, rewardCoins, nextRewardCoins } = input;
-  if (!Number.isSafeInteger(claimCount) || claimCount < 0 ||
-      !Number.isSafeInteger(rewardCoins) || rewardCoins < 0 ||
-      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 1) {
-    throw new Error("TIMED_AD_DAILY_CAP_INPUT_INVALID");
-  }
-  if (claimCount >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER) {
-    return { eligible: false, reason: "daily_claim_cap" };
-  }
-  if (rewardCoins + nextRewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
-    return { eligible: false, reason: "daily_coin_cap" };
-  }
-  return { eligible: true, reason: "within_daily_caps" };
-}
-
 
 /** Only short, sequential foreground intervals may add eligible viewing time. */
 export function eligibleHeartbeatDelta(
@@ -245,15 +213,4 @@ export function timedAdMemberCounterId(uid: string, campaignId: string): string 
   return createHash("sha256")
     .update("mawdda-timed-ad-member-counter-v1:" + uid + ":" + campaignId)
     .digest("hex");
-}/** Collision-resistant UTC-day counter identity. */
-export function timedAdMemberDailyCounterId(uid: string, utcDay: string): string {
-  if (typeof uid !== "string" || uid.length < 1 || uid.length > 128 ||
-      typeof utcDay !== "string" || !/^\d{8}$/.test(utcDay)) {
-    throw new Error("TIMED_AD_DAILY_COUNTER_ID_INVALID");
-  }
-  return createHash("sha256")
-    .update("mawdda-timed-ad-member-daily-counter-v1:" + uid + ":" + utcDay)
-    .digest("hex");
 }
-
-
