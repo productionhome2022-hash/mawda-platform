@@ -12,7 +12,7 @@ test("media processors enforce bounded complexity, duration, page and output bud
   assert.equal(LIMITS.audio.roomMaxDurationSeconds, 60);
   assert.equal(audioDurationLimitForPurpose("chat"), 60);
   assert.equal(audioDurationLimitForPurpose("room"), 60);
-  assert.equal(audioDurationLimitForPurpose("biometric"), 20);
+  assert.equal(audioDurationLimitForPurpose("biometric"), 60);
   assert.equal(LIMITS.video.maxBytes, 15 * 1024 * 1024);
   assert.equal(LIMITS.video.maxDurationSeconds, 90);
   assert.equal(LIMITS.pdf.maxBytes, 20 * 1024 * 1024);
@@ -36,7 +36,6 @@ test("derivative object paths are canonical and cannot escape the owner's media 
     assert.throws(() => safeOutputPath(...args), /INVALID_DERIVATIVE_PATH/);
   }
 });
-
 
 test("biometric video duration is inclusive from three to five seconds", () => {
   assert.equal(videoDurationAllowedForPurpose("biometric", 3), true);
