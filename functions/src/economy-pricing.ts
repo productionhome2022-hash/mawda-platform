@@ -1,9 +1,22 @@
+export const OFFICIAL_ECONOMY_CURRENCIES = [
+  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
+] as const;
+
 export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
-  AED: 2, AUD: 2, CAD: 2, CHF: 2, DZD: 2, EGP: 2, EUR: 2, GBP: 2,
-  LBP: 2, MAD: 2, NZD: 2, QAR: 2, SAR: 2, SDG: 2, SYP: 2, TRY: 2, USD: 2,
-  BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
-  JPY: 0, KRW: 0, VND: 0,
+  EUR: 2,
+  USD: 2,
+  EGP: 2,
+  SAR: 2,
+  SYP: 2,
+  JOD: 3,
+  IQD: 3,
+  AED: 2,
+  DZD: 2,
+  MAD: 2,
+  TRY: 2,
 };
+
+
 
 export function currencyExponentForCode(value: unknown): number | null {
   if (typeof value !== "string" || !/^[A-Z]{3}$/.test(value)) return null;

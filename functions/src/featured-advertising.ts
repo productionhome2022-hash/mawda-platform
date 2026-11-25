@@ -9,7 +9,6 @@ export type FeaturedAdCampaignCandidate = {
   creativeApproved: boolean;
   startsAtMs: number;
   endsAtMs: number;
-  geographicTargets: string[];
   featuredPlacement: "rotation" | "priority";
   /** Owner-assigned order within approved priority placements; lower comes first. */
   priorityOrder?: number;
@@ -19,24 +18,12 @@ export type FeaturedAdSelection = {
   mode: "priority" | "rotation" | "empty";
   campaignIds: string[];
   rotationIntervalMs: number;
-  /** Featured previews are never eligible for rewarded-view claims. */
+  /** Caller controls whether the selected campaign is a rewarded viewing placement. */
   rewardEligible: false;
 };
 
-/** Shared geographic gate for showcase, session creation and reward settlement. */
-export function featuredAdTargetsGeography(
-  geographicTargets: unknown,
-  audienceGeography: string,
-): boolean {
-  return Array.isArray(geographicTargets) &&
-    typeof audienceGeography === "string" && audienceGeography.length > 0 &&
-    (geographicTargets.includes(audienceGeography) ||
-      geographicTargets.includes("all_arab_countries"));
-}
-
 function isEligible(
   campaign: FeaturedAdCampaignCandidate,
-  audienceGeography: string,
   nowMs: number,
 ): boolean {
   return campaign.status === "published" &&
@@ -47,8 +34,7 @@ function isEligible(
     Number.isSafeInteger(campaign.startsAtMs) &&
     Number.isSafeInteger(campaign.endsAtMs) &&
     campaign.startsAtMs <= nowMs &&
-    campaign.endsAtMs > nowMs &&
-    featuredAdTargetsGeography(campaign.geographicTargets, audienceGeography);
+    campaign.endsAtMs > nowMs;
 }
 
 /** Fisher-Yates shuffle with injectable RNG so the fallback can be tested deterministically. */
@@ -66,25 +52,23 @@ function randomized<T>(items: T[], random: () => number): T[] {
 }
 
 /**
- * Chooses the upper Watch Ads showcase only. It deliberately does not create
- * rewarded-view sessions; reward claims must start from the geographic feed.
+ * Selects ordering for the independent featured showcase only. Preview selection
+ * never creates or authorizes a rewarded session; the featured lifecycle owns that flow.
  */
 export function selectFeaturedAdShowcase(args: {
   campaigns: FeaturedAdCampaignCandidate[];
-  audienceGeography: string;
   nowMs: number;
   rotationIntervalMs?: number;
   random?: () => number;
 }): FeaturedAdSelection {
   const interval = args.rotationIntervalMs ?? DEFAULT_FEATURED_AD_ROTATION_INTERVAL_MS;
-  if (!args.audienceGeography ||
-      !Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
+  if (!Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
       !Number.isSafeInteger(interval) || interval < 1) {
     throw new Error("FEATURED_AD_SELECTION_INPUT_INVALID");
   }
 
   const eligible = args.campaigns.filter((campaign) =>
-    isEligible(campaign, args.audienceGeography, args.nowMs));
+    isEligible(campaign, args.nowMs));
 
   const priority = eligible
     .filter((campaign) => campaign.featuredPlacement === "priority")
