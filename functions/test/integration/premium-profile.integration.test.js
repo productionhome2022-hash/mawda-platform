@@ -18,6 +18,7 @@ function profile(age, extra = {}) {
   return {
     profileCompleted: true,
     accountStatus: "active",
+    coins: 0,
     profileVisibility: "public",
     age,
     displayName: "Mawdda Test Member",
@@ -177,6 +178,7 @@ test("real store purchases flow into the member profile and disappear when their
     ["visitor_greeting_30d", "greeting", 30],
   ];
   const catalogRefs = items.map(([itemId]) => db.collection("storeCatalog").doc(itemId));
+  const catalogVersionRefs = items.map(([itemId]) => db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1"));
   const purchaseRefs = [];
   const ledgerRefs = [];
   const entitlementRefs = [];
@@ -200,6 +202,12 @@ test("real store purchases flow into the member profile and disappear when their
       }),
     ));
 
+    await Promise.all(items.map(([itemId, category, durationDays], index) => catalogVersionRefs[index].set({
+      itemId, version: 1, name: `ميزة ${itemId}`, description: "اختبار شراء واستحقاق الملف الشخصي",
+      category, priceCoins, durationDays, sortOrder: index + 1, active: true,
+      purchaseEnabled: true, fulfillmentReady: true,
+    })));
+
     for (const [index, [itemId, category]] of items.entries()) {
       const requestId = `profile_purchase_${memberUid}_${index}`;
       const purchaseId = `${memberUid}_${requestId}`;
@@ -211,7 +219,7 @@ test("real store purchases flow into the member profile and disappear when their
       entitlementRefs.push(entitlementRef);
 
       const result = await purchaseStoreItem.run(call(memberUid, {
-        itemId, requestId, expectedPriceCoins: priceCoins,
+        itemId, requestId, expectedPriceCoins: priceCoins, expectedCatalogVersion: 1,
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 5000 - (index + 1) * priceCoins, itemId);
@@ -254,6 +262,7 @@ test("real store purchases flow into the member profile and disappear when their
       ...ledgerRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...entitlementRefs.map((ref) => ref.delete().catch(() => undefined)),
       ...catalogRefs.map((ref) => ref.delete().catch(() => undefined)),
+      ...catalogVersionRefs.map((ref) => ref.delete().catch(() => undefined)),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
@@ -264,6 +273,7 @@ test("concurrent retries of the same store purchase debit the wallet only once",
   const memberUid = uid("concurrent_store_member");
   const memberRef = db.collection("users").doc(memberUid);
   const itemRef = db.collection("storeCatalog").doc("vip_monthly");
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc("vip_monthly").collection("versions").doc("1");
   const requestId = `concurrent_purchase_${memberUid}`;
   const purchaseId = `${memberUid}_${requestId}`;
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
@@ -277,10 +287,15 @@ test("concurrent retries of the same store purchase debit the wallet only once",
       category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
     }),
+    catalogVersionRef.set({
+      itemId: "vip_monthly", version: 1, name: "VIP", description: "Concurrent purchase test",
+      category: "vip", priceCoins: 600, durationDays: 30, sortOrder: 1,
+      active: true, purchaseEnabled: true, fulfillmentReady: true,
+    }),
   ]);
   try {
     const request = call(memberUid, {
-      itemId: "vip_monthly", requestId, expectedPriceCoins: 600,
+      itemId: "vip_monthly", requestId, expectedPriceCoins: 600, expectedCatalogVersion: 1,
     });
     const results = await Promise.all([
       purchaseStoreItem.run(request),
@@ -298,6 +313,7 @@ test("concurrent retries of the same store purchase debit the wallet only once",
       ledgerRef.delete().catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      catalogVersionRef.delete().catch(() => undefined),
       db.recursiveDelete(memberRef).catch(() => undefined),
     ]);
   }
