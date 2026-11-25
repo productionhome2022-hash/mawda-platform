@@ -25,14 +25,13 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات BetaCoins.');
+      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الكوينز.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
   Future<void> _instructions(Map<String, dynamic> item) async {
     final uid = item['requesterUid'] as String? ?? '';
     final id = item['requestId'] as String? ?? '';
-    final isPackageGift = item['giftRecipientUid'] is String;
     final requested = (item['requestedCoins'] as num?)?.toInt() ??
         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
@@ -45,11 +44,11 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       title: const Text('تعليمات الدفع والاتفاق'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('العضو: ' + uid),
-        TextField(controller: coins, readOnly: isPackageGift, keyboardType: TextInputType.number,
+        TextField(controller: coins, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
-        TextField(controller: price, readOnly: isPackageGift, keyboardType: TextInputType.number,
+        TextField(controller: price, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'السعر بوحدات العملة الصغرى')),
-        TextField(controller: currency, readOnly: isPackageGift, textCapitalization: TextCapitalization.characters,
+        TextField(controller: currency, textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)')),
         TextField(controller: instructions, minLines: 2, maxLines: 5,
           decoration: const InputDecoration(labelText: 'تعليمات الدفع اليدوي')),
@@ -102,7 +101,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
-            child: const Text('اعتماد وإضافة BetaCoins')),
+            child: const Text('اعتماد وإضافة الكوينز')),
         ],
       ),
     ));
@@ -144,20 +143,15 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     } finally { if (mounted) setState(() => _busy = false); }
   }
 
-  String _formatMinor(int amount, int exponent, String currency) {
-    final scale = exponent == 0 ? 1 : exponent == 1 ? 10 : exponent == 2 ? 100 : 1000;
-    return (amount / scale).toStringAsFixed(exponent) + ' ' + currency;
-  }
-
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('طلبات شراء وإهداء BetaCoins اليدوية'),
+    appBar: AppBar(title: const Text('طلبات شراء الكوينز اليدوية'),
       actions: [IconButton(onPressed: _loading || _busy ? null : _load,
         icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(12), child: Text(
-          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف BetaCoins وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
+          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف الكوينز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (_requests.isEmpty) const Text('لا توجد طلبات شراء حالياً.'),
@@ -166,22 +160,11 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           final id = item['requestId'] as String? ?? '';
           final amount = item['requestedCoins'] ?? item['agreedCoins'] ??
               ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['coins'] : null) ?? 'غير محدد';
-          final currency = item['agreedCurrency'] as String? ??
-              item['currency'] as String? ??
-              ((item['packageSnapshot'] is Map) ? item['packageSnapshot']['currency'] as String? ?? '—' : '—');
-          final exponent = (item['agreedCurrencyExponent'] as num?)?.toInt() ??
-              ((item['packageSnapshot'] is Map)
-                ? (item['packageSnapshot']['currencyExponent'] as num?)?.toInt() ?? 2 : 2);
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('صاحب الطلب: ' + (item['requesterUid'] as String? ?? '')),
-              if (item['giftRecipientUid'] is String)
-                Text('مستلم الهدية: ' + (item['giftRecipientUid'] as String)),
+              Text('العضو: ' + (item['requesterUid'] as String? ?? '')),
               Text('الطلب: ' + id),
-              Text('الكمية: ' + amount.toString() + ' BetaCoins'),
-              if (item['agreedPriceMinor'] is num)
-                Text('السعر المتفق عليه: ' + _formatMinor(
-                  (item['agreedPriceMinor'] as num).toInt(), exponent, currency)),
+              Text('الكمية: ' + amount.toString() + ' كوين'),
               Text('الحالة: ' + status),
               if (item['paymentInstructions'] is String)
                 SelectableText('التعليمات الحالية: ' + (item['paymentInstructions'] as String)),
