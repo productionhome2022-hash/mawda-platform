@@ -72,6 +72,31 @@ async function makeFixture(type, dir) {
       "testsrc2=size=64x64:rate=5:duration=1", "-c:v", "libx264",
       "-pix_fmt", "yuv420p", output,
     ]);
+  } else if (type === "png") {
+    await execFileAsync("ffmpeg", [
+      "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:s=32x32", "-frames:v", "1", "-c:v", "png", output,
+    ]);
+  } else if (type === "webp") {
+    await execFileAsync("ffmpeg", [
+      "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=green:s=32x32", "-frames:v", "1", "-c:v", "libwebp", output,
+    ]);
+  } else if (type === "large-png") {
+    await execFileAsync("ffmpeg", [
+      "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+      "testsrc2=size=512x512:rate=1", "-frames:v", "1", "-c:v", "png", output,
+    ]);
+  } else if (type === "large-dimensions-png") {
+    await execFileAsync("ffmpeg", [
+      "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=blue:s=513x512", "-frames:v", "1", "-c:v", "png", output,
+    ]);
+  } else if (type === "long-gif") {
+    await execFileAsync("ffmpeg", [
+      "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=red:s=32x32:r=2", "-t", "6", "-loop", "0", output,
+    ]);
   } else if (type === "pdf") {
     const script = "from reportlab.pdfgen import canvas; import sys; c=canvas.Canvas(sys.argv[1]); c.drawString(40,800,'Mawda safe document test'); c.save()";
     await execFileAsync("python3", ["-c", script, output]);
@@ -188,6 +213,41 @@ for (const purpose of ["chat", "room"]) {
 }
 
 
+
+test("static sticker inspection accepts only bounded PNG and WebP assets", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-static-sticker-test-"));
+  try {
+    for (const type of ["png", "webp"]) {
+      const sourcePath = await makeFixture(type, tempDir);
+      const metadata = await inspectStickerMedia({ sourcePath, contentType: `image/${type}` });
+      assert.equal(metadata.kind, "static");
+      assert.equal(metadata.contentType, `image/${type}`);
+      assert.equal(metadata.width, 32);
+      assert.equal(metadata.height, 32);
+      assert.ok(metadata.sizeBytes > 0 && metadata.sizeBytes <= 256 * 1024);
+      assert.equal(metadata.durationMs, undefined);
+      assert.equal(metadata.frameCount, undefined);
+    }
+    const pngPath = await makeFixture("png", tempDir);
+    await assert.rejects(() => inspectStickerMedia({ sourcePath: pngPath, contentType: "image/jpeg" }), /STICKER_MEDIA_TYPE_INVALID/);
+    const largePng = await makeFixture("large-png", tempDir);
+    await assert.rejects(() => inspectStickerMedia({ sourcePath: largePng, contentType: "image/png" }), /STICKER_STATIC_LIMIT_EXCEEDED/);
+    const oversizedDimensions = await makeFixture("large-dimensions-png", tempDir);
+    await assert.rejects(() => inspectStickerMedia({ sourcePath: oversizedDimensions, contentType: "image/png" }), /STICKER_DIMENSIONS_OR_FRAMES_INVALID/);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("animated sticker inspection rejects GIFs exceeding five seconds", async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-long-sticker-test-"));
+  try {
+    const sourcePath = await makeFixture("long-gif", tempDir);
+    await assert.rejects(() => inspectStickerMedia({ sourcePath, contentType: "image/gif" }), /STICKER_ANIMATION_LIMIT_EXCEEDED/);
+  } finally {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+});
 
 test("sticker inspection derives actual GIF metadata and sanitized animation stays within the sticker ceiling", async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "mawadda-sticker-test-"));
