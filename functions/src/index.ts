@@ -1,19 +1,3 @@
-export { getMyBiometricVerificationStatus, getBiometricVerificationPhrase, startBiometricVerificationRequest, submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests, getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, cleanupDecidedBiometricEvidence } from "./biometric-lifecycle";
-import {
-  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser,
-  calculateStoreGiftExpiryMs,
-} from "./store-gifting";
-import {
-  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
-  projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot,
-  evaluateCallParticipantEntitlements,
-} from "./call-entitlements";
-import {
-  assertPlatformRoleCapacity,
-  platformRoleCapacity,
-  PLATFORM_ROLE_CAPACITY,
-  type NumberedPlatformRole,
-} from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, isCallMemberBusyInSession, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
@@ -33,45 +17,73 @@ import { reconcileWalletLedger } from "./wallet-reconciliation";
 import { validateRegistrationPolicy } from "./registration-policy";
 import { canViewMemberProfile, projectPublicMemberProfile, projectCoinVisibility } from "./member-profile-view";
 import { validateMemberProfileUpdate } from "./member-profile-update";
-import {
-  canChangeMemberSocialLinkVisibility,
-  projectMemberSocialLinks,
-  validateMemberSocialLinks,
-} from "./member-social-links";
 import { validateDirectMessageInput } from "./direct-message";
 import { validateSafetyReportInput, validateSafetyAppealInput } from "./safety-cases";
 import { createDirectChatId } from "./direct-chat-id";
 import { encodeMemberMessagePageToken, validateMemberMessagePageRequest } from "./member-message-pagination";
 import { isMessageReadByPeer, shouldAdvanceReadReceipt } from "./direct-message-receipts";
 import { hasActiveBiometricVerification } from "./biometric-verification";
-import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, canRewardEmailVerificationCycle } from "./email-verification-cycle";
+import { createEmailVerificationCycle, emailVerificationRewardLedgerId, EMAIL_VERIFICATION_REWARD_COINS, canRewardEmailVerificationCycle, isEmailVerificationCycleDue } from "./email-verification-cycle";
 import { canEditMemberSocialLinks, canExposeMemberSocialLinks } from "./member-social-links-access";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { projectEconomicPaymentPolicy, validateEconomicPaymentPolicy } from "./economy-payment-policy";
 import { CAPACITY_MEDIA_DEFAULTS, projectCapacityMediaPolicy, projectCapacityMediaMeasurement, validateCapacityMediaQuotaInput, type CapacityMediaPolicy } from "./capacity-media-management";
+import { createHash, createHmac, randomUUID } from "node:crypto";
+import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
+import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } from "./room-call-policy";
+import { callMaxDurationEnd, validateCallUsagePolicy, callModeQuotaLimit } from "./call-usage-policy";
+import { isGuestSessionActive } from "./guest-sessions";
+import { hasPlatformOwnerSession } from "./owner-access";
+import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
+import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
+import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+import { deleteMediaAssetForMessage, getMawddaMediaBucket } from "./media";
+import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
+import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
+import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
+import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES, validateBilateralCallTariffs, defaultEmailVerificationRewardPolicy, validateEmailVerificationRewardPolicy } from "./economy-pricing";
+import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification, coinGiftPackageTermsMatch, coinGiftApprovalReplayMatches } from "./coin-purchase-requests";
+import { validateOwnerLiveStreamInput } from "./owner-live-stream";
+import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
+import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError, AD_INTAKE_GEOGRAPHIES } from "./advertising-intake";
+import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
+import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
+import { projectPublishedStickerPack } from "./sticker-catalog";
+import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs } from "./store-gifting";
+import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
+import { defaultFeaturedAdRewardPolicy, validateFeaturedAdRewardPolicy, decideFeaturedAdReward, featuredAdCampaignRewardPolicy, featuredAdRewardBudgetAvailable, type FeaturedAdRewardPolicy } from "./featured-ad-rewards";
+import { defaultFeaturedAdFinancialSnapshot, validateFeaturedAdFinancialEvent, applyFeaturedAdFinancialEvent, featuredAdFinancialIdempotencyId } from "./featured-ad-finance";
 import {
+
+export { getMyBiometricVerificationStatus, getBiometricVerificationPhrase, startBiometricVerificationRequest, submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests, getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, cleanupDecidedBiometricEvidence } from "./biometric-lifecycle";
+  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser,
+  calculateStoreGiftExpiryMs,
+} from "./store-gifting";
+  validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
+  projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot,
+  evaluateCallParticipantEntitlements,
+} from "./call-entitlements";
+  assertPlatformRoleCapacity,
+  platformRoleCapacity,
+  PLATFORM_ROLE_CAPACITY,
+  type NumberedPlatformRole,
+} from "./platform-role-identities";
+  canChangeMemberSocialLinkVisibility,
+  projectMemberSocialLinks,
+  validateMemberSocialLinks,
+} from "./member-social-links";
   validateFeaturedAdFinancialEvent,
   applyFeaturedAdFinancialEvent,
   featuredAdFinancialIdempotencyId,
   defaultFeaturedAdFinancialSnapshot,
 } from "./featured-ad-finance";
-import {
   defaultFeaturedAdRewardPolicy,
   validateFeaturedAdRewardPolicy,
 } from "./featured-ad-rewards";
-import {
   assertMessageLinksAllowed,
   BIOMETRIC_APPROVED_HOSTS,
   canSendApprovedPlatformLinks,
 } from "./link-policy";
-import { createHash, createHmac, randomUUID } from "node:crypto";
-import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
-import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } from "./room-call-policy";
-import { callMaxDurationEnd, validateCallUsagePolicy } from "./call-usage-policy";
-import { isGuestSessionActive } from "./guest-sessions";
-import { hasPlatformOwnerSession } from "./owner-access";
-import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
-import {
   OWNER_AUDIT_ARCHIVE_BATCH_SIZE,
   OWNER_AUDIT_ARCHIVE_MIN_AGE_MS,
   OWNER_AUDIT_ARCHIVE_RETENTION_SECONDS,
@@ -84,8 +96,6 @@ import {
   auditCollectionArchiveObjectName,
   serializeAuditCollectionArchive,
 } from "./audit-archive";
-import { validateOwnerAuditExportRequest, projectOwnerAuditExportValue } from "./owner-audit-export";
-import {
   validateOwnerChatReviewRequest,
   validateOwnerConversationPageRequest,
   encodeOwnerMessagePageToken,
@@ -93,35 +103,20 @@ import {
   validateOwnerReviewAnnouncementRequest,
   validateOwnerChatParticipationRequest,
 } from "./owner-chat-review";
-import {
   PRIVACY_POLICY_HASH,
   PRIVACY_POLICY_VERSION,
   validatePrivacyAcknowledgement,
 } from "./privacy-acknowledgement";
-import {
   isStoreItemPurchasable,
   projectStoreCatalogItem,
   validateStoreCatalogItemInput,
 } from "./store-catalog";
-import {
   calculateStorePurchaseBalance,
   isStoreEntitlementActive,
   isStorePurchasePriceCurrent,
   isStorePurchaseReplayCompatible,
   projectStoreEntitlementFeatures,
 } from "./store-purchase";
-import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
-import { deleteMediaAssetForMessage } from "./media";
-import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance } from "./room-rental";
-import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
-import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
-import { validateCoinPackages, validateAdPrices, currencyExponentForCode, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } from "./economy-pricing";
-import { validateCoinPurchaseRequestInput, validateOwnerPaymentInstructionInput, validateExternalPaymentVerification, coinGiftPackageTermsMatch, coinGiftApprovalReplayMatches } from "./coin-purchase-requests";
-import { validateOwnerLiveStreamInput } from "./owner-live-stream";
-import { validateCreatorProposalInput, CreatorProposalValidationError } from "./creator-proposals";
-import { validateAdvertisingIntake, advertisingIntakeAuditEventId, advertisingIntakeReviewAuditEventId, AdvertisingIntakeValidationError } from "./advertising-intake";
-import { validateProductionApplication, ProductionApplicationValidationError } from "./production-applications";
-import {
   applyContractSignature,
   assertContractStatusTransition,
   canMakeContractEffective,
@@ -133,8 +128,6 @@ import {
   type ContractSigningState,
   type ContractStatus,
 } from "./contracts-workflow";
-import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
-import {
   defaultAttendanceRewardPolicy,
   validateAttendanceRewardPolicy,
   utcRewardPeriod,
@@ -12118,3 +12111,1610 @@ export const getStickerCatalog = onCall(async (request) => {
     disabledReason: "sticker_lifecycle_implementation_pending",
   };
 });
+
+
+// Recovered callable endpoints from the 18-19 Nov domain branches; unique names only.
+export const setMemberGhostMode = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const enabled = request.data?.enabled;
+  if (typeof enabled !== "boolean") {
+    throw new HttpsError("invalid-argument", "حالة وضع التخفي غير صالحة.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const entitlementRef = userRef.collection("entitlements").doc("ghost_mode_7d");
+  const auditRef = db.collection("profileFeatureAuditLogs").doc();
+  const now = Date.now();
+  const result = await db.runTransaction(async (transaction) => {
+    const [userSnapshot, entitlementSnapshot] = await Promise.all([
+      transaction.get(userRef), transaction.get(entitlementRef),
+    ]);
+    if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      throw new HttpsError("permission-denied", "العضوية غير مؤهلة لتعديل وضع التخفي.");
+    }
+    if (!entitlementSnapshot.exists || !isStoreEntitlementActive(entitlementSnapshot.data(), now)) {
+      throw new HttpsError("failed-precondition", "شراء وضع التخفي الفعال مطلوب.");
+    }
+    const entitlement = entitlementSnapshot.data() ?? {};
+    const expiry = entitlement.expiresAt instanceof Timestamp
+      ? entitlement.expiresAt
+      : typeof entitlement.expiresAt?.toMillis === "function"
+        ? Timestamp.fromMillis(entitlement.expiresAt.toMillis())
+        : null;
+    if (!expiry) {
+      throw new HttpsError("failed-precondition", "تعذر إثبات مدة وضع التخفي بأمان.");
+    }
+    const next = enabled ? expiry : Timestamp.fromMillis(now);
+    transaction.update(userRef, {
+      ghostModeUntil: next,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(auditRef, {
+      actorUid: uid,
+      action: enabled ? "ghost_mode_enabled" : "ghost_mode_disabled",
+      entitlementItemId: "ghost_mode_7d",
+      expiresAt: next,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return { enabled: enabled && next.toMillis() > now, expiresAtMs: next.toMillis() };
+  });
+  return result;
+});
+
+export const reconcileMemberWallet = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "wallet_reconciliation_attempt");
+  const memberUid = typeof request.data?.memberUid === "string"
+    ? request.data.memberUid.trim() : "";
+  if (!memberUid || memberUid.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف العضو غير صالح.");
+  }
+  const userRef = db.collection("users").doc(memberUid);
+  const [userSnapshot, ledgerSnapshot] = await Promise.all([
+    userRef.get(),
+    userRef.collection("walletLedger").limit(10001).get(),
+  ]);
+  if (!userSnapshot.exists) throw new HttpsError("not-found", "ملف المحفظة غير موجود.");
+  const userData = userSnapshot.data() ?? {};
+  const entries = ledgerSnapshot.docs.slice(0, 10000).map((document) => {
+    const data = document.data();
+    const createdAt = data.createdAt;
+    const createdAtMs = createdAt instanceof Timestamp
+      ? createdAt.toMillis()
+      : typeof createdAt?.toMillis === "function" ? createdAt.toMillis() : null;
+    const createdAtNanos = createdAt instanceof Timestamp
+      ? createdAt.nanoseconds
+      : typeof createdAt?.nanoseconds === "number" ? createdAt.nanoseconds : null;
+    return {
+      id: document.id,
+      amount: data.amount,
+      balanceBefore: data.balanceBefore,
+      balanceAfter: data.balanceAfter,
+      createdAtMs,
+      createdAtNanos,
+    };
+  }).sort((left, right) =>
+    (left.createdAtMs ?? Number.MIN_SAFE_INTEGER) -
+      (right.createdAtMs ?? Number.MIN_SAFE_INTEGER) ||
+    (left.createdAtNanos ?? 0) - (right.createdAtNanos ?? 0) ||
+    left.id.localeCompare(right.id));
+  let result;
+  try {
+    result = reconcileWalletLedger(userData.coins, entries);
+  } catch {
+    throw new HttpsError("data-loss", "بيانات المحفظة غير صالحة؛ تعذر إجراء المطابقة.");
+  }
+  const truncated = ledgerSnapshot.size > 10000;
+  const missingTimestamps = entries.filter((entry) => entry.createdAtMs === null).length;
+  const status = truncated || missingTimestamps > 0 ? "incomplete" : result.status;
+  await db.collection("adminAuditLogs").add({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    inspectedEntryCount: entries.length,
+    truncated,
+    missingTimestamps,
+    currentBalance: result.currentBalance,
+    computedBalance: result.computedBalance,
+    anomalyCount: result.anomalies.length,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: "member_wallet_reconciliation",
+    memberUid,
+    status,
+    ledgerEntryCount: ledgerSnapshot.size,
+    truncated,
+    missingTimestamps,
+    outcome: "success",
+  });
+  return { memberUid, ...result, status, truncated, missingTimestamps };
+});
+
+/** Owner operations overview: aggregate counts only, never member secrets. */
+
+export const giftStoreEntitlement = onCall(async (request) => {
+  const senderUid = requireAuthenticatedUid(request.auth?.uid);
+  const firebaseIdentity = request.auth?.token.firebase;
+  const signInProvider = firebaseIdentity && typeof firebaseIdentity === "object" &&
+      !Array.isArray(firebaseIdentity)
+    ? (firebaseIdentity as Record<string, unknown>).sign_in_provider
+    : undefined;
+  if (signInProvider === "anonymous") {
+    throw new HttpsError("permission-denied", "إهداء المتجر متاح للأعضاء المسجلين فقط.");
+  }
+
+  const recipientUid = request.data?.recipientUid;
+  const itemId = request.data?.itemId;
+  const requestId = request.data?.requestId;
+  const expectedPriceCoins = request.data?.expectedPriceCoins;
+  if (recipientUid === senderUid) {
+    throw new HttpsError("failed-precondition", "اختر عضواً آخر لإرسال الهدية.");
+  }
+  if (typeof recipientUid !== "string" || recipientUid.length < 1 ||
+      recipientUid.length > 128 || recipientUid.trim() !== recipientUid ||
+      recipientUid.includes("/") ||
+      typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
+      typeof requestId !== "string" || requestId.length < 8 ||
+      requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
+      typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
+      expectedPriceCoins <= 0) {
+    throw new HttpsError("invalid-argument", "بيانات إهداء العنصر غير صالحة.");
+  }
+
+  // Auth provider data is authoritative for distinguishing anonymous Firebase
+  // identities from registered accounts; profile fields alone are not enough.
+  let recipientAuth: UserRecord;
+  try {
+    recipientAuth = await getAuth().getUser(recipientUid);
+  } catch {
+    throw new HttpsError("not-found", "حساب المستلم غير موجود.");
+  }
+  if (recipientAuth.disabled === true || !Array.isArray(recipientAuth.providerData) ||
+      recipientAuth.providerData.length === 0 ||
+      recipientAuth.providerData.every((provider) => provider.providerId === "anonymous")) {
+    throw new HttpsError("permission-denied", "لا يمكن إهداء المزايا إلى حساب زائر.");
+  }
+
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const itemRef = db.collection("storeCatalog").doc(itemId);
+  const giftId = createHash("sha256")
+    .update("mawdda-store-gift-v1:" + senderUid + ":" + requestId)
+    .digest("hex");
+  const giftRef = db.collection("storeGifts").doc(giftId);
+  const senderLedgerRef = senderRef.collection("walletLedger").doc("gift_" + giftId);
+  const recipientEntitlementRef = recipientRef.collection("entitlements").doc(itemId);
+  const recipientHistoryRef = recipientRef.collection("giftHistory").doc(giftId);
+  const recipientNotificationRef = recipientRef.collection("notifications").doc("gift_" + giftId);
+  const senderGuestProfileRef = db.collection("guestProfiles").doc(senderUid);
+  const senderGuestSessionRef = db.collection("guestSessions").doc(senderUid);
+  const recipientGuestProfileRef = db.collection("guestProfiles").doc(recipientUid);
+  const recipientGuestSessionRef = db.collection("guestSessions").doc(recipientUid);
+
+  return db.runTransaction(async (transaction) => {
+    const [
+      sender, recipient, itemSnapshot, priorGift, priorLedger, priorEntitlement,
+      priorHistory, priorNotification,
+      senderGuestProfile, senderGuestSession, recipientGuestProfile, recipientGuestSession,
+    ] = await transaction.getAll(
+      senderRef,
+      recipientRef,
+      itemRef,
+      giftRef,
+      senderLedgerRef,
+      recipientEntitlementRef,
+      recipientHistoryRef,
+      recipientNotificationRef,
+      senderGuestProfileRef,
+      senderGuestSessionRef,
+      recipientGuestProfileRef,
+      recipientGuestSessionRef,
+    );
+
+    if (priorGift.exists) {
+      const prior = priorGift.data() ?? {};
+      const ledger = priorLedger.data() ?? {};
+      const history = priorHistory.data() ?? {};
+      const notification = priorNotification.data() ?? {};
+      if (!isStoreGiftReplayCompatible(prior, {
+        senderUid, recipientUid, itemId, expectedPriceCoins,
+      })) {
+        throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
+      }
+      const balanceSnapshotValid =
+        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
+        Number.isSafeInteger(ledger.balanceBefore) &&
+        Number.isSafeInteger(ledger.balanceAfter) &&
+        ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
+        ledger.balanceAfter === prior.newBalance &&
+        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
+      if (!priorLedger.exists || !priorHistory.exists || !priorNotification.exists ||
+          !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
+          !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
+          ledger.type !== "store_gift" || ledger.direction !== "debit" ||
+          ledger.amount !== -prior.priceCoins || !balanceSnapshotValid ||
+          ledger.giftId !== giftId || ledger.recipientUid !== recipientUid ||
+          ledger.itemId !== itemId || history.giftId !== giftId ||
+          history.senderUid !== senderUid || history.itemId !== itemId ||
+          notification.type !== "store_gift_received" || notification.giftId !== giftId) {
+        throw new HttpsError("failed-precondition", "سجلات الإهداء غير متطابقة؛ أوقفنا إعادة الطلب للحماية.");
+      }
+      return {
+        giftId, itemId, recipientUid,
+        priceCoins: prior.priceCoins,
+        newBalance: prior.newBalance,
+        expiresAt: prior.expiresAt instanceof Timestamp ? prior.expiresAt.toMillis() : null,
+        idempotentReplay: true,
+      };
+    }
+    if (priorLedger.exists) {
+      throw new HttpsError("failed-precondition", "تعارض سجل المحفظة مع طلب الإهداء؛ أوقفنا العملية للحماية.");
+    }
+    if (senderUid === recipientUid) {
+      throw new HttpsError("failed-precondition", "اختر عضواً آخر لإرسال الهدية.");
+    }
+    if (!sender.exists || !isEligibleStoreGiftMemberRecord(sender.data()) ||
+        !isMemberAccountInGoodStanding(sender.data()) ||
+        senderGuestProfile.exists || senderGuestSession.exists) {
+      throw new HttpsError("permission-denied", "حساب المرسل غير مؤهل لإهداء المتجر.");
+    }
+    if (!recipient.exists || !isEligibleStoreGiftMemberRecord(recipient.data()) ||
+        !isMemberAccountInGoodStanding(recipient.data()) ||
+        recipientGuestProfile.exists || recipientGuestSession.exists) {
+      throw new HttpsError("permission-denied", "المستلم يجب أن يكون عضواً مسجلاً ومؤهلاً، ولا تقبل حسابات الزوار الهدايا.");
+    }
+    if (!itemSnapshot.exists) {
+      throw new HttpsError("not-found", "عنصر المتجر غير موجود.");
+    }
+    const item = projectStoreCatalogItem(itemId, itemSnapshot.data() ?? {});
+    if (!item || !isStoreItemPurchasable(item)) {
+      throw new HttpsError("failed-precondition", "هذا العنصر غير منشور أو لم يكتمل تنفيذ استحقاقه.");
+    }
+    if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
+      throw new HttpsError("failed-precondition", "تغير سعر العنصر؛ حدّث المتجر وراجع السعر قبل الإهداء.");
+    }
+
+    const senderData = sender.data() ?? {};
+    const currentBalance = senderData.coins ?? 0;
+    const newBalance = calculateStorePurchaseBalance(currentBalance, item.priceCoins);
+    if (newBalance === null) {
+      throw new HttpsError("failed-precondition", "رصيد BetaCoins غير كافٍ أو غير صالح.");
+    }
+
+    const nowMs = Date.now();
+    const currentEntitlement = priorEntitlement.data() ?? {};
+    let expirySource: Record<string, unknown> = currentEntitlement;
+    if (item.category === "boost") {
+      const recipientBoostExpiry = recipient.data()?.discoveryBoostExpiresAt;
+      const boostExpiryMs = recipientBoostExpiry instanceof Timestamp
+        ? recipientBoostExpiry.toMillis()
+        : typeof recipientBoostExpiry?.toMillis === "function"
+          ? recipientBoostExpiry.toMillis() : 0;
+      const entitlementExpiryMs = currentEntitlement.expiresAt instanceof Timestamp
+        ? currentEntitlement.expiresAt.toMillis()
+        : typeof currentEntitlement.expiresAt?.toMillis === "function"
+          ? currentEntitlement.expiresAt.toMillis() : 0;
+      expirySource = {
+        ...currentEntitlement,
+        status: currentEntitlement.status === "active" ? "active" :
+          boostExpiryMs > nowMs ? "active" : currentEntitlement.status,
+        expiresAt: boostExpiryMs > entitlementExpiryMs
+          ? Timestamp.fromMillis(boostExpiryMs) : currentEntitlement.expiresAt,
+      };
+    }
+    const expiresAtMs = calculateStoreGiftExpiryMs(expirySource, item.durationDays, nowMs);
+    const expiresAt = expiresAtMs === null ? null : Timestamp.fromMillis(expiresAtMs);
+    const createdAt = FieldValue.serverTimestamp();
+
+    transaction.update(senderRef, { coins: newBalance, updatedAt: createdAt });
+    transaction.create(giftRef, {
+      giftId, requestId, senderUid, recipientUid, itemId,
+      itemName: item.name, category: item.category,
+      priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
+      balanceBefore: currentBalance, newBalance, expiresAt, status: "completed", createdAt,
+    });
+    transaction.create(senderLedgerRef, {
+      type: "store_gift", direction: "debit", amount: -item.priceCoins,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
+      giftId, recipientUid, itemId, itemName: item.name, createdAt,
+    });
+    transaction.set(recipientEntitlementRef, {
+      itemId, itemName: item.name, category: item.category,
+      status: "active", giftId, giftedByUid: senderUid,
+      purchasedAt: createdAt, giftedAt: createdAt, expiresAt,
+    }, { merge: true });
+    transaction.create(recipientHistoryRef, {
+      giftId, senderUid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      durationDays: item.durationDays ?? null, expiresAt,
+      status: "received", createdAt,
+    });
+    transaction.create(recipientNotificationRef, {
+      notificationId: "gift_" + giftId, type: "store_gift_received",
+      senderUid, giftId, itemId, itemName: item.name,
+      title: "وصلتك هدية من متجر مودة",
+      body: "أهداك أحد الأعضاء ميزة: " + item.name,
+      isRead: false, createdAt,
+    });
+    const recipientUpdate: Record<string, unknown> = { updatedAt: createdAt };
+    if (item.category === "boost" && expiresAt) {
+      recipientUpdate.discoveryBoostExpiresAt = expiresAt;
+      recipientUpdate.discoveryBoostGiftId = giftId;
+    }
+    if (Object.keys(recipientUpdate).length > 1) transaction.update(recipientRef, recipientUpdate);
+
+    return {
+      giftId, itemId, recipientUid, priceCoins: item.priceCoins,
+      newBalance, expiresAt: expiresAt?.toMillis() ?? null,
+      idempotentReplay: false,
+    };
+  });
+});
+
+/** Members can read only the gift history delivered to their own account. */
+
+export const getOwnerRoomRentalPlans = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await ROOM_RENTAL_SETTINGS.get();
+  const plans = await readRoomRentalPlans();
+  const version = Number.isSafeInteger(snapshot.data()?.version) ? snapshot.data()!.version : 0;
+  return { plans, version, configured: snapshot.exists };
+});
+
+/** Public plan list: published plan prices are server-authored and versioned. */
+
+export const getFeaturedAdShowcase = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const user = await db.collection("users").doc(uid).get();
+  if (!user.exists || user.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(user.data())) {
+    throw new HttpsError("permission-denied", "الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
+  }
+  const geography = request.data?.geography;
+  if (typeof geography !== "string" ||
+      !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
+    throw new HttpsError("invalid-argument", "يجب اختيار نطاق جغرافي معتمد.");
+  }
+  const now = Date.now();
+  const snapshot = await db.collection("featuredAdCampaigns")
+    .where("status", "==", "published")
+    .where("startsAtMs", "<=", now)
+    .where("endsAtMs", ">", now)
+    .limit(100).get();
+  const candidates: FeaturedAdCampaignCandidate[] = snapshot.docs.flatMap((doc) => {
+    const data = doc.data();
+    if (typeof data.ownerApproved !== "boolean" ||
+        typeof data.ownerWithdrawn !== "boolean" ||
+        typeof data.paymentConfirmed !== "boolean" ||
+        typeof data.creativeApproved !== "boolean" ||
+        !Array.isArray(data.geographicTargets) ||
+        !data.geographicTargets.every((item: unknown) => typeof item === "string") ||
+        !["rotation", "priority"].includes(data.featuredPlacement)) return [];
+    return [{
+      campaignId: doc.id,
+      status: String(data.status),
+      ownerApproved: data.ownerApproved,
+      ownerWithdrawn: data.ownerWithdrawn,
+      paymentConfirmed: data.paymentConfirmed,
+      creativeApproved: data.creativeApproved,
+      startsAtMs: data.startsAtMs,
+      endsAtMs: data.endsAtMs,
+      geographicTargets: data.geographicTargets,
+      featuredPlacement: data.featuredPlacement as "rotation" | "priority",
+      ...(Number.isSafeInteger(data.priorityOrder) ? { priorityOrder: data.priorityOrder } : {}),
+    }];
+  });
+  const selection = selectFeaturedAdShowcase({
+    campaigns: candidates,
+    audienceGeography: geography,
+    nowMs: now,
+  });
+  const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc]));
+  return {
+    serverTimeMs: now,
+    geography,
+    mode: selection.mode,
+    rotationIntervalMs: selection.rotationIntervalMs,
+    rewardEligible: false,
+    campaigns: selection.campaignIds.flatMap((campaignId) => {
+      const doc = byId.get(campaignId);
+      if (!doc) return [];
+      const data = doc.data();
+      if (typeof data.title !== "string" || typeof data.sponsorLabel !== "string" ||
+          typeof data.body !== "string") return [];
+      return [{
+        campaignId,
+        title: data.title,
+        sponsorLabel: data.sponsorLabel,
+        body: data.body,
+        featuredPlacement: data.featuredPlacement,
+      }];
+    }),
+  };
+});
+
+
+const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewardPolicy");
+const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaPolicy");
+const FEATURED_AD_ALLOWED_STATUSES = ["draft", "approved", "published", "paused", "withdrawn"] as const;
+const FEATURED_AD_ALLOWED_PLACEMENTS = ["rotation", "priority"] as const;
+
+function featuredAdCampaignRef(campaignId: string) {
+  return db.collection("featuredAdCampaigns").doc(campaignId);
+}
+function featuredAdRewardDayKey(nowMs: number): string {
+  return new Date(nowMs).toISOString().slice(0, 10);
+}
+function validateFeaturedAdCampaignInput(data: Record<string, unknown>) {
+  const title = typeof data.title === "string" ? data.title.trim() : "";
+  const sponsorLabel = typeof data.sponsorLabel === "string" ? data.sponsorLabel.trim() : "";
+  const body = typeof data.body === "string" ? data.body.trim() : "";
+  const geography = Array.isArray(data.geographicTargets) ? data.geographicTargets : [];
+  const placement = data.featuredPlacement;
+  const startsAtMs = data.startsAtMs;
+  const endsAtMs = data.endsAtMs;
+  const rewardBudgetCoins = data.rewardBudgetCoins;
+  const rewardCoinsPerView = data.rewardCoinsPerView;
+  const mediaId = data.mediaId;
+  if (title.length < 3 || title.length > 180 || sponsorLabel.length < 2 || sponsorLabel.length > 180 ||
+      body.length < 10 || body.length > 5000 || geography.length < 1 ||
+      geography.length > AD_INTAKE_GEOGRAPHIES.length ||
+      geography.some((item) => typeof item !== "string" || !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(item)) ||
+      new Set(geography).size !== geography.length ||
+      !FEATURED_AD_ALLOWED_PLACEMENTS.includes(placement as typeof FEATURED_AD_ALLOWED_PLACEMENTS[number]) ||
+      !Number.isSafeInteger(startsAtMs) || !Number.isSafeInteger(endsAtMs) ||
+      (startsAtMs as number) < 0 || (endsAtMs as number) <= (startsAtMs as number) ||
+      !Number.isSafeInteger(rewardBudgetCoins) || (rewardBudgetCoins as number) < 0 ||
+      !Number.isSafeInteger(rewardCoinsPerView) || (rewardCoinsPerView as number) < 0 ||
+      (rewardCoinsPerView as number) > (rewardBudgetCoins as number) ||
+      (mediaId !== undefined && mediaId !== null && typeof mediaId !== "string")) {
+    throw new HttpsError("invalid-argument", "بيانات الحملة المميزة غير صالحة.");
+  }
+  return {
+    title, sponsorLabel, body, geographicTargets: geography as string[],
+    featuredPlacement: placement as "rotation" | "priority",
+    startsAtMs: startsAtMs as number, endsAtMs: endsAtMs as number,
+    rewardBudgetCoins: rewardBudgetCoins as number, rewardCoinsPerView: rewardCoinsPerView as number,
+    mediaId: typeof mediaId === "string" && mediaId.trim() ? mediaId.trim() : null,
+  };
+}
+async function validateFeaturedAdCreativeForOwner(mediaId: string | null, ownerUid: string) {
+  if (!mediaId) return { creativeType: "text" as const };
+  const assetSnapshot = await db.collection("mediaAssets").doc(mediaId).get();
+  if (!assetSnapshot.exists) throw new HttpsError("not-found", "المادة الإعلانية غير موجودة.");
+  const asset = assetSnapshot.data() ?? {};
+  if (asset.ownerUid !== ownerUid || asset.uploaderRole !== "platform_owner" ||
+      asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved" ||
+      !["image", "video"].includes(String(asset.mediaCategory))) {
+    throw new HttpsError("failed-precondition", "لا يمكن اعتماد مادة لم تجتز الفحص الأمني.");
+  }
+  const isVideo = asset.mediaCategory === "video";
+  const isGif = !isVideo && asset.detectedContentType === "image/gif";
+  const expectedPath = "processed/" + ownerUid + "/" + mediaId + "/" +
+    (isVideo ? "video.mp4" : isGif ? "animation.gif" : "preview.webp");
+  const path = isVideo ? asset.safeVideoPath : isGif ? asset.safeAnimationPath : asset.safePreviewPath;
+  const generation = isVideo ? asset.safeVideoGeneration : isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+  const sha256 = isVideo ? asset.safeVideoSha256 : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+  const contentType = isVideo ? asset.safeVideoContentType : isGif ? asset.safeAnimationContentType : asset.safePreviewContentType;
+  const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
+  const processingStatus = isVideo ? "safe_video_derivative_ready" : isGif
+    ? "safe_animation_derivative_ready" : "safe_raster_derivative_ready";
+  const measuredDurationMs = isVideo ? asset.safeVideoDurationMs : isGif ? asset.safeAnimationDurationMs : null;
+  const measuredFrameCount = isGif ? asset.safeAnimationFrameCount : null;
+  if (path !== expectedPath || typeof generation !== "string" || !/^[1-9][0-9]*$/.test(generation) ||
+      typeof sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(sha256) ||
+      contentType !== expectedType || asset.processingStatus !== processingStatus ||
+      (isGif && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 20_000 || !Number.isSafeInteger(measuredFrameCount) ||
+        measuredFrameCount < 1 || measuredFrameCount > 50)) ||
+      (isVideo && (!Number.isSafeInteger(measuredDurationMs) || measuredDurationMs < 1 ||
+        measuredDurationMs > 90_000))) {
+    throw new HttpsError("failed-precondition", "المادة لم تنتج مشتقاً آمناً موثقاً وقابلاً للعرض.");
+  }
+  return { creativeType: isVideo ? "video" as const : "image" as const };
+}
+
+export const getOwnerFeaturedAdCampaigns = onCall(async (request) => {
+  await requireOwnerForReview(request, "featured_ad_campaign_list_attempt");
+  const snapshot = await db.collection("featuredAdCampaigns").orderBy("updatedAt", "desc").limit(200).get();
+  return { campaigns: snapshot.docs.map((doc) => ({ campaignId: doc.id, ...doc.data() })) };
+});
+
+export const setOwnerFeaturedAdCampaign = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_save_attempt");
+  const data = (request.data ?? {}) as Record<string, unknown>;
+  const input = validateFeaturedAdCampaignInput(data);
+  const campaignId = typeof data.campaignId === "string" ? data.campaignId.trim() : "";
+  const expectedVersion = data.expectedVersion;
+  if (campaignId && (!Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1)) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب عند التعديل.");
+  }
+  const ref = campaignId ? featuredAdCampaignRef(campaignId) : db.collection("featuredAdCampaigns").doc();
+  const creative = await validateFeaturedAdCreativeForOwner(input.mediaId, actorUid);
+  const result = await db.runTransaction(async (transaction) => {
+    const [current, economySettings] = await Promise.all([
+      transaction.get(ref), transaction.get(ECONOMY_PRICING_SETTINGS),
+    ]);
+    const economyPolicy = economySettings.data() ?? {};
+    let paymentPolicy;
+    try {
+      paymentPolicy = projectEconomicPaymentPolicy(economyPolicy.paymentPolicy, {
+        manualCoinPurchasesEnabled: economyPolicy.manualCoinPurchasesEnabled,
+        manualFeaturedAdsEnabled: economyPolicy.manualFeaturedAdsEnabled,
+      });
+    } catch {
+      throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ تعذر إنشاء الحملة.");
+    }
+    if (current.exists) {
+      const existing = current.data() ?? {};
+      if (existing.version !== expectedVersion) {
+        throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل البيانات قبل التعديل.");
+      }
+      if (!["draft", "paused"].includes(String(existing.status))) {
+        throw new HttpsError("failed-precondition", "لا يمكن تعديل حملة منشورة أو مسحوبة.");
+      }
+      transaction.update(ref, {
+        ...input, creativeType: creative.creativeType, ownerApproved: false, creativeApproved: false,
+        paymentConfirmed: existing.paymentConfirmed === true, status: "draft",
+        paymentPolicySnapshot: existing.paymentPolicySnapshot ?? {
+          manualEnabled: true, automatedEnabled: false, policyVersion: 0,
+          legacyRequestSnapshot: true,
+        },
+        updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+        version: (Number.isSafeInteger(existing.version) ? existing.version : 0) + 1,
+      });
+    } else {
+      transaction.create(ref, {
+        ...input, creativeType: creative.creativeType, ownerApproved: false, ownerWithdrawn: false,
+        paymentConfirmed: false, creativeApproved: false, status: "draft",
+        paymentPolicySnapshot: {
+          manualEnabled: paymentPolicy.featured_ads.manualEnabled,
+          automatedEnabled: false,
+          policyVersion: Number.isSafeInteger(economyPolicy.version) ? economyPolicy.version : 0,
+        },
+        createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+        createdBy: actorUid, updatedBy: actorUid, version: 1,
+        spentRewardCoins: 0, reservedRewardCoins: 0,
+      });
+    }
+    return { campaignId: ref.id };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid, action: campaignId ? "featured_ad_campaign_updated" : "featured_ad_campaign_created",
+    campaignId: result.campaignId, outcome: "success",
+  });
+  return { ...result, status: "draft" };
+});
+
+export const setFeaturedAdCampaignStatus = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_campaign_status_attempt");
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const status = request.data?.status;
+  const expectedVersion = request.data?.expectedVersion;
+  if (!campaignId || !FEATURED_AD_ALLOWED_STATUSES.includes(status as typeof FEATURED_AD_ALLOWED_STATUSES[number]) ||
+      !Number.isSafeInteger(expectedVersion) || (expectedVersion as number) < 1 ||
+      request.data?.paymentConfirmed !== undefined) {
+    throw new HttpsError("invalid-argument", "معرف الحملة أو الحالة أو الإصدار غير صالح؛ إثبات الدفع لا يُقبل كقيمة مرسلة من العميل.");
+  }
+  const ref = featuredAdCampaignRef(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const current = snapshot.data() ?? {};
+    if (current.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت حالة الحملة منذ تحميلها؛ أعد تحميل القائمة.");
+    }
+    const next = String(status);
+    const previous = String(current.status);
+    const allowedTransitions: Record<string, string[]> = {
+      draft: ["approved", "withdrawn"],
+      approved: ["published", "paused", "withdrawn"],
+      published: ["paused", "withdrawn"],
+      paused: ["approved", "published", "withdrawn"],
+      withdrawn: ["withdrawn"],
+    };
+    if (!allowedTransitions[previous]?.includes(next)) {
+      throw new HttpsError("failed-precondition", "انتقال حالة الحملة غير مسموح؛ السحب نهائي ولا يمكن إحياء الحملة المسحوبة.");
+    }
+    if (request.data?.paymentConfirmed === true && next !== "approved") {
+      throw new HttpsError("invalid-argument", "تأكيد الدفع يجب أن يتم ضمن خطوة اعتماد الحملة.");
+    }
+    const paymentConfirmed = current.paymentConfirmed === true;
+    if (next === "approved" || next === "published") {
+      if (current.ownerWithdrawn === true || !paymentConfirmed || !current.mediaId ||
+          current.creativeApproved !== true) {
+        throw new HttpsError("failed-precondition", "لا يمكن اعتماد أو نشر الحملة قبل تأكيد الدفع واعتماد المادة الإعلانية.");
+      }
+      await validateFeaturedAdCreativeForOwner(String(current.mediaId), actorUid);
+    }
+    transaction.update(ref, {
+      status: next,
+      ownerApproved: next === "approved" || next === "published"
+        ? true : next === "paused" ? current.ownerApproved === true : false,
+      ownerWithdrawn: next === "withdrawn",
+      creativeApproved: current.creativeApproved === true,
+      paymentConfirmed,
+      version: (Number(current.version) || 1) + 1,
+      updatedAt: FieldValue.serverTimestamp(), updatedBy: actorUid,
+      approvedAt: next === "approved" || next === "published" ? FieldValue.serverTimestamp() : current.approvedAt ?? null,
+      withdrawnAt: next === "withdrawn" ? FieldValue.serverTimestamp() : current.withdrawnAt ?? null,
+    });
+    return { version: (Number(current.version) || 1) + 1 };
+  });
+  await appendOwnerReviewAuditEvent({ actorUid, action: "featured_ad_campaign_status_changed", campaignId, status, outcome: "success" });
+  return { campaignId, status, ...result };
+});
+/**
+ * Owner-only manual financial attestation for featured ads.
+ * The owner verifies off-platform records; client screenshots/booleans are never authority.
+ * The event, immutable financial ledger row, campaign snapshot/version and audit row
+ * are committed atomically. No payment provider is assumed or enabled here.
+ */
+
+export const recordOwnerFeaturedAdFinancialEvent = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_financial_event_attempt");
+  let event;
+  try {
+    event = validateFeaturedAdFinancialEvent(request.data);
+  } catch {
+    throw new HttpsError("invalid-argument", "بيانات الحركة المالية للإعلان غير صالحة.");
+  }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    throw new HttpsError("invalid-argument", "إصدار الحملة المتوقع مطلوب لتسجيل الحركة المالية.");
+  }
+  const campaignRef = featuredAdCampaignRef(event.campaignId);
+  const eventId = featuredAdFinancialIdempotencyId(
+    event.campaignId, event.action, event.externalReference!,
+  );
+  const eventRef = campaignRef.collection("financialEvents").doc(eventId);
+  const auditRef = db.collection("adminAuditLogs").doc("featured_ad_finance_" + eventId);
+  const auditOutboxRef = db.collection("featuredAdFinancialAuditOutbox").doc(eventId);
+  const result = await db.runTransaction(async (transaction) => {
+    const [campaignSnapshot, existingEvent, auditOutbox, auditRecord] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(eventRef),
+      transaction.get(auditOutboxRef), transaction.get(auditRef),
+    ]);
+    if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة الإعلانية غير موجودة.");
+    const campaign = campaignSnapshot.data() ?? {};
+    if (existingEvent.exists) {
+      const prior = existingEvent.data() ?? {};
+      // The stable event identity is derived from campaign/action/externalReference.
+      // Client attempt keys may change after a timeout, so they are not business-payload identity.
+      const samePayload = prior.action === event.action &&
+        prior.amountMinor === event.amountMinor && prior.currency === event.currency &&
+        prior.externalReference === event.externalReference &&
+        prior.evidenceReference === event.evidenceReference && prior.note === event.note &&
+        prior.reviewOutcome === event.reviewOutcome && prior.actorUid === actorUid;
+      if (!samePayload) {
+        throw new HttpsError("already-exists", "مرجع الحركة المالية مستخدم لعملية مختلفة.");
+      }
+      if (!auditRecord.exists) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي الأصلي مفقود؛ أوقفنا إعادة التنفيذ.");
+      }
+      const auditData = auditRecord.data() ?? {};
+      if (auditData.actorUid !== actorUid ||
+          auditData.action !== "featured_ad_financial_" + event.action ||
+          auditData.campaignId !== event.campaignId || auditData.eventId !== eventId ||
+          auditData.externalReference !== event.externalReference ||
+          auditData.amountMinor !== event.amountMinor || auditData.currency !== event.currency) {
+        throw new HttpsError("data-loss", "سجل التدقيق المالي لا يطابق الحركة الأصلية.");
+      }
+      if (auditOutbox.exists) {
+        const outbox = auditOutbox.data() ?? {};
+        if (outbox.eventId !== eventId || outbox.campaignId !== event.campaignId ||
+            outbox.actorUid !== actorUid || outbox.action !== event.action) {
+          throw new HttpsError("data-loss", "سجل ترحيل التدقيق لا يطابق الحركة المالية.");
+        }
+      } else {
+        transaction.create(auditOutboxRef, {
+          eventId, campaignId: event.campaignId, actorUid, action: event.action,
+          status: "pending", createdAt: FieldValue.serverTimestamp(),
+        });
+      }
+      if (!Number.isSafeInteger(prior.resultingVersion) || prior.resultingVersion < 1) {
+        throw new HttpsError("data-loss", "نسخة الحركة المالية الأصلية غير موجودة أو غير صالحة؛ أوقفنا إعادة التنفيذ.");
+      }
+      return {
+        campaignId: event.campaignId, eventId, idempotentReplay: true,
+        // Replay verifies the immutable event's original version, not the
+        // campaign's newer current version after later payments/refunds.
+        version: prior.resultingVersion,
+        financialSnapshot: campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot(),
+      };
+    }
+    const paymentPolicySnapshot = campaign.paymentPolicySnapshot;
+    if (paymentPolicySnapshot !== undefined && paymentPolicySnapshot?.manualEnabled !== true) {
+      throw new HttpsError("failed-precondition", "لقطة الحملة لا تسمح بالدفع اليدوي؛ لا يمكن تغيير مسار الدفع بعد إنشاء الطلب.");
+    }
+    if (campaign.version !== expectedVersion) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ حدّث بياناتها ثم أعد تسجيل الحركة.");
+    }
+    if (campaign.ownerWithdrawn === true || campaign.status === "withdrawn") {
+      throw new HttpsError("failed-precondition", "لا يمكن تسجيل حركة مالية جديدة لحملة مسحوبة نهائياً.");
+    }
+    const currentSnapshot = campaign.financialSnapshot ?? defaultFeaturedAdFinancialSnapshot();
+    let nextSnapshot;
+    try {
+      nextSnapshot = applyFeaturedAdFinancialEvent(currentSnapshot, event);
+    } catch {
+      throw new HttpsError("failed-precondition", "تعارضت الحركة مع الحالة المالية الحالية أو أن السجل المالي غير متسق.");
+    }
+    const nextVersion = expectedVersion + 1;
+    const now = FieldValue.serverTimestamp();
+    const paymentConfirmed = event.action === "payment_received"
+      ? true
+      : event.action === "refund_recorded" ? false : campaign.paymentConfirmed === true;
+    const nextStatus = event.action === "refund_recorded" &&
+      ["approved", "published"].includes(String(campaign.status))
+      ? "paused" : campaign.status;
+    transaction.update(campaignRef, {
+      financialSnapshot: nextSnapshot,
+      paymentConfirmed,
+      status: nextStatus,
+      version: nextVersion,
+      updatedAt: now,
+      updatedBy: actorUid,
+      financialUpdatedAt: now,
+    });
+    transaction.create(eventRef, {
+      ...event, actorUid, eventId, campaignId: event.campaignId,
+      expectedVersion, resultingVersion: nextVersion,
+      createdAt: now, source: "owner_manual_off_platform_attestation",
+    });
+    transaction.create(auditOutboxRef, {
+      eventId, campaignId: event.campaignId, actorUid, action: event.action,
+      status: "pending", createdAt: now,
+    });
+    transaction.create(auditRef, {
+      actorUid, action: "featured_ad_financial_" + event.action,
+      campaignId: event.campaignId, eventId,
+      amountMinor: event.amountMinor, currency: event.currency,
+      externalReference: event.externalReference,
+      evidenceReference: event.evidenceReference,
+      note: event.note, reviewOutcome: event.reviewOutcome,
+      resultingVersion: nextVersion, createdAt: now,
+    });
+    return {
+      campaignId: event.campaignId, eventId, idempotentReplay: false,
+      version: nextVersion, financialSnapshot: nextSnapshot,
+      paymentConfirmed, status: nextStatus,
+    };
+  });
+  // Durable retry path: the financial transaction leaves a pending marker.
+  // The deterministic chain-event ID makes this append safe after timeout/crash;
+  // exact callable replays retry the append until the marker is completed.
+  const chainEventId = "featured_ad_finance_chain_" + eventId;
+  const chainEventRef = db.collection("adminAuditLogs").doc(chainEventId);
+  const [outboxState, existingChainEvent] = await Promise.all([
+    auditOutboxRef.get(), chainEventRef.get(),
+  ]);
+  if (outboxState.data()?.status === "appended" && !existingChainEvent.exists) {
+    throw new HttpsError("data-loss", "سجل التدقيق المتسلسل المشار إليه من صندوق الترحيل مفقود؛ يلزم تدقيق السلسلة.");
+  }
+  const chainAuditId = await appendOwnerReviewAuditEvent({
+    actorUid, action: "featured_ad_financial_event_recorded",
+    campaignId: event.campaignId, eventId, financialAction: event.action,
+    resultingVersion: result.version, outcome: "success",
+  }, chainEventId);
+  const chainAuditSnapshot = await db.collection("adminAuditLogs").doc(chainAuditId).get();
+  const chainAuditData = chainAuditSnapshot.data() ?? {};
+  if (!chainAuditSnapshot.exists || chainAuditData.auditChainId !== "owner-review-v1" ||
+      chainAuditData.actorUid !== actorUid ||
+      chainAuditData.action !== "featured_ad_financial_event_recorded" ||
+      chainAuditData.campaignId !== event.campaignId ||
+      chainAuditData.eventId !== eventId ||
+      chainAuditData.financialAction !== event.action ||
+      chainAuditData.resultingVersion !== result.version ||
+      chainAuditData.outcome !== "success") {
+    throw new HttpsError("data-loss", "تعذر التحقق من سجل التدقيق المتسلسل للحركة المالية.");
+  }
+  await auditOutboxRef.set({
+    status: "appended",
+    appendedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return result;
+});
+
+export const reviewFeaturedAdCreative = onCall(async (request) => {
+  const actorUid = await requireOwnerForReview(request, "featured_ad_creative_review_attempt");
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const approved = request.data?.approved;
+  const reviewNote = typeof request.data?.reviewNote === "string" ? request.data.reviewNote.trim() : "";
+  if (!campaignId || typeof approved !== "boolean" ||
+      reviewNote.length > 500 || (!approved && reviewNote.length < 5)) {
+    throw new HttpsError("invalid-argument", "بيانات مراجعة المادة الإعلانية غير صالحة.");
+  }
+  const ref = featuredAdCampaignRef(campaignId);
+  const result = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+    const campaign = snapshot.data() ?? {};
+    if (campaign.version !== request.data?.expectedVersion ||
+        !Number.isSafeInteger(request.data?.expectedVersion) || (request.data.expectedVersion as number) < 1) {
+      throw new HttpsError("aborted", "تغيرت الحملة منذ تحميلها؛ أعد تحميل القائمة قبل مراجعة المادة.");
+    }
+    if (!["draft", "paused"].includes(String(campaign.status)) || campaign.ownerWithdrawn === true) {
+      throw new HttpsError("failed-precondition", "لا يمكن مراجعة مادة حملة منشورة أو مسحوبة.");
+    }
+    if (approved) {
+      if (!campaign.mediaId) throw new HttpsError("failed-precondition", "اربط مادة إعلانية آمنة قبل اعتمادها.");
+      await validateFeaturedAdCreativeForOwner(String(campaign.mediaId), actorUid);
+    }
+    transaction.update(ref, {
+      creativeApproved: approved,
+      creativeReviewStatus: approved ? "approved" : "rejected",
+      creativeReviewNote: reviewNote || null,
+      creativeReviewedBy: actorUid,
+      creativeReviewedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: actorUid,
+      version: (Number(campaign.version) || 1) + 1,
+    });
+    return { version: (Number(campaign.version) || 1) + 1 };
+  });
+  await appendOwnerReviewAuditEvent({
+    actorUid,
+    action: approved ? "featured_ad_creative_approved" : "featured_ad_creative_rejected",
+    campaignId,
+    reviewNote: reviewNote || null,
+    outcome: "success",
+  });
+  return { campaignId, approved, ...result };
+});
+
+export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const [snapshot, policySnapshot] = await Promise.all([
+    db.collection("users").doc(uid).collection("walletLedger")
+      .where("type", "==", "featured_ad_reward").orderBy("createdAt", "desc").limit(100).get(),
+    FEATURED_AD_REWARD_POLICY.get(),
+  ]);
+  const policy = policySnapshot.exists
+    ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+    : defaultFeaturedAdRewardPolicy();
+  return {
+    rewards: snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return { ledgerId: doc.id, amount: data.amount, campaignId: data.campaignId ?? null, sessionId: data.sessionId ?? null, createdAt: data.createdAt ?? null };
+    }),
+    policy: {
+      enabled: policy.enabled,
+      rewardCoinsPerView: policy.rewardCoinsPerView,
+      maxRewardedViewsPerUtcDay: policy.maxRewardedViewsPerUtcDay,
+      maxRewardCoinsPerUtcDay: policy.maxRewardCoinsPerUtcDay,
+      maxRewardsPerCampaignRolling24h: policy.maxRewardsPerCampaignRolling24h,
+      sameCampaignWindowMs: policy.sameCampaignWindowMs,
+    },
+  };
+});
+
+export const startFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
+  const geography = typeof request.data?.geography === "string" ? request.data.geography : "";
+  if (!campaignId || !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
+    throw new HttpsError("invalid-argument", "بيانات مشاهدة الإعلان غير صالحة.");
+  }
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  if (!userSnapshot.exists || userSnapshot.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(userSnapshot.data())) {
+    throw new HttpsError("permission-denied", "مشاهدة الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
+  }
+  const campaignSnapshot = await featuredAdCampaignRef(campaignId).get();
+  if (!campaignSnapshot.exists) throw new HttpsError("not-found", "الحملة غير موجودة.");
+  const campaign = campaignSnapshot.data() ?? {};
+  const now = Date.now();
+  if (campaign.status !== "published" || campaign.ownerWithdrawn === true || campaign.ownerApproved !== true ||
+      campaign.paymentConfirmed !== true || campaign.creativeApproved !== true ||
+      campaign.startsAtMs > now || campaign.endsAtMs <= now ||
+      !featuredAdTargetsGeography(campaign.geographicTargets, geography)) {
+    throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
+  }
+  let rewardPolicy: FeaturedAdRewardPolicy;
+  try {
+    const policySnapshot = await FEATURED_AD_REWARD_POLICY.get();
+    rewardPolicy = policySnapshot.exists
+      ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy)
+      : defaultFeaturedAdRewardPolicy();
+  } catch {
+    throw new HttpsError("failed-precondition", "تعذر قراءة شروط مكافآت الإعلان بأمان.");
+  }
+  const sessionId = randomUUID();
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
+  const sessionData = {
+    uid, campaignId, geography, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
+    // Client heartbeat data is telemetry only. No trusted playback/visibility
+    // attestation provider is connected, so settlement must remain fail-closed.
+    visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0, foregroundVisible: true,
+    serverValidatedVisibility: false, serverValidatedPlayback: false,
+    serverValidatedContinuousVisibleMs: 0, serverValidatedProgressPercent: 0,
+    rewardClaimed: false,
+    serverNonce: createHash("sha256").update(uid + ":" + sessionId + ":" + now).digest("hex"),
+    createdAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(),
+  };
+  let media: { url: string | null; creativeType: string; contentType: string | null; expiresAt: number | null } =
+    { url: null, creativeType, contentType: null, expiresAt: null };
+  if (campaign.mediaId) {
+    const assetSnapshot = await db.collection("mediaAssets").doc(String(campaign.mediaId)).get();
+    if (!assetSnapshot.exists) throw new HttpsError("failed-precondition", "المادة الآمنة غير موجودة.");
+    const asset = assetSnapshot.data() ?? {};
+    if (asset.ownerUid !== campaign.createdBy || asset.uploaderRole !== "platform_owner" ||
+        asset.mediaPurpose !== "advertisement" || asset.status !== "security_approved" ||
+        asset.mediaCategory !== campaign.creativeType) {
+      throw new HttpsError("failed-precondition", "المادة الإعلانية غير آمنة أو لا تطابق نوع الحملة.");
+    }
+    const isVideo = asset.mediaCategory === "video";
+    const isGif = asset.detectedContentType === "image/gif";
+    const path = isVideo ? asset.safeVideoPath : isGif ? asset.safeAnimationPath : asset.safePreviewPath;
+    const generation = isVideo ? asset.safeVideoGeneration : isGif ? asset.safeAnimationGeneration : asset.safePreviewGeneration;
+    const filename = isVideo ? "video.mp4" : isGif ? "animation.gif" : "preview.webp";
+    const expectedPath = "processed/" + asset.ownerUid + "/" + campaign.mediaId + "/" + filename;
+    const expectedType = isVideo ? "video/mp4" : isGif ? "image/gif" : "image/webp";
+    const maxBytes = isVideo ? 15 * 1024 * 1024 : 3 * 1024 * 1024;
+    if (path !== expectedPath || typeof generation !== "string" || Number(generation) <= 0) {
+      throw new HttpsError("failed-precondition", "النسخة الآمنة للإعلان غير مكتملة.");
+    }
+    const file = getMawddaMediaBucket().file(expectedPath, { generation: Number(generation) });
+    const [metadata] = await file.getMetadata();
+    const custom = metadata.metadata as Record<string, unknown> | undefined;
+    const hash = isVideo ? asset.safeVideoSha256 : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
+    const processing = isVideo ? "ffmpeg-video-transcode-v1" : isGif ? "gif-sanitize-preserve-animation-v1" : "sharp-decode-reencode-v1";
+    if (String(metadata.generation) !== generation || metadata.contentType !== expectedType ||
+        Number(metadata.size) > maxBytes || custom?.mediaId !== campaign.mediaId ||
+        custom?.sourceGeneration !== String(asset.storageGeneration) || custom?.sourceSha256 !== asset.scannerSha256 ||
+        custom?.processing !== processing || typeof hash !== "string") {
+      throw new HttpsError("failed-precondition", "تعذر إثبات سلامة النسخة الآمنة.");
+    }
+    const expiresAt = Date.now() + 2 * 60 * 1000;
+    const [url] = await file.getSignedUrl({ version: "v4", action: "read", expires: expiresAt, responseType: expectedType, responseDisposition: "inline" });
+    media = { url, creativeType: isVideo ? "video" : isGif ? "gif" : "image", contentType: expectedType, expiresAt };
+  }
+  // Re-read the campaign and create the session atomically after all media
+  // checks. A concurrent owner withdrawal must win before a new session exists.
+  const sessionNow = Date.now();
+  sessionData.startedAtMs = sessionNow;
+  sessionData.lastHeartbeatAtMs = sessionNow;
+  await db.runTransaction(async (transaction) => {
+    const latestCampaign = await transaction.get(featuredAdCampaignRef(campaignId));
+    const latest = latestCampaign.data() ?? {};
+    if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
+        latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
+        sessionNow < latest.startsAtMs || sessionNow >= latest.endsAtMs ||
+        !featuredAdTargetsGeography(latest.geographicTargets, geography) ||
+        latest.mediaId !== campaign.mediaId) {
+      throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
+    }
+    transaction.create(sessionRef, sessionData);
+  });
+  return {
+    sessionId, campaignId, serverNonce: sessionData.serverNonce, ...media, creativeType,
+    rewardRequirements: {
+      enabled: false,
+      configuredByOwner: rewardPolicy.enabled,
+      evidenceReady: false,
+      videoCompletionPercent: rewardPolicy.videoCompletionPercent,
+      imageContinuousVisibleMs: rewardPolicy.imageContinuousVisibleMs,
+    },
+  };
+});
+
+export const heartbeatFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  const foregroundVisible = request.data?.foregroundVisible === true;
+  const progressPercent = typeof request.data?.progressPercent === "number" ? request.data.progressPercent : 0;
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId) || !Number.isFinite(progressPercent) || progressPercent < 0 || progressPercent > 100) {
+    throw new HttpsError("invalid-argument", "نبضة المشاهدة غير صالحة.");
+  }
+  const ref = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const now = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.uid !== uid || snapshot.data()?.status !== "active") {
+      throw new HttpsError("permission-denied", "جلسة المشاهدة غير صالحة.");
+    }
+    const session = snapshot.data()!;
+    if (now - Number(session.startedAtMs) > 30 * 60 * 1000) {
+      transaction.update(ref, { status: "expired", updatedAt: FieldValue.serverTimestamp() });
+      return { expired: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+    }
+    const campaignRef = featuredAdCampaignRef(String(session.campaignId));
+    const [campaignSnapshot, userSnapshot] = await Promise.all([
+      transaction.get(campaignRef),
+      transaction.get(db.collection("users").doc(uid)),
+    ]);
+    const campaign = campaignSnapshot.data() ?? {};
+    if (!userSnapshot.exists || !isMemberAccountInGoodStanding(userSnapshot.data())) {
+      transaction.update(ref, { status: "member_revoked", updatedAt: FieldValue.serverTimestamp() });
+      return { revoked: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+    }
+    if (!campaignSnapshot.exists || campaign.status !== "published" || campaign.ownerWithdrawn === true ||
+        campaign.ownerApproved !== true || campaign.paymentConfirmed !== true || campaign.creativeApproved !== true) {
+      transaction.update(ref, { status: "campaign_revoked", updatedAt: FieldValue.serverTimestamp() });
+      return { revoked: true, foregroundVisible: false, visibleMs: Number(session.visibleMs) || 0, continuousVisibleMs: 0, progressPercent: Number(session.progressPercent) || 0 };
+    }
+    const last = Number(session.lastHeartbeatAtMs);
+    const elapsed = Math.max(0, Math.min(now - last, 15_000));
+    const visibleMs = Number(session.visibleMs) + (foregroundVisible ? elapsed : 0);
+    const continuousVisibleMs = foregroundVisible ? Number(session.continuousVisibleMs || 0) + elapsed : 0;
+    const maxProgress = Math.max(Number(session.progressPercent) || 0, progressPercent);
+    transaction.update(ref, { lastHeartbeatAtMs: now, visibleMs, continuousVisibleMs, progressPercent: maxProgress, foregroundVisible, updatedAt: FieldValue.serverTimestamp() });
+    return { visibleMs, continuousVisibleMs, progressPercent: maxProgress, foregroundVisible };
+  });
+});
+
+export const endFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) {
+    throw new HttpsError("invalid-argument", "معرف جلسة المشاهدة غير صالح.");
+  }
+  const ref = db.collection("featuredAdViewingSessions").doc(sessionId);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists || snapshot.data()?.uid !== uid) {
+      throw new HttpsError("permission-denied", "جلسة المشاهدة غير مملوكة لهذا العضو.");
+    }
+    if (snapshot.data()?.status === "active") {
+      transaction.update(ref, { status: "abandoned", endedAtMs: Date.now(), updatedAt: FieldValue.serverTimestamp() });
+      return { ended: true };
+    }
+    return { ended: false, status: snapshot.data()?.status ?? "unknown" };
+  });
+});
+
+export const completeFeaturedAdViewingSession = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const sessionId = typeof request.data?.sessionId === "string" ? request.data.sessionId : "";
+  if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new HttpsError("invalid-argument", "معرف جلسة المشاهدة غير صالح.");
+  const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
+  const now = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const sessionSnapshot = await transaction.get(sessionRef);
+    if (!sessionSnapshot.exists || sessionSnapshot.data()?.uid !== uid) throw new HttpsError("permission-denied", "جلسة المشاهدة غير موجودة.");
+    const session = sessionSnapshot.data()!;
+    if (session.rewardClaimed === true) return { rewarded: false, idempotentReplay: true, amountCoins: 0 };
+    if (session.status !== "active") throw new HttpsError("failed-precondition", "جلسة المشاهدة ليست نشطة.");
+    const campaignRef = featuredAdCampaignRef(String(session.campaignId));
+    const userRef = db.collection("users").doc(uid);
+    const dayRef = userRef.collection("featuredAdRewardDays").doc(featuredAdRewardDayKey(now));
+    const campaignMemberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + String(session.campaignId));
+    const [campaignSnapshot, userSnapshot, policySnapshot, daySnapshot, campaignMemberSnapshot] = await Promise.all([
+      transaction.get(campaignRef), transaction.get(userRef), transaction.get(FEATURED_AD_REWARD_POLICY),
+      transaction.get(dayRef), transaction.get(campaignMemberRef),
+    ]);
+    if (!campaignSnapshot.exists || !userSnapshot.exists) throw new HttpsError("failed-precondition", "الحملة أو العضو غير موجود.");
+    const campaign = campaignSnapshot.data()!;
+    const user = userSnapshot.data()!;
+    if (user.profileCompleted !== true || !isMemberAccountInGoodStanding(user)) {
+      transaction.update(sessionRef, { status: "member_ineligible", rewardReason: "member_ineligible", completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: false, idempotentReplay: false, amountCoins: 0, reason: "member_ineligible" };
+    }
+    const policy: FeaturedAdRewardPolicy = policySnapshot.exists ? validateFeaturedAdRewardPolicy(policySnapshot.data()?.policy) : defaultFeaturedAdRewardPolicy();
+    const daily = daySnapshot.data() ?? {};
+    const member = campaignMemberSnapshot.data() ?? {};
+    const effectivePolicy = featuredAdCampaignRewardPolicy(policy, campaign.rewardCoinsPerView);
+    const campaignRewardCoins = effectivePolicy.rewardCoinsPerView;
+    const campaignRewardConfigured = campaignRewardCoins > 0;
+    const rewardTimestamps = Array.isArray(member.rewardTimestampsMs)
+      ? member.rewardTimestampsMs.filter((value: unknown) => Number.isSafeInteger(value) && (value as number) >= now - policy.sameCampaignWindowMs)
+      : [];
+    const decision = decideFeaturedAdReward(effectivePolicy, {
+      nowMs: now, campaignEligible: campaignRewardConfigured &&
+        campaign.status === "published" && campaign.ownerWithdrawn !== true &&
+        campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
+        now >= campaign.startsAtMs && now < campaign.endsAtMs &&
+        featuredAdTargetsGeography(campaign.geographicTargets, String(session.geography ?? "")),
+      rewardBudgetAvailable: campaignRewardConfigured &&
+        featuredAdRewardBudgetAvailable(
+          campaign.rewardBudgetCoins,
+          campaign.spentRewardCoins ?? 0,
+          campaignRewardCoins,
+        ),
+      foregroundAndVisibilityValidated: session.serverValidatedVisibility === true &&
+        (session.creativeType !== "video" || session.serverValidatedPlayback === true),
+      creativeType: session.creativeType === "video" ? "video" : "image",
+      // Never use client-reported heartbeat progress or visibility for wallet credit.
+      videoCompletionPercent: Number(session.serverValidatedProgressPercent) || 0,
+      continuousVisibleMs: Number(session.serverValidatedContinuousVisibleMs) || 0,
+      rewardedViewsToday: Number(daily.rewardedViews) || 0,
+      rewardCoinsToday: Number(daily.rewardCoins) || 0,
+      sameCampaignRewardsInWindow: rewardTimestamps.length,
+    });
+    if (!decision.eligible) {
+      transaction.update(sessionRef, { status: "completed_no_reward", rewardReason: decision.reason, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: false, idempotentReplay: false, amountCoins: 0, reason: decision.reason };
+    }
+    const amount = decision.amountCoins;
+    const ledgerId = "featured_ad_reward_" + sessionId;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const existingLedger = await transaction.get(ledgerRef);
+    if (existingLedger.exists) {
+      transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", updatedAt: FieldValue.serverTimestamp() });
+      return { rewarded: true, idempotentReplay: true, amountCoins: Number(existingLedger.data()?.amount) || amount };
+    }
+    const currentCoins = Number(user.coins ?? 0);
+    if (!Number.isSafeInteger(currentCoins) || currentCoins < 0 || !Number.isSafeInteger(amount) || amount <= 0 ||
+        !Number.isSafeInteger(currentCoins + amount)) {
+      throw new HttpsError("failed-precondition", "رصيد المحفظة أو مبلغ المكافأة خارج الحدود الآمنة.");
+    }
+    transaction.set(userRef, { coins: currentCoins + amount }, { merge: true });
+    transaction.create(ledgerRef, {
+      type: "featured_ad_reward", source: "featured_ad", amount, campaignId: session.campaignId,
+      sessionId, policyVersion: policySnapshot.exists ? policySnapshot.data()?.version ?? 1 : 1,
+      createdAt: FieldValue.serverTimestamp(), balanceAfter: currentCoins + amount,
+    });
+    transaction.set(dayRef, { rewardedViews: (Number(daily.rewardedViews) || 0) + 1, rewardCoins: (Number(daily.rewardCoins) || 0) + amount, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, rewardTimestampsMs: [...rewardTimestamps, now].slice(-1000), lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.update(campaignRef, { spentRewardCoins: FieldValue.increment(amount), updatedAt: FieldValue.serverTimestamp() });
+    transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", rewardCoins: amount, rewardLedgerId: ledgerId, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
+    return { rewarded: true, idempotentReplay: false, amountCoins: amount, ledgerId };
+  });
+});
+
+export const setGroupCallPricingPolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  const audioCoinsPerMinute = readSafeInteger(request.data?.audioCoinsPerMinute, "audioCoinsPerMinute");
+  const videoCoinsPerMinute = readSafeInteger(request.data?.videoCoinsPerMinute, "videoCoinsPerMinute");
+  const active = request.data?.active;
+  if (audioCoinsPerMinute < 0 || videoCoinsPerMinute < 0 ||
+      audioCoinsPerMinute > 1000000000 || videoCoinsPerMinute > 1000000000 ||
+      typeof active !== "boolean" ||
+      (active && audioCoinsPerMinute === 0 && videoCoinsPerMinute === 0)) {
+    throw new HttpsError("invalid-argument", "إعدادات تسعير المكالمات غير صالحة.");
+  }
+  const now = Date.now();
+  const policyId = randomUUID();
+  const result = await db.runTransaction(async (transaction) => {
+    const current = await transaction.get(GROUP_CALL_PRICING_SETTINGS);
+    const previous = current.data() ?? {};
+    if (current.exists && (!Number.isSafeInteger(previous.version) || previous.version < 1 ||
+        typeof previous.policyId !== "string" || !/^[A-Za-z0-9_-]{8,100}$/.test(previous.policyId))) {
+      throw new HttpsError("failed-precondition", "سجل سياسة التسعير الحالية غير صالح؛ أوقف التحديث لحماية سجل الإصدارات.");
+    }
+    if (current.exists) {
+      try { validateGroupCallPricingPolicy(previous); }
+      catch { throw new HttpsError("failed-precondition", "سياسة التسعير الحالية تالفة؛ أوقف التحديث لحماية السجل."); }
+    }
+    const version = current.exists ? previous.version + 1 : 1;
+    if (!Number.isSafeInteger(version)) {
+      throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة التسعير.");
+    }
+    const next = validateGroupCallPricingPolicy({
+      policyId, version, active, audioCoinsPerMinute, videoCoinsPerMinute, updatedAtMs: now,
+    });
+    const immutableVersionRef = db.collection("platformSettings")
+      .doc("groupCallPricingVersions").collection("versions").doc(policyId);
+    transaction.create(immutableVersionRef, {
+      ...next,
+      createdBy: actorUid,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(GROUP_CALL_PRICING_SETTINGS, {
+      ...next, updatedBy: actorUid, updatedAt: FieldValue.serverTimestamp(),
+      currentVersionRef: immutableVersionRef.path,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid,
+      action: "group_call_pricing_policy_updated",
+      policyId,
+      version,
+      active,
+      audioCoinsPerMinute,
+      videoCoinsPerMinute,
+      previousPolicyId: typeof previous.policyId === "string" ? previous.policyId : null,
+      previousVersion: Number.isSafeInteger(previous.version) ? previous.version : null,
+      previousActive: typeof previous.active === "boolean" ? previous.active : null,
+      previousAudioCoinsPerMinute: Number.isSafeInteger(previous.audioCoinsPerMinute) ? previous.audioCoinsPerMinute : null,
+      previousVideoCoinsPerMinute: Number.isSafeInteger(previous.videoCoinsPerMinute) ? previous.videoCoinsPerMinute : null,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    return next;
+  });
+  return result;
+});
+
+/** Owner-only read of the current group-call price policy; no defaults are invented. */
+
+export const getOwnerCallUsagePolicy = onCall(async (request) => {
+  requireOwner(request);
+  const snapshot = await CALL_USAGE_POLICY.get();
+  if (!snapshot.exists) return { configured: false, policy: null, version: 0 };
+  const data = snapshot.data() ?? {};
+  if (!Number.isSafeInteger(data.version) || data.version < 1) {
+    throw new HttpsError("failed-precondition", "إصدار سياسة استخدام المكالمات غير صالح.");
+  }
+  let policy;
+  try { policy = validateCallUsagePolicy(data.policy); }
+  catch { throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة."); }
+  return { configured: true, policy, version: data.version };
+});
+
+export const setOwnerCallUsagePolicy = onCall(async (request) => {
+  const actorUid = requireOwner(request);
+  let policy;
+  try { policy = validateCallUsagePolicy(request.data?.policy); }
+  catch { throw new HttpsError("invalid-argument", "إعدادات حصص المكالمات ومددها غير صالحة."); }
+  const version = await db.runTransaction(async (transaction) => {
+    const previous = await transaction.get(CALL_USAGE_POLICY);
+    const previousData = previous.data() ?? {};
+    if (previous.exists && (!Number.isSafeInteger(previousData.version) || previousData.version < 1)) {
+      throw new HttpsError("failed-precondition", "إصدار سياسة المكالمات الحالية غير صالح؛ أوقفنا التحديث لحماية السجل.");
+    }
+    const nextVersion = previous.exists ? previousData.version + 1 : 1;
+    if (!Number.isSafeInteger(nextVersion)) throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة المكالمات.");
+    const now = FieldValue.serverTimestamp();
+    const versionRef = db.collection("platformSettings").doc("callUsagePolicyVersions")
+      .collection("versions").doc(String(nextVersion));
+    transaction.create(versionRef, { policy, version: nextVersion, createdAt: now, createdBy: actorUid });
+    transaction.set(CALL_USAGE_POLICY, {
+      policy, version: nextVersion, updatedAt: now, updatedBy: actorUid,
+      createdAt: previousData.createdAt ?? now, currentVersionPath: versionRef.path,
+    });
+    const auditRef = db.collection("adminAuditLogs").doc();
+    transaction.create(auditRef, {
+      actorUid, action: "call_usage_policy_updated", version: nextVersion,
+      policy, createdAt: now,
+    });
+    return nextVersion;
+  });
+  return { saved: true, version, policy };
+});
+
+export const requestRoomCallJoin = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(uid);
+  const result = await db.runTransaction(async (transaction) => {
+    const [callSnapshot, priorRequest] = await Promise.all([
+      transaction.get(callRef), transaction.get(requestRef),
+    ]);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || typeof call.targetId !== "string" ||
+        uid === call.callerUid ||
+        !Array.isArray(call.participantUids) || call.participantUids.includes(uid) ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("failed-precondition", "المكالمة لا تقبل طلبات انضمام جديدة.");
+    }
+    if (priorRequest.exists) {
+      const prior = priorRequest.data() ?? {};
+      if (prior.status === "requested") return { requested: true, idempotentReplay: true };
+      if (prior.status === "approved") throw new HttpsError("already-exists", "أنت مشارك بالفعل في المكالمة.");
+      throw new HttpsError("failed-precondition", "سبق رفض طلب الانضمام لهذه المكالمة.");
+    }
+    const roomRef = db.collection("rooms").doc(call.targetId);
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(uid);
+    const userRef = db.collection("users").doc(uid);
+    const creatorRef = db.collection("users").doc(String(call.callerUid ?? ""));
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+    const [room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(roomRef), transaction.get(rentalRef), transaction.get(memberRef),
+      transaction.get(userRef), transaction.get(creatorRef), transaction.get(lockRef),
+    ]);
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(room.data(), rental.data(), Date.now()) ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(call.callerUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(uid))) {
+      throw new HttpsError("permission-denied", "لا تستوفي شروط الانضمام إلى هذه الغرفة أو المكالمة.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لديك مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.create(requestRef, {
+      uid, callId, roomId: call.targetId, status: "requested",
+      requestedAt: FieldValue.serverTimestamp(),
+    });
+    return { requested: true, idempotentReplay: false };
+  });
+  if (!result.idempotentReplay) {
+    const callSnapshot = await callRef.get();
+    const creatorUid = callSnapshot.data()?.callerUid;
+    if (typeof creatorUid === "string") {
+      await sendPushToMember(creatorUid, "طلب انضمام إلى المكالمة",
+        "يوجد عضو يطلب الانضمام إلى مكالمتك الجماعية.",
+        { type: "room_call_join_request", callId, requesterUid: uid });
+    }
+  }
+  return result;
+});
+
+/**
+ * Explicit, independent consent to the owner-configured group-call price.
+ * No active owner price means no billing consent is required and no charge is made.
+ */
+
+export const consentToRoomCallBilling = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const consent = request.data?.consent;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      consent !== true) {
+    throw new HttpsError("invalid-argument", "يجب تأكيد الموافقة المالية الصريحة للمكالمة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const joinRequestRef = callRef.collection("joinRequests").doc(uid);
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(callRef);
+    if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = snapshot.data() ?? {};
+    const participants = Array.isArray(call.participantUids) ? call.participantUids as string[] : [];
+    const accepted = Array.isArray(call.acceptedUids) ? call.acceptedUids as string[] : [];
+    const joinRequestSnapshot = await transaction.get(joinRequestRef);
+    const hasPendingJoinRequest = joinRequestSnapshot.exists &&
+      joinRequestSnapshot.data()?.status === "requested";
+    const roomMemberSnapshot = uid === call.callerUid ? null :
+      await transaction.get(db.collection("rooms").doc(String(call.targetId ?? ""))
+        .collection("members").doc(uid));
+    const isRoomMember = roomMemberSnapshot?.exists === true;
+    if (call.scope !== "room" ||
+        (uid !== call.callerUid && !accepted.includes(uid) && !hasPendingJoinRequest && !isRoomMember) ||
+        (uid === call.callerUid && !participants.includes(uid)) ||
+        !["ringing", "accepted"].includes(String(call.status))) {
+      throw new HttpsError("permission-denied", "الموافقة المالية متاحة لمنشئ المكالمة أو للمشارك المقبول فقط.");
+    }
+    const policy = call.groupCallPricingSnapshot;
+    if (!policy || policy.active !== true) {
+      return { required: false, consented: false, reason: "no_active_owner_price" };
+    }
+    const expectedRate = call.mode === "audio" ? policy.audioCoinsPerMinute : policy.videoCoinsPerMinute;
+    if (!Number.isSafeInteger(policy.version) || policy.version < 1 ||
+        typeof policy.policyId !== "string" || expectedRate < 1) {
+      throw new HttpsError("failed-precondition", "لقطة سعر المكالمة غير صالحة.");
+    }
+    const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+      !Array.isArray(call.billingConsents)
+      ? call.billingConsents as Record<string, unknown> : {};
+    const prior = consents[uid];
+    if (prior && typeof prior === "object" &&
+        (prior as Record<string, unknown>).policyId === policy.policyId &&
+        (prior as Record<string, unknown>).policyVersion === policy.version &&
+        (prior as Record<string, unknown>).consented === true) {
+      return { required: true, consented: true, idempotentReplay: true, policyVersion: policy.version };
+    }
+    transaction.update(callRef, {
+      billingConsents: {
+        ...consents,
+        [uid]: {
+          consented: true, policyId: policy.policyId, policyVersion: policy.version,
+          consentedAt: FieldValue.serverTimestamp(),
+        },
+      },
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    return { required: true, consented: true, idempotentReplay: false, policyVersion: policy.version };
+  });
+});
+
+/** Only the room-call creator may approve or reject a pending join request. */
+
+export const respondToRoomCallJoinRequest = onCall(async (request) => {
+  const creatorUid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  const requesterUid = request.data?.requesterUid;
+  const decision = request.data?.decision;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId) ||
+      typeof requesterUid !== "string" || requesterUid.length < 1 || requesterUid.length > 128 ||
+      requesterUid === creatorUid || !["approve", "reject"].includes(decision)) {
+    throw new HttpsError("invalid-argument", "بيانات قرار طلب الانضمام غير صالحة.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const requestRef = callRef.collection("joinRequests").doc(requesterUid);
+  return db.runTransaction(async (transaction) => {
+    const callSnapshot = await transaction.get(callRef);
+    if (!callSnapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+    const call = callSnapshot.data() ?? {};
+    if (call.scope !== "room" || call.callerUid !== creatorUid ||
+        !["ringing", "accepted"].includes(String(call.status)) ||
+        (call.status === "ringing" &&
+          (!(call.expiresAt instanceof Timestamp) || call.expiresAt.toMillis() <= Date.now())) ||
+        (call.maxDurationEndsAt instanceof Timestamp && call.maxDurationEndsAt.toMillis() <= Date.now())) {
+      throw new HttpsError("permission-denied", "قرار طلبات الانضمام مخصص لمنشئ مكالمة نشطة فقط.");
+    }
+    const roomRef = db.collection("rooms").doc(String(call.targetId ?? ""));
+    const rentalRef = db.collection("roomRentals").doc(String(call.rentalId ?? ""));
+    const memberRef = roomRef.collection("members").doc(requesterUid);
+    const userRef = db.collection("users").doc(requesterUid);
+    const creatorRef = db.collection("users").doc(creatorUid);
+    const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(requesterUid);
+    const [joinRequest, room, rental, member, user, creator, lock] = await Promise.all([
+      transaction.get(requestRef), transaction.get(roomRef), transaction.get(rentalRef),
+      transaction.get(memberRef), transaction.get(userRef), transaction.get(creatorRef),
+      transaction.get(lockRef),
+    ]);
+    if (!joinRequest.exists || joinRequest.data()?.status !== "requested") {
+      if (joinRequest.exists && joinRequest.data()?.status === "approved" &&
+          Array.isArray(call.participantUids) && call.participantUids.includes(requesterUid)) {
+        return { approved: true, idempotentReplay: true };
+      }
+      throw new HttpsError("failed-precondition", "طلب الانضمام غير موجود أو تمت معالجته مسبقاً.");
+    }
+    const pricingPolicy = call.groupCallPricingSnapshot;
+    if (decision === "approve" && pricingPolicy?.active === true) {
+      const consents = call.billingConsents && typeof call.billingConsents === "object" &&
+        !Array.isArray(call.billingConsents)
+        ? call.billingConsents as Record<string, unknown> : {};
+      const hasConsent = (memberUid: string) => {
+        const value = consents[memberUid];
+        return !!value && typeof value === "object" &&
+          (value as Record<string, unknown>).consented === true &&
+          (value as Record<string, unknown>).policyId === pricingPolicy.policyId &&
+          (value as Record<string, unknown>).policyVersion === pricingPolicy.version;
+      };
+      if (!hasConsent(creatorUid) || !hasConsent(requesterUid)) {
+        throw new HttpsError("failed-precondition", "تتطلب الموافقة على الانضمام موافقة مالية صريحة مستقلة من المنشئ والعضو على سعر هذه المكالمة.");
+      }
+    }
+    if (decision === "reject") {
+      transaction.update(requestRef, {
+        status: "rejected", decidedBy: creatorUid,
+        decidedAt: FieldValue.serverTimestamp(),
+      });
+      return { approved: false, rejected: true, idempotentReplay: false };
+    }
+    const roomData = room.data() ?? {};
+    const capacity = roomData.capacity;
+    const participantUids = Array.isArray(call.participantUids)
+      ? call.participantUids.filter((value): value is string => typeof value === "string")
+      : [];
+    if (!room.exists || !rental.exists ||
+        !isActiveRentedPrivateRoom(roomData, rental.data(), Date.now()) ||
+        !Number.isSafeInteger(capacity) || capacity < 2 || capacity > 1000 ||
+        participantUids.length >= capacity ||
+        !member.exists || !user.exists || !creator.exists ||
+        user.data()?.profileCompleted !== true || !isMemberAccountInGoodStanding(user.data()) ||
+        !Number.isSafeInteger(user.data()?.age) || !Number.isSafeInteger(creator.data()?.age) ||
+        ((user.data()!.age < 18) !== (creator.data()!.age < 18)) ||
+        (Array.isArray(user.data()?.blockedUids) && user.data()!.blockedUids.includes(creatorUid)) ||
+        (Array.isArray(creator.data()?.blockedUids) && creator.data()!.blockedUids.includes(requesterUid))) {
+      throw new HttpsError("permission-denied", "لم يعد العضو أو الغرفة مؤهلاً للانضمام.");
+    }
+    if (call.mode === "video" && participantUids.length >= 4) {
+      throw new HttpsError("resource-exhausted", "المكالمة المرئية محدودة بأربعة مشاركين إجمالاً بمن فيهم المنشئ.");
+    }
+    if (lock.exists && lock.data()?.callId !== callId) {
+      throw new HttpsError("resource-exhausted", "لدى العضو مكالمة أخرى نشطة بالفعل.");
+    }
+    transaction.update(callRef, {
+      participantUids: FieldValue.arrayUnion(requesterUid),
+      acceptedUids: FieldValue.arrayUnion(requesterUid),
+      status: "accepted",
+      lastActivityAt: FieldValue.serverTimestamp(),
+    });
+    transaction.set(lockRef, {
+      callId, status: "active", updatedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(requestRef, {
+      status: "approved", decidedBy: creatorUid,
+      decidedAt: FieldValue.serverTimestamp(),
+    });
+    return { approved: true, idempotentReplay: false };
+  });
+});
+
+/** Find the current room call for a verified room member. */
+
+export const getActiveRoomCall = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const roomId = request.data?.roomId;
+  if (typeof roomId !== "string" || roomId.length < 1 || roomId.length > 128) {
+    throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
+  }
+  const roomRef = db.collection("rooms").doc(roomId);
+  const [room, membership] = await Promise.all([
+    roomRef.get(), roomRef.collection("members").doc(uid).get(),
+  ]);
+  if (!room.exists || room.data()?.status !== "active" || !membership.exists) {
+    throw new HttpsError("permission-denied", "هذه الغرفة غير متاحة لحسابك.");
+  }
+  const candidates = await CALL_SESSIONS.where("targetId", "==", roomId)
+    .orderBy("createdAt", "desc").limit(25).get();
+  const now = Date.now();
+  const active = candidates.docs
+    .map((doc) => ({ id: doc.id, data: doc.data() }))
+    .filter(({ data }) => data.scope === "room" &&
+      ["ringing", "accepted"].includes(String(data.status)) &&
+      !(data.maxDurationEndsAt instanceof Timestamp && data.maxDurationEndsAt.toMillis() <= now) &&
+      !(data.status === "ringing" &&
+        (!(data.expiresAt instanceof Timestamp) || data.expiresAt.toMillis() <= now)))
+    .sort((a, b) => {
+      const aTime = a.data.createdAt instanceof Timestamp ? a.data.createdAt.toMillis() : 0;
+      const bTime = b.data.createdAt instanceof Timestamp ? b.data.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+  const selected = active[0];
+  if (!selected) return { active: false };
+  const call = selected.data;
+  const joinRequest = await CALL_SESSIONS.doc(selected.id).collection("joinRequests").doc(uid).get();
+  const billingPolicy = call.groupCallPricingSnapshot;
+  return {
+    active: true, callId: selected.id, roomId, mode: call.mode,
+    status: call.status, callerUid: call.callerUid,
+    isCreator: call.callerUid === uid,
+    participantUids: Array.isArray(call.participantUids) ? call.participantUids : [],
+    joinRequestStatus: joinRequest.data()?.status ?? null,
+    billingRequired: billingPolicy?.active === true,
+    billingRate: billingPolicy?.active === true
+      ? (call.mode === "audio" ? billingPolicy.audioCoinsPerMinute : billingPolicy.videoCoinsPerMinute)
+      : null,
+    pricingPolicyVersion: billingPolicy?.version ?? null,
+    connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
+    maxDurationEndsAtMs: call.maxDurationEndsAt instanceof Timestamp ? call.maxDurationEndsAt.toMillis() : null,
+  };
+});
+
+/** Creator-only list of pending join requests for the live room call. */
+
+export const listRoomCallJoinRequests = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const snapshot = await callRef.get();
+  if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
+  const call = snapshot.data() ?? {};
+  if (call.scope !== "room" || call.callerUid !== uid ||
+      !["ringing", "accepted"].includes(String(call.status))) {
+    throw new HttpsError("permission-denied", "قائمة طلبات الانضمام متاحة لمنشئ المكالمة النشطة فقط.");
+  }
+  const requests = await callRef.collection("joinRequests").where("status", "==", "requested").limit(100).get();
+  return {
+    requests: requests.docs.map((doc) => ({
+      uid: doc.id,
+      requestedAtMs: doc.data().requestedAt instanceof Timestamp ? doc.data().requestedAt.toMillis() : null,
+    })),
+  };
+});
+
+/** A requester can inspect only their own request state. */
+
+export const getRoomCallJoinRequestStatus = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const callId = request.data?.callId;
+  if (typeof callId !== "string" || !/^[A-Za-z0-9_-]{16,80}$/.test(callId)) {
+    throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
+  }
+  const callRef = CALL_SESSIONS.doc(callId);
+  const [callSnapshot, requestSnapshot] = await Promise.all([
+    callRef.get(), callRef.collection("joinRequests").doc(uid).get(),
+  ]);
+  if (!callSnapshot.exists || callSnapshot.data()?.scope !== "room" || !requestSnapshot.exists) {
+    throw new HttpsError("not-found", "طلب الانضمام غير موجود.");
+  }
+  const call = callSnapshot.data() ?? {};
+  const joinRequest = requestSnapshot.data() ?? {};
+  if (joinRequest.uid !== uid) throw new HttpsError("permission-denied", "لا يمكنك قراءة طلب عضو آخر.");
+  return {
+    status: joinRequest.status,
+    approved: joinRequest.status === "approved",
+    rejected: joinRequest.status === "rejected",
+    callStatus: call.status,
+    active: ["ringing", "accepted"].includes(String(call.status)),
+  };
+});
+
+/**
+ * Each endpoint reports the local WebRTC connected state. The server starts
+ * one immutable five-minute clock only after the caller and at least one
+ * accepted recipient have both reported connected.
+ */
