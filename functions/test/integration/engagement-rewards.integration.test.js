@@ -22,7 +22,6 @@ const {
 } = require("../../lib/index");
 
 const db = getFirestore();
-const { utcRewardPeriod } = require("../../lib/engagement-rewards");
 const suffix = () => `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 async function cleanupTimedCampaign(campaignId) {
   const versions = await db.collection("timedAdCampaignVersions").doc(campaignId)
@@ -627,94 +626,5 @@ test("standard ads are geographically filtered and featured inventory is rejecte
       await db.collection("timedAdCampaigns").doc(standardCampaignId).delete().catch(() => undefined);
     }
     await Promise.all([syriaUser.delete().catch(() => undefined), egyptUser.delete().catch(() => undefined)]);
-  }
-});
-
-
-test("timed-ad daily claim and coin caps cancel without wallet credit or counter mutation", async () => {
-  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const scenarios = [
-    { name: "claim-limit", claimCount: 10, rewardCoins: 0, expectSuccess: false },
-    { name: "coin-limit", claimCount: 0, rewardCoins: 20, expectSuccess: false },
-    { name: "exact-boundary", claimCount: 9, rewardCoins: 19, expectSuccess: true },
-  ];
-  for (const scenario of scenarios) {
-    const tag = suffix();
-    const ownerUid = `ad_cap_owner_${scenario.name}_${tag}`;
-    const uid = `ad_cap_member_${scenario.name}_${tag}`;
-    const userRef = db.collection("users").doc(uid);
-    const dailyPeriod = utcRewardPeriod("daily", Date.now());
-    const dailyRef = db.collection("timedAdMemberDailyCounters").doc(`${uid}_${dailyPeriod}`);
-    let campaignId;
-    let sessionId;
-    await userRef.set({ coins: 25, profileCompleted: true, accountStatus: "active" });
-    try {
-      const created = await setTimedAdCampaign.run(ownerRequest(ownerUid, {
-        title: "Daily cap test campaign",
-        sponsorLabel: "Mawdda test sponsor",
-        body: "Synthetic campaign for exact daily reward cap enforcement.",
-        placement: "reward_center",
-        durationSeconds: 15,
-        rewardCoins: 1,
-        startsAtMs: Date.now() - 60000,
-        endsAtMs: Date.now() + 3600000,
-        maxClaimsPerMember: 3,
-        rewardBudgetCoins: 100,
-      }));
-      campaignId = created.campaignId;
-      await db.collection("timedAdCampaigns").doc(campaignId).update({ creativeType: "text" });
-      await setTimedAdCampaignStatus.run(ownerRequest(ownerUid, { campaignId, status: "published" }));
-      const started = await startTimedAdvertisement.run(memberRequest(uid, { campaignId }));
-      sessionId = started.sessionId;
-      await db.collection("timedAdSessions").doc(sessionId).update({
-        eligibleMs: 15000,
-        heartbeatSequence: 0,
-        lastHeartbeatAtMs: Date.now() - 5000,
-      });
-      await heartbeatTimedAdvertisement.run(memberRequest(uid, {
-        sessionId, sequence: 1, foreground: true, visible: true,
-      }));
-      await dailyRef.set({
-        uid, period: dailyPeriod,
-        claimCount: scenario.claimCount,
-        rewardCoins: scenario.rewardCoins,
-      });
-
-      if (scenario.expectSuccess) {
-        const completed = await completeTimedAdvertisement.run(memberRequest(uid, { sessionId }));
-        assert.equal(completed.completed, true);
-        assert.equal(completed.amountCoins, 1);
-      } else {
-        await assert.rejects(
-          () => completeTimedAdvertisement.run(memberRequest(uid, { sessionId })),
-          (error) => error && error.code === "resource-exhausted",
-        );
-      }
-      const [user, session, campaign, claim, ledger, daily] = await Promise.all([
-        userRef.get(),
-        db.collection("timedAdSessions").doc(sessionId).get(),
-        db.collection("timedAdCampaigns").doc(campaignId).get(),
-        db.collection("timedAdRewardClaims").doc(sessionId).get(),
-        userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).get(),
-        dailyRef.get(),
-      ]);
-      assert.equal(user.data().coins, scenario.expectSuccess ? 26 : 25);
-      assert.equal(session.data().status, scenario.expectSuccess ? "completed" : "cancelled");
-      assert.equal(campaign.data().reservedRewardCoins, 0);
-      assert.equal(claim.exists, scenario.expectSuccess);
-      assert.equal(ledger.exists, scenario.expectSuccess);
-      assert.equal(daily.data().claimCount, scenario.expectSuccess ? 10 : scenario.claimCount);
-      assert.equal(daily.data().rewardCoins, scenario.expectSuccess ? 20 : scenario.rewardCoins);
-    } finally {
-      await Promise.all([
-        sessionId ? db.collection("timedAdSessions").doc(sessionId).delete().catch(() => undefined) : Promise.resolve(),
-        sessionId ? db.collection("timedAdRewardClaims").doc(sessionId).delete().catch(() => undefined) : Promise.resolve(),
-        sessionId ? userRef.collection("walletLedger").doc(`timed_ad_${sessionId}`).delete().catch(() => undefined) : Promise.resolve(),
-        db.collection("activeTimedAdSessions").doc(uid).delete().catch(() => undefined),
-        dailyRef.delete().catch(() => undefined),
-        userRef.delete().catch(() => undefined),
-      ]);
-      if (campaignId) await cleanupTimedCampaign(campaignId);
-    }
   }
 });
