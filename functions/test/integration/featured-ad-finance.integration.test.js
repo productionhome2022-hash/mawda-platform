@@ -109,6 +109,14 @@ test("advertiser financial events are owner-only, immutable, multi-receipt and i
     const replay = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
     assert.equal(replay.idempotentReplay, true);
     assert.equal((await campaignRef.get()).data().status, "draft");
+
+    await economyRef.update({ paymentPolicy: {
+      ...paymentPolicy,
+      featured_ads: { manualEnabled: false, automatedEnabled: false },
+    } });
+    const replayAfterPolicyDisable = await recordFeaturedAdFinancialEvent.run(ownerRequest(ownerUid, payment));
+    assert.equal(replayAfterPolicyDisable.idempotentReplay, true);
+    await economyRef.update({ paymentPolicy });
     const paymentAuditRef = db.collection("adminAuditLogs").doc(`featured_ad_finance_${first.eventId}`);
     const paymentVersionRef = versionRef.doc(String(first.version));
     const savedPaymentAudit = (await paymentAuditRef.get()).data();
