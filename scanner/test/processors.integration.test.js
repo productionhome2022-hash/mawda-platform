@@ -92,7 +92,7 @@ async function makeFixture(type, dir) {
   } else if (type === "large-dimensions-png") {
     await execFileAsync("ffmpeg", [
       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
-      "color=c=blue:s=513x512", "-frames:v", "1", "-c:v", "png", output,
+      "color=c=blue:s=513x512,format=rgb24", "-frames:v", "1", "-c:v", "png", output,
     ]);
   } else if (type === "long-gif") {
     await execFileAsync("ffmpeg", [
@@ -235,6 +235,12 @@ test("static sticker inspection accepts only bounded PNG and WebP assets", async
     const largePng = await makeFixture("large-png", tempDir);
     await assert.rejects(() => inspectStickerMedia({ sourcePath: largePng, contentType: "image/png" }), /STICKER_STATIC_LIMIT_EXCEEDED/);
     const oversizedDimensions = await makeFixture("large-dimensions-png", tempDir);
+    const dimensionProbe = await execFileAsync("ffprobe", [
+      "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+      "-of", "csv=s=x:p=0", oversizedDimensions,
+    ]);
+    assert.equal(dimensionProbe.stdout.trim(), "513x512",
+      "oversized PNG fixture must retain its intended 513x512 dimensions");
     await assert.rejects(() => inspectStickerMedia({ sourcePath: oversizedDimensions, contentType: "image/png" }), /STICKER_DIMENSIONS_OR_FRAMES_INVALID/);
   } finally {
     await fs.rm(tempDir, { recursive: true, force: true });
