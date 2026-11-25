@@ -90,4 +90,10 @@ test("gift recipient Auth must be enabled and have a non-anonymous provider", ()
     disabled: false, providerData: [{ providerId: "anonymous" }],
   }), false);
   assert.equal(isEligibleStoreGiftAuthUser(null), false);
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: false, providerData: [null],
+  }), false);
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: false, providerData: [{ providerId: "" }],
+  }), false);
 });
