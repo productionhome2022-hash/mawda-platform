@@ -49,7 +49,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
         TextField(controller: price, readOnly: isPackageGift, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'السعر بوحدات العملة الصغرى')),
-        TextField(controller: currency, textCapitalization: TextCapitalization.characters,
+        TextField(controller: currency, readOnly: isPackageGift, textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)')),
         TextField(controller: instructions, minLines: 2, maxLines: 5,
           decoration: const InputDecoration(labelText: 'تعليمات الدفع اليدوي')),
