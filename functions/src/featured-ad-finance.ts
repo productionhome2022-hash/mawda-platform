@@ -105,16 +105,21 @@ export function applyFeaturedAdFinancialEvent(
     throw new FeaturedAdFinancialValidationError("financial_snapshot_inconsistent");
   }
   if (event.action === "payment_received") {
-    if (receivedMinor > 0 || current.currency !== null && current.currency !== event.currency) {
-      throw new FeaturedAdFinancialValidationError("payment_already_recorded_or_currency_conflict");
+    if (current.currency !== null && current.currency !== event.currency) {
+      throw new FeaturedAdFinancialValidationError("payment_currency_conflict");
     }
+    const nextReceivedMinor = receivedMinor + event.amountMinor!;
+    if (!Number.isSafeInteger(nextReceivedMinor) || nextReceivedMinor < receivedMinor) {
+      throw new FeaturedAdFinancialValidationError("financial_snapshot_corrupt");
+    }
+    const nextNetReceived = nextReceivedMinor - refundedMinor;
     return {
       currency: event.currency,
-      receivedMinor: event.amountMinor!,
-      refundedMinor: 0,
-      reconciledMinor: 0,
+      receivedMinor: nextReceivedMinor,
+      refundedMinor,
+      reconciledMinor,
       reviewStatus: "in_review",
-      paymentStatus: "paid",
+      paymentStatus: refundedMinor === 0 ? "paid" : nextNetReceived === 0 ? "refunded" : "partially_refunded",
     };
   }
   if (event.action === "refund_recorded") {
