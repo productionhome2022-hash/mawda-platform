@@ -49,7 +49,7 @@ import { PRIVACY_POLICY_HASH, PRIVACY_POLICY_VERSION, validatePrivacyAcknowledge
 import { isStoreItemPurchasable, projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
 import { calculateStorePurchaseBalance, isStoreEntitlementActive, isStorePurchasePriceCurrent, isStorePurchaseReplayCompatible, projectStoreEntitlementFeatures } from "./store-purchase";
 import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
-import { deleteMediaAssetForMessage, getMawddaMediaBucket } from "./media";
+import { deleteMediaAssetForMessage, mediaBucket } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
 import { DEFAULT_STORE_CATALOG } from "./default-store-catalog";
@@ -136,6 +136,7 @@ initializeApp();
 
 const db = getFirestore();
 const GROUP_CALL_PRICING_SETTINGS = db.doc("platformSettings/groupCallPricing");
+const CALL_USAGE_POLICY = db.doc("platformSettings/callUsagePolicy");
 const FEATURED_AD_REWARD_POLICY_SETTINGS = db.doc("platformSettings/featuredAdRewardPolicy");
 const TRANSFER_SETTINGS = db.doc("platformSettings/coinTransfers");
 const OWNER_REVIEW_AUDIT_HEAD = db.collection("adminAuditChainHeads").doc("ownerReview");
@@ -12314,6 +12315,7 @@ export const giftStoreEntitlement = onCall(async (request) => {
       const notification = priorNotification.data() ?? {};
       if (!isStoreGiftReplayCompatible(prior, {
         senderUid, recipientUid, itemId, expectedPriceCoins,
+        expectedCatalogVersion: Number.isSafeInteger(itemSnapshot.data()?.version) ? Number(itemSnapshot.data()?.version) : 0,
       })) {
         throw new HttpsError("already-exists", "معرف طلب الإهداء مستخدم لعملية أخرى أو بسعر مختلف.");
       }
@@ -12406,7 +12408,7 @@ export const giftStoreEntitlement = onCall(async (request) => {
     transaction.update(senderRef, { coins: newBalance, updatedAt: createdAt });
     transaction.create(giftRef, {
       giftId, requestId, senderUid, recipientUid, itemId,
-      itemName: item.name, category: item.category,
+      catalogVersion: item.version, itemName: item.name, category: item.category,
       priceCoins: item.priceCoins, durationDays: item.durationDays ?? null,
       balanceBefore: currentBalance, newBalance, expiresAt, status: "completed", createdAt,
     });
@@ -12532,7 +12534,7 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
 
 
 const FEATURED_AD_REWARD_POLICY = db.doc("platformSettings/featuredAdRewardPolicy");
-const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaPolicy");
+
 const FEATURED_AD_ALLOWED_STATUSES = ["draft", "approved", "published", "paused", "withdrawn"] as const;
 const FEATURED_AD_ALLOWED_PLACEMENTS = ["rotation", "priority"] as const;
 
@@ -13052,7 +13054,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     if (path !== expectedPath || typeof generation !== "string" || Number(generation) <= 0) {
       throw new HttpsError("failed-precondition", "النسخة الآمنة للإعلان غير مكتملة.");
     }
-    const file = getMawddaMediaBucket().file(expectedPath, { generation: Number(generation) });
+    const file = mediaBucket().file(expectedPath, { generation: Number(generation) });
     const [metadata] = await file.getMetadata();
     const custom = metadata.metadata as Record<string, unknown> | undefined;
     const hash = isVideo ? asset.safeVideoSha256 : isGif ? asset.safeAnimationSha256 : asset.safePreviewSha256;
