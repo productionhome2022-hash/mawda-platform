@@ -32,6 +32,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
   Future<void> _instructions(Map<String, dynamic> item) async {
     final uid = item['requesterUid'] as String? ?? '';
     final id = item['requestId'] as String? ?? '';
+    final isPackageGift = item['giftRecipientUid'] is String;
     final requested = (item['requestedCoins'] as num?)?.toInt() ??
         ((item['packageSnapshot'] is Map) ? ((item['packageSnapshot']['coins'] as num?)?.toInt() ?? 0) : 0);
     final coins = TextEditingController(text: requested > 0 ? requested.toString() : '');
@@ -44,9 +45,9 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       title: const Text('تعليمات الدفع والاتفاق'),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text('العضو: ' + uid),
-        TextField(controller: coins, keyboardType: TextInputType.number,
+        TextField(controller: coins, readOnly: isPackageGift, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'الكمية المتفق عليها')),
-        TextField(controller: price, keyboardType: TextInputType.number,
+        TextField(controller: price, readOnly: isPackageGift, keyboardType: TextInputType.number,
           decoration: const InputDecoration(labelText: 'السعر بوحدات العملة الصغرى')),
         TextField(controller: currency, textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(labelText: 'رمز العملة (ISO 4217)')),
