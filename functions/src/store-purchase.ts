@@ -101,10 +101,13 @@ export function isStorePurchaseReplayCompatible(
   memberUid: string,
   itemId: string,
   expectedPriceCoins: number,
+  expectedCatalogVersion: number,
 ): boolean {
   if (priorInput === null || typeof priorInput !== "object" || Array.isArray(priorInput)) return false;
   const prior = priorInput as Record<string, unknown>;
   return prior.memberUid === memberUid &&
     prior.itemId === itemId &&
+    prior.catalogVersion === expectedCatalogVersion &&
+    Number.isSafeInteger(expectedCatalogVersion) && expectedCatalogVersion > 0 &&
     isStorePurchasePriceCurrent(expectedPriceCoins, prior.priceCoins);
 }
