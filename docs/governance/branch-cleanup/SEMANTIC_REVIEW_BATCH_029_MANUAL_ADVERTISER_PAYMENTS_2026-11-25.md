@@ -30,3 +30,13 @@ Do not create or accept advertiser payment receipts, and do not add payment-mode
 
 ## Next
 Continue from candidate 265.
+
+## Subsequent HEAD reconciliation — 2026-11-25
+The initial table above reflects an earlier Full Platform snapshot (HEAD `0c2f7156928803cb29568322cdd1aa4976ffde4a`). Rechecked against the later current Full Platform tree (HEAD observed after commit d36fba9962b64e6a7af9eed6c658b7ec8c703b11):
+- `recordFeaturedAdFinancialEvent` is present in `functions/src/index.ts` and requires the versioned `featured_ads.manualEnabled=true` and `automatedEnabled=false` policy before a new `payment_received` event.
+- A verified prior event is replayed idempotently before rechecking current manual-payment enablement, preserving valid historical receipt replay after policy changes.
+- `setOwnerEconomyPricing` accepts the explicit paymentPolicy; `projectEconomicPaymentPolicy` ignores legacy booleans when no explicit policy exists.
+- `economy_pricing_screen.dart` exposes the owner-controlled manual Featured Ads toggle separately from coin purchases.
+- The Featured Ads finance integration fixture enables the mode only inside the test fixture and restores prior platform settings.
+
+Accordingly, current Full Platform evidence now supports **implemented/present: 6** for candidates 259–264. The earlier “missing subsystem” conclusion is superseded by the later code/UI/test integration. This does not activate automated checkout or authorize production payment processing.
