@@ -117,7 +117,43 @@ async function probeGif(sourcePath) {
       width * height * frames > LIMITS.gif.maxPixels) {
     throw new Error("GIF_COMPLEXITY_EXCEEDS_SAFE_LIMIT");
   }
-  return { frames };
+  return { frames, width, height, durationSeconds: duration };
+}
+
+async function inspectStickerMedia({ sourcePath, contentType }) {
+  if (typeof sourcePath !== "string" || !sourcePath ||
+      !["image/gif", "image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+    throw new Error("STICKER_MEDIA_TYPE_INVALID");
+  }
+  const stat = await fs.stat(sourcePath);
+  if (!stat.isFile() || stat.size <= 0 || stat.size > LIMITS.gif.maxBytes) {
+    throw new Error("STICKER_MEDIA_SIZE_INVALID");
+  }
+  if (contentType === "image/gif") {
+    const metadata = await probeGif(sourcePath);
+    return {
+      kind: metadata.frames > 1 ? "animated" : "static",
+      contentType,
+      width: metadata.width,
+      height: metadata.height,
+      sizeBytes: stat.size,
+      durationMs: Math.round(metadata.durationSeconds * 1000),
+      frameCount: metadata.frames,
+    };
+  }
+  const { stdout } = await execFileAsync("ffprobe", [
+    "-v", "error", "-select_streams", "v:0",
+    "-show_entries", "stream=width,height", "-of", "json", sourcePath,
+  ], { timeout: 15_000, maxBuffer: 64 * 1024 });
+  const parsed = JSON.parse(stdout);
+  const stream = Array.isArray(parsed.streams) ? parsed.streams[0] : null;
+  const width = Number(stream && stream.width);
+  const height = Number(stream && stream.height);
+  if (!Number.isSafeInteger(width) || width < 1 ||
+      !Number.isSafeInteger(height) || height < 1 || width * height > LIMITS.gif.maxPixels) {
+    throw new Error("STICKER_IMAGE_DIMENSIONS_INVALID");
+  }
+  return { kind: "static", contentType, width, height, sizeBytes: stat.size, durationMs: 0, frameCount: 1 };
 }
 
 async function processGif({ sourcePath, tempDir, request, sourceSha256, storage, bucketName, provider }) {
@@ -135,7 +171,10 @@ async function processGif({ sourcePath, tempDir, request, sourceSha256, storage,
   const artifact = await uploadDerivative({
     storage, bucketName, outputPath: output, request, sourceSha256, provider,
     filename: "animation.gif", contentType: "image/gif",
-    pipelineVersion: "gif-sanitize-preserve-animation-v1", maxBytes: LIMITS.gif.maxBytes,
+    pipelineVersion: request.purpose === "sticker"
+      ? "gif-sticker-sanitize-preserve-animation-v1"
+      : "gif-sanitize-preserve-animation-v1",
+    maxBytes: request.purpose === "sticker" ? 512 * 1024 : LIMITS.gif.maxBytes,
   });
   return { safeDerivative: { category: "gif", ...artifact }, processingStatus: "safe_animation_derivative_ready" };
 }
@@ -240,4 +279,4 @@ async function processSafeDerivative(context) {
   }
 }
 
-module.exports = { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath, probeMedia, probeGif, processSafeDerivative };
+module.exports = { LIMITS, audioDurationLimitForPurpose, videoDurationAllowedForPurpose, safeOutputPath, probeMedia, probeGif, inspectStickerMedia, processSafeDerivative };
