@@ -140,7 +140,6 @@ import {
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
   timedAdMemberCounterId,
-  decideTimedAdDailyCap,
   TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
   AttendanceRewardType,
 } from "./engagement-rewards";
@@ -9456,12 +9455,9 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     const activeRef = db.collection("activeTimedAdSessions").doc(uid);
     const counterRef = db.collection("timedAdMemberCounters").doc(timedAdMemberCounterId(uid, data.campaignId));
     const legacyCounterRef = db.collection("timedAdMemberCounters").doc(`${uid}_${data.campaignId}`);
-    const dailyPeriod = utcRewardPeriod("daily", Date.now());
-    const dailyCounterRef = db.collection("timedAdMemberDailyCounters").doc(`${uid}_${dailyPeriod}`);
-    const [claim, user, campaign, active, counter, legacyCounter, dailyCounter] = await Promise.all([
+    const [claim, user, campaign, active, counter, legacyCounter] = await Promise.all([
       transaction.get(claimRef), transaction.get(userRef), transaction.get(campaignRef),
       transaction.get(activeRef), transaction.get(counterRef), transaction.get(legacyCounterRef),
-      transaction.get(dailyCounterRef),
     ]);
     const campaignMediaId = campaign.data()?.mediaId;
     const campaignMedia = typeof campaignMediaId === "string"
@@ -9477,7 +9473,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     if (data.eligibleMs < data.durationSeconds * 1000) {
       throw new HttpsError("failed-precondition", "لم تكتمل مدة المشاهدة الفعلية المطلوبة.");
     }
-    const cancelSession = (reason: "expired" | "ineligible" | "creative_revoked" | "daily_cap") => {
+    const cancelSession = (reason: "expired" | "ineligible" | "creative_revoked") => {
       if (campaign.exists) {
         const reserved = readSafeInteger(campaign.data()?.reservedRewardCoins ?? 0, "reservedRewardCoins");
         const reward = readSafeInteger(data.rewardCoins, "rewardCoins");
@@ -9508,22 +9504,6 @@ export const completeTimedAdvertisement = onCall(async (request) => {
         return cancelSession("creative_revoked");
       }
     }
-    const dailyData = dailyCounter.data() ?? {};
-    if (dailyCounter.exists &&
-        (dailyData.uid !== uid || dailyData.period !== dailyPeriod)) {
-      throw new HttpsError("data-loss", "عداد المكافآت اليومي مرتبط بهوية أو فترة غير متطابقة.");
-    }
-    const memberDailyClaims = dailyCounter.exists
-      ? readSafeInteger(dailyData.claimCount ?? 0, "dailyClaimCount") : 0;
-    const memberDailyRewardCoins = dailyCounter.exists
-      ? readSafeInteger(dailyData.rewardCoins ?? 0, "dailyRewardCoins") : 0;
-    const dailyCapDecision = decideTimedAdDailyCap({
-      claimCount: memberDailyClaims,
-      rewardCoins: memberDailyRewardCoins,
-      nextRewardCoins: data.rewardCoins,
-    });
-    if (!dailyCapDecision.eligible) return cancelSession("daily_cap");
-
     const spent = readSafeInteger(campaignData.spentRewardCoins ?? 0, "spentRewardCoins");
     const reserved = readSafeInteger(campaignData.reservedRewardCoins ?? 0, "reservedRewardCoins");
     const budget = readSafeInteger(campaignData.rewardBudgetCoins, "rewardBudgetCoins");
@@ -9550,12 +9530,6 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       throw new HttpsError("failed-precondition", "رصيد المحفظة لا يسمح بإضافة المكافأة بأمان.");
     }
     const now = FieldValue.serverTimestamp();
-    transaction.set(dailyCounterRef, {
-      uid, period: dailyPeriod,
-      claimCount: memberDailyClaims + 1,
-      rewardCoins: memberDailyRewardCoins + data.rewardCoins,
-      updatedAt: now,
-    }, { merge: true });
     transaction.update(userRef, { coins: balance + data.rewardCoins, walletUpdatedAt: now });
     transaction.create(claimRef, {
       uid, sessionId, campaignId: data.campaignId,
@@ -9588,9 +9562,6 @@ export const completeTimedAdvertisement = onCall(async (request) => {
     }
     if (result.reason === "creative_revoked") {
       throw new HttpsError("failed-precondition", "لم تعد مادة الإعلان معتمدة؛ ألغيت الجلسة دون مكافأة.");
-    }
-    if (result.reason === "daily_cap") {
-      throw new HttpsError("resource-exhausted", "بلغت الحد اليومي لمكافآت الإعلانات؛ لم تُضف أي BetaCoins.");
     }
     throw new HttpsError("permission-denied", "الحساب أو الحملة لم تعد مؤهلة؛ ألغيت الجلسة دون مكافأة.");
   }
