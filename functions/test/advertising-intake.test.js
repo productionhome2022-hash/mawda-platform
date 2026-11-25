@@ -29,13 +29,13 @@ test("advertising proposal budgets enforce supported currency precision", () => 
     ...validDirectAdvertiserBudget, currency: "JOD", proposedBudgetAmount: "125.000",
   }).currency, "JOD");
   assert.throws(() => validateAdvertisingIntake({
-    ...validDirectAdvertiserBudget, currency: "KWD", proposedBudgetAmount: "125.000",
+    ...validDirectAdvertiserBudget, currency: "KWD", proposedBudgetAmount: "125.0001",
   }), /invalid_budget/);
   assert.throws(() => validateAdvertisingIntake({
     ...validDirectAdvertiserBudget, currency: "XXX",
   }), /invalid_budget/);
   assert.throws(() => validateAdvertisingIntake({
-    ...validDirectAdvertiserBudget, proposedBudgetAmount: "125.000",
+    ...validDirectAdvertiserBudget, proposedBudgetAmount: "125.001",
   }), /invalid_budget/);
 });
 
