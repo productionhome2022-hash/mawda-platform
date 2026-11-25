@@ -37,6 +37,7 @@ export interface TimedAdCampaignInput {
 const MAX_REWARD_COINS = 100_000;
 const MAX_AD_DURATION_SECONDS = 15 * 60;
 const MAX_AD_BUDGET_COINS = 100_000_000;
+const AD_HEARTBEAT_MAX_GAP_MS = 15_000;
 
 // Owner-approved experimental ceiling for standard campaigns; no global daily quota is implied.
 export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
