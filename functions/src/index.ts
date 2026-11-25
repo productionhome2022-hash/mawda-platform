@@ -392,7 +392,7 @@ export const transferCoins = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
   }
   if (recipientUid === senderUid) {
-    throw new HttpsError("failed-precondition", "لا يمكن تحويل الBetaCoins إلى حسابك نفسه.");
+    throw new HttpsError("failed-precondition", "لا يمكن تحويل BetaCoins إلى حسابك نفسه.");
   }
   if (amount <= 0) {
     throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
@@ -506,7 +506,7 @@ export const transferCoins = onCall(async (request) => {
     const recipientData = recipientSnapshot.data()!;
     if (!isMemberAccountInGoodStanding(senderData) ||
         !isMemberAccountInGoodStanding(recipientData)) {
-      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الBetaCoins حالياً.");
+      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل BetaCoins حالياً.");
     }
     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
@@ -515,7 +515,7 @@ export const transferCoins = onCall(async (request) => {
     }
 
     if (senderBalance < amount) {
-      throw new HttpsError("failed-precondition", "رصيدك من الBetaCoins غير كافٍ.");
+      throw new HttpsError("failed-precondition", "رصيدك من BetaCoins غير كافٍ.");
     }
 
     // Basis points: 2,000 = 20%. Exact integer arithmetic avoids floating-point drift.
@@ -7717,7 +7717,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
   }
   let input;
   try { input = validateCoinPurchaseRequestInput(request.data); }
-  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء الBetaCoins غير صالحة."); }
+  catch { throw new HttpsError("invalid-argument", "بيانات طلب شراء BetaCoins غير صالحة."); }
   const userRef = db.collection("users").doc(uid);
   const giftRecipientUid = input.giftRecipientUid;
   if (giftRecipientUid === uid) throw new HttpsError("failed-precondition", "لا يمكن إهداء باقة إلى حسابك نفسه.");
@@ -7769,7 +7769,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
       if (!recipient?.exists || !isMemberAccountInGoodStanding(recipientData) ||
           recipientData?.profileCompleted !== true ||
           guestProfile?.exists || guestSession?.exists) {
-        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة الBetaCoins.");
+        throw new HttpsError("permission-denied", "المستلم ليس عضواً مؤهلاً لاستلام باقة BetaCoins.");
       }
     }
     const economy = settings.data() ?? {};
@@ -7793,7 +7793,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     if (input.kind === "package") {
       let packages;
       try { packages = validateCoinPackages(economy.coinPackages); }
-      catch { throw new HttpsError("failed-precondition", "قائمة باقات الBetaCoins غير صالحة."); }
+      catch { throw new HttpsError("failed-precondition", "قائمة باقات BetaCoins غير صالحة."); }
       const selected = packages.find((item) => item.packageId === input.packageId && item.active);
       if (!selected) throw new HttpsError("not-found", "الباقة غير متاحة حالياً.");
       packageSnapshot = { ...selected };
@@ -8182,7 +8182,7 @@ export const approveCoinPurchaseRequest = onCall(async (request) => {
     if (!user.exists || !isMemberAccountInGoodStanding(user.data()) ||
         user.data()?.profileCompleted !== true ||
         (data.giftRecipientUid && (guestProfile?.exists || guestSession?.exists))) {
-      throw new HttpsError("permission-denied", "حساب مستلم الBetaCoins غير مؤهل.");
+      throw new HttpsError("permission-denied", "حساب مستلم BetaCoins غير مؤهل.");
     }
 
     if (ledger.exists) throw new HttpsError("already-exists", "يوجد سجل مالي سابق لهذا الطلب؛ يلزم تدقيقه.");
