@@ -40,7 +40,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isTransferringCoins = false;
   bool _isRequestingCoinPackage = false;
   bool _isGiftingStoreItem = false;
-  bool _isGiftingStoreItem = false;
   String? _pendingTransferKey;
   String? _pendingTransferRequestId;
   late Future<Map<String, dynamic>> _profileFuture;
@@ -1034,8 +1033,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final result = Map<String, dynamic>.from(resultResponse.data as Map);
       final giftId = result['giftId'] as String?;
       final balance = (result['newBalance'] as num?)?.toInt();
-      if (giftId == null || balance == null) {
-        throw StateError('STORE_GIFT_RECEIPT_INCOMPLETE');
+      if (giftId == null || balance == null ||
+          result['recipientUid'] != widget.profileUserId ||
+          result['itemId'] != itemId) {
+        throw StateError('STORE_GIFT_RECEIPT_MISMATCH');
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
@@ -1752,17 +1753,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: _isGiftingStoreItem ? null : () => _showGiftStoreItemDialog(name),
                   ),
                 ),
-              if (!isMyProfile)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                  child: OutlinedButton.icon(
-                    icon: _isGiftingStoreItem
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.card_giftcard_outlined),
-                    label: Text(_isGiftingStoreItem ? 'جارٍ تحميل المتجر...' : 'إهداء ميزة من المتجر'),
-                    onPressed: _isGiftingStoreItem ? null : () => _showGiftStoreItemDialog(name),
-                  ),
-                ),
+
               if (!isMyProfile)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
