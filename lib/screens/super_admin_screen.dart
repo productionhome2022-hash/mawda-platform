@@ -965,7 +965,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد إعدادات تحويل الكوينز'),
+        title: const Text('تأكيد إعدادات تحويل BetaCoins'),
         content: Text(
           'الحالة الجديدة: ${_transferEnabled ? 'التحويلات مفعّلة' : 'التحويلات متوقفة'}\n'
           'عمولة المنصة: ${percent.toStringAsFixed(2)}%.\n'
@@ -993,7 +993,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       await _loadOverview();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ إعدادات تحويل الكوينز وتسجيلها في سجل التدقيق.')),
+        const SnackBar(content: Text('تم حفظ إعدادات تحويل BetaCoins وتسجيلها في سجل التدقيق.')),
       );
     } on FirebaseFunctionsException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -1417,7 +1417,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         else if (_overview != null) ...[
           _metric('الأعضاء المسجلون', _overview!['memberCount'], Icons.people_outline),
           _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
-          _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
+          _metric('عمليات تحويل BetaCoins', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
         ],
         const SizedBox(height: 16),
         Card(
@@ -1448,7 +1448,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       builder: (_) => const EconomyPricingScreen(),
                     )),
                     icon: const Icon(Icons.account_balance_outlined),
-                    label: const Text('إدارة أسعار الكوينز والإعلانات'),
+                    label: const Text('إدارة أسعار BetaCoins والإعلانات'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1514,7 +1514,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       builder: (_) => const OwnerCoinPurchaseScreen(),
                     )),
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text('طلبات شراء الكوينز والتحقق اليدوي'),
+                    label: const Text('طلبات شراء BetaCoins والتحقق اليدوي'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1856,7 +1856,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
         ),
         const Divider(height: 32),
-        Text('التحكم المالي وتحويل الكوينز', style: Theme.of(context).textTheme.titleMedium),
+        Text('التحكم المالي وتحويل BetaCoins', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           child: Padding(
@@ -1866,7 +1866,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               children: [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('السماح بتحويل الكوينز'),
+                  title: const Text('السماح بتحويل BetaCoins'),
                   subtitle: const Text('إيقاف التحويلات الجديدة من الخادم فور حفظ الإعداد.'),
                   value: _transferEnabled,
                   onChanged: _savingTransferSettings ? null : (value) {
@@ -1895,7 +1895,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   ),
                 ),
                 const Text(
-                  'هذا التحكم يخص تحويلات الأعضاء فقط. شحن الكوينز والمشتريات والاسترداد لا تُعرض كعمليات فعّالة قبل بناء وربط بواباتها الموثوقة.',
+                  'هذا التحكم يخص تحويلات الأعضاء فقط. شحن BetaCoins والمشتريات والاسترداد لا تُعرض كعمليات فعّالة قبل بناء وربط بواباتها الموثوقة.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
