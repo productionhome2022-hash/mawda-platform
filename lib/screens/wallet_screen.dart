@@ -42,7 +42,7 @@ class WalletScreen extends StatelessWidget {
             builder: (_) => const MemberGiftHistoryScreen(),
           )),
         ),
-        IconButton(tooltip: 'طلب شراء كوينز', icon: const Icon(Icons.add_card),
+        IconButton(tooltip: 'طلب شراء BetaCoins', icon: const Icon(Icons.add_card),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const CoinPurchaseScreen(),
           ))),
@@ -115,9 +115,9 @@ class WalletScreen extends StatelessWidget {
                   ? data['recipientUid'] as String?
                   : data['senderUid'] as String?;
               final title = type == 'coin_transfer_sent'
-                  ? 'تحويل كوينز صادر'
+                  ? 'تحويل BetaCoins صادر'
                   : type == 'coin_transfer_received'
-                      ? 'تحويل كوينز وارد'
+                      ? 'تحويل BetaCoins وارد'
                       : type == 'store_purchase'
                           ? 'شراء من متجر مودة'
                           : type.replaceAll('_', ' ');
