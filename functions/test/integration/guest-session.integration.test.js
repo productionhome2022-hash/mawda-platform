@@ -120,7 +120,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
     );
     await assert.rejects(
       () => purchaseStoreItem.run(guestRequest(uid, {
-        itemId: "vip_badge_test", requestId: "guest_purchase_0001", expectedPriceCoins: 10,
+        itemId: "vip_badge_test", requestId: "guest_purchase_0001", expectedPriceCoins: 10, expectedCatalogVersion: 1,
       })),
       (error) => error && error.code === "permission-denied",
     );
