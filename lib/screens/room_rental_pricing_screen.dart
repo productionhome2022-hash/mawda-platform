@@ -42,7 +42,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
           TextField(controller: id, enabled: current == null, decoration: const InputDecoration(labelText: 'معرف الباقة')),
           TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم الباقة')),
           TextField(controller: days, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المدة بالأيام')),
-          TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر بالكوينز')),
+          TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر بBetaCoins')),
           SwitchListTile(value: active, title: const Text('متاحة للاستئجار'), onChanged: (v) => update(() => active = v)),
         ])),
         actions: [
@@ -88,7 +88,7 @@ class _RoomRentalPricingScreenState extends State<RoomRentalPricingScreen> {
           crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('الأسعار قابلة للتعديل من لوحة المالك', style: Theme.of(context).textTheme.titleMedium),
             Text('إصدار السياسة: $_version'),
-            const Text('الأسعار ابتدائية بالكوينز. تثبت الأسعار المتفق عليها داخل عمليات الاستئجار السابقة، ولا يغير تحديث القائمة المعاملات المنفذة.'),
+            const Text('الأسعار ابتدائية بBetaCoins. تثبت الأسعار المتفق عليها داخل عمليات الاستئجار السابقة، ولا يغير تحديث القائمة المعاملات المنفذة.'),
           ]))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         ..._plans.map((p) => Card(child: ListTile(
