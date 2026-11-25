@@ -234,7 +234,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     assert.equal((await itemRef.get()).data().version, 2);
     assert.equal((await versionsRef.doc("1").get()).data().version, 1);
     assert.equal((await versionsRef.doc("2").get()).data().version, 2);
-    const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250 });
+    const request = memberRequest(uid, { itemId, requestId, expectedPriceCoins: 1250, expectedCatalogVersion: 2 });
     const result = await purchaseStoreItem.run(request);
     assert.equal(result.priceCoins, 1250);
     assert.equal(result.newBalance, 3750);
@@ -268,7 +268,7 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
 
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
-        itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000,
+        itemId, requestId: `another_${tag}`, expectedPriceCoins: 1000, expectedCatalogVersion: 2,
       })),
       (error) => error && error.code === "failed-precondition",
     );
@@ -462,7 +462,9 @@ test("manual coin package request issues no coins until owner verifies external 
         priceMinor: 500, currency: "EUR", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      manualCoinPurchasesEnabled: true,
+      paymentPolicy: { coin_purchases: { manualEnabled: true, automatedEnabled: false } },
+      automatedCoinCheckoutEnabled: false, version: 1,
     }),
   ]);
   try {
@@ -816,6 +818,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: itemId === "vip_monthly" ? 2 : publishedItems[index].version,
       }));
       assert.equal(result.idempotentReplay, false, itemId);
       assert.equal(result.newBalance, 10000 - ((index + 1) * priceCoins), itemId);
@@ -885,6 +888,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId: "hide_coins_30d",
         requestId: `privacy_${tag}`,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: 1,
       })),
       (error) => error && error.code === "failed-precondition",
     );

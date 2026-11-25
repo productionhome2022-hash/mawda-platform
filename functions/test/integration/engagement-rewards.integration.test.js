@@ -574,7 +574,7 @@ test("standard ads are geographically filtered and featured inventory is rejecte
       rewardCoins: 2,
       startsAtMs: Date.now() - 1000,
       endsAtMs: Date.now() + 3600000,
-      maxClaimsPerMember: 10,
+      maxClaimsPerMember: 3,
       rewardBudgetCoins: 100,
     }));
     standardCampaignId = standard.campaignId;

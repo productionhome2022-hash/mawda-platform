@@ -36,6 +36,7 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
   const secondGrantId = makeGrantId(secondRequestId, memberUid);
   const memberRef = db.collection("users").doc(memberUid);
   const itemRef = db.collection("storeCatalog").doc(itemId);
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions").doc("1");
   const entitlementRef = memberRef.collection("entitlements").doc(itemId);
   const grantRef = db.collection("ownerEntitlementGrants").doc(grantId);
   const ledgerRef = memberRef.collection("entitlementGrantLedger").doc(grantId);
@@ -51,6 +52,8 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
       category: "vip", version: 1, priceCoins: 900, durationDays: 30, sortOrder: 1,
       active: true, purchaseEnabled: true, fulfillmentReady: true,
     }),
+    catalogVersionRef.set({ itemId, version: 1, priceCoins: 900, purchaseEnabled: true,
+      fulfillmentReady: true, active: true }),
   ]);
 
   try {
@@ -97,7 +100,7 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     const purchaseId = `${memberUid}_${purchaseRequestId}`;
     const purchaseLedgerRef = memberRef.collection("walletLedger").doc(`store_${purchaseId}`);
     const purchase = await purchaseStoreItem.run(memberRequest(memberUid, {
-      itemId, requestId: purchaseRequestId, expectedPriceCoins: 900,
+      itemId, requestId: purchaseRequestId, expectedPriceCoins: 900, expectedCatalogVersion: 1,
     }));
     assert.equal(purchase.idempotentReplay, false);
     assert.equal(purchase.newBalance, 3421);
@@ -123,6 +126,7 @@ test("owner free grant is MFA-gated, audited, coin-neutral, idempotent and repea
     await Promise.all([
       db.recursiveDelete(memberRef).catch(() => undefined),
       itemRef.delete().catch(() => undefined),
+      catalogVersionRef.delete().catch(() => undefined),
       grantRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
       auditRef.delete().catch(() => undefined),

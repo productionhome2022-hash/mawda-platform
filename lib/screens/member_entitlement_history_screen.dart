@@ -62,19 +62,6 @@ class _MemberEntitlementHistoryScreenState
         '${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _duration(dynamic hours) {
-    switch (hours) {
-      case 24:
-        return '24 ساعة';
-      case 168:
-        return '7 أيام';
-      case 720:
-        return '30 يوماً';
-      default:
-        return 'مدة مخصصة';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

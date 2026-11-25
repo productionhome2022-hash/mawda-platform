@@ -167,6 +167,8 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
     assert.equal(started.participantUids.length, 3);
+    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: firstUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
@@ -175,8 +177,6 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, toUid: secondUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
-    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
-    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
     assert.equal(firstSignals.signals.length, 1);
@@ -437,6 +437,12 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     callId, scope: "direct", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
