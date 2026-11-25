@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'coin_purchase_screen.dart';
-import 'gift_coins_screen.dart';
 import 'member_gift_history_screen.dart';
+import 'gift_coins_screen.dart';
 
 /// Read-only wallet history. All balance changes are performed by trusted
 /// Cloud Functions; this screen only reads the member-scoped immutable ledger.
@@ -42,7 +42,7 @@ class WalletScreen extends StatelessWidget {
             builder: (_) => const MemberGiftHistoryScreen(),
           )),
         ),
-        IconButton(tooltip: 'طلب شراء BetaCoins', icon: const Icon(Icons.add_card),
+        IconButton(tooltip: 'طلب شراء كوينز', icon: const Icon(Icons.add_card),
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const CoinPurchaseScreen(),
           ))),
@@ -115,9 +115,9 @@ class WalletScreen extends StatelessWidget {
                   ? data['recipientUid'] as String?
                   : data['senderUid'] as String?;
               final title = type == 'coin_transfer_sent'
-                  ? 'تحويل BetaCoins صادر'
+                  ? 'إهداء BetaCoins صادر'
                   : type == 'coin_transfer_received'
-                      ? 'تحويل BetaCoins وارد'
+                      ? 'إهداء BetaCoins وارد'
                       : type == 'store_purchase'
                           ? 'شراء من متجر مودة'
                           : type.replaceAll('_', ' ');
