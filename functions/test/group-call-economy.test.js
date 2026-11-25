@@ -68,11 +68,11 @@ test("billing slice freezes owner policy version and charges actual active parti
   assert.equal(result.shares.reduce((sum, item) => sum + item.amount, 0), result.totalAmount);
 });
 
-test("integer allocation handles participant counts larger than whole-coin total deterministically", () => {
-  const shares = calculateGroupCallCoinShares(1, ["owner", "b", "c", "d"], "owner");
-  assert.deepEqual(shares.map((item) => item.amount), [0, 0, 0, 1]);
-  assert.equal(shares.find((item) => item.uid === "owner").amount, 1);
-  assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 1);
+test("integer allocation rejects totals that would create zero-value participant shares", () => {
+  assert.throws(
+    () => calculateGroupCallCoinShares(1, ["owner", "b", "c", "d"], "owner"),
+    /GROUP_CALL_TOTAL_BELOW_MINIMUM_SHARE/,
+  );
 });
 
 test("maximum reservation and final settlement charge late joiners equally", () => {
