@@ -11024,8 +11024,28 @@ const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
  * server-recorded client connectivity signal, not cryptographic proof of
  * network delivery; live device acceptance remains a separate release gate.
  */
+async function clearCallMemberLocks(callRef: DocumentReference): Promise<void> {
+  const snapshot = await callRef.get();
+  const participantUids = Array.isArray(snapshot.data()?.participantUids)
+    ? [...new Set((snapshot.data()!.participantUids as unknown[])
+        .filter((uid): uid is string => typeof uid === "string" && uid.length > 0))]
+    : [];
+  for (let offset = 0; offset < participantUids.length; offset += 100) {
+    const batchUids = participantUids.slice(offset, offset + 100);
+    await db.runTransaction(async (transaction) => {
+      const lockRefs = batchUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+      const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
+      lockRefs.forEach((lockRef, index) => {
+        if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
+          transaction.delete(lockRef);
+        }
+      });
+    });
+  }
+}
+
 async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<string | null> {
-  return db.runTransaction(async (transaction) => {
+  const status = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(callRef);
     if (!snapshot.exists) return null;
     const call = snapshot.data() ?? {};
@@ -11034,11 +11054,6 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
         call.maxDurationEndsAt.toMillis() > Date.now()) {
       return typeof call.status === "string" ? call.status : null;
     }
-    const participantUids = Array.isArray(call.participantUids)
-      ? call.participantUids.filter((uid): uid is string => typeof uid === "string")
-      : [];
-    const lockRefs = participantUids.map((uid) => ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
-    const locks = await Promise.all(lockRefs.map((lockRef) => transaction.get(lockRef)));
     transaction.update(callRef, {
       status: "ended",
       endedBy: "system",
@@ -11046,13 +11061,17 @@ async function expireCallIfDurationElapsed(callRef: DocumentReference): Promise<
       endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (locks[index].exists && locks[index].data()?.callId === callRef.id) {
-        transaction.delete(lockRef);
-      }
-    });
     return "duration_expired";
   });
+  if (status === "duration_expired") {
+    try { await clearCallMemberLocks(callRef); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after duration expiry", {
+        callId: callRef.id, error: String(error),
+      });
+    }
+  }
+  return status;
 }
 
 export const startCall = onCall(async (request) => {
@@ -11644,19 +11663,18 @@ export const endCall = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المكالمة غير صالح.");
   }
   const ref = CALL_SESSIONS.doc(callId);
-  return db.runTransaction(async (transaction) => {
+  const result = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return { callId, status: "ended", idempotentReplay: true };
     const call = snapshot.data()!;
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid)) {
       throw new HttpsError("permission-denied", "لا تملك صلاحية إنهاء هذه المكالمة.");
     }
-    const lockRefs = call.participantUids.map((memberUid: string) => ACTIVE_CALL_MEMBER_LOCKS.doc(memberUid));
-    const lockSnapshots = await Promise.all(lockRefs.map((lockRef) =>
-      transaction.get(lockRef)));
     const leftUids = Array.isArray(call.leftUids) ? call.leftUids as string[] : [];
     if (leftUids.includes(uid)) return { callId, status: call.status, idempotentReplay: true };
     if (call.scope === "room" && uid !== call.callerUid) {
+      const memberLockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(uid);
+      const memberLockSnapshot = await transaction.get(memberLockRef);
       if (call.status === "ringing") {
         const rejected = Array.isArray(call.rejectedUids) ? call.rejectedUids as string[] : [];
         const nextRejected = [...rejected, uid];
@@ -11667,8 +11685,8 @@ export const endCall = onCall(async (request) => {
           ...(allRejected ? { status: "rejected" } : {}),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: allRejected ? "rejected" : "ringing", idempotentReplay: false };
       }
@@ -11678,8 +11696,8 @@ export const endCall = onCall(async (request) => {
           acceptedUids: FieldValue.arrayRemove(uid),
           lastActivityAt: FieldValue.serverTimestamp(),
         });
-        if (lockSnapshots[call.participantUids.indexOf(uid)]?.data()?.callId === callId) {
-          transaction.delete(ACTIVE_CALL_MEMBER_LOCKS.doc(uid));
+        if (memberLockSnapshot.exists && memberLockSnapshot.data()?.callId === callId) {
+          transaction.delete(memberLockRef);
         }
         return { callId, status: "accepted", idempotentReplay: false };
       }
@@ -11695,11 +11713,17 @@ export const endCall = onCall(async (request) => {
       status: next, endedBy: uid, endedAt: FieldValue.serverTimestamp(),
       lastActivityAt: FieldValue.serverTimestamp(),
     });
-    lockRefs.forEach((lockRef, index) => {
-      if (lockSnapshots[index]?.data()?.callId === callId) transaction.delete(lockRef);
-    });
     return { callId, status: next, idempotentReplay: false };
   });
+  if (result.status === "ended" || result.status === "cancelled" || result.status === "rejected") {
+    try { await clearCallMemberLocks(ref); }
+    catch (error) {
+      logger.error("Call member lock cleanup deferred after call end", {
+        callId, error: String(error),
+      });
+    }
+  }
+  return result;
 });
 
 
@@ -11818,16 +11842,25 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
   const expiredCalls = ringingCalls.docs.filter((doc) =>
     doc.data().expiresAt instanceof Timestamp && doc.data().expiresAt.toMillis() <= now.toMillis());
   for (const doc of expiredCalls) {
-    await db.runTransaction(async (transaction) => {
+    const markedMissed = await db.runTransaction(async (transaction) => {
       const current = await transaction.get(doc.ref);
       if (!current.exists || current.data()?.status !== "ringing" ||
           !(current.data()?.expiresAt instanceof Timestamp) ||
-          current.data()!.expiresAt.toMillis() > Date.now()) return;
+          current.data()!.expiresAt.toMillis() > Date.now()) return false;
       transaction.update(doc.ref, {
         status: "missed", endedAt: FieldValue.serverTimestamp(),
         lastActivityAt: FieldValue.serverTimestamp(),
       });
+      return true;
     });
+    if (markedMissed) {
+      try { await clearCallMemberLocks(doc.ref); }
+      catch (error) {
+        logger.error("Expired ringing-call lock cleanup deferred", {
+          callId: doc.id, error: String(error),
+        });
+      }
+    }
   }
   const durationExpiredCalls = await CALL_SESSIONS
     .where("maxDurationEndsAt", "<=", now)
@@ -11856,6 +11889,7 @@ export const cleanupExpiredCallSignals = onSchedule("every 5 minutes", async () 
     });
   }
 });
+
 
 
 /**
