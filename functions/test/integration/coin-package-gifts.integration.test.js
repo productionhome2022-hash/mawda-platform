@@ -54,6 +54,13 @@ test("fixed coin-package gifting verifies recipient, freezes terms and atomicall
       adPrices: [{ placementId: "gift_test_ad", name: "Gift test ad",
         billingModel: "daily", priceMinor: 100, currency: "EUR", active: true }],
       manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 7,
+      paymentPolicy: {
+        coin_purchases: { manualEnabled: true, automatedEnabled: false },
+        featured_ads: { manualEnabled: false, automatedEnabled: false },
+        public_ads: { manualEnabled: false, automatedEnabled: false },
+        influencer_services: { manualEnabled: false, automatedEnabled: false },
+        store_entitlements: { manualEnabled: false, automatedEnabled: false },
+      },
     }),
   ]);
   try {
