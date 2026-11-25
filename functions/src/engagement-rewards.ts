@@ -38,6 +38,12 @@ const MAX_REWARD_COINS = 100_000;
 const MAX_AD_DURATION_SECONDS = 15 * 60;
 const MAX_AD_BUDGET_COINS = 100_000_000;
 
+// Owner-authorized development safety rails; production commercial policy remains separately controlled.
+export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
+export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
+export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
+
+
 export function validateAttendanceRewardPolicy(value: unknown): AttendanceRewardPolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("ATTENDANCE_POLICY_INVALID");
@@ -123,7 +129,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   const startsAtMs = input.startsAtMs;
   const endsAtMs = input.endsAtMs;
   const maxClaimsPerMember = input.maxClaimsPerMember ??
-    (adType === "featured" ? Number.MAX_SAFE_INTEGER : undefined);
+    (adType === "featured" ? TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER : undefined);
   const rewardBudgetCoins = input.rewardBudgetCoins;
 
   if (title.length < 3 || title.length > 80 ||
@@ -153,7 +159,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
       maxClaimsPerMember < 1 ||
-      (adType === "standard" && maxClaimsPerMember > 100) ||
+      maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
@@ -181,6 +187,31 @@ export type TimedAdDailyCapDecision =
   | { eligible: false; reason: "daily_claim_cap" | "daily_coin_cap" };
 
 /** Pure guard shared by the transactional claim path and exact-boundary tests. */
+export function decideTimedAdDailyCap(input: {
+  claimCount: number;
+  rewardCoins: number;
+  nextRewardCoins: number;
+}): TimedAdDailyCapDecision {
+  const { claimCount, rewardCoins, nextRewardCoins } = input;
+  if (!Number.isSafeInteger(claimCount) || claimCount < 0 ||
+      !Number.isSafeInteger(rewardCoins) || rewardCoins < 0 ||
+      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 1) {
+    throw new Error("TIMED_AD_DAILY_CAP_INPUT_INVALID");
+  }
+  if (claimCount >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_claim_cap" };
+  }
+  if (rewardCoins + nextRewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_coin_cap" };
+  }
+  return { eligible: true, reason: "within_daily_caps" };
+}
+
+export type TimedAdDailyCapDecision =
+  | { eligible: true; reason: "within_daily_caps" }
+  | { eligible: false; reason: "daily_claim_cap" | "daily_coin_cap" };
+
+/** Pure guard shared by the transactional claim path and boundary tests. */
 export function decideTimedAdDailyCap(input: {
   claimCount: number;
   rewardCoins: number;
