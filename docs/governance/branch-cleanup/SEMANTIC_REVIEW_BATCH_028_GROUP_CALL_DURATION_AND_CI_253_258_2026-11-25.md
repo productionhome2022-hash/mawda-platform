@@ -25,3 +25,12 @@ Scope: unique UNMATCHED candidates 253–258 (6 commits).
 
 ## Safety decision
 Do not silently replace the owner-configured call duration policy with five-minute audio/three-minute video limits. Do not add automatic CI triggers until the owner approves branch/PR scope and the expected emulator workload.
+
+## Subsequent HEAD reconciliation — 2026-11-25
+The initial table above reflects an earlier Full Platform snapshot. Rechecked against the later current Full Platform tree (HEAD observed after commit d36fba9962b64e6a7af9eed6c658b7ec8c703b11):
+- `.github/workflows/economic-phase-verification.yml` is present and runs on pushes to the development branch, relevant pull requests, and manual dispatch. It does not target main or production.
+- `call-usage-policy.ts` now exports the fixed five-minute room-audio and three-minute room-video constants, while direct calls remain owner-configured.
+- `markCallConnected` passes room/direct scope and mode into `callMaxDurationEnd`; the call-usage unit tests assert both fixed room durations and unknown-mode rejection.
+- Group-call economy tests reject unknown runtime modes.
+
+Accordingly, the current Full Platform disposition for candidates 253–258 is **implemented/present: 6**, not held. This reconciliation supersedes the earlier snapshot result above; it does not assert that group-call billing is enabled or that end-to-end billing acceptance is complete.
