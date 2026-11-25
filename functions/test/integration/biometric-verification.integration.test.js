@@ -18,8 +18,11 @@ const {
 const { hasActiveBiometricVerification } = require("../../lib/biometric-verification");
 const db = getFirestore();
 const bucket = getStorage().bucket();
+const BIOMETRIC_CONSENT_VERSION = "2026-11-20-owner-review-v1";
 const suffix = () => Date.now() + "_" + Math.random().toString(36).slice(2, 9);
-const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
+const memberRequest = (uid, data = {}) => ({ data: {
+  consentAccepted: true, consentVersion: BIOMETRIC_CONSENT_VERSION, ...data,
+}, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
 const ownerRequest = (uid, data = {}) => ({ data, auth: { uid, token: {
   platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now() / 1000),
   firebase: { sign_in_second_factor: "phone" },
@@ -109,7 +112,14 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     gender: "female", profileCompleted: true, accountStatus: "active", coins: 321,
   });
   try {
+    await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid, {
+      consentAccepted: false,
+    })), error => error && error.code === "failed-precondition");
+    await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid, {
+      consentVersion: "stale-consent-version",
+    })), error => error && error.code === "failed-precondition");
     const phrase = await getBiometricVerificationPhrase.run(memberRequest(uid));
+    assert.equal(phrase.consentVersion, BIOMETRIC_CONSENT_VERSION);
     assert.equal(phrase.phrase, "أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.");
     const started = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(started.requestId);

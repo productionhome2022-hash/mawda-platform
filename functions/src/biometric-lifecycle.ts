@@ -223,6 +223,7 @@ export const getBiometricVerificationPhrase = onCall(async (request) => {
     phrase: BIOMETRIC_SPOKEN_PHRASE, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
     audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: BIOMETRIC_AUDIO_MAX_DURATION_MS / 1000,
     videoMaxBytes: BIOMETRIC_VIDEO_MAX_BYTES, videoMinDurationSeconds: 3, videoMaxDurationSeconds: 5,
+    consentVersion: BIOMETRIC_CONSENT_VERSION,
   };
 });
 

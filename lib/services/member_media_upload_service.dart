@@ -66,9 +66,15 @@ class MemberMediaUploadService {
   }
 
   Future<Map<String, dynamic>> startBiometricVerificationRequest() async {
+    final policyResponse = await _functions.httpsCallable('getBiometricVerificationPhrase').call();
+    final policy = Map<String, dynamic>.from(policyResponse.data as Map);
+    final consentVersion = policy['consentVersion'];
+    if (consentVersion is! String || consentVersion.isEmpty) {
+      throw StateError('إصدار إشعار الخصوصية غير متاح؛ أوقفنا إنشاء الطلب.');
+    }
     final response = await _functions.httpsCallable('startBiometricVerificationRequest').call({
       'consentAccepted': true,
-      'consentVersion': '2026-11-20-owner-review-v1',
+      'consentVersion': consentVersion,
     });
     final data = Map<String, dynamic>.from(response.data as Map);
     if (data['requestId'] is! String || data['phrase'] is! String || data['uploadPurpose'] != 'biometric') {
