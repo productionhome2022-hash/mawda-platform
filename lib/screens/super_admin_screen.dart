@@ -20,6 +20,7 @@ import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
 import 'capacity_media_management_screen.dart';
+import 'call_usage_policy_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1462,6 +1463,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.account_balance_outlined),
                     label: const Text('إدارة أسعار الكوينز والإعلانات'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => const CallUsagePolicyScreen(),
+                    )),
+                    icon: const Icon(Icons.call_outlined),
+                    label: const Text('سياسات استخدام المكالمات الجماعية'),
                   ),
                 ),
                 const SizedBox(height: 8),
