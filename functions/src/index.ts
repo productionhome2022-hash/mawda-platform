@@ -6699,12 +6699,15 @@ export const purchaseStoreItem = onCall(async (request) => {
   const itemId = request.data?.itemId;
   const requestId = request.data?.requestId;
   const expectedPriceCoins = request.data?.expectedPriceCoins;
+  const expectedCatalogVersion = request.data?.expectedCatalogVersion;
   if (typeof itemId !== "string" || !/^[A-Za-z0-9_-]{3,64}$/.test(itemId) ||
       typeof requestId !== "string" || requestId.length < 8 ||
       requestId.length > 80 || !/^[A-Za-z0-9_-]+$/.test(requestId) ||
       typeof expectedPriceCoins !== "number" || !Number.isSafeInteger(expectedPriceCoins) ||
-      expectedPriceCoins <= 0) {
-    throw new HttpsError("invalid-argument", "بيانات شراء العنصر غير صالحة.");
+      expectedPriceCoins <= 0 ||
+      typeof expectedCatalogVersion !== "number" || !Number.isSafeInteger(expectedCatalogVersion) ||
+      expectedCatalogVersion <= 0) {
+    throw new HttpsError("invalid-argument", "بيانات شراء العنصر أو إصدار الكتالوج غير صالحة.");
   }
 
   const userRef = db.collection("users").doc(uid);
@@ -6713,41 +6716,61 @@ export const purchaseStoreItem = onCall(async (request) => {
   const purchaseRef = db.collection("storePurchases").doc(purchaseId);
   const ledgerRef = userRef.collection("walletLedger").doc(`store_${purchaseId}`);
   const entitlementRef = userRef.collection("entitlements").doc(itemId);
+  const auditRef = db.collection("adminAuditLogs").doc(`store_purchase_${purchaseId}`);
+  const catalogVersionPath = `storeCatalogVersions/${itemId}/versions/${expectedCatalogVersion}`;
+  const catalogVersionRef = db.collection("storeCatalogVersions").doc(itemId)
+    .collection("versions").doc(String(expectedCatalogVersion));
 
   return db.runTransaction(async (transaction) => {
-    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger] = await Promise.all([
+    const [member, itemSnapshot, priorPurchase, priorEntitlement, priorLedger, priorAudit] = await Promise.all([
       transaction.get(userRef),
       transaction.get(itemRef),
       transaction.get(purchaseRef),
       transaction.get(entitlementRef),
       transaction.get(ledgerRef),
+      transaction.get(auditRef),
     ]);
     if (priorPurchase.exists) {
       const prior = priorPurchase.data() ?? {};
-      if (!isStorePurchaseReplayCompatible(prior, uid, itemId, expectedPriceCoins)) {
-        throw new HttpsError("already-exists", "معرف طلب الشراء مستخدم لعملية أخرى أو ببيانات سعر مختلفة.");
-      }
       const ledger = priorLedger.data() ?? {};
+      const audit = priorAudit.data() ?? {};
       const balanceSnapshotValid =
-        ledger.balanceBefore === undefined && ledger.balanceAfter === undefined ||
         Number.isSafeInteger(ledger.balanceBefore) &&
         Number.isSafeInteger(ledger.balanceAfter) &&
         ledger.balanceBefore >= 0 &&
         ledger.balanceAfter === ledger.balanceBefore - prior.priceCoins &&
         ledger.balanceAfter === prior.newBalance &&
-        (prior.balanceBefore === undefined || prior.balanceBefore === ledger.balanceBefore);
-      if (!priorLedger.exists || prior.status !== "completed" ||
+        prior.balanceBefore === ledger.balanceBefore;
+      const sameLedger = priorLedger.exists &&
+        ledger.type === "store_purchase" && ledger.direction === "debit" &&
+        ledger.amount === -prior.priceCoins && ledger.purchaseId === purchaseId &&
+        ledger.itemId === itemId && ledger.catalogVersion === expectedCatalogVersion &&
+        ledger.catalogVersionPath === catalogVersionPath && balanceSnapshotValid;
+      const sameAudit = priorAudit.exists &&
+        audit.action === "store_item_purchased" && audit.actorUid === uid &&
+        audit.purchaseId === purchaseId && audit.itemId === itemId &&
+        audit.catalogVersion === expectedCatalogVersion &&
+        audit.catalogVersionPath === catalogVersionPath &&
+        audit.priceCoins === prior.priceCoins &&
+        audit.balanceBefore === ledger.balanceBefore &&
+        audit.balanceAfter === ledger.balanceAfter;
+      if (!isStorePurchaseReplayCompatible(
+            prior, uid, itemId, expectedPriceCoins, expectedCatalogVersion) ||
+          prior.purchaseId !== purchaseId || prior.status !== "completed" ||
           !Number.isSafeInteger(prior.priceCoins) || prior.priceCoins <= 0 ||
           !Number.isSafeInteger(prior.newBalance) || prior.newBalance < 0 ||
-          ledger.type !== "store_purchase" || ledger.direction !== "debit" ||
-          ledger.amount !== -prior.priceCoins || ledger.purchaseId !== purchaseId ||
-          ledger.itemId !== itemId || !balanceSnapshotValid) {
-        throw new HttpsError("failed-precondition", "إيصال الشراء لا يطابق قيد الخصم أو مطابقة الرصيد؛ يلزم تدقيق السجل.");
+          prior.balanceBefore !== ledger.balanceBefore ||
+          !sameLedger || !sameAudit) {
+        throw new HttpsError("failed-precondition", "إيصال الشراء أو دفتر الخصم أو سجل التدقيق لا يطابق لقطة العملية؛ يلزم تدقيق السجل.");
       }
       return {
-        purchaseId, itemId, priceCoins: prior.priceCoins, newBalance: prior.newBalance,
+        purchaseId, itemId, catalogVersion: expectedCatalogVersion,
+        priceCoins: prior.priceCoins, newBalance: prior.newBalance,
         expiresAt: prior.expiresAt?.toMillis?.() ?? null, idempotentReplay: true,
       };
+    }
+    if (priorLedger.exists || priorAudit.exists) {
+      throw new HttpsError("failed-precondition", "توجد قيود شراء يتيمة دون إيصال؛ أوقفنا العملية لحماية المحفظة.");
     }
     if (!member.exists || member.data()?.profileCompleted !== true ||
         !isMemberAccountInGoodStanding(member.data())) {
@@ -6766,6 +6789,23 @@ export const purchaseStoreItem = onCall(async (request) => {
         "failed-precondition",
         "شراء هذا العنصر غير متاح حتى اكتمال تنفيذ استحقاقه والتحقق منه.",
       );
+    }
+    if (item.version !== expectedCatalogVersion) {
+      throw new HttpsError(
+        "failed-precondition",
+        "تغير إصدار عنصر المتجر منذ تحميل الكتالوج. حدّث المتجر وراجع تفاصيل العنصر قبل تأكيد الشراء.",
+      );
+    }
+    const catalogVersionSnapshot = await transaction.get(catalogVersionRef);
+    const catalogVersion = catalogVersionSnapshot.data() ?? {};
+    if (!catalogVersionSnapshot.exists ||
+        catalogVersion.itemId !== itemId ||
+        catalogVersion.version !== expectedCatalogVersion ||
+        catalogVersion.priceCoins !== item.priceCoins ||
+        catalogVersion.purchaseEnabled !== true ||
+        catalogVersion.fulfillmentReady !== true ||
+        catalogVersion.active !== true) {
+      throw new HttpsError("failed-precondition", "لقطة إصدار الكتالوج غير متطابقة؛ حدّث المتجر قبل الشراء.");
     }
     if (!isStorePurchasePriceCurrent(expectedPriceCoins, item.priceCoins)) {
       throw new HttpsError(
@@ -6815,49 +6855,37 @@ export const purchaseStoreItem = onCall(async (request) => {
     }
     transaction.update(userRef, memberUpdate);
     transaction.create(purchaseRef, {
-      purchaseId,
-      memberUid: uid,
-      itemId,
-      itemName: item.name,
-      category: item.category,
-      priceCoins: item.priceCoins,
+      purchaseId, memberUid: uid, itemId, itemName: item.name,
+      category: item.category, priceCoins: item.priceCoins,
+      catalogVersion: expectedCatalogVersion, catalogVersionPath,
       durationDays: item.durationDays ?? null,
-      balanceBefore: currentBalance,
-      newBalance,
-      expiresAt,
-      status: "completed",
-      createdAt,
+      balanceBefore: currentBalance, newBalance, expiresAt,
+      status: "completed", createdAt,
     });
     transaction.create(ledgerRef, {
-      type: "store_purchase",
-      direction: "debit",
-      amount: -item.priceCoins,
-      balanceBefore: currentBalance,
-      balanceAfter: newBalance,
-      itemId,
-      itemName: item.name,
-      purchaseId,
-      createdAt,
+      type: "store_purchase", direction: "debit", amount: -item.priceCoins,
+      balanceBefore: currentBalance, balanceAfter: newBalance,
+      itemId, itemName: item.name, purchaseId,
+      catalogVersion: expectedCatalogVersion, catalogVersionPath, createdAt,
     });
     transaction.set(entitlementRef, {
-      itemId,
-      itemName: item.name,
-      category: item.category,
-      status: "active",
-      purchaseId,
-      purchasedAt: createdAt,
-      expiresAt,
+      itemId, itemName: item.name, category: item.category,
+      status: "active", purchaseId, purchasedAt: createdAt, expiresAt,
+    });
+    transaction.create(auditRef, {
+      actorUid: uid, action: "store_item_purchased",
+      purchaseId, itemId, catalogVersion: expectedCatalogVersion,
+      catalogVersionPath, priceCoins: item.priceCoins,
+      balanceBefore: currentBalance, balanceAfter: newBalance, createdAt,
     });
     return {
-      purchaseId,
-      itemId,
-      priceCoins: item.priceCoins,
-      newBalance,
-      expiresAt: expiresAt?.toMillis() ?? null,
-      idempotentReplay: false,
+      purchaseId, itemId, catalogVersion: expectedCatalogVersion,
+      priceCoins: item.priceCoins, newBalance,
+      expiresAt: expiresAt?.toMillis() ?? null, idempotentReplay: false,
     };
   });
 });
+
 
 
 /**
