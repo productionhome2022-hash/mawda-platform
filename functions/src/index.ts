@@ -12419,6 +12419,7 @@ export const giftStoreEntitlement = onCall(async (request) => {
     });
     transaction.set(recipientEntitlementRef, {
       itemId, itemName: item.name, category: item.category,
+      catalogVersion: item.version,
       status: "active", giftId, giftedByUid: senderUid,
       purchasedAt: createdAt, giftedAt: createdAt, expiresAt,
     }, { merge: true });

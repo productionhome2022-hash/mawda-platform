@@ -193,6 +193,7 @@ test("scanner callback validates clean biometric media and defers advertisement 
       safeDerivative: {
         category, path: `processed/member_1/${base.mediaId}/${filename}`,
         generation: "987654", sha256: "b".repeat(64), contentType, pipelineVersion: pipeline,
+        ...(category === "video" ? { durationMs: 30_000 } : {}),
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");

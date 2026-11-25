@@ -434,6 +434,7 @@ class FeaturedAdRewardsScreen extends StatefulWidget {
 
 class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
   List<Map<String, dynamic>> _claims = const [];
+  Map<String, dynamic> _policy = const {};
   bool _loading = true;
   String? _error;
 
@@ -447,6 +448,7 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
     try {
       final response = await FirebaseFunctions.instance.httpsCallable('getMyFeaturedAdRewardHistory').call();
       final data = Map<String, dynamic>.from(response.data as Map);
+      final policy = Map<String, dynamic>.from(data['policy'] as Map? ?? const {});
       final claims = (data['rewards'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((item) {
@@ -454,7 +456,7 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
             return {...reward, 'amountCoins': reward['amount'] ?? reward['amountCoins'] ?? 0};
           })
           .toList(growable: false);
-      if (mounted) setState(() { _claims = claims; _error = null; });
+      if (mounted) setState(() { _claims = claims; _policy = policy; _error = null; });
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل سجل المكافآت.');
     } catch (_) {
@@ -470,17 +472,22 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
       title: const Text('استحقاق المشاهدة'),
       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
     ),
-    body: _loading
-        ? const Center(child: CircularProgressIndicator())
-        : ListView(
+    body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (_loading) const LinearProgressIndicator(),
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(18),
-                  child: Text('فتح الشاشة أو معاينة الإعلان أو انتهاء المؤقت المحلي لا يمنح مكافأة. قيمة المكافأة والمدة والميزانية وحدود التكرار يحددها المالك وتتحقق منها الخدمة خادمياً. الحد الأقصى 10 مشاهدات مؤهلة لكل عضو لكل إعلان في يوم UTC. كل مكافأة معتمدة تسجل في سجل المحفظة المركزي.'),
+                  child: Text('فتح الشاشة أو معاينة الإعلان أو انتهاء المؤقت المحلي لا يمنح مكافأة. قيمة المكافأة والمدة والميزانية وحدود التكرار يحددها المالك وتتحقق منها الخدمة خادمياً. كل مكافأة معتمدة تسجل في سجل المحفظة المركزي.'),
                 ),
               ),
+              Card(child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(_policy['enabled'] == true
+                    ? 'السياسة مفعلة: ${_policy['rewardCoinsPerView'] ?? 0} كوين للمشاهدة المؤهلة، بحد يومي ${_policy['maxRewardedViewsPerUtcDay'] ?? 0} مشاهدة و${_policy['maxRewardCoinsPerUtcDay'] ?? 0} كوين.'
+                    : 'المكافآت غير مفعلة افتراضياً. لا توجد قيمة أو حصة يومية مفعلة حتى يعتمد المالك سياسة خادمية.'),
+              )),
               if (_error != null) Text(_error!),
               if (_claims.isEmpty)
                 const Card(child: Padding(
