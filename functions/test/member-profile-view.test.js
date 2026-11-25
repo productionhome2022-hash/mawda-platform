@@ -88,7 +88,7 @@ test("public projection omits malformed social-link containers", () => {
 
 const { projectCoinVisibility } = require("../lib/member-profile-view");
 
-test("coin balance is visible only to the profile owner or sole Super Admin", () => {
+test("coin balance is visible only to the profile owner or sole Super Owner", () => {
   assert.deepEqual(projectCoinVisibility({
     viewerUid: "member-1", targetUid: "member-1", targetCoins: 9000,
     hideCoinsActive: true, viewerIsSoleOwner: false,
