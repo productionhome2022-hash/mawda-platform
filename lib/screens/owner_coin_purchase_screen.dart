@@ -25,7 +25,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
       if (mounted) setState(() => _requests = (data['requests'] as List<dynamic>? ?? const [])
           .whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList());
     } on FirebaseFunctionsException catch (e) {
-      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات الكوينز.');
+      if (mounted) setState(() => _error = e.message ?? 'تعذر تحميل طلبات BetaCoins.');
     } finally { if (mounted) setState(() => _loading = false); }
   }
 
@@ -101,7 +101,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
           FilledButton(onPressed: confirmed && reference.text.trim().length >= 3 &&
               note.text.trim().length >= 5 ? () => Navigator.pop(ctx, true) : null,
-            child: const Text('اعتماد وإضافة الكوينز')),
+            child: const Text('اعتماد وإضافة BetaCoins')),
         ],
       ),
     ));
@@ -156,7 +156,7 @@ class _OwnerCoinPurchaseScreenState extends State<OwnerCoinPurchaseScreen> {
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(12), child: Text(
-          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف الكوينز وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
+          'المسار يدوي فقط. لا تستخدم الاعتماد إلا بعد فحص وصول الدفعة خارج مودة. كل اعتماد يضيف BetaCoins وسجل المحفظة وسجل التدقيق في معاملة خادمية واحدة.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (_requests.isEmpty) const Text('لا توجد طلبات شراء حالياً.'),
