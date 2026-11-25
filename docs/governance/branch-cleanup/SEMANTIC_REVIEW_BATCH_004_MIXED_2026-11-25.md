@@ -5,7 +5,7 @@ Pinned Full Platform HEAD before report: 81731bfd600d2d2d5fadef6327e58f255978c8b
 Recovery branch: codex/mawda-recovery-integration-2026-11-21
 Recovery HEAD previously pinned: 49b502638718e4dbb29a9429f392b3a70c8d6d95
 Candidate source CSV blob: 296134e6de35b04304413a090469e79c3fb13388
-Scope: unique UNMATCHED candidates 37–48 (12 commits).
+Scope: unique UNMATCHED candidates 61–72 (12 commits). Candidates 37–60 remain pending and were not skipped as reviewed.
 
 ## Candidate dispositions
 
