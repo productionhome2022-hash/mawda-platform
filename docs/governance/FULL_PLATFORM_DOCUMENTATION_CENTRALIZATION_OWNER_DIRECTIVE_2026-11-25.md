@@ -34,3 +34,8 @@
 - `docs/governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md`
 - `docs/MAWADDA_DOCUMENTATION_GOVERNANCE_CONTRACTS_CONSTITUTION_VISION/README.md`
 - `docs/MAWADDA_DOCUMENTATION_MASTER_INDEX_2026.md`
+
+
+## ملحق تحقق إضافي — حفظ النسخة السابقة من خطة التوحيد
+
+بعد إضافة توجيه 2026-11-25 إلى خطة Full Platform، أصبحت نسخة الخطة القديمة الموجودة على Recovery مختلفة عن النسخة الحالية. حُفظت نسخة Recovery ذات Blob SHA `1faaf5a16185018fadd82ff474ff8255aa85afa7` في `docs/_archive/recovery-conflict-snapshots-2026-11-25/FULL_PLATFORM_CANONICAL_BODY_AND_BRANCH_CLEANUP_PLAN_2026-11-24.md` دون استبدال النسخة الحالية. أصبحت المقارنة اللاحقة: 2,471 مسار وثائقي في Recovery، صفر مفقود في Full، 2,457 متطابقاً، و14 اختلاف محتوى محفوظة نسخها المصدرية، مع 72 اختلافاً غير وثائقي ما زال للمراجعة.

@@ -161,3 +161,14 @@
 - [توجيه المالك الحاكم لمركزية الوثائق والحوكمة والسجلات والفهارس داخل Full Platform](governance/FULL_PLATFORM_DOCUMENTATION_CENTRALIZATION_OWNER_DIRECTIVE_2026-11-25.md).
 - [ملحق مصالحة وثائق Recovery وحفظ النسخ المتعارضة الثلاث المتبقية](governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md).
 - [سجل النقل الزمني ومصادر الملفات وBlob SHAs](governance/RECOVERY_DOCUMENT_MIGRATION_CHRONOLOGY_2026-11-24.csv) محدث بثلاثة صفوف تكميلية لرأس Recovery بتاريخ 2026-11-25.
+
+
+## مركزية الوثائق والسجلات في Full Platform — تحديث 2026-11-25
+
+- [توجيه المالك الحاكم لمركزية الوثائق والحوكمة والسجلات والفهارس داخل Full Platform](governance/FULL_PLATFORM_DOCUMENTATION_CENTRALIZATION_OWNER_DIRECTIVE_2026-11-25.md).
+- [ملحق مصالحة وثائق Recovery وحفظ النسخ المتعارضة المصدرية](governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md).
+- [سجل النقل الزمني ومصادر الملفات وBlob SHAs](governance/RECOVERY_DOCUMENT_MIGRATION_CHRONOLOGY_2026-11-24.csv) محدث بأربعة صفوف تكميلية لرأس Recovery بتاريخ 2026-11-25.
+
+### حفظ النسخة التاريخية لخطة التوحيد
+
+- [نسخة Recovery السابقة من خطة التوحيد قبل توجيه المالك الأحدث](_archive/recovery-conflict-snapshots-2026-11-25/FULL_PLATFORM_CANONICAL_BODY_AND_BRANCH_CLEANUP_PLAN_2026-11-24.md).

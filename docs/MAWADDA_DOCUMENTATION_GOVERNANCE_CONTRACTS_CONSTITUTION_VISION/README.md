@@ -163,4 +163,9 @@
 
 ## توجيه المالك لتجميع كل الوثائق داخل Full Platform — 2026-11-25
 
-الوجهة النهائية لكل الوثائق والحوكمة والسجلات والفهارس والأدلة هي جسم Full Platform نفسه. نتائج المصالحة الحديثة وسجل النسخ الثلاث المتعارضة التي أُضيفت إلى الأرشيف موثقة في [توجيه المالك](../governance/FULL_PLATFORM_DOCUMENTATION_CENTRALIZATION_OWNER_DIRECTIVE_2026-11-25.md) و[ملحق مصالحة وثائق Recovery](../governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md). لا يُستبدل المحتوى المتعارض بصمت؛ تُحفظ نسخة المصدر وSHA الخاص بها في الأرشيف.
+الوجهة النهائية لكل الوثائق والحوكمة والسجلات والفهارس والأدلة هي جسم Full Platform نفسه. نتائج المصالحة الحديثة وسجل نسخ التعارض المصدرية التي أُضيفت إلى الأرشيف موثقة في [توجيه المالك](../governance/FULL_PLATFORM_DOCUMENTATION_CENTRALIZATION_OWNER_DIRECTIVE_2026-11-25.md) و[ملحق مصالحة وثائق Recovery](../governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md). لا يُستبدل المحتوى المتعارض بصمت؛ تُحفظ نسخة المصدر وSHA الخاص بها في الأرشيف.
+
+
+### حفظ نسخة الخطة السابقة — 2026-11-25
+
+حُفظت نسخة Recovery السابقة من خطة التوحيد بعد تحديث النسخة الحاكمة داخل Full Platform في [أرشيف التعارض](../_archive/recovery-conflict-snapshots-2026-11-25/FULL_PLATFORM_CANONICAL_BODY_AND_BRANCH_CLEANUP_PLAN_2026-11-24.md)، مع توثيق SHA المصدر في [سجل النقل الزمني](../governance/RECOVERY_DOCUMENT_MIGRATION_CHRONOLOGY_2026-11-24.csv).
