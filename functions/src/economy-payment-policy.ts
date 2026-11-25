@@ -74,21 +74,20 @@ export function validateEconomicPaymentPolicy(value: unknown): EconomicPaymentPo
   return result;
 }
 
-/** Legacy fields seed missing service modes only; explicit per-service policy always wins. */
-export function projectEconomicPaymentPolicy(
-  stored: unknown,
-  legacy: { manualCoinPurchasesEnabled?: unknown; manualFeaturedAdsEnabled?: unknown } = {},
-): EconomicPaymentPolicy {
+/**
+ * Project only the explicit owner-published service policy.
+ * Legacy top-level booleans are intentionally ignored: absence of a policy
+ * must never enable a payment workflow by implication.
+ */
+export function projectEconomicPaymentPolicy(stored: unknown): EconomicPaymentPolicy {
   const defaults = {
-    coin_purchases: { manualEnabled: legacy.manualCoinPurchasesEnabled === true, automatedEnabled: false as const },
-    featured_ads: { manualEnabled: legacy.manualFeaturedAdsEnabled === true, automatedEnabled: false as const },
+    coin_purchases: disabledModes(),
+    featured_ads: disabledModes(),
     public_ads: disabledModes(),
     influencer_services: disabledModes(),
     store_entitlements: disabledModes(),
   };
   if (stored === undefined || stored === null) return defaults;
-  // Old UI builds could persist switches before their service workflows existed.
-  // Project those legacy values as disabled, then let the owner save the safe state.
   const storedInput = stored as Record<string, unknown>;
   const safeStoredInput = { ...storedInput };
   for (const service of ECONOMIC_PAYMENT_SERVICES) {
@@ -101,16 +100,8 @@ export function projectEconomicPaymentPolicy(
       };
     }
   }
-  const validated = validateEconomicPaymentPolicy(safeStoredInput);
   return {
     ...defaults,
-    ...validated,
-    // A stored explicit policy takes precedence; legacy flags only seed absent policy.
-    coin_purchases: stored && typeof stored === "object" &&
-      Object.prototype.hasOwnProperty.call(stored, "coin_purchases")
-      ? validated.coin_purchases : defaults.coin_purchases,
-    featured_ads: stored && typeof stored === "object" &&
-      Object.prototype.hasOwnProperty.call(stored, "featured_ads")
-      ? validated.featured_ads : defaults.featured_ads,
+    ...validateEconomicPaymentPolicy(safeStoredInput),
   };
 }
