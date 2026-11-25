@@ -25,15 +25,15 @@ The Full Platform and Recovery versions are byte-identical for this path at the 
 | f79f146e96b9a4ae1210a1fcc37a861ebebcd294 | Require fresh owner evidence playback before acceptance | Present/semantically superseded in target; target requires valid playback grant and additionally enforces review acknowledgement and consent conditions. No port. |
 | 15e53a0bc092355818ccd19070b31c5092957e61 | Allow rejection and evidence cleanup after member deletion | Present in target: missing member blocks acceptance, not rejection; closed-state update is guarded by member existence. No port. |
 | d1e41e5edead6c4f001b383ac8ffab01053c367a | Allow Super Owner to reject stale identity submissions | Present in target: identity mismatch blocks acceptance but does not prevent rejection. No port. |
-| 31cdb7f5b4d5d4471a768e56fdb0bc5425f7539b | Add member and Super Owner biometric media service calls | Not classified: client service file and dependent call sites/tests not yet compared. |
-| 362bfd34705e2889cac7f21f13c75d16e2e9706b | Correct emulator host regex escaping | Not classified: exact current helper/config and tests not yet compared. |
-| 7d756be26e129f8616ae38442c681247025b51e0 | Normalize emulator host in test-only playback URLs | Not classified: must be compared with later fix and current helper/config. |
-| a1556702eecc331db332bb658b892971c8c2796e | Normalize playback generation regex | Not classified: current target includes digit-only generation validation, but exact patch lineage and tests need comparison. |
+| 31cdb7f5b4d5d4471a768e56fdb0bc5425f7539b | Add member and Super Owner biometric media service calls | Present in target: member_media_upload_service.dart contains request creation, request-bound audio/video uploads, submit, owner inbox, playback and decision callables. No port. |
+| 362bfd34705e2889cac7f21f13c75d16e2e9706b | Correct emulator host regex escaping | Present in target: signedUrl strips http/https scheme from FIREBASE_STORAGE_EMULATOR_HOST using the corrected regex. No port. |
+| 7d756be26e129f8616ae38442c681247025b51e0 | Normalize emulator host in test-only playback URLs | Present in target: emulator host is normalized before test-only URL construction; the following candidate fixes the regex escaping. No port. |
+| a1556702eecc331db332bb658b892971c8c2796e | Normalize playback generation regex | Present in target: owner playback validates digit-only safe derivative generations using the corrected regex. No port. |
 | 3ce3165d17cbb56d3451080fcce7affb255aebb6 | Require ClamAV provenance for owner playback | Present in target: current file validates ClamAV engine, clean verdict, scanner timestamp, safe path, content type, generation and SHA-256. No port. |
-| 2c304c0dce625e8d3f9b8c3a02a7274338509173 | Cover empty upload intent expiry without attempt penalty | Not classified: matching current integration/unit test paths and behavior not yet found. |
-| d26931fb6373039a792146229615e506be9e3661 | Audit expired empty upload requests | Not classified: audit transaction/log behavior and tests require exact comparison. |
-| deeab0f65b19a42b8d4e3ffd8ea75243d6b10109 | Test media-pipeline request binding instead of raw Storage paths | Not classified: test path and current media pipeline contract require comparison. |
-| 8930d9037259d301d946b9753738bc8e3b76ec76 | Remove obsolete direct Storage path helper | Not classified: helper references across current tree and tests require repository-wide search. |
+| 2c304c0dce625e8d3f9b8c3a02a7274338509173 | Cover empty upload intent expiry without attempt penalty | Present in target: biometric integration test covers empty upload intent expiry after TTL and confirms attemptNumber remains 1. |
+| d26931fb6373039a792146229615e506be9e3661 | Audit expired empty upload requests | Present in target: stale empty upload expiry creates biometric_upload_intent_expired audit record inside the Firestore transaction. |
+| deeab0f65b19a42b8d4e3ffd8ea75243d6b10109 | Test media-pipeline request binding instead of raw Storage paths | Present in target: direct Storage path helper is removed; biometric evidence is routed through request-bound media upload intents and the test suite now asserts ledger identity rather than obsolete object paths. |
+| 8930d9037259d301d946b9753738bc8e3b76ec76 | Remove obsolete direct Storage path helper | Present in target: biometricEvidenceObjectPaths is absent from biometric-evidence.ts; current service and server use media pipeline paths. |
 
 ## Important semantic finding
 
@@ -42,8 +42,8 @@ The target implementation is not simply missing the first candidate's playback g
 ## Batch decision
 
 - Confirmed missing code changes in this 12-SHA batch: **0**
-- Confirmed already-present/semantically superseded changes: **4**
-- Remaining unclassified: **8**
+- Confirmed already-present/semantically superseded changes: **12**
+- Remaining unclassified: **0**
 - Code transferred: **none**
 - Tests run: **none**
 - No branch ref moved; no PR merged; no production or Firebase resources changed.
