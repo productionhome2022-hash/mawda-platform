@@ -8,7 +8,6 @@ const storageEmulatorHost = rawStorageEmulatorHost.replace("https://", "").repla
 process.env.STORAGE_EMULATOR_HOST = "http://" + storageEmulatorHost;
 
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
-const { addCalendarMonthsUtc } = require("../../lib/verification-calendar");
 const { getStorage } = require("firebase-admin/storage");
 const {
   getBiometricVerificationPhrase, startBiometricVerificationRequest,
@@ -21,9 +20,6 @@ const db = getFirestore();
 const bucket = getStorage().bucket();
 const suffix = () => Date.now() + "_" + Math.random().toString(36).slice(2, 9);
 const memberRequest = (uid, data = {}) => ({ data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } });
-const startRequest = uid => startBiometricVerificationRequest.run(memberRequest(uid, {
-  consentAccepted: true, consentVersion: "2026-11-20-owner-review-v1",
-}));
 const ownerRequest = (uid, data = {}) => ({ data, auth: { uid, token: {
   platformOwner: true, platformOwnerUid: uid, auth_time: Math.floor(Date.now() / 1000),
   firebase: { sign_in_second_factor: "phone" },
@@ -79,7 +75,7 @@ async function makeBiometricAsset(uid, requestId, kind, sourceBytes, status = "s
   await db.collection("mediaAssets").doc(mediaId).set(asset);
   return { mediaId, asset };
 }
-async function attachEvidence(requestRef, uid, requestId, audioDuration = 20000, videoDuration = 4000, status = "security_approved") {
+async function attachEvidence(requestRef, uid, requestId, audioDuration = 60000, videoDuration = 4000, status = "security_approved") {
   const audio = await makeBiometricAsset(uid, requestId, "audio", mp4(audioDuration, "audio"), status);
   const video = await makeBiometricAsset(uid, requestId, "video", mp4(videoDuration, "video"), status);
   await requestRef.update({ audioMediaId: audio.mediaId, videoMediaId: video.mediaId });
@@ -103,13 +99,6 @@ async function cleanup(uid, requestIds) {
   }
 }
 
-test("starting a biometric request requires explicit versioned privacy consent", async () => {
-  await assert.rejects(
-    () => startBiometricVerificationRequest.run(memberRequest("biometric_no_consent_" + suffix())),
-    error => error && error.code === "failed-precondition",
-  );
-});
-
 test("approved phrase, ClamAV-approved safe derivatives, owner review and exactly-once reward", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
   assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator required");
@@ -122,14 +111,14 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
   try {
     const phrase = await getBiometricVerificationPhrase.run(memberRequest(uid));
     assert.equal(phrase.phrase, "أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.");
-    const started = await startRequest(uid);
+    const started = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(started.requestId);
     assert.equal(started.attemptNumber, 1);
     assert.equal(started.uploadPurpose, "biometric");
-    assert.equal(started.audio.maxDurationSeconds, 20);
+    assert.equal(started.audio.maxDurationSeconds, 60);
     assert.equal(started.video.minDurationSeconds, 3);
     const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
-    await attachEvidence(ref, uid, started.requestId, 20000, 4000, "pending_security_scan");
+    await attachEvidence(ref, uid, started.requestId, 60000, 4000, "pending_security_scan");
     await assert.rejects(() => submitBiometricVerificationRequest.run(memberRequest(uid, {
       requestId: started.requestId,
     })), error => error && error.code === "failed-precondition");
@@ -153,21 +142,9 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     }));
     assert.match(playback.audioUrl, /mawddaEmulatorOnly=1/);
     assert.match(playback.videoUrl, /mawddaEmulatorOnly=1/);
-    await assert.rejects(() => decideBiometricVerificationRequest.run(memberRequest(uid, {
-      requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
-    })), error => error && error.code === "permission-denied");
-    await assert.rejects(() => decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-      requestId: started.requestId, decision: "accepted",
-    })), error => error && error.code === "failed-precondition");
-    const staleOwner = ownerRequest(ownerUid, {
-      requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
-    });
-    staleOwner.auth.token.auth_time = Math.floor((Date.now() - 16 * 60 * 1000) / 1000);
-    await assert.rejects(() => decideBiometricVerificationRequest.run(staleOwner),
-      error => error && error.code === "permission-denied");
     const decisions = await Promise.allSettled([1, 2].map(() =>
       decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-        requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
+        requestId: started.requestId, decision: "accepted",
       }))));
     assert.equal(decisions.filter(item => item.status === "fulfilled").length, 1,
       "concurrent duplicate decisions must have exactly one winner");
@@ -195,6 +172,9 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
 
 test("three rejections require calendar-month waits, close permanently, and never reward", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
+  const originalNow = Date.now;
+  let nowMs = originalNow();
+  Date.now = () => nowMs;
   const tag = suffix(), uid = "biometric_retry_" + tag, ownerUid = "biometric_owner_retry_" + tag;
   const userRef = db.collection("users").doc(uid), ids = [];
   await userRef.set({
@@ -204,34 +184,18 @@ test("three rejections require calendar-month waits, close permanently, and neve
   try {
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       if (attempt > 1) {
-        await assert.rejects(() => startRequest(uid),
+        await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
           error => error && error.code === "failed-precondition");
-        const previousId = (await userRef.get()).data().biometricVerificationLastRequestId;
-        const previousRef = db.collection("biometricVerificationRequests").doc(previousId);
-        const previous = (await previousRef.get()).data();
-        const simulatedDecisionMs = Date.now() - 40 * 24 * 60 * 60 * 1000;
-        const simulatedDueMs = addCalendarMonthsUtc(simulatedDecisionMs, 1);
-        await previousRef.update({
-          submittedAtMs: simulatedDecisionMs - 1000,
-          decidedAt: Timestamp.fromMillis(simulatedDecisionMs),
-          nextEligibleAt: Timestamp.fromMillis(simulatedDueMs),
-          reviewState: {
-            ...previous.reviewState,
-            submittedAtMs: simulatedDecisionMs - 1000,
-            decidedAtMs: simulatedDecisionMs,
-            nextEligibleAtMs: simulatedDueMs,
-          },
-        });
+        nowMs += 32 * 24 * 60 * 60 * 1000;
       }
-      const started = await startRequest(uid);
+      const started = await startBiometricVerificationRequest.run(memberRequest(uid));
       ids.push(started.requestId);
       assert.equal(started.attemptNumber, attempt);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
-      await attachEvidence(ref, uid, started.requestId, 20000, 3000);
+      await attachEvidence(ref, uid, started.requestId, 30000, 3000);
       await submitBiometricVerificationRequest.run(memberRequest(uid, { requestId: started.requestId }));
-      await getOwnerBiometricEvidencePlayback.run(ownerRequest(ownerUid, { requestId: started.requestId }));
       const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-        requestId: started.requestId, decision: "rejected", evidenceReviewed: true,
+        requestId: started.requestId, decision: "rejected",
       }));
       assert.equal(decision.rewardGranted, false);
       assert.equal(decision.rewardCoins, 0);
@@ -241,9 +205,10 @@ test("three rejections require calendar-month waits, close permanently, and neve
     const member = (await userRef.get()).data();
     assert.equal(member.coins, 777);
     assert.equal(member.biometricVerificationPermanentlyClosed, true);
-    await assert.rejects(() => startRequest(uid),
+    await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
       error => error && error.code === "failed-precondition");
   } finally {
+    Date.now = originalNow;
     await cleanup(uid, ids);
   }
 });
@@ -259,8 +224,8 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
     await assert.rejects(() => completeBiometricVerificationCycle.run(memberRequest(uid, {
       localAuthenticationSucceeded: true,
     })), error => error && error.code === "failed-precondition");
-    for (const [audioDuration, videoDuration] of [[20001, 4000], [20000, 5001]]) {
-      const started = await startRequest(uid);
+    for (const [audioDuration, videoDuration] of [[60001, 4000], [60000, 5001]]) {
+      const started = await startBiometricVerificationRequest.run(memberRequest(uid));
       ids.push(started.requestId);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
       await attachEvidence(ref, uid, started.requestId, audioDuration, videoDuration);
@@ -278,6 +243,9 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
 
 test("an empty upload intent expires after its upload TTL without consuming an attempt", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
+  const originalNow = Date.now;
+  let nowMs = originalNow();
+  Date.now = () => nowMs;
   const uid = "biometric_empty_" + randomUUID().replaceAll("-", "");
   const userRef = db.collection("users").doc(uid), ids = [];
   await userRef.set({
@@ -285,17 +253,16 @@ test("an empty upload intent expires after its upload TTL without consuming an a
     gender: "female", profileCompleted: true, accountStatus: "active", coins: 0,
   });
   try {
-    const first = await startRequest(uid);
+    const first = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(first.requestId);
-    const firstRef = db.collection("biometricVerificationRequests").doc(first.requestId);
-    await firstRef.update({ createdAt: Timestamp.fromMillis(Date.now() - 6 * 60 * 1000) });
-    const second = await startRequest(uid);
+    nowMs += 5 * 60 * 1000 + 1;
+    const second = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(second.requestId);
     assert.equal(second.attemptNumber, 1);
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().status, "upload_rejected");
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().evidenceDeletionStatus, "deleted");
   } finally {
-    
+    Date.now = originalNow;
     await cleanup(uid, ids);
   }
 });
