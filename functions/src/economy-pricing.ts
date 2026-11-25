@@ -29,6 +29,20 @@ export type AdPrice = {
   placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
   priceMinor: number; currency: string; currencyExponent: number; active: boolean;
 };
+export const EXPERIMENTAL_DEFAULT_COIN_PACKAGES: CoinPackage[] = [
+  { packageId: "coins_500", name: "500 كوين", coins: 500, priceMinor: 199, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_1200", name: "1,200 كوين", coins: 1200, priceMinor: 399, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_3000", name: "3,000 كوين", coins: 3000, priceMinor: 899, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_7000", name: "7,000 كوين", coins: 7000, priceMinor: 1799, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_15000", name: "15,000 كوين", coins: 15000, priceMinor: 3499, currency: "USD", currencyExponent: 2, active: true },
+];
+export const EXPERIMENTAL_DEFAULT_AD_PRICES: AdPrice[] = [
+  { placementId: "feed_cpm", name: "إعلان ضمن الخلاصة لكل ألف ظهور", billingModel: "cpm", priceMinor: 500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "feed_cpc", name: "إعلان ضمن الخلاصة لكل نقرة", billingModel: "cpc", priceMinor: 25, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "featured_daily", name: "إعلان مميز يومي", billingModel: "daily", priceMinor: 1500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "room_sponsor_daily", name: "رعاية غرفة يومية", billingModel: "daily", priceMinor: 1000, currency: "USD", currencyExponent: 2, active: true },
+];
+
 export function validateCoinPackages(value: unknown): CoinPackage[] {
   if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
   const ids = new Set<string>();
