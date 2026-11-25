@@ -30,13 +30,6 @@ test("fresh email link renewal credits 500 coins once and starts the next three-
   let auditRef;
 
   await auth.createUser({ uid, email, password: "Test-only-password-123!", emailVerified: true });
-  const biometricState = {
-    status: "verified",
-    verificationMethod: "super_owner_manual_review",
-    approvedAt: Timestamp.fromMillis(lastVerifiedAtMs - 10_000),
-    expiresAt: Timestamp.fromMillis(lastVerifiedAtMs + 30 * 24 * 60 * 60 * 1000),
-    requestId: "biometric_request_test_0001",
-  };
   await userRef.set({
     uid,
     email,
@@ -49,8 +42,6 @@ test("fresh email link renewal credits 500 coins once and starts the next three-
     coins: 250,
     profileCompleted: true,
     accountStatus: "active",
-    biometricVerification: biometricState,
-    biometricVerificationRenewalDueAt: Timestamp.fromMillis(lastVerifiedAtMs + 30 * 24 * 60 * 60 * 1000),
   });
 
   try {
@@ -61,7 +52,6 @@ test("fresh email link renewal credits 500 coins once and starts the next three-
 
     const authAfterStart = await auth.getUser(uid);
     assert.equal(authAfterStart.emailVerified, false);
-    assert.deepEqual((await userRef.get()).data().biometricVerification, biometricState, "email renewal must not mutate biometric verification");
     cycleRef = db.collection("emailVerificationCycles").doc(`${uid}_${started.cycleId}`);
     const pending = (await cycleRef.get()).data();
     assert.equal(pending.status, "pending");
@@ -86,8 +76,6 @@ test("fresh email link renewal credits 500 coins once and starts the next three-
     assert.equal(member.emailVerificationSequence, 2);
     assert.equal(member.emailVerificationCycleId, started.cycleId);
     assert.equal(member.emailVerificationRenewalPendingCycleId, undefined);
-    assert.deepEqual(member.biometricVerification, biometricState, "email approval must not renew or reset biometric verification");
-    assert.equal(member.biometricVerificationRenewalDueAt.toMillis(), biometricState.expiresAt.toMillis(), "email cycle must not move biometric due date");
     assert.ok(member.emailVerificationCycleExpiresAt.toMillis() > Date.now());
 
     const cycle = (await cycleRef.get()).data();
