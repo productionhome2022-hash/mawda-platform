@@ -97,3 +97,15 @@ test("invalid participant sets and invalid duration fail closed", () => {
   assert.throws(() => calculateGroupCallBillingSlice(policy, "video", ["owner", "b"], "owner", 0));
   assert.throws(() => calculateGroupCallBillingSlice(policy, "video", ["owner", "b"], "owner", 1441));
 });
+
+test("audio group allocation supports the five-person owner-approved maximum", () => {
+  const shares = calculateGroupCallCoinShares(1000, ["owner", "b", "c", "d", "e"], "owner");
+  assert.deepEqual(shares.map((item) => item.amount), [200, 200, 200, 200, 200]);
+  assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 1000);
+});
+
+test("video group allocation supports the four-person owner-approved maximum", () => {
+  const shares = calculateGroupCallCoinShares(2000, ["owner", "b", "c", "d"], "owner");
+  assert.deepEqual(shares.map((item) => item.amount), [500, 500, 500, 500]);
+  assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 2000);
+});
