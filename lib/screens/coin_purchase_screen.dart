@@ -63,7 +63,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
-        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف كوينز بعد.',
+        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف BetaCoins بعد.',
       )));
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تسجيل الطلب.');
@@ -139,14 +139,14 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(14), child: Text(
-          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي كوينز عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
+          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي BetaCoins عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Text('الباقات المتاحة', style: Theme.of(context).textTheme.titleLarge),
         if (!_manualPurchasesEnabled) const Text('طلبات الشراء اليدوية متوقفة حالياً بقرار المالك.'),
         if (_manualPurchasesEnabled && _packages.isEmpty) const Text('لا توجد باقات منشورة حالياً.'),
         ..._packages.map((item) => Card(child: ListTile(
-          title: Text(item['name'] as String? ?? 'باقة كوينز'),
+          title: Text(item['name'] as String? ?? 'باقة BetaCoins'),
           subtitle: Text((item['coins'] ?? 0).toString() + ' BetaCoins • ' +
               _moneyValue(item, 'priceMinor').toStringAsFixed((item['currencyExponent'] as num?)?.toInt() ?? 2) +
               ' ' + (item['currency'] as String? ?? '')),
@@ -164,7 +164,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         Row(children: [
           Expanded(child: TextField(controller: _customCoins, enabled: !_sending,
             keyboardType: TextInputType.number, decoration: const InputDecoration(
-              labelText: 'عدد الكوينز المطلوب', border: OutlineInputBorder(),
+              labelText: 'عدد BetaCoins المطلوب', border: OutlineInputBorder(),
             ))),
           const SizedBox(width: 10),
           FilledButton(onPressed: _sending ? null : _requestCustom, child: const Text('إرسال الطلب')),
