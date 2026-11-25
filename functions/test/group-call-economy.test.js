@@ -51,6 +51,18 @@ test("integer allocation is balanced, deterministic and assigns every remainder 
   assert.equal(a.find((item) => item.uid === "owner").amount, 35);
 });
 
+test("initiator absorbs the complete integer remainder for seven and nine participants", () => {
+  const seven = calculateGroupCallCoinShares(1000, ["owner", "b", "c", "d", "e", "f", "g"], "owner");
+  assert.equal(seven.find((item) => item.uid === "owner").amount, 148);
+  assert.ok(seven.filter((item) => item.uid !== "owner").every((item) => item.amount === 142));
+  assert.equal(seven.reduce((sum, item) => sum + item.amount, 0), 1000);
+
+  const nine = calculateGroupCallCoinShares(1000, ["owner", "b", "c", "d", "e", "f", "g", "h", "i"], "owner");
+  assert.equal(nine.find((item) => item.uid === "owner").amount, 112);
+  assert.ok(nine.filter((item) => item.uid !== "owner").every((item) => item.amount === 111));
+  assert.equal(nine.reduce((sum, item) => sum + item.amount, 0), 1000);
+});
+
 test("late and early connected members receive the same share based only on final participant count", () => {
   const four = calculateGroupCallCoinShares(2000, ["owner", "early", "late", "last-second"], "owner");
   assert.deepEqual(four.map((item) => item.amount), [500, 500, 500, 500]);
