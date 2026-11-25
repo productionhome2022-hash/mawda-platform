@@ -392,7 +392,7 @@ export const transferCoins = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "معرف المستلم غير صالح.");
   }
   if (recipientUid === senderUid) {
-    throw new HttpsError("failed-precondition", "لا يمكن تحويل الكوينز إلى حسابك نفسه.");
+    throw new HttpsError("failed-precondition", "لا يمكن تحويل الBetaCoins إلى حسابك نفسه.");
   }
   if (amount <= 0) {
     throw new HttpsError("invalid-argument", "يجب أن يكون مبلغ التحويل أكبر من صفر.");
@@ -506,7 +506,7 @@ export const transferCoins = onCall(async (request) => {
     const recipientData = recipientSnapshot.data()!;
     if (!isMemberAccountInGoodStanding(senderData) ||
         !isMemberAccountInGoodStanding(recipientData)) {
-      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الكوينز حالياً.");
+      throw new HttpsError("permission-denied", "حالة أحد الحسابين لا تسمح بإجراء تحويل الBetaCoins حالياً.");
     }
     const senderBalance = readSafeInteger(senderData.coins ?? 0, "sender.coins");
     const recipientBalance = readSafeInteger(recipientData.coins ?? 0, "recipient.coins");
@@ -515,7 +515,7 @@ export const transferCoins = onCall(async (request) => {
     }
 
     if (senderBalance < amount) {
-      throw new HttpsError("failed-precondition", "رصيدك من الكوينز غير كافٍ.");
+      throw new HttpsError("failed-precondition", "رصيدك من الBetaCoins غير كافٍ.");
     }
 
     // Basis points: 2,000 = 20%. Exact integer arithmetic avoids floating-point drift.
