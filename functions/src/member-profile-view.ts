@@ -71,7 +71,7 @@ export type CoinVisibilityProjection = {
 
 /**
  * Coins are never part of the public profile projection. The caller must
- * explicitly prove self-view or the sole Owner/Super Admin role before a
+ * explicitly prove self-view or the sole Owner/Super Owner role before a
  * balance can be returned. Moderators and ordinary members are never eligible.
  */
 export function projectCoinVisibility(args: {
