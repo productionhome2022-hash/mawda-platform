@@ -86,7 +86,7 @@ async function makeFixture(type, dir) {
   } else if (type === "large-png") {
     await execFileAsync("ffmpeg", [
       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
-      "testsrc2=size=512x512:rate=1", "-frames:v", "1", "-c:v", "png", output,
+      "nullsrc=size=512x512,geq=lum=random(1)*255", "-frames:v", "1", "-c:v", "png", output,
     ]);
   } else if (type === "large-dimensions-png") {
     await execFileAsync("ffmpeg", [
