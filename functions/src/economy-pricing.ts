@@ -1,8 +1,20 @@
+/** The platform's owner-approved settlement and pricing currencies. */
+export const OFFICIAL_ECONOMY_CURRENCIES = [
+  "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
+] as const;
+
 export const CURRENCY_MINOR_UNIT_EXPONENTS: Readonly<Record<string, number>> = {
-  AED: 2, AUD: 2, CAD: 2, CHF: 2, DZD: 2, EGP: 2, EUR: 2, GBP: 2,
-  LBP: 2, MAD: 2, NZD: 2, QAR: 2, SAR: 2, SDG: 2, SYP: 2, TRY: 2, USD: 2,
-  BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3,
-  JPY: 0, KRW: 0, VND: 0,
+  EUR: 2,
+  USD: 2,
+  EGP: 2,
+  SAR: 2,
+  SYP: 2,
+  JOD: 3,
+  IQD: 3,
+  AED: 2,
+  DZD: 2,
+  MAD: 2,
+  TRY: 2,
 };
 
 export function currencyExponentForCode(value: unknown): number | null {
@@ -29,6 +41,26 @@ export type AdPrice = {
   placementId: string; name: string; billingModel: "cpm" | "cpc" | "daily";
   priceMinor: number; currency: string; currencyExponent: number; active: boolean;
 };
+/**
+ * Provisional development price suggestions. These values are never a payment
+ * authorization and do not enable checkout; the Super Owner may replace every
+ * package, amount, currency, placement, and billing model through the versioned
+ * owner pricing controls.
+ */
+export const EXPERIMENTAL_DEFAULT_COIN_PACKAGES: CoinPackage[] = [
+  { packageId: "coins_500", name: "500 كوين", coins: 500, priceMinor: 199, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_1200", name: "1,200 كوين", coins: 1200, priceMinor: 399, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_3000", name: "3,000 كوين", coins: 3000, priceMinor: 899, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_7000", name: "7,000 كوين", coins: 7000, priceMinor: 1799, currency: "USD", currencyExponent: 2, active: true },
+  { packageId: "coins_15000", name: "15,000 كوين", coins: 15000, priceMinor: 3499, currency: "USD", currencyExponent: 2, active: true },
+];
+export const EXPERIMENTAL_DEFAULT_AD_PRICES: AdPrice[] = [
+  { placementId: "feed_cpm", name: "إعلان ضمن الخلاصة لكل ألف ظهور", billingModel: "cpm", priceMinor: 500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "feed_cpc", name: "إعلان ضمن الخلاصة لكل نقرة", billingModel: "cpc", priceMinor: 25, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "featured_daily", name: "إعلان مميز يومي", billingModel: "daily", priceMinor: 1500, currency: "USD", currencyExponent: 2, active: true },
+  { placementId: "room_sponsor_daily", name: "رعاية غرفة يومية", billingModel: "daily", priceMinor: 1000, currency: "USD", currencyExponent: 2, active: true },
+];
+
 export function validateCoinPackages(value: unknown): CoinPackage[] {
   if (!Array.isArray(value) || value.length > 30) throw new Error("INVALID_COIN_PACKAGES");
   const ids = new Set<string>();
