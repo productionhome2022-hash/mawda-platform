@@ -262,7 +262,7 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
                   enabled: !_saving,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'الصوت — كوينز لكل دقيقة إجمالاً',
+                    labelText: 'الصوت — BetaCoins لكل دقيقة إجمالاً',
                     helperText: 'أدخل السعر الذي يعتمده المالك؛ الصفر يعطّل فوترة الصوت.',
                   ),
                 ),
@@ -272,7 +272,7 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
                   enabled: !_saving,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: 'الفيديو — كوينز لكل دقيقة إجمالاً',
+                    labelText: 'الفيديو — BetaCoins لكل دقيقة إجمالاً',
                     helperText: 'أدخل السعر الذي يعتمده المالك؛ الصفر يعطّل فوترة الفيديو.',
                   ),
                 ),
