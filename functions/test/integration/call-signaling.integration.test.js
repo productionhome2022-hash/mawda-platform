@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  requestRoomCallJoin, respondToRoomCallJoinRequest,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -550,6 +551,32 @@ test("group audio follows room capacity and group video is capped at four total 
       "video group calls reject the fifth participant including the initiator",
     );
     assert.equal((await videoFive.callRef.get()).exists, false);
+
+    const videoConcurrent = await seedRoom("group_video_concurrent", 5, 5);
+    const concurrentStart = await startCall.run(call(videoConcurrent.ownerUid, {
+      callId: videoConcurrent.callId, scope: "room",
+      targetId: videoConcurrent.roomId, mode: "video",
+    }));
+    assert.deepEqual(concurrentStart.participantUids, [videoConcurrent.ownerUid]);
+    for (const memberUid of videoConcurrent.memberUids.slice(1, 3)) {
+      await requestRoomCallJoin.run(call(memberUid, { callId: videoConcurrent.callId }));
+      await respondToRoomCallJoinRequest.run(call(videoConcurrent.ownerUid, {
+        callId: videoConcurrent.callId, requesterUid: memberUid, decision: "approve",
+      }));
+    }
+    const competingMembers = videoConcurrent.memberUids.slice(3);
+    await Promise.all(competingMembers.map((memberUid) =>
+      requestRoomCallJoin.run(call(memberUid, { callId: videoConcurrent.callId }))));
+    const competingApprovals = await Promise.allSettled(competingMembers.map((memberUid) =>
+      respondToRoomCallJoinRequest.run(call(videoConcurrent.ownerUid, {
+        callId: videoConcurrent.callId, requesterUid: memberUid, decision: "approve",
+      }))));
+    const approvedCount = competingApprovals.filter((result) => result.status === "fulfilled").length;
+    const rejectedResults = competingApprovals.filter((result) => result.status === "rejected");
+    assert.equal(approvedCount, 1, "only one concurrent approval may consume the final video slot");
+    assert.equal(rejectedResults.length, 1);
+    assert.equal(rejectedResults[0].reason.code, "resource-exhausted");
+    assert.equal((await videoConcurrent.callRef.get()).data()?.participantUids.length, 4);
   } finally {
     for (const fixture of fixtures) {
       await Promise.all([
@@ -561,6 +588,44 @@ test("group audio follows room capacity and group video is capped at four total 
           db.collection("activeCallMemberLocks").doc(memberUid).delete().catch(() => undefined),
         ])),
       ]);
+    }
+  }
+});
+
+
+test("ending a large audio room call clears more than 500 participant locks in bounded transactions", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const memberUids = Array.from({ length: 501 }, (_, i) => uid("large_room_member_" + i));
+  const [creatorUid] = memberUids;
+  const callId = uid("large_room_call");
+  const callRef = db.collection("callSessions").doc(callId);
+  const lockRefs = memberUids.map((memberUid) =>
+    db.collection("activeCallMemberLocks").doc(memberUid));
+  await callRef.set({
+    callId, scope: "room", targetId: uid("large_rented_room"), mode: "audio",
+    callerUid: creatorUid, participantUids: memberUids,
+    acceptedUids: [creatorUid], rejectedUids: [], leftUids: [],
+    status: "ringing", expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+  });
+  for (let offset = 0; offset < lockRefs.length; offset += 400) {
+    const batch = db.batch();
+    lockRefs.slice(offset, offset + 400).forEach((ref) =>
+      batch.set(ref, { callId, status: "active" }));
+    await batch.commit();
+  }
+  try {
+    const result = await endCall.run(call(creatorUid, { callId }));
+    assert.equal(result.status, "cancelled");
+    for (let offset = 0; offset < lockRefs.length; offset += 100) {
+      const snapshots = await db.getAll(...lockRefs.slice(offset, offset + 100));
+      assert.equal(snapshots.filter((snapshot) => snapshot.exists).length, 0);
+    }
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+    for (let offset = 0; offset < lockRefs.length; offset += 400) {
+      const batch = db.batch();
+      lockRefs.slice(offset, offset + 400).forEach((ref) => batch.delete(ref));
+      await batch.commit().catch(() => undefined);
     }
   }
 });
