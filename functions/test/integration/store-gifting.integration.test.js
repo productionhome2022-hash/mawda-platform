@@ -84,7 +84,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     assert.equal(entitlement.data().catalogVersion, saved.version);
     assert.equal(entitlement.data().expiresAt.toMillis(), first.expiresAt);
     const ledger = await ledgerRef.get();
-    assert.equal(ledger.data().type, "store_gift");
+    assert.equal(ledger.data().type, "store_gift_purchase");
     assert.equal(ledger.data().amount, -500);
 
     const replay = await giftStoreItem.run(memberRequest(senderUid, giftInput));

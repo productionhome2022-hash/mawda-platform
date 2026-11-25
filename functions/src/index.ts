@@ -10994,9 +10994,6 @@ export const listMyContracts = onCall(
 const CALL_SESSIONS = db.collection("callSessions");
 const ACTIVE_CALL_MEMBER_LOCKS = db.collection("activeCallMemberLocks");
 const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
-const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
-const CALL_AUDIO_ATTEMPT_LIMIT = 5;
-const CALL_VIDEO_ATTEMPT_LIMIT = 3;
 
 /**
  * Enforce the five-minute ceiling from the server timestamp created only
@@ -11168,11 +11165,12 @@ export const startCall = onCall(async (request) => {
   const expiresAt = Timestamp.fromMillis(now + CALL_RING_TIMEOUT_MS);
   const quotaRef = CALL_QUOTA_WINDOWS.doc(callerUid);
   const result = await db.runTransaction(async (transaction) => {
-    const [existing, caller, quotaSnapshot, groupCallPricingSnapshot, callEntitlementSnapshots, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
+    const [existing, caller, quotaSnapshot, groupCallPricingSnapshot, callUsagePolicySnapshot, callEntitlementSnapshots, roomSnapshot, rentalSnapshot, roomMemberSnapshots, directChatSnapshot, directPeerSnapshot] = await Promise.all([
       transaction.get(callRef),
       transaction.get(callerRef),
       transaction.get(quotaRef),
       transaction.get(GROUP_CALL_PRICING_SETTINGS),
+      transaction.get(CALL_USAGE_POLICY),
       Promise.all(callEntitlementRefs.map((entitlementRef) => transaction.get(entitlementRef))),
       roomRefForCall ? transaction.get(roomRefForCall) : Promise.resolve(null),
       roomRentalRef ? transaction.get(roomRentalRef) : Promise.resolve(null),
@@ -11180,6 +11178,19 @@ export const startCall = onCall(async (request) => {
       directChatRefForCall ? transaction.get(directChatRefForCall) : Promise.resolve(null),
       directPeerRefForCall ? transaction.get(directPeerRefForCall) : Promise.resolve(null),
     ]);
+    const usagePolicyRecord = callUsagePolicySnapshot.data() ?? {};
+    if (!callUsagePolicySnapshot.exists ||
+        !Number.isSafeInteger(usagePolicyRecord.version) || usagePolicyRecord.version < 1) {
+      throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير مضبوطة؛ تعذر بدء المكالمة.");
+    }
+    let usagePolicy;
+    try { usagePolicy = validateCallUsagePolicy(usagePolicyRecord.policy); }
+    catch {
+      throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات غير صالحة؛ تعذر بدء المكالمة.");
+    }
+    if (!usagePolicy.active) {
+      throw new HttpsError("failed-precondition", "سياسة استخدام المكالمات متوقفة؛ لا يمكن بدء المكالمة.");
+    }
     if (input.scope === "room" &&
         (!roomSnapshot?.exists || !rentalSnapshot?.exists ||
           !isActiveRentedPrivateRoom(roomSnapshot.data(), rentalSnapshot.data(), now))) {
@@ -11288,10 +11299,10 @@ export const startCall = onCall(async (request) => {
     }
     const recentAttempts = (allAttempts as Array<{
       callId: string; mode: "audio" | "video"; startedAtMs: number;
-    }>).filter((attempt) => attempt.startedAtMs > quotaNow - CALL_QUOTA_WINDOW_MS);
+    }>).filter((attempt) => attempt.startedAtMs > quotaNow - usagePolicy.quotaWindowMs);
     const modeAttempts = recentAttempts.filter((attempt) => attempt.mode === input.mode).length;
-    const modeLimit = input.mode === "audio" ? CALL_AUDIO_ATTEMPT_LIMIT : CALL_VIDEO_ATTEMPT_LIMIT;
-    if (modeAttempts >= modeLimit) {
+    const modeLimit = callModeQuotaLimit(usagePolicy, input.mode);
+    if (modeLimit !== null && modeAttempts >= modeLimit) {
       throw new HttpsError(
         "resource-exhausted",
         input.mode === "audio"
@@ -11310,6 +11321,8 @@ export const startCall = onCall(async (request) => {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
       testPricingSnapshot,
+      usagePolicySnapshot: usagePolicy,
+      usagePolicyVersion: usagePolicyRecord.version,
       status: "ringing", signalCounts: {}, signalsCleanedAt: false,
       createdAt: FieldValue.serverTimestamp(),
       expiresAt, lastActivityAt: FieldValue.serverTimestamp(),

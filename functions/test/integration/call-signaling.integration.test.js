@@ -6,6 +6,39 @@ const {
 } = require("../../lib/index");
 
 const db = getFirestore();
+const CALL_USAGE_POLICY_REF = db.doc("platformSettings/callUsagePolicy");
+const CALL_USAGE_POLICY_FIXTURE = {
+  version: 1,
+  policy: {
+    active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+    audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+    maxCallDurationMs: 5 * 60 * 1000,
+  },
+};
+let previousCallUsagePolicy = null;
+test.before(async () => {
+  previousCallUsagePolicy = await CALL_USAGE_POLICY_REF.get();
+  await CALL_USAGE_POLICY_REF.set(CALL_USAGE_POLICY_FIXTURE);
+});
+test.after(async () => {
+  if (previousCallUsagePolicy?.exists) await CALL_USAGE_POLICY_REF.set(previousCallUsagePolicy.data());
+  else await CALL_USAGE_POLICY_REF.delete();
+});
+async function grantCallEntitlements(memberUids) {
+  const expiresAt = Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const writes = [];
+  for (const memberUid of memberUids) {
+    for (const [itemId, category] of [
+      ["voice_call_30d", "voice_call"],
+      ["video_call_30d", "video_call"],
+    ]) {
+      writes.push(db.collection("users").doc(memberUid).collection("entitlements").doc(itemId).set({
+        itemId, category, status: "active", expiresAt,
+      }));
+    }
+  }
+  await Promise.all(writes);
+}
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
@@ -28,6 +61,7 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
   ]);
+  await grantCallEntitlements([callerUid, calleeUid]);
   try {
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
@@ -132,6 +166,7 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     ...[callerUid, firstUid, secondUid].map((memberUid) =>
       roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
   ]);
+  await grantCallEntitlements([callerUid, firstUid, secondUid]);
   try {
     const started = await startCall.run(call(callerUid, {
       callId, scope: "room", targetId: roomId, mode: "video",
@@ -345,6 +380,7 @@ test("server enforces rolling audio and video attempt quotas without charging re
       ],
     }),
   ]);
+  await grantCallEntitlements([callerUid, calleeUid]);
 
   try {
     const started = await startCall.run(call(callerUid, {
@@ -403,6 +439,8 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     callId, scope: "direct", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
+    usagePolicySnapshot: CALL_USAGE_POLICY_FIXTURE.policy,
+    usagePolicyVersion: CALL_USAGE_POLICY_FIXTURE.version,
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
@@ -472,6 +510,7 @@ test("group audio follows room capacity and group video is capped at four total 
       ...memberUids.map((memberUid) =>
         roomRef.collection("members").doc(memberUid).set({ uid: memberUid, role: "member" })),
     ]);
+    await grantCallEntitlements(memberUids);
     const fixture = { roomId, callId, ownerUid, memberUids, roomRef, rentalRef, callRef };
     fixtures.push(fixture);
     return fixture;
@@ -519,7 +558,7 @@ test("group audio follows room capacity and group video is capped at four total 
         db.recursiveDelete(fixture.roomRef).catch(() => undefined),
         fixture.rentalRef.delete().catch(() => undefined),
         ...fixture.memberUids.map((memberUid) => Promise.all([
-          db.collection("users").doc(memberUid).delete().catch(() => undefined),
+          db.recursiveDelete(db.collection("users").doc(memberUid)).catch(() => undefined),
           db.collection("activeCallMemberLocks").doc(memberUid).delete().catch(() => undefined),
         ])),
       ]);
