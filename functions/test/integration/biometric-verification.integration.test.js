@@ -125,7 +125,7 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     ids.push(started.requestId);
     assert.equal(started.attemptNumber, 1);
     assert.equal(started.uploadPurpose, "biometric");
-    assert.equal(started.audio.maxDurationSeconds, 60);
+    assert.equal(started.audio.maxDurationSeconds, 20);
     assert.equal(started.video.minDurationSeconds, 3);
     const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
     await attachEvidence(ref, uid, started.requestId, 60000, 4000, "pending_security_scan");
@@ -154,7 +154,7 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     assert.match(playback.videoUrl, /mawddaEmulatorOnly=1/);
     const decisions = await Promise.allSettled([1, 2].map(() =>
       decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-        requestId: started.requestId, decision: "accepted",
+        requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
       }))));
     assert.equal(decisions.filter(item => item.status === "fulfilled").length, 1,
       "concurrent duplicate decisions must have exactly one winner");
@@ -172,7 +172,7 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     const deletedAudio = (await db.collection("mediaAssets").doc((await ref.get()).data().audioMediaId).get()).data();
     assert.equal(deletedAudio.status, "manually_deleted");
     await assert.rejects(() => decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
-      requestId: started.requestId, decision: "accepted",
+      requestId: started.requestId, decision: "accepted", evidenceReviewed: true,
     })), error => error && error.code === "failed-precondition");
     assert.equal((await userRef.get()).data().coins, 1821);
   } finally {
@@ -182,9 +182,6 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
 
 test("three rejections require calendar-month waits, close permanently, and never reward", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
-  const originalNow = Date.now;
-  let nowMs = originalNow();
-  Date.now = () => nowMs;
   const tag = suffix(), uid = "biometric_retry_" + tag, ownerUid = "biometric_owner_retry_" + tag;
   const userRef = db.collection("users").doc(uid), ids = [];
   await userRef.set({
@@ -196,7 +193,12 @@ test("three rejections require calendar-month waits, close permanently, and neve
       if (attempt > 1) {
         await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
           error => error && error.code === "failed-precondition");
-        nowMs += 32 * 24 * 60 * 60 * 1000;
+        const previousRef = db.collection("biometricVerificationRequests").doc(ids[ids.length - 1]);
+        const eligibleAtMs = Date.now() - 1;
+        await previousRef.update({
+          "reviewState.nextEligibleAtMs": eligibleAtMs,
+          nextEligibleAt: Timestamp.fromMillis(eligibleAtMs),
+        });
       }
       const started = await startBiometricVerificationRequest.run(memberRequest(uid));
       ids.push(started.requestId);
@@ -204,8 +206,14 @@ test("three rejections require calendar-month waits, close permanently, and neve
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
       await attachEvidence(ref, uid, started.requestId, 30000, 3000);
       await submitBiometricVerificationRequest.run(memberRequest(uid, { requestId: started.requestId }));
-      const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
+      await assert.rejects(() => decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
         requestId: started.requestId, decision: "rejected",
+      })), error => error && error.code === "failed-precondition");
+      await getOwnerBiometricEvidencePlayback.run(ownerRequest(ownerUid, {
+        requestId: started.requestId,
+      }));
+      const decision = await decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
+        requestId: started.requestId, decision: "rejected", evidenceReviewed: true,
       }));
       assert.equal(decision.rewardGranted, false);
       assert.equal(decision.rewardCoins, 0);
@@ -218,7 +226,6 @@ test("three rejections require calendar-month waits, close permanently, and neve
     await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
       error => error && error.code === "failed-precondition");
   } finally {
-    Date.now = originalNow;
     await cleanup(uid, ids);
   }
 });
@@ -253,9 +260,6 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
 
 test("an empty upload intent expires after its upload TTL without consuming an attempt", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator required");
-  const originalNow = Date.now;
-  let nowMs = originalNow();
-  Date.now = () => nowMs;
   const uid = "biometric_empty_" + randomUUID().replaceAll("-", "");
   const userRef = db.collection("users").doc(uid), ids = [];
   await userRef.set({
@@ -265,14 +269,15 @@ test("an empty upload intent expires after its upload TTL without consuming an a
   try {
     const first = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(first.requestId);
-    nowMs += 5 * 60 * 1000 + 1;
+    await db.collection("biometricVerificationRequests").doc(first.requestId).update({
+      createdAt: Timestamp.fromMillis(Date.now() - 5 * 60 * 1000 - 1),
+    });
     const second = await startBiometricVerificationRequest.run(memberRequest(uid));
     ids.push(second.requestId);
     assert.equal(second.attemptNumber, 1);
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().status, "upload_rejected");
     assert.equal((await db.collection("biometricVerificationRequests").doc(first.requestId).get()).data().evidenceDeletionStatus, "deleted");
   } finally {
-    Date.now = originalNow;
     await cleanup(uid, ids);
   }
 });
