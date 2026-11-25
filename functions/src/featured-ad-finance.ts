@@ -91,9 +91,6 @@ export function applyFeaturedAdFinancialEvent(
   current: FeaturedAdFinancialSnapshot,
   event: FeaturedAdFinancialEventInput,
 ): FeaturedAdFinancialSnapshot {
-  // Re-validate at the state-transition boundary. TypeScript types do not
-  // protect runtime callers, deserialized data, or future server adapters.
-  event = validateFeaturedAdFinancialEvent(event);
   const safe = (value: number): number => {
     if (!Number.isSafeInteger(value) || value < 0) {
       throw new FeaturedAdFinancialValidationError("financial_snapshot_corrupt");
@@ -103,39 +100,21 @@ export function applyFeaturedAdFinancialEvent(
   const receivedMinor = safe(current.receivedMinor);
   const refundedMinor = safe(current.refundedMinor);
   const reconciledMinor = safe(current.reconciledMinor);
-  if (current.currency !== null && (typeof current.currency !== "string" || !/^[A-Z]{3}$/.test(current.currency))) {
-    throw new FeaturedAdFinancialValidationError("financial_snapshot_corrupt");
-  }
-  if (!["not_reviewed", "in_review", "reconciled", "needs_review"].includes(current.reviewStatus) ||
-      !["unpaid", "paid", "partially_refunded", "refunded"].includes(current.paymentStatus) ||
-      (receivedMinor === 0) !== (current.currency === null) ||
-      (receivedMinor === 0 && (refundedMinor !== 0 || reconciledMinor !== 0 ||
-        current.paymentStatus !== "unpaid")) ||
-      (receivedMinor > 0 && current.paymentStatus !==
-        (refundedMinor === 0 ? "paid" : refundedMinor === receivedMinor ? "refunded" : "partially_refunded"))) {
-    throw new FeaturedAdFinancialValidationError("financial_snapshot_corrupt");
-  }
   const netReceived = receivedMinor - refundedMinor;
   if (refundedMinor > receivedMinor) {
     throw new FeaturedAdFinancialValidationError("financial_snapshot_inconsistent");
   }
   if (event.action === "payment_received") {
-    if (current.currency !== null && current.currency !== event.currency) {
-      throw new FeaturedAdFinancialValidationError("payment_currency_conflict");
+    if (receivedMinor > 0 || current.currency !== null && current.currency !== event.currency) {
+      throw new FeaturedAdFinancialValidationError("payment_already_recorded_or_currency_conflict");
     }
-    const nextReceived = receivedMinor + event.amountMinor!;
-    if (!Number.isSafeInteger(nextReceived) || nextReceived > Number.MAX_SAFE_INTEGER) {
-      throw new FeaturedAdFinancialValidationError("financial_amount_overflow");
-    }
-    const nextNetReceived = nextReceived - refundedMinor;
     return {
       currency: event.currency,
-      receivedMinor: nextReceived,
-      refundedMinor,
-      reconciledMinor,
+      receivedMinor: event.amountMinor!,
+      refundedMinor: 0,
+      reconciledMinor: 0,
       reviewStatus: "in_review",
-      paymentStatus: refundedMinor === 0 ? "paid"
-        : nextNetReceived === 0 ? "refunded" : "partially_refunded",
+      paymentStatus: "paid",
     };
   }
   if (event.action === "refund_recorded") {
