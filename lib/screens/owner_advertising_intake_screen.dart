@@ -1,5 +1,6 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'owner_featured_ads_dashboard_screen.dart';
 
 class OwnerAdvertisingIntakeScreen extends StatefulWidget {
   const OwnerAdvertisingIntakeScreen({super.key});
@@ -98,7 +99,16 @@ class _OwnerAdvertisingIntakeScreenState extends State<OwnerAdvertisingIntakeScr
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('طلبات الإعلانات والمندوبين'),
-      actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
+      actions: [
+        IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+        IconButton(
+          tooltip: 'لوحة الإعلانات المميزة',
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const OwnerFeaturedAdsDashboardScreen()),
+          ),
+          icon: const Icon(Icons.campaign_outlined),
+        ),
+      ],
     ),
     body: Column(children: [
       Padding(
