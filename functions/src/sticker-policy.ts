@@ -1,11 +1,6 @@
 export type StickerKind = "static" | "animated";
 export type StickerMediaType = "image/png" | "image/webp" | "image/gif";
 
-/**
- * Owner-approved sticker byte ceilings:
- * static: 256 KiB; animated: 512 KiB.
- * These are stricter sticker-specific limits, not replacements for platform media caps.
- */
 export const STICKER_LIMITS = Object.freeze({
   width: 512,
   height: 512,
@@ -31,12 +26,6 @@ export function validateStickerMediaMetadata(value: unknown): StickerMediaMetada
     throw new Error("INVALID_STICKER_MEDIA");
   }
   const input = value as Record<string, unknown>;
-  const allowedKeys = new Set([
-    "kind", "contentType", "width", "height", "sizeBytes", "durationMs", "frameCount",
-  ]);
-  if (Object.keys(input).some((key) => !allowedKeys.has(key))) {
-    throw new Error("UNSUPPORTED_STICKER_METADATA_FIELD");
-  }
   const kind = input.kind;
   const contentType = input.contentType;
   const width = input.width;
@@ -75,6 +64,7 @@ export function validateStickerMediaMetadata(value: unknown): StickerMediaMetada
   }
   return {
     kind,
+    // The preceding kind-specific guards prove this is one of the supported media types.
     contentType: contentType as StickerMediaType,
     width: width as number,
     height: height as number,
@@ -90,6 +80,7 @@ export function validateStickerPackSize(stickerCount: number): boolean {
   return Number.isSafeInteger(stickerCount) &&
     stickerCount >= 1 && stickerCount <= STICKER_LIMITS.maxPackStickers;
 }
+
 
 export type StickerPackManifestInput = {
   packId: string;
@@ -118,7 +109,10 @@ export type StickerSendRequest = {
 const STICKER_IDENTIFIER = /^[A-Za-z0-9_-]{1,80}$/;
 const STICKER_MESSAGE_ID = /^[A-Za-z0-9_-]{8,80}$/;
 
-/** Validate a server-authored pack manifest; never accept client asset paths or URLs. */
+/**
+ * Validate a server-authored pack manifest before it is persisted or published.
+ * Asset locations and download URLs are intentionally not accepted from clients.
+ */
 export function validateStickerPackManifest(value: unknown): StickerPackManifestInput {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("INVALID_STICKER_PACK");
@@ -148,18 +142,8 @@ export function validateStickerPackManifest(value: unknown): StickerPackManifest
       throw new Error("INVALID_STICKER_ID");
     }
     seen.add(stickerId);
-    // Pack entries may carry private asset references and moderation fields;
-    // project only the six approved media-metadata fields before strict validation.
-    const metadata = {
-      kind: entry.kind,
-      contentType: entry.contentType,
-      width: entry.width,
-      height: entry.height,
-      sizeBytes: entry.sizeBytes,
-      ...(entry.durationMs !== undefined ? { durationMs: entry.durationMs } : {}),
-      ...(entry.frameCount !== undefined ? { frameCount: entry.frameCount } : {}),
-    };
-    return { stickerId, ...validateStickerMediaMetadata(metadata) };
+    const metadata = validateStickerMediaMetadata(entry);
+    return { stickerId, ...metadata };
   });
   return {
     packId,
@@ -169,7 +153,10 @@ export function validateStickerPackManifest(value: unknown): StickerPackManifest
   };
 }
 
-/** Shape-only validation. Membership, publication, asset approval and idempotency remain server duties. */
+/**
+ * Validate only the shape and bounded identifiers of a send request.
+ * Membership, pack publication, media approval and idempotency remain server duties.
+ */
 export function validateStickerSendRequest(value: unknown): StickerSendRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("INVALID_STICKER_SEND_REQUEST");
@@ -192,19 +179,4 @@ export function validateStickerSendRequest(value: unknown): StickerSendRequest {
   if (!STICKER_IDENTIFIER.test(stickerId)) throw new Error("INVALID_STICKER_ID");
   if (!STICKER_MESSAGE_ID.test(clientMessageId)) throw new Error("INVALID_STICKER_MESSAGE_ID");
   return { scope, targetId, packId, stickerId, clientMessageId };
-}
-
-
-/** Bind an idempotent sticker-message retry to its complete sender and asset identity. */
-export function stickerMessageReplayMatches(
-  existing: unknown,
-  expected: { senderUid: string; mediaId: string; packId: string; stickerId: string },
-): boolean {
-  if (!existing || typeof existing !== "object" || Array.isArray(existing)) return false;
-  const message = existing as Record<string, unknown>;
-  return message.type === "sticker" &&
-    message.senderUid === expected.senderUid &&
-    message.mediaId === expected.mediaId &&
-    message.stickerPackId === expected.packId &&
-    message.stickerId === expected.stickerId;
 }
