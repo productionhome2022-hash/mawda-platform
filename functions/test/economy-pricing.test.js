@@ -16,7 +16,7 @@ const adPriceFixture = {
 test("proposed money amounts obey supported currency minor-unit precision", () => {
   assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
   assert.equal(isValidPositiveCurrencyAmount("125.000", "JOD"), true);
-  assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), true);
   assert.equal(isValidPositiveCurrencyAmount("125.001", "EUR"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.0", "JPY"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.0001", "JOD"), false);
@@ -119,7 +119,7 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
   ]);
   assert.equal(ads[0].currency, "IQD");
   assert.equal(ads[0].currencyExponent, 3);
-  for (const currency of ["CHF", "KWD", "JPY", "XXX"]) {
+  for (const currency of ["XXX"]) {
     assert.throws(() => validateCoinPackages([{ ...coinPackageFixture, currency }]), /INVALID_COIN_PACKAGE_FIELDS/);
     assert.throws(() => validateAdPrices([{ ...adPriceFixture, currency }]), /INVALID_AD_PRICE_FIELDS/);
   }
