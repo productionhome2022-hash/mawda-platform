@@ -51,6 +51,9 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
   String? _lastSignalCursor;
   bool _polling = false;
   bool _connectedReportSent = false;
+  bool _syncingRoomCall = false;
+  bool _creatorBillingConsented = false;
+  final Set<String> _handledJoinRequestUids = <String>{};
   String _status = 'جارٍ تجهيز الاتصال...';
   String? _failure;
 
@@ -86,12 +89,24 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
           throw StateError('تعذر تحديد صاحب المكالمة.');
         }
         _remoteUids = [callerUid];
-        await _functions.httpsCallable('respondToCall').call({
-          'callId': widget.callId,
-          'response': 'accept',
-        });
+        if (widget.scope == 'room') {
+          final joinStatusResponse = await _functions
+              .httpsCallable('getRoomCallJoinRequestStatus')
+              .call({'callId': widget.callId});
+          final joinStatus = Map<String, dynamic>.from(joinStatusResponse.data as Map);
+          if (joinStatus['approved'] != true) {
+            throw StateError('لم تتم الموافقة على طلب انضمامك إلى المكالمة بعد.');
+          }
+        } else {
+          await _functions.httpsCallable('respondToCall').call({
+            'callId': widget.callId,
+            'response': 'accept',
+          });
+        }
       }
-      if (_remoteUids.isEmpty) throw StateError('لا يوجد طرف آخر متاح للمكالمة.');
+      if (_remoteUids.isEmpty && !(widget.scope == 'room' && widget.outgoing)) {
+        throw StateError('لا يوجد طرف آخر متاح للمكالمة.');
+      }
 
       final iceResponse = await _functions.httpsCallable('getCallIceConfiguration')
           .call({'callId': widget.callId});
@@ -124,10 +139,15 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _status = widget.outgoing ? 'بانتظار انضمام الطرف الآخر...' : 'تم قبول المكالمة؛ جارٍ الاتصال...';
+        _status = widget.scope == 'room' && widget.outgoing
+            ? 'المكالمة جاهزة؛ بانتظار طلبات الانضمام وموافقتك'
+            : widget.outgoing ? 'بانتظار انضمام الطرف الآخر...' : 'تم قبول المكالمة؛ جارٍ الاتصال...';
       });
       _pollTimer = Timer.periodic(const Duration(milliseconds: 900), (_) {
-        unawaited(_pollSignals());
+        unawaited(() async {
+          await _syncRoomCallParticipants();
+          await _pollSignals();
+        }());
       });
       _iceRefreshTimer = Timer.periodic(const Duration(minutes: 10), (_) {
         unawaited(_refreshIceConfiguration());
@@ -268,6 +288,120 @@ class _MawddaCallScreenState extends State<MawddaCallScreen> {
       if (mounted && !_ending) {
         setState(() => _failure = 'تعذر تحديث بيانات خادم الاتصال: $error');
       }
+    }
+  }
+
+  Future<void> _syncRoomCallParticipants() async {
+    if (_ending || _syncingRoomCall || widget.scope != 'room' || !widget.outgoing) return;
+    _syncingRoomCall = true;
+    try {
+      final activeResponse = await _functions.httpsCallable('getActiveCall').call();
+      final activeData = Map<String, dynamic>.from(activeResponse.data as Map);
+      if (activeData['active'] != true || activeData['callId'] != widget.callId) {
+        await _finish(notifyServer: false);
+        return;
+      }
+      final pendingResponse = await _functions.httpsCallable('listRoomCallJoinRequests')
+          .call({'callId': widget.callId});
+      final pendingData = Map<String, dynamic>.from(pendingResponse.data as Map);
+      final pending = (pendingData['requests'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+      for (final item in pending) {
+        final requesterUid = item['uid'];
+        if (requesterUid is! String || requesterUid.isEmpty ||
+            _handledJoinRequestUids.contains(requesterUid) || !mounted || _ending) continue;
+        final approve = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('طلب انضمام للمكالمة'),
+            content: Text('العضو $requesterUid يطلب الانضمام إلى المكالمة الجماعية. هل توافق على دخوله؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('رفض'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('موافقة'),
+              ),
+            ],
+          ),
+        );
+        if (!mounted || _ending) return;
+        if (approve == true) {
+          final roomCallResponse = await _functions.httpsCallable('getActiveRoomCall')
+              .call({'roomId': widget.targetId});
+          final roomCall = Map<String, dynamic>.from(roomCallResponse.data as Map);
+          if (roomCall['billingRequired'] == true && !_creatorBillingConsented) {
+            final rate = roomCall['billingRate'];
+            final financialConsent = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('موافقة المنشئ المالية'),
+                content: Text(
+                  'سعر هذه المكالمة $rate كوينز لكل دقيقة إجمالاً. تُقسّم الكلفة بالتساوي على جميع المشاركين المتصلين، بما في ذلك من ينضم متأخراً. هل توافق مالياً على هذه السياسة؟',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('عدم الموافقة'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('أوافق مالياً'),
+                  ),
+                ],
+              ),
+            );
+            if (financialConsent != true || !mounted) {
+              await _functions.httpsCallable('respondToRoomCallJoinRequest').call({
+                'callId': widget.callId,
+                'requesterUid': requesterUid,
+                'decision': 'reject',
+              });
+              continue;
+            }
+            await _functions.httpsCallable('consentToRoomCallBilling').call({
+              'callId': widget.callId,
+              'consent': true,
+            });
+            _creatorBillingConsented = true;
+          }
+          final decision = await _functions.httpsCallable('respondToRoomCallJoinRequest').call({
+            'callId': widget.callId,
+            'requesterUid': requesterUid,
+            'decision': 'approve',
+          });
+          final decisionData = Map<String, dynamic>.from(decision.data as Map);
+          if (decisionData['approved'] == true) {
+            final peer = await _createPeer(requesterUid, _iceServers);
+            if (!_remoteUids.contains(requesterUid)) _remoteUids.add(requesterUid);
+            final offer = await peer.createOffer(<String, dynamic>{
+              'offerToReceiveAudio': true,
+              'offerToReceiveVideo': widget.mode == 'video',
+            });
+            await peer.setLocalDescription(offer);
+            await _queueSignal(requesterUid, 'offer', offer.toMap());
+          }
+        } else {
+          await _functions.httpsCallable('respondToRoomCallJoinRequest').call({
+            'callId': widget.callId,
+            'requesterUid': requesterUid,
+            'decision': 'reject',
+          });
+        }
+        _handledJoinRequestUids.add(requesterUid);
+      }
+    } catch (error) {
+      if (mounted && !_ending) {
+        setState(() => _failure = 'تعذر معالجة طلبات الانضمام: $error');
+      }
+    } finally {
+      _syncingRoomCall = false;
     }
   }
 
