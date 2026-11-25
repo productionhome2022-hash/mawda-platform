@@ -173,6 +173,34 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   };
 }
 
+export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
+export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
+
+export type TimedAdDailyCapDecision =
+  | { eligible: true; reason: "within_daily_caps" }
+  | { eligible: false; reason: "daily_claim_cap" | "daily_coin_cap" };
+
+/** Pure guard shared by the transactional claim path and exact-boundary tests. */
+export function decideTimedAdDailyCap(input: {
+  claimCount: number;
+  rewardCoins: number;
+  nextRewardCoins: number;
+}): TimedAdDailyCapDecision {
+  const { claimCount, rewardCoins, nextRewardCoins } = input;
+  if (!Number.isSafeInteger(claimCount) || claimCount < 0 ||
+      !Number.isSafeInteger(rewardCoins) || rewardCoins < 0 ||
+      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 1) {
+    throw new Error("TIMED_AD_DAILY_CAP_INPUT_INVALID");
+  }
+  if (claimCount >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_claim_cap" };
+  }
+  if (rewardCoins + nextRewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_coin_cap" };
+  }
+  return { eligible: true, reason: "within_daily_caps" };
+}
+
 export const AD_HEARTBEAT_MAX_GAP_MS = 15_000;
 
 /** Only short, sequential foreground intervals may add eligible viewing time. */
