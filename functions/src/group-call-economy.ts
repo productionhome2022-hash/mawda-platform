@@ -63,6 +63,9 @@ export function calculateGroupCallCoinShares(
       !participantUids.includes(initiatorUid)) {
     throw new Error("INVALID_GROUP_CALL_SETTLEMENT_INPUT");
   }
+  if (participantUids.length > totalAmount) {
+    throw new Error("GROUP_CALL_TOTAL_BELOW_MINIMUM_SHARE");
+  }
   const orderedUids = [...participantUids].sort((a, b) => a.localeCompare(b));
   const baseShare = Math.floor(totalAmount / orderedUids.length);
   const initiatorRemainder = totalAmount % orderedUids.length;
