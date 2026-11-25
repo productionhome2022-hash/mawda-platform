@@ -1,6 +1,7 @@
 export { getMyBiometricVerificationStatus, getBiometricVerificationPhrase, startBiometricVerificationRequest, submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests, getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, cleanupDecidedBiometricEvidence } from "./biometric-lifecycle";
 import {
-  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, calculateStoreGiftExpiryMs,
+  isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser,
+  calculateStoreGiftExpiryMs,
 } from "./store-gifting";
 import {
   validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled,
@@ -6522,6 +6523,17 @@ export const giftStoreItem = onCall(async (request) => {
   const ledgerRef = senderRef.collection("walletLedger").doc(`store_gift_${giftId}`);
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   const auditRef = db.collection("adminAuditLogs").doc(`store_gift_${giftId}`);
+  // Preserve exact replay for a previously committed gift, even if the recipient's
+  // Auth account changes later. New gifts require a live, registered Auth identity.
+  const priorGiftPreflight = await giftRef.get();
+  if (!priorGiftPreflight.exists) {
+    let recipientAuth: UserRecord;
+    try { recipientAuth = await getAuth().getUser(recipientUid); }
+    catch { throw new HttpsError("permission-denied", "حساب المستلم غير موجود أو غير مؤهل لاستلام الهدية."); }
+    if (!isEligibleStoreGiftAuthUser(recipientAuth)) {
+      throw new HttpsError("permission-denied", "لا يمكن إهداء المزايا إلى حساب زائر أو معطل.");
+    }
+  }
   return db.runTransaction(async (transaction) => {
     const [sender, recipient, itemSnapshot, catalogVersionSnapshot, priorGift, priorEntitlement, priorLedger, priorAudit, usernameSnapshot] = await Promise.all([
       transaction.get(senderRef), transaction.get(recipientRef),
