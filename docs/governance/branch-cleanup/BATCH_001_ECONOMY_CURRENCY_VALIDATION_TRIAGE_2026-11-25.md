@@ -34,7 +34,7 @@ Relevant current file blob identities:
 
 The missing production behavior is narrowly identified: creator-proposal and advertising-intake budgets in Full Platform do not currently use the shared owner-approved currency precision validator, although the helper exists in the current tree. Recovery contains that integration.
 
-The Recovery test commits are not portable as-is because they assert acceptance of KWD and JPY while the shared helper and the owner-approved currency registry reject those codes. This review does not change or extend the approved currency policy. The tests must be reconciled to the existing registry rather than widening it.
+The Recovery test commits are not portable as-is because they assert acceptance of KWD and JPY while the shared helper and the current `functions/test/economy-pricing.test.js` explicitly reject those codes. The current test also confirms the exact supported set and minor-unit precision: two decimals for EUR/USD/EGP/SAR/SYP/AED/DZD/MAD/TRY, three decimals for JOD/IQD, and null for CHF; KWD and JPY are rejected. The source of truth for this implemented allowlist is the existing Full Platform code/test, not an inferred global ISO list. This review does not change or extend that policy. The Recovery tests must be reconciled to the existing registry rather than widening it.
 
 ## Transfer decision
 
