@@ -1,7 +1,8 @@
 export const CAPACITY_MEDIA_DEFAULTS = Object.freeze({
   schemaVersion: 1,
   capacityTierSize: 1_000,
-  activeMemberBasis: "concurrent_active_sessions",
+  // No authoritative active-member/session meter is connected yet.
+  activeMemberBasis: "not_connected",
   enforcementMode: "observe_only",
   coreServicesExemptFromQuota: true,
   monthlyMediaQuotas: Object.freeze({
@@ -21,7 +22,7 @@ export type CapacityMediaQuotaKey =
 export type CapacityMediaPolicy = {
   schemaVersion: 1;
   capacityTierSize: 1_000;
-  activeMemberBasis: "concurrent_active_sessions";
+  activeMemberBasis: "not_connected";
   enforcementMode: "observe_only";
   coreServicesExemptFromQuota: true;
   monthlyMediaQuotas: Record<CapacityMediaQuotaKey, number | null>;
@@ -58,49 +59,9 @@ export function projectCapacityMediaPolicy(
   return {
     schemaVersion: 1,
     capacityTierSize: 1_000,
-    activeMemberBasis: "concurrent_active_sessions",
+    activeMemberBasis: "not_connected",
     enforcementMode: "observe_only",
     coreServicesExemptFromQuota: true,
     monthlyMediaQuotas: { ...monthlyMediaQuotas },
-  };
-}
-
-
-export type CapacityMediaMeasurement = {
-  status: "partial" | "not_started";
-  monthUtc: string;
-  monthlyUploadBytes: number | null;
-  finalizedUploadCount: number | null;
-  concurrentActiveMembers: null;
-  capacityTierCount: null;
-  monthlyDownloadBytes: null;
-  retainedStorageBytes: null;
-  processingMinutes: null;
-};
-
-/** Missing or malformed meter values are never projected as real zero usage. */
-export function projectCapacityMediaMeasurement(input: {
-  monthUtc: string;
-  meterExists: boolean;
-  monthlyUploadBytes: unknown;
-  finalizedUploadCount: unknown;
-}): CapacityMediaMeasurement {
-  if (!/^\d{4}-\d{2}$/.test(input.monthUtc)) {
-    throw new Error("INVALID_CAPACITY_MEDIA_MEASUREMENT_MONTH");
-  }
-  const safeNonNegativeInteger = (value: unknown): number | null =>
-    typeof value === "number" && Number.isSafeInteger(value) && value >= 0
-      ? value
-      : null;
-  return {
-    status: input.meterExists ? "partial" : "not_started",
-    monthUtc: input.monthUtc,
-    monthlyUploadBytes: input.meterExists ? safeNonNegativeInteger(input.monthlyUploadBytes) : null,
-    finalizedUploadCount: input.meterExists ? safeNonNegativeInteger(input.finalizedUploadCount) : null,
-    concurrentActiveMembers: null,
-    capacityTierCount: null,
-    monthlyDownloadBytes: null,
-    retainedStorageBytes: null,
-    processingMinutes: null,
   };
 }
