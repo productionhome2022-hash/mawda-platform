@@ -1,10 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 const { createHash } = require("node:crypto");
 const { setStoreCatalogItem, giftStoreItem } = require("../../lib/index");
 
 const db = getFirestore();
+const auth = getAuth();
 const ownerRequest = (uid, data) => ({
   data, auth: { uid, token: {
     platformOwner: true, platformOwnerUid: uid,
@@ -54,6 +56,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     otherUsernameRef.set({ uid: otherRecipientUid, username: otherRecipientUsername }),
   ]);
   try {
+    await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, emailVerified: true });
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
       itemId, name: "عضوية VIP", description: "استحقاق تجريبي للإهداء.",
       category: "vip", priceCoins: 500, durationDays: 7,
@@ -147,6 +150,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
       giftRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
       auditRef.delete().catch(() => undefined),
+      auth.deleteUser(recipientUid).catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       senderRef.delete().catch(() => undefined),
       recipientRef.delete().catch(() => undefined),
@@ -204,6 +208,10 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
     blockedUsernameRef.set({ uid: blockedRecipientUid, username: blockedUsername }),
   ]);
   try {
+    await Promise.all([
+      auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, emailVerified: true }),
+      auth.createUser({ uid: blockedRecipientUid, email: `${blockedRecipientUid}@example.test`, emailVerified: true }),
+    ]);
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-permanent-catalog-owner", {
       itemId, name: "عضوية دائمة", description: "استحقاق دائم للاختبار.",
       category: "vip", priceCoins: 700, durationDays: null,
@@ -249,6 +257,8 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
       giftRef.delete().catch(() => undefined),
       ledgerRef.delete().catch(() => undefined),
       auditRef.delete().catch(() => undefined),
+      auth.deleteUser(recipientUid).catch(() => undefined),
+      auth.deleteUser(blockedRecipientUid).catch(() => undefined),
       entitlementRef.delete().catch(() => undefined),
       senderRef.delete().catch(() => undefined),
       recipientRef.delete().catch(() => undefined),
