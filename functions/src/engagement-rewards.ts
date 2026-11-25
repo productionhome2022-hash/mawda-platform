@@ -38,6 +38,9 @@ const MAX_REWARD_COINS = 100_000;
 const MAX_AD_DURATION_SECONDS = 15 * 60;
 const MAX_AD_BUDGET_COINS = 100_000_000;
 
+// Owner-approved experimental ceiling for standard campaigns; no global daily quota is implied.
+export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
+
 export function validateAttendanceRewardPolicy(value: unknown): AttendanceRewardPolicy {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("ATTENDANCE_POLICY_INVALID");
@@ -148,12 +151,12 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof durationSeconds !== "number" || !Number.isSafeInteger(durationSeconds) ||
       durationSeconds < 15 || durationSeconds > MAX_AD_DURATION_SECONDS ||
       typeof rewardCoins !== "number" || !Number.isSafeInteger(rewardCoins) ||
-      rewardCoins < 1 || rewardCoins > MAX_REWARD_COINS ||
+      rewardCoins < 0 || rewardCoins > MAX_REWARD_COINS ||
       typeof startsAtMs !== "number" || !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
       maxClaimsPerMember < 1 ||
-      (adType === "standard" && maxClaimsPerMember > 100) ||
+      (adType === "standard" && maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER) ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
