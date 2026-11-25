@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'تم تجديد التحقق من البريد وإضافة 500 كوين إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
+              'تم تجديد التحقق من البريد وإضافة 500 BetaCoins إلى محفظتك${balance == null ? '' : '؛ رصيدك الجديد $balance'}.',
             ),
             duration: const Duration(seconds: 6),
           ),
@@ -203,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 كوين.'),
+            content: Text('أرسلنا رابط تحقق جديد إلى بريدك. افتحه ثم ارجع إلى هنا واضغط الزر نفسه لاعتماد مكافأة 500 BetaCoins.'),
             duration: Duration(seconds: 8),
           ),
         );
@@ -1698,7 +1698,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.mark_email_read_outlined),
-                    label: const Text('تجديد التحقق من البريد (500 كوين كل 90 يوماً)'),
+                    label: const Text('تجديد التحقق من البريد (500 BetaCoins كل 90 يوماً)'),
                   ),
                 ),
               if (isMyProfile)
