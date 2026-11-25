@@ -2,7 +2,6 @@ export const BIOMETRIC_SPOKEN_PHRASE_VERSION = "owner-approved-2026-11-20-v1";
 export const BIOMETRIC_SPOKEN_PHRASE =
   "أنا أريد الانضمام إلى مرحلة التوثيق البيومتري لأحصل على مكافأة ألف وخمسمائة بيتكوينز. الرجاء قبول التوثيق.";
 export const BIOMETRIC_AUDIO_MAX_BYTES = 5 * 1024 * 1024;
-export const BIOMETRIC_AUDIO_MAX_DURATION_MS = 20_000;
 export const BIOMETRIC_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
 export const BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS = 5 * 60 * 1000;
 export const BIOMETRIC_EVIDENCE_REVIEW_TTL_MS = 60 * 1000;
