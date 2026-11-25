@@ -24,10 +24,9 @@ Inspected Full Platform files: functions/src/index.ts 8ff3b07a0d3a7d1356bccd15e9
 
 ## Result
 - Reviewed: 12/1,665 unique candidates in this batch.
-- Already implemented: 8.
+- Already implemented: 9.
 - Missing dependent room-admission feature: 1.
 - Conflicting economic remainder change: 2.
-- Already implemented catalog corrections: 4 (included in the eight implemented behaviors above? No; see exact classification count: 6 call behaviors + 4 catalog behaviors = 10 present).
 - Confirmed unique safe-to-transfer changes: 0.
 - Code transferred: 0.
 - Tests executed during this review: 0; source and test-file inspection only.
