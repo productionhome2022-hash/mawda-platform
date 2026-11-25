@@ -23,11 +23,9 @@ The following range 163–174 is separately documented in SEMANTIC_REVIEW_BATCH_
 - Reviewed: 6/1,665 unique candidates in this batch.
 - Present: 6.
 - Confirmed unique missing changes: 0.
-
-
 - Code transferred: 0.
 - Tests executed during this review: 0.
 - No CI success is claimed.
 
 ## Safety decision
-Keep Hide Coins fail-closed. Do not claim timed-ad daily caps are enforced until the global per-member UTC-day counter, transaction writes and exact-boundary tests are restored and reviewed together. Continue with candidate 169 onward.
+Keep Hide Coins fail-closed. Do not restore global per-member daily timed-ad quotas without explicit owner approval and centrally configurable policy. The standard per-campaign ceiling of 3 remains distinct from the unapproved global 10/20 proposal. Continue with candidate 175 onward.
