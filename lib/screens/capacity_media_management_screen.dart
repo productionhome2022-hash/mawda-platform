@@ -189,13 +189,16 @@ class _CapacityMediaManagementScreenState
                           Text('حالة القياس والتكلفة', style: Theme.of(context).textTheme.titleLarge),
                           const SizedBox(height: 8),
                           const Text(
-                            'هذه اللوحة تعرض حالة الربط الفعلية. القياسات والفوترة غير موصولة حالياً؛ '
-                            'لن نعرض أرقاماً تقديرية على أنها استهلاك حقيقي.',
+                            'عداد بايتات الملفات التي اكتمل رفعها موصول جزئياً ويُسجل إجمالي المنصة حسب شهر UTC. '
+                            'هذا ليس قياساً لحركة الشبكة أو التخزين المحتفظ به أو التكلفة. '
+                            'بقية المقاييس والفوترة غير موصولة، ولن نعرض أرقاماً تقديرية على أنها استهلاك حقيقي.',
                           ),
                           const SizedBox(height: 12),
+                          _metric('شهر القياس UTC', _measurement['monthUtc']?.toString() ?? 'غير متاح'),
                           _metric('الأعضاء المتزامنون', _measurementValue('concurrentActiveMembers')),
                           _metric('شرائح السعة لكل 1000', _measurementValue('capacityTierCount')),
-                          _metric('الرفع الشهري', _measurementValue('monthlyUploadBytes', suffix: ' bytes')),
+                          _metric('الملفات التي اكتمل رفعها', _measurementValue('finalizedUploadCount')),
+                          _metric('إجمالي بايتات الرفع النهائي', _measurementValue('monthlyUploadBytes', suffix: ' bytes')),
                           _metric('التنزيل الشهري', _measurementValue('monthlyDownloadBytes', suffix: ' bytes')),
                           _metric('التخزين المحتفظ به', _measurementValue('retainedStorageBytes', suffix: ' bytes')),
                           _metric('المعالجة', _measurementValue('processingMinutes', suffix: ' دقيقة')),
