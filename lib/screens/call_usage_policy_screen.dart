@@ -59,7 +59,8 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
       if (!mounted) return;
       setState(() {
         _groupPricingConfigured = groupPricingData['configured'] == true;
-        _groupPricingVersion = (groupPricingData['version'] as num?)?.toInt() ?? 0;
+        _groupPricingVersion = (groupPricing['version'] as num?)?.toInt() ??
+            (groupPricingData['version'] as num?)?.toInt() ?? 0;
         _groupPricingActive = groupPricing['active'] == true;
         _groupAudioCoins.text = groupPricing['audioCoinsPerMinute']?.toString() ?? '';
         _groupVideoCoins.text = groupPricing['videoCoinsPerMinute']?.toString() ?? '';
@@ -139,7 +140,7 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
         title: const Text('تأكيد سياسة تسعير المكالمات الجماعية'),
         content: Text(
           'سيتم حفظ إصدار جديد من سياسة المالك. الصوت: $audio كوين/دقيقة إجمالاً، '
-          'الفيديو: $video كوين/دقيقة إجمالاً. الحالة: '
+          'الفيديو: $video BetaCoins/دقيقة إجمالاً. الحالة: '
           '${_groupPricingActive ? "مفعّلة" : "متوقفة"}. '
           'لن تتغير السياسات المحفوظة للمكالمات السابقة.',
         ),
@@ -154,16 +155,20 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
     if (confirmed != true || !mounted) return;
     setState(() { _saving = true; _error = null; });
     try {
-      final response = await _functions.httpsCallable('setGroupCallPricingPolicy').call({
+      final response = await _functions.httpsCallable('setOwnerGroupCallPricingPolicy').call({
         'audioCoinsPerMinute': audio,
         'videoCoinsPerMinute': video,
         'active': _groupPricingActive,
       });
       final result = Map<String, dynamic>.from(response.data as Map);
+      final savedPolicy = result['policy'] is Map
+          ? Map<String, dynamic>.from(result['policy'] as Map)
+          : <String, dynamic>{};
       if (!mounted) return;
       setState(() {
         _groupPricingConfigured = true;
-        _groupPricingVersion = (result['version'] as num?)?.toInt() ?? _groupPricingVersion;
+        _groupPricingVersion = (savedPolicy['version'] as num?)?.toInt() ??
+            (result['version'] as num?)?.toInt() ?? _groupPricingVersion;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم حفظ سياسة تسعير المكالمات الجماعية. الإصدار: $_groupPricingVersion')),
@@ -235,6 +240,8 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
               children: [
                 Text('تسعير المكالمات الجماعية',
                   style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 6),
+                const Text('إعدادات اختبار فقط؛ الفوترة الفعلية معطلة ولا يتم خصم BetaCoins بهذه السياسة حالياً.'),
                 const SizedBox(height: 8),
                 Text(_groupPricingConfigured
                     ? 'إصدار التسعير الحالي: $_groupPricingVersion'
