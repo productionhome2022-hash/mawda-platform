@@ -1,10 +1,11 @@
-// Production-safe first-run policy: no reward amount or quota is assumed
-// before the owner explicitly configures and approves the campaign economy.
 export const FEATURED_AD_REWARD_DEFAULTS = {
+  // No reward amount or quota is assumed until the owner explicitly configures it.
   enabled: false,
   rewardCoinsPerView: 0,
   maxRewardedViewsPerUtcDay: 0,
   maxRewardCoinsPerUtcDay: 0,
+  maxRewardsPerCampaignRolling24h: 0,
+  sameCampaignWindowMs: 24 * 60 * 60 * 1000,
   videoCompletionPercent: 90,
   imageContinuousVisibleMs: 10_000,
 } as const;
@@ -14,6 +15,8 @@ export interface FeaturedAdRewardPolicy {
   rewardCoinsPerView: number;
   maxRewardedViewsPerUtcDay: number;
   maxRewardCoinsPerUtcDay: number;
+  maxRewardsPerCampaignRolling24h: number;
+  sameCampaignWindowMs: number;
   videoCompletionPercent: number;
   imageContinuousVisibleMs: number;
 }
@@ -31,7 +34,7 @@ export type FeaturedAdRewardDecision =
         | "completion_not_met"
         | "daily_view_cap"
         | "daily_coin_cap"
-        | "campaign_view_cap";
+        | "campaign_rolling_cap";
     };
 
 function integerInRange(value: unknown, min: number, max: number): value is number {
@@ -45,13 +48,16 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
   const input = value as Record<string, unknown>;
   if (typeof input.enabled !== "boolean" ||
       !integerInRange(input.rewardCoinsPerView, 0, 100_000) ||
-      !integerInRange(input.maxRewardedViewsPerUtcDay, 0, 100_000) ||
-      !integerInRange(input.maxRewardCoinsPerUtcDay, 0, 100_000_000) ||
+      !integerInRange(input.maxRewardedViewsPerUtcDay, 0, 10_000) ||
+      !integerInRange(input.maxRewardCoinsPerUtcDay, 0, 1_000_000) ||
+      !integerInRange(input.maxRewardsPerCampaignRolling24h, 0, 1000) ||
+      !integerInRange(input.sameCampaignWindowMs, 1, 31 * 24 * 60 * 60 * 1000) ||
       !integerInRange(input.videoCompletionPercent, 1, 100) ||
       !integerInRange(input.imageContinuousVisibleMs, 1_000, 60 * 60 * 1000) ||
       (input.enabled && (input.rewardCoinsPerView < 1 ||
         input.maxRewardedViewsPerUtcDay < 1 ||
-        input.maxRewardCoinsPerUtcDay < input.rewardCoinsPerView))) {
+        input.maxRewardCoinsPerUtcDay < input.rewardCoinsPerView ||
+        input.maxRewardsPerCampaignRolling24h < 1))) {
     throw new Error("FEATURED_AD_REWARD_POLICY_INVALID");
   }
   return {
@@ -59,6 +65,8 @@ export function validateFeaturedAdRewardPolicy(value: unknown): FeaturedAdReward
     rewardCoinsPerView: input.rewardCoinsPerView,
     maxRewardedViewsPerUtcDay: input.maxRewardedViewsPerUtcDay,
     maxRewardCoinsPerUtcDay: input.maxRewardCoinsPerUtcDay,
+    maxRewardsPerCampaignRolling24h: input.maxRewardsPerCampaignRolling24h,
+    sameCampaignWindowMs: input.sameCampaignWindowMs,
     videoCompletionPercent: input.videoCompletionPercent,
     imageContinuousVisibleMs: input.imageContinuousVisibleMs,
   };
@@ -68,11 +76,32 @@ export function defaultFeaturedAdRewardPolicy(): FeaturedAdRewardPolicy {
   return { ...FEATURED_AD_REWARD_DEFAULTS };
 }
 
-/**
- * Per-campaign repetition is an owner-controlled campaign setting, not a
- * hard-coded global rolling-window rule. The caller must supply the campaign's
- * server-stored limit and the server-counted successful claims for this member.
- */
+/** Resolve an immutable campaign reward under the owner's global per-view ceiling. */
+export function featuredAdCampaignRewardPolicy(
+  policyInput: unknown,
+  campaignRewardCoins: unknown,
+): FeaturedAdRewardPolicy {
+  const policy = validateFeaturedAdRewardPolicy(policyInput);
+  const configured = integerInRange(campaignRewardCoins, 1, 100_000) &&
+    campaignRewardCoins <= policy.rewardCoinsPerView;
+  return {
+    ...policy,
+    rewardCoinsPerView: configured ? campaignRewardCoins : 0,
+  };
+}
+
+export function featuredAdRewardBudgetAvailable(
+  budgetCoins: unknown,
+  spentCoins: unknown,
+  rewardCoins: unknown,
+): boolean {
+  return integerInRange(budgetCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(spentCoins, 0, Number.MAX_SAFE_INTEGER) &&
+    integerInRange(rewardCoins, 1, 100_000) &&
+    spentCoins <= budgetCoins &&
+    budgetCoins - spentCoins >= rewardCoins;
+}
+
 export interface FeaturedAdRewardEvidence {
   nowMs: number;
   campaignEligible: boolean;
@@ -83,8 +112,7 @@ export interface FeaturedAdRewardEvidence {
   continuousVisibleMs: number;
   rewardedViewsToday: number;
   rewardCoinsToday: number;
-  maxRewardedViewsForCampaign: number;
-  rewardedViewsForCampaign: number;
+  sameCampaignRewardsInWindow: number;
 }
 
 export function decideFeaturedAdReward(
@@ -98,8 +126,7 @@ export function decideFeaturedAdReward(
   if (!Number.isSafeInteger(evidence.nowMs) || evidence.nowMs < 0 ||
       !Number.isSafeInteger(evidence.rewardedViewsToday) || evidence.rewardedViewsToday < 0 ||
       !Number.isSafeInteger(evidence.rewardCoinsToday) || evidence.rewardCoinsToday < 0 ||
-      !integerInRange(evidence.maxRewardedViewsForCampaign, 1, Number.MAX_SAFE_INTEGER) ||
-      !Number.isSafeInteger(evidence.rewardedViewsForCampaign) || evidence.rewardedViewsForCampaign < 0) {
+      !Number.isSafeInteger(evidence.sameCampaignRewardsInWindow) || evidence.sameCampaignRewardsInWindow < 0) {
     throw new Error("FEATURED_AD_REWARD_EVIDENCE_INVALID");
   }
   if (!evidence.campaignEligible) {
@@ -130,8 +157,8 @@ export function decideFeaturedAdReward(
   if (evidence.rewardCoinsToday + policy.rewardCoinsPerView > policy.maxRewardCoinsPerUtcDay) {
     return { eligible: false, amountCoins: 0, reason: "daily_coin_cap" };
   }
-  if (evidence.rewardedViewsForCampaign >= evidence.maxRewardedViewsForCampaign) {
-    return { eligible: false, amountCoins: 0, reason: "campaign_view_cap" };
+  if (evidence.sameCampaignRewardsInWindow >= policy.maxRewardsPerCampaignRolling24h) {
+    return { eligible: false, amountCoins: 0, reason: "campaign_rolling_cap" };
   }
   return { eligible: true, amountCoins: policy.rewardCoinsPerView, reason: "qualified" };
 }

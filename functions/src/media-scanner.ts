@@ -8,11 +8,14 @@ export interface ScannerSafeDerivative {
   sha256: string;
   contentType: "image/gif" | "audio/mpeg" | "video/mp4" | "application/pdf";
   pipelineVersion: string;
+  /** Measured by the trusted decoder/transcoder, never supplied by the client. */
+  durationMs?: number;
+  frameCount?: number;
 }
 
 export interface ScannerVerdictPayload {
   mediaId: string;
-  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric" | "sticker";
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "sticker";
   stickerMetadata?: StickerMediaMetadata;
   provider: string;
   verdict: "clean" | "malicious" | "error";
@@ -64,9 +67,14 @@ export function validateScannerVerdict(
 
   let stickerMetadata: StickerMediaMetadata | undefined;
   if (v.purpose === "sticker") {
+    // Clean verdicts must carry measured sticker metadata. Malware verdicts
+    // must still be accepted even when parsing the untrusted payload is unsafe.
     if (v.verdict === "clean" || v.stickerMetadata !== undefined) {
-      try { stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata); }
-      catch { return null; }
+      try {
+        stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
+      } catch {
+        return null;
+      }
     }
   } else if (v.stickerMetadata !== undefined) {
     return null;
@@ -87,15 +95,6 @@ export function validateScannerVerdict(
       ? d.category as keyof typeof route : null;
     if (!category) return null;
     const expected = route[category];
-    const purpose = typeof v.purpose === "string" ? v.purpose : "";
-    const purposeAllowed = category === "audio"
-      ? ["chat", "room", "biometric"].includes(purpose)
-      : category === "video"
-        ? ["chat", "room", "biometric", "advertisement"].includes(purpose)
-        : category === "document"
-          ? ["chat", "room"].includes(purpose)
-          : ["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker"].includes(purpose);
-    if (!purposeAllowed) return null;
     const expectedProcessingStatus = {
       gif: "safe_animation_derivative_ready",
       audio: "safe_audio_derivative_ready",
@@ -111,15 +110,29 @@ export function validateScannerVerdict(
         typeof d.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         v.verdict !== "clean" || hasAnyPreview ||
         v.processingStatus !== expectedProcessingStatus[category]) return null;
+    const durationMs = d.durationMs;
+    const frameCount = d.frameCount;
+    if (category === "gif" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 20_000 ||
+         !Number.isSafeInteger(frameCount) || (frameCount as number) < 1 ||
+         (frameCount as number) > 50)) return null;
+    if (category === "video" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 90_000)) return null;
+    if (category !== "gif" && category !== "video" &&
+        (durationMs !== undefined || frameCount !== undefined)) return null;
     safeDerivative = {
       category, path: d.path as string, generation: d.generation as string,
       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
       pipelineVersion: d.pipelineVersion as string,
+      ...(typeof durationMs === "number" ? { durationMs } : {}),
+      ...(typeof frameCount === "number" ? { frameCount } : {}),
     };
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
-      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric", "sticker"].includes(v.purpose) ||
+      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker"].includes(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||

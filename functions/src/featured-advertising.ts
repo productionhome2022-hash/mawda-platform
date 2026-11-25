@@ -23,6 +23,17 @@ export type FeaturedAdSelection = {
   rewardEligible: false;
 };
 
+/** Shared geographic gate for showcase, session creation and reward settlement. */
+export function featuredAdTargetsGeography(
+  geographicTargets: unknown,
+  audienceGeography: string,
+): boolean {
+  return Array.isArray(geographicTargets) &&
+    typeof audienceGeography === "string" && audienceGeography.length > 0 &&
+    (geographicTargets.includes(audienceGeography) ||
+      geographicTargets.includes("all_arab_countries"));
+}
+
 function isEligible(
   campaign: FeaturedAdCampaignCandidate,
   audienceGeography: string,
@@ -37,10 +48,7 @@ function isEligible(
     Number.isSafeInteger(campaign.endsAtMs) &&
     campaign.startsAtMs <= nowMs &&
     campaign.endsAtMs > nowMs &&
-    Array.isArray(campaign.geographicTargets) &&
-    (audienceGeography === "all_arab_countries" ||
-      campaign.geographicTargets.includes(audienceGeography) ||
-      campaign.geographicTargets.includes("all_arab_countries"));
+    featuredAdTargetsGeography(campaign.geographicTargets, audienceGeography);
 }
 
 /** Fisher-Yates shuffle with injectable RNG so the fallback can be tested deterministically. */

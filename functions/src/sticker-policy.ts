@@ -180,3 +180,18 @@ export function validateStickerSendRequest(value: unknown): StickerSendRequest {
   if (!STICKER_MESSAGE_ID.test(clientMessageId)) throw new Error("INVALID_STICKER_MESSAGE_ID");
   return { scope, targetId, packId, stickerId, clientMessageId };
 }
+
+
+/** Bind idempotent retries to the complete sticker message identity, not mediaId alone. */
+export function stickerMessageReplayMatches(
+  existing: unknown,
+  expected: { senderUid: string; mediaId: string; packId: string; stickerId: string },
+): boolean {
+  if (!existing || typeof existing !== "object" || Array.isArray(existing)) return false;
+  const message = existing as Record<string, unknown>;
+  return message.type === "sticker" &&
+    message.senderUid === expected.senderUid &&
+    message.mediaId === expected.mediaId &&
+    message.stickerPackId === expected.packId &&
+    message.stickerId === expected.stickerId;
+}

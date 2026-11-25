@@ -11,6 +11,14 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   discovery_boost_7d: "boost",
   profile_theme_30d: "theme",
   visitor_greeting_30d: "greeting",
+  voice_call_24h: "voice_call",
+  voice_call_7d: "voice_call",
+  voice_call_30d: "voice_call",
+  video_call_24h: "video_call",
+  video_call_7d: "video_call",
+  video_call_30d: "video_call",
+  ghost_mode_7d: "privacy",
+  media_saver_7d: "media_saver",
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
@@ -19,12 +27,11 @@ function isStoreFulfillmentReady(itemId: string, category: string): boolean {
 
 export type StoreCatalogItem = {
   itemId: string;
-  version: number | null;
   active: boolean;
   name: string;
   description: string;
   category: string;
-  priceCoins: number | null;
+  priceCoins: number;
   durationDays?: number;
   sortOrder: number;
   purchaseEnabled: boolean;
@@ -42,19 +49,16 @@ export function projectStoreCatalogItem(
   }
   if (typeof data.description !== "string" || data.description.length > 500) return null;
   if (typeof data.category !== "string" ||
-      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "voice_call", "video_call"].includes(data.category)) {
+      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "media_saver", "voice_call", "video_call"].includes(data.category)) {
     return null;
   }
-  const version = data.version ?? null;
-  if (version !== null && (!Number.isSafeInteger(version) || (version as number) < 1)) return null;
-  const priceCoins = data.priceCoins ?? null;
-  if (priceCoins !== null &&
-      (typeof priceCoins !== "number" || !Number.isSafeInteger(priceCoins) || priceCoins <= 0)) {
+  if (typeof data.priceCoins !== "number" ||
+      !Number.isSafeInteger(data.priceCoins) ||
+      data.priceCoins <= 0) {
     return null;
   }
-  if (data.purchaseEnabled === true && priceCoins === null) return null;
-  const durationDays = data.durationDays ?? null;
-  if (durationDays !== null &&
+  const durationDays = data.durationDays;
+  if (durationDays !== undefined &&
       (typeof durationDays !== "number" || !Number.isSafeInteger(durationDays) ||
        durationDays < 1 || durationDays > 3650)) {
     return null;
@@ -66,13 +70,12 @@ export function projectStoreCatalogItem(
     data.fulfillmentReady === true;
   return {
     itemId,
-    version: version as number | null,
     active: true,
     name: data.name.trim(),
     description: data.description.trim(),
     category: data.category,
-    priceCoins,
-    ...(durationDays !== null ? { durationDays } : {}),
+    priceCoins: data.priceCoins,
+    ...(typeof durationDays === "number" ? { durationDays } : {}),
     sortOrder,
     purchaseEnabled: fulfillmentReady && data.purchaseEnabled === true,
     fulfillmentReady,
@@ -96,13 +99,9 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
   if (value.purchaseEnabled !== undefined && typeof value.purchaseEnabled !== "boolean") {
     throw new Error("INVALID_STORE_PURCHASE_ENABLED");
   }
-  // Project fields without enabling charging first. Owner input validation below
-  // must return the precise missing-price / fulfillment error instead of collapsing
-  // it into INVALID_STORE_ITEM_FIELDS.
   const projected = projectStoreCatalogItem(itemId, {
     ...value,
     active: true,
-    purchaseEnabled: false,
   });
   if (!projected) throw new Error("INVALID_STORE_ITEM_FIELDS");
   const sortOrder = value.sortOrder === undefined ? 1000 : value.sortOrder;
@@ -114,9 +113,6 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
   // Privacy add-ons remain fail-closed until their visibility semantics are implemented.
   const fulfillmentReady = isStoreFulfillmentReady(projected.itemId, projected.category);
   const purchaseEnabled = value.purchaseEnabled === true;
-  if (purchaseEnabled && projected.priceCoins === null) {
-    throw new Error("STORE_PRICE_NOT_CONFIGURED");
-  }
   if (purchaseEnabled && !fulfillmentReady) {
     throw new Error("STORE_FULFILLMENT_NOT_READY");
   }
@@ -131,18 +127,12 @@ export function validateStoreCatalogItemInput(input: unknown): ValidatedStoreCat
 
 
 /** Charging is denied unless the catalog entry is published and fulfillment is explicitly ready. */
-export function isStoreItemPurchasable(
-  value: unknown,
-): value is StoreCatalogItem & { version: number; priceCoins: number } {
+export function isStoreItemPurchasable(value: unknown): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
   return typeof item.itemId === "string" &&
     isStoreFulfillmentReady(item.itemId, String(item.category)) &&
     item.active === true &&
-    Number.isSafeInteger(item.version) && (item.version as number) > 0 &&
     item.purchaseEnabled === true &&
-    item.fulfillmentReady === true &&
-    typeof item.priceCoins === "number" &&
-    Number.isSafeInteger(item.priceCoins) &&
-    item.priceCoins > 0;
+    item.fulfillmentReady === true;
 }
