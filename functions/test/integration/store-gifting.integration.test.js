@@ -48,7 +48,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     }),
   ]);
   try {
-    await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, emailVerified: true });
+    await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, password: `GiftTest-${tag}-Recipient!`, emailVerified: true });
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
       itemId, name: "عضوية VIP", description: "استحقاق تجريبي للإهداء.",
       category: "vip", priceCoins: 500, durationDays: 7,
@@ -187,12 +187,11 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
     blockedRecipientRef.set({
       profileCompleted: true, accountStatus: "suspended", coins: 50,
     }),
-    blockedUsernameRef.set({ uid: blockedRecipientUid, username: blockedUsername }),
   ]);
   try {
     await Promise.all([
-      auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, emailVerified: true }),
-      auth.createUser({ uid: blockedRecipientUid, email: `${blockedRecipientUid}@example.test`, emailVerified: true }),
+      auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, password: `GiftTest-${tag}-Recipient!`, emailVerified: true }),
+      auth.createUser({ uid: blockedRecipientUid, email: `${blockedRecipientUid}@example.test`, password: `GiftTest-${tag}-Blocked!`, emailVerified: true }),
     ]);
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-permanent-catalog-owner", {
       itemId, name: "عضوية دائمة", description: "استحقاق دائم للاختبار.",
