@@ -5,9 +5,12 @@ const {
   projectEconomicPaymentPolicy,
 } = require("../lib/economy-payment-policy");
 
-test("legacy payment booleans cannot enable a service without explicit owner policy", () => {
-  const policy = projectEconomicPaymentPolicy(undefined);
-  assert.equal(policy.coin_purchases.manualEnabled, false);
+test("projects legacy manual switches into service-scoped policy during migration", () => {
+  const policy = projectEconomicPaymentPolicy(undefined, {
+    manualCoinPurchasesEnabled: true,
+    manualFeaturedAdsEnabled: false,
+  });
+  assert.equal(policy.coin_purchases.manualEnabled, true);
   assert.equal(policy.featured_ads.manualEnabled, false);
   assert.equal(policy.public_ads.manualEnabled, false);
   assert.equal(policy.influencer_services.manualEnabled, false);
@@ -68,10 +71,13 @@ test("rejects unknown services and malformed switches", () => {
   }), /PAYMENT_MODE_INVALID/);
 });
 
-test("explicit service policy controls each manual payment service", () => {
+test("explicit service policy overrides legacy migration defaults", () => {
   const policy = projectEconomicPaymentPolicy({
     coin_purchases: { manualEnabled: false, automatedEnabled: false },
     featured_ads: { manualEnabled: true, automatedEnabled: false },
+  }, {
+    manualCoinPurchasesEnabled: true,
+    manualFeaturedAdsEnabled: false,
   });
   assert.equal(policy.coin_purchases.manualEnabled, false);
   assert.equal(policy.featured_ads.manualEnabled, true);
