@@ -122,19 +122,19 @@ class _MemberEntitlementHistoryScreenState
                     final expiresAt = entry['expiresAtMs'];
                     final counterpart = received ? entry['senderUid'] : entry['recipientUid'];
                     final duration = entry['durationDays'] == null
-                        ? 'دائم' : '\${entry['durationDays']} يوماً';
+                        ? 'دائم' : '${entry['durationDays']} يوماً';
                     final title = isCoinPackage
                         ? (entry['packageName'] as String? ?? 'باقة BetaCoins')
                         : (entry['itemName'] as String? ?? 'هدية من متجر مودة');
                     final details = isCoinPackage
-                        ? 'استلمت باقة من: \${counterpart ?? 'غير معروف'}\n'
-                          'الكمية: \${entry['coins'] ?? 0} BetaCoins\n'
-                          'التاريخ: \${_formatTime(entry['createdAtMs'])}'
+                        ? 'استلمت باقة من: ${counterpart ?? 'غير معروف'}\n'
+                          'الكمية: ${entry['coins'] ?? 0} BetaCoins\n'
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}'
                         : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart\n' +
-                          'القيمة: \${entry['priceCoins'] ?? 0} BetaCoins\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\n' +
                           'المدة: $duration\n' +
-                          'التاريخ: \${_formatTime(entry['createdAtMs'])}\n' +
-                          'الانتهاء: \${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\n' +
+                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
                     return Card(
                       child: ListTile(
                         leading: Icon(isCoinPackage
