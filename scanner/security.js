@@ -46,7 +46,7 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
       : v.purpose === "biometric"
         ? v.contentType.startsWith("audio/") || v.contentType === "video/mp4"
         : v.purpose === "sticker"
-          ? ["image/gif", "image/png", "image/jpeg", "image/webp"].includes(v.contentType)
+          ? ["image/gif", "image/png", "image/webp"].includes(v.contentType)
           : isImage;
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
       url.username || url.password || url.hash ||
@@ -112,7 +112,9 @@ function sanitizeScannerError(error) {
     "DERIVATIVE_METADATA_MISMATCH", "INVALID_DERIVATIVE_PATH",
     "MEDIA_DURATION_INVALID", "AUDIO_STREAM_OR_DURATION_INVALID",
     "VIDEO_STREAM_OR_DURATION_INVALID", "STICKER_MEDIA_TYPE_INVALID",
-    "STICKER_MEDIA_SIZE_INVALID", "STICKER_IMAGE_DIMENSIONS_INVALID", "PDF_PAGE_COUNT_INVALID",
+    "STICKER_SOURCE_INVALID", "STICKER_DIMENSIONS_OR_FRAMES_INVALID",
+    "STICKER_ANIMATION_LIMIT_EXCEEDED", "STICKER_STATIC_LIMIT_EXCEEDED",
+    "PDF_PAGE_COUNT_INVALID",
     "PDF_RASTER_PAGE_COUNT_MISMATCH", "GIF_ANIMATION_FRAME_COUNT_CHANGED",
   ]);
   if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_[0-9]{3}$/.test(message) ||
