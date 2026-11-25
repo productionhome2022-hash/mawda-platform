@@ -6,6 +6,18 @@ export type RoomRentalPlan = {
   active: boolean;
 };
 
+/**
+ * Experimental baseline prices for development and integration validation only.
+ * These are provisional coin values, not approved commercial pricing.
+ * Owner-saved platformSettings/roomRentals plans override this baseline.
+ */
+export const DEFAULT_ROOM_RENTAL_PLANS: RoomRentalPlan[] = [
+  { planId: "room_30d", name: "استئجار غرفة 30 يوماً", durationDays: 30, priceCoins: 1000, active: true },
+  { planId: "room_90d", name: "استئجار غرفة 90 يوماً", durationDays: 90, priceCoins: 2700, active: true },
+  { planId: "room_180d", name: "استئجار غرفة 180 يوماً", durationDays: 180, priceCoins: 5000, active: true },
+  { planId: "room_365d", name: "استئجار غرفة 365 يوماً", durationDays: 365, priceCoins: 9000, active: true },
+];
+
 export function validateRoomRentalPlans(value: unknown): RoomRentalPlan[] {
   if (!Array.isArray(value) || value.length > 12) {
     throw new Error("INVALID_ROOM_RENTAL_PLANS");
@@ -40,7 +52,11 @@ export function roomRentalExpiry(nowMs: number, durationDays: number): number {
       !Number.isSafeInteger(durationDays) || durationDays < 1 || durationDays > 3650) {
     throw new Error("INVALID_ROOM_RENTAL_EXPIRY");
   }
-  return nowMs + durationDays * 24 * 60 * 60 * 1000;
+  const expiryMs = nowMs + durationDays * 24 * 60 * 60 * 1000;
+  if (!Number.isSafeInteger(expiryMs)) {
+    throw new Error("INVALID_ROOM_RENTAL_EXPIRY");
+  }
+  return expiryMs;
 }
 
 export function calculateRoomRentalBalance(balance: unknown, priceCoins: number): number | null {
