@@ -1,10 +1,10 @@
-# Semantic review batch 005 — mixed biometric, governance and call-economy candidates 61–72
+# Supplemental review to batch 004 — biometric, governance and call-economy candidates 61–72
 Date: 2026-11-25
 Repository: productionhome2022-hash/mawda-platform
 Target branch: codex/mawda-full-platform-implementation
 Target HEAD before this report: e41f1aa458fef515aecff067d48e9b0ebc8a4507
 Candidate CSV blob: 296134e6de35b04304413a090469e79c3fb13388
-Scope: unique UNMATCHED candidates 61–72, continuing sequentially.
+Scope: supplemental correction to batch 004. This record captures the exact missing implementation/test/governance details found after the initial semantic classification of candidates 61–72.
 
 ## Candidate-by-candidate disposition
 
@@ -38,4 +38,4 @@ Scope: unique UNMATCHED candidates 61–72, continuing sequentially.
 - GitHub combined statuses on both code commits were empty; no CI success is claimed.
 
 ## Safety and next step
-No production, Firebase, billing, main-branch or deployment action was taken. The two policy-document changes were not applied because the authoritative policy's phrase configuration clauses conflict with the historical branch edits. Continue at candidate 73.
+No production, Firebase, billing, main-branch or deployment action was taken. The two policy-document changes were not applied because the authoritative policy's phrase configuration clauses conflict with the historical branch edits. Continue at candidate 73; batch 004 is the consolidated classification, and this supplement records the restored details.
