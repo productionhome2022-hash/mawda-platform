@@ -11,21 +11,6 @@ const FULFILLMENT_READY_ITEM_CATEGORIES: Record<string, string> = {
   discovery_boost_7d: "boost",
   profile_theme_30d: "theme",
   visitor_greeting_30d: "greeting",
-  voice_call_24h: "voice_call",
-  voice_call_7d: "voice_call",
-  voice_call_30d: "voice_call",
-  video_call_24h: "video_call",
-  video_call_7d: "video_call",
-  video_call_30d: "video_call",
-  media_saver_24h: "media_saver",
-  media_saver_7d: "media_saver",
-  media_saver_30d: "media_saver",
-};
-
-const MEDIA_SAVER_ITEM_DURATIONS: Record<string, number> = {
-  media_saver_24h: 1,
-  media_saver_7d: 7,
-  media_saver_30d: 30,
 };
 
 function isStoreFulfillmentReady(itemId: string, category: string): boolean {
@@ -57,7 +42,7 @@ export function projectStoreCatalogItem(
   }
   if (typeof data.description !== "string" || data.description.length > 500) return null;
   if (typeof data.category !== "string" ||
-      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "media_saver", "voice_call", "video_call"].includes(data.category)) {
+      !["feature", "avatar", "theme", "title", "vip", "analytics", "discovery", "badge", "frame", "username_style", "profile_layout", "boost", "greeting", "privacy", "voice_call", "video_call"].includes(data.category)) {
     return null;
   }
   const version = data.version ?? null;
@@ -71,11 +56,7 @@ export function projectStoreCatalogItem(
   const durationDays = data.durationDays ?? null;
   if (durationDays !== null &&
       (typeof durationDays !== "number" || !Number.isSafeInteger(durationDays) ||
-       (durationDays < 1 || durationDays > 3650))) {
-    return null;
-  }
-  const requiredMediaSaverDuration = MEDIA_SAVER_ITEM_DURATIONS[itemId];
-  if (requiredMediaSaverDuration !== undefined && durationDays !== requiredMediaSaverDuration) {
+       durationDays < 1 || durationDays > 3650)) {
     return null;
   }
   const sortOrder = typeof data.sortOrder === "number" &&
