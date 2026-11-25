@@ -59,8 +59,9 @@ test("creator proposal budgets obey selected currency precision", () => {
     () => validateCreatorProposalInput({ ...written, currency: "EUR" }),
     /invalid_proposed_budget/,
   );
+  assert.equal(validateCreatorProposalInput({ ...written, currency: "KWD" }).currency, "KWD");
   assert.throws(
-    () => validateCreatorProposalInput({ ...written, currency: "KWD" }),
+    () => validateCreatorProposalInput({ ...written, currency: "JPY" }),
     /invalid_proposed_budget/,
   );
   assert.throws(
