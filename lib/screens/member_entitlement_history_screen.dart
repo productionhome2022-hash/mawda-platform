@@ -117,23 +117,31 @@ class _MemberEntitlementHistoryScreenState
                       child: Text('لا توجد هدايا مسجلة حتى الآن.'),
                     ),
                   ..._giftEntries.map((entry) {
-                    final received = entry['direction'] == 'received';
+                    final isCoinPackage = entry['giftKind'] == 'coin_package';
+                    final received = isCoinPackage || entry['direction'] == 'received';
                     final expiresAt = entry['expiresAtMs'];
                     final counterpart = received ? entry['senderUid'] : entry['recipientUid'];
                     final duration = entry['durationDays'] == null
                         ? 'دائم' : '${entry['durationDays']} يوماً';
+                    final title = isCoinPackage
+                        ? (entry['packageName'] as String? ?? 'باقة BetaCoins')
+                        : (entry['itemName'] as String? ?? 'هدية من متجر مودة');
+                    final subtitle = isCoinPackage
+                        ? 'هدية بقيمة ${entry['coins'] ?? 0} BetaCoins\n'
+                          'من العضو: ${counterpart ?? 'غير معروف'}\n'
+                          'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
+                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\n' +
+                          'المدة: $duration\n' +
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\n' +
+                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
                     return Card(
                       child: ListTile(
-                        leading: Icon(received ? Icons.card_giftcard : Icons.redeem_outlined),
-                        title: Text(entry['itemName'] as String? ?? 'هدية من متجر مودة'),
-                        subtitle: Text(
-                          (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\n' +
-                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n' +
-                          'المدة: $duration\\n' +
-                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\n' +
-                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}',
-                        ),
-                        isThreeLine: true,
+                        leading: Icon(isCoinPackage ? Icons.monetization_on_outlined :
+                            received ? Icons.card_giftcard : Icons.redeem_outlined),
+                        title: Text(title),
+                        subtitle: Text(subtitle),
+                        isThreeLine: !isCoinPackage,
                       ),
                     );
                   }),
