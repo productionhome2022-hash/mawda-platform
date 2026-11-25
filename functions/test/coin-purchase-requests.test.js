@@ -51,19 +51,26 @@ test("owner payment instructions require bounded negotiated terms", () => {
       expectedInstructionsVersion: 0,
     }).currencyExponent, 2);
   }
-  for (const currency of ["JOD", "IQD"]) {
+  for (const currency of ["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"]) {
     assert.equal(validateOwnerPaymentInstructionInput({
       requestId: "request_128", instructions: "Owner selected three-decimal currency",
       agreedCoins: 1000, agreedPriceMinor: 999, currency,
       expectedInstructionsVersion: 0,
     }).currencyExponent, 3);
   }
-  for (const currency of ["CHF", "KWD", "JPY", "XXX"]) {
+  for (const currency of ["XXX"]) {
     assert.throws(() => validateOwnerPaymentInstructionInput({
       requestId: "request_127", instructions: "Unsupported currency must fail",
       agreedCoins: 1000, agreedPriceMinor: 999, currency,
       expectedInstructionsVersion: 0,
     }), /INVALID_INSTRUCTIONS/);
+  }
+  for (const currency of ["JPY", "KRW", "VND"]) {
+    assert.equal(validateOwnerPaymentInstructionInput({
+      requestId: "request_129", instructions: "Owner selected zero-decimal currency",
+      agreedCoins: 1000, agreedPriceMinor: 999, currency,
+      expectedInstructionsVersion: 0,
+    }).currencyExponent, 0);
   }
   assert.throws(() => validateOwnerPaymentInstructionInput({
     requestId: "request_123", instructions: "Valid enough instructions",
