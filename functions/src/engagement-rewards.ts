@@ -234,6 +234,37 @@ export function decideTimedAdDailyCap(input: {
 
 export const AD_HEARTBEAT_MAX_GAP_MS = 15_000;
 
+// Experimental development safety rails; production values remain owner-configurable.
+export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
+export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
+export const TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER = 3;
+
+export type TimedAdDailyCapDecision =
+  | { eligible: true; reason: "within_daily_caps" }
+  | { eligible: false; reason: "daily_claim_cap" | "daily_coin_cap" };
+
+/** Pure guard shared by the transactional claim path and boundary tests. */
+export function decideTimedAdDailyCap(input: {
+  claimCount: number;
+  rewardCoins: number;
+  nextRewardCoins: number;
+}): TimedAdDailyCapDecision {
+  const { claimCount, rewardCoins, nextRewardCoins } = input;
+  if (!Number.isSafeInteger(claimCount) || claimCount < 0 ||
+      !Number.isSafeInteger(rewardCoins) || rewardCoins < 0 ||
+      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 1) {
+    throw new Error("TIMED_AD_DAILY_CAP_INPUT_INVALID");
+  }
+  if (claimCount >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_claim_cap" };
+  }
+  if (rewardCoins + nextRewardCoins > TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER) {
+    return { eligible: false, reason: "daily_coin_cap" };
+  }
+  return { eligible: true, reason: "within_daily_caps" };
+}
+
+
 /** Only short, sequential foreground intervals may add eligible viewing time. */
 export function eligibleHeartbeatDelta(
   previousHeartbeatAtMs: number | null,
