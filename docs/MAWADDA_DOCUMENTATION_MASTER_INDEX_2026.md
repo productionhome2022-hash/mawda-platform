@@ -155,3 +155,9 @@
 - النسخ الوثائقية العشر التي اختلف محتواها بين Full Platform وRecovery محفوظة كما هي في docs/_archive/recovery-conflict-snapshots-2026-11-24/، مع إبقاء النسخ المرجعية الموجودة في Full دون استبدال صامت.
 - المصدر: codex/mawda-recovery-integration-2026-11-21 عند 990b419a81651c66a2c02ccb5e0af596c4cc8f4a. رأس Full Platform الأب قبل النقل: 5f7fc7bfafe0bcfbe339efb47cb1e6dd3ff05f7e.
 - لا يشمل هذا النقل اعتماد تغييرات Recovery البرمجية؛ اختلافات الكود تظل ضمن المصالحة البرمجية المنفصلة.
+
+## مركزية الوثائق والسجلات في Full Platform — تحديث 2026-11-25
+
+- [توجيه المالك الحاكم لمركزية الوثائق والحوكمة والسجلات والفهارس داخل Full Platform](governance/FULL_PLATFORM_DOCUMENTATION_CENTRALIZATION_OWNER_DIRECTIVE_2026-11-25.md).
+- [ملحق مصالحة وثائق Recovery وحفظ النسخ المتعارضة الثلاث المتبقية](governance/RECOVERY_DOCUMENT_CONFLICT_SUPPLEMENT_2026-11-25.md).
+- [سجل النقل الزمني ومصادر الملفات وBlob SHAs](governance/RECOVERY_DOCUMENT_MIGRATION_CHRONOLOGY_2026-11-24.csv) محدث بثلاثة صفوف تكميلية لرأس Recovery بتاريخ 2026-11-25.
