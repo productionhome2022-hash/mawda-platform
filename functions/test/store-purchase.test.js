@@ -73,11 +73,12 @@ test("profile entitlement projection hides expired, revoked, and malformed entit
 });
 
 
-test("purchase idempotency requires the same member, item and confirmed price", () => {
-  const prior = { memberUid: "member-a", itemId: "vip_30d", priceCoins: 2500 };
-  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 2500), true);
-  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 3000), false);
-  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "other_item", 2500), false);
-  assert.equal(isStorePurchaseReplayCompatible(prior, "member-b", "vip_30d", 2500), false);
-  assert.equal(isStorePurchaseReplayCompatible(null, "member-a", "vip_30d", 2500), false);
+test("purchase idempotency requires the same member, item, price and catalog version", () => {
+  const prior = { memberUid: "member-a", itemId: "vip_30d", priceCoins: 2500, catalogVersion: 7 };
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 2500, 7), true);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 3000, 7), false);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "vip_30d", 2500, 8), false);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-a", "other_item", 2500, 7), false);
+  assert.equal(isStorePurchaseReplayCompatible(prior, "member-b", "vip_30d", 2500, 7), false);
+  assert.equal(isStorePurchaseReplayCompatible(null, "member-a", "vip_30d", 2500, 7), false);
 });
