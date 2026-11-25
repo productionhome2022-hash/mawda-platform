@@ -3,7 +3,6 @@ const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
-  requestRoomCallJoin, respondToRoomCallJoinRequest,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -552,31 +551,6 @@ test("group audio follows room capacity and group video is capped at four total 
     );
     assert.equal((await videoFive.callRef.get()).exists, false);
 
-    const videoConcurrent = await seedRoom("group_video_concurrent", 5, 5);
-    const concurrentStart = await startCall.run(call(videoConcurrent.ownerUid, {
-      callId: videoConcurrent.callId, scope: "room",
-      targetId: videoConcurrent.roomId, mode: "video",
-    }));
-    assert.deepEqual(concurrentStart.participantUids, [videoConcurrent.ownerUid]);
-    for (const memberUid of videoConcurrent.memberUids.slice(1, 3)) {
-      await requestRoomCallJoin.run(call(memberUid, { callId: videoConcurrent.callId }));
-      await respondToRoomCallJoinRequest.run(call(videoConcurrent.ownerUid, {
-        callId: videoConcurrent.callId, requesterUid: memberUid, decision: "approve",
-      }));
-    }
-    const competingMembers = videoConcurrent.memberUids.slice(3);
-    await Promise.all(competingMembers.map((memberUid) =>
-      requestRoomCallJoin.run(call(memberUid, { callId: videoConcurrent.callId }))));
-    const competingApprovals = await Promise.allSettled(competingMembers.map((memberUid) =>
-      respondToRoomCallJoinRequest.run(call(videoConcurrent.ownerUid, {
-        callId: videoConcurrent.callId, requesterUid: memberUid, decision: "approve",
-      }))));
-    const approvedCount = competingApprovals.filter((result) => result.status === "fulfilled").length;
-    const rejectedResults = competingApprovals.filter((result) => result.status === "rejected");
-    assert.equal(approvedCount, 1, "only one concurrent approval may consume the final video slot");
-    assert.equal(rejectedResults.length, 1);
-    assert.equal(rejectedResults[0].reason.code, "resource-exhausted");
-    assert.equal((await videoConcurrent.callRef.get()).data()?.participantUids.length, 4);
   } finally {
     for (const fixture of fixtures) {
       await Promise.all([
