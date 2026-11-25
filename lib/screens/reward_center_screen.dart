@@ -4,7 +4,16 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class RewardCenterScreen extends StatefulWidget {
-  const RewardCenterScreen({super.key});
+  const RewardCenterScreen({
+    super.key,
+    this.adType,
+    this.geographicTarget,
+    this.openHistoryOnLoad = false,
+  });
+
+  final String? adType;
+  final String? geographicTarget;
+  final bool openHistoryOnLoad;
   @override
   State<RewardCenterScreen> createState() => _RewardCenterScreenState();
 }
@@ -21,6 +30,8 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   String? _error;
   String? _creativeUrl;
   String? _creativeType;
+  bool _creativeLoaded = false;
+  bool _historyOpened = false;
 
   @override
   void initState() {
@@ -47,14 +58,19 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
     try {
       final activeResponse = await _functions.httpsCallable('getActiveTimedAdSession').call();
       final activeData = Map<String, dynamic>.from(activeResponse.data as Map);
-      final response = await _functions.httpsCallable('getRewardCenter').call();
+      final response = widget.adType == null
+          ? await _functions.httpsCallable('getRewardCenter').call()
+          : await _functions.httpsCallable('getActiveTimedAdCampaigns').call({
+              'adType': widget.adType,
+              if (widget.geographicTarget != null) 'geographicTarget': widget.geographicTarget,
+            });
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
       final restoredSession = activeData['active'] == true ? activeData : null;
       setState(() {
         _policy = Map<String, dynamic>.from(data['attendancePolicy'] as Map? ?? const {});
         _claimed = Map<String, dynamic>.from(data['attendanceClaimed'] as Map? ?? const {});
-        _campaigns = (data['activeCampaigns'] as List<dynamic>? ?? const [])
+        _campaigns = (data[widget.adType == null ? 'activeCampaigns' : 'campaigns'] as List<dynamic>? ?? const [])
             .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
         _activeSession = restoredSession;
         if (restoredSession != null) {
@@ -69,6 +85,11 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
           if (_foreground) unawaited(_sendHeartbeat(foreground: true));
         });
+      } else if (widget.openHistoryOnLoad && !_historyOpened) {
+        _historyOpened = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_showRewardHistory());
+        });
       }
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل مركز المكافآت.');
@@ -80,6 +101,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
   }
 
   Future<void> _loadCreative(Map<String, dynamic> session) async {
+    _creativeLoaded = session['mediaId'] == null;
     if (session['mediaId'] == null || session['creativeType'] == null ||
         session['creativeType'] == 'text') return;
     try {
@@ -109,7 +131,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(data['idempotentReplay'] == true
             ? 'تم تسجيل هذه المكافأة مسبقاً.'
-            : 'أضيفت ${data['amountBeta Coins'] ?? 0} بيتا كوينز إلى محفظتك.'),
+            : 'أضيفت ${data['amountCoins'] ?? 0} كوين إلى محفظتك.'),
       ));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'تعذرت المطالبة بالمكافأة.');
@@ -124,6 +146,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
     try {
       final response = await _functions.httpsCallable('startTimedAdvertisement').call({
         'campaignId': campaign['campaignId'],
+        if (widget.adType != null) 'adType': widget.adType,
       });
       final session = Map<String, dynamic>.from(response.data as Map);
       if (!mounted) return;
@@ -135,6 +158,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       });
       _creativeUrl = null;
       _creativeType = null;
+      _creativeLoaded = session['mediaId'] == null;
       unawaited(_loadCreative(session));
       _heartbeatTimer?.cancel();
       _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -157,7 +181,9 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
         'sessionId': session['sessionId'],
         'sequence': nextSequence,
         'foreground': foreground,
-        'visible': true,
+        'visible': mounted &&
+            (ModalRoute.of(context)?.isCurrent ?? true) &&
+            (session['mediaId'] == null || _creativeLoaded),
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       if (!mounted || _activeSession == null) return;
@@ -169,7 +195,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       if (error.code == 'deadline-exceeded') {
         _heartbeatTimer?.cancel();
         if (!mounted) return;
-        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; });
+        setState(() { _activeSession = null; _eligibleMs = 0; _requiredMs = 0; _creativeUrl = null; _creativeType = null; _creativeLoaded = false; });
         await _load();
       } else {
         await _reconcileActiveSession();
@@ -200,6 +226,66 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
     }
   }
 
+  Future<void> _cancelCampaign() async {
+    final session = _activeSession;
+    if (session == null || _busy) return;
+    setState(() { _busy = true; _error = null; });
+    try {
+      await _functions.httpsCallable('cancelTimedAdvertisement').call({
+        'sessionId': session['sessionId'],
+      });
+      _heartbeatTimer?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _activeSession = null;
+        _eligibleMs = 0;
+        _requiredMs = 0;
+        _creativeUrl = null;
+        _creativeType = null;
+        _creativeLoaded = false;
+      });
+      await _load();
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر إلغاء جلسة المشاهدة.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _showRewardHistory() async {
+    try {
+      final response = await _functions.httpsCallable('getMyTimedAdRewardHistory').call();
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final claims = (data['claims'] as List<dynamic>? ?? const [])
+          .whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('أرشيف مكافآت الإعلانات'),
+          content: SizedBox(
+            width: 520,
+            child: claims.isEmpty
+                ? const Text('لا توجد مكافآت مشاهدة مسجلة.')
+                : ListView(
+                    shrinkWrap: true,
+                    children: claims.map((claim) => ListTile(
+                      title: Text(claim['campaignId']?.toString() ?? 'حملة إعلانية'),
+                      subtitle: Text('جلسة: ${claim['sessionId'] ?? claim['claimId']}'),
+                      trailing: Text('${claim['amountCoins'] ?? 0} كوين'),
+                    )).toList(),
+                  ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إغلاق')),
+          ],
+        ),
+      );
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحميل أرشيف المكافآت.');
+    }
+  }
+
   Future<void> _completeCampaign() async {
     final session = _activeSession;
     if (session == null || !mounted) return;
@@ -216,7 +302,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(result['idempotentReplay'] == true
             ? 'تم تسجيل مشاهدة الإعلان مسبقاً.'
-            : 'اكتملت المشاهدة وأضيفت ${result['amountBeta Coins'] ?? 0} بيتا كوينز إلى محفظتك.'),
+            : 'اكتملت المشاهدة وأضيفت ${result['amountCoins'] ?? 0} كوين إلى محفظتك.'),
       ));
     } on FirebaseFunctionsException catch (error) {
       if (mounted) setState(() => _error = error.message ?? 'لم يثبت الخادم اكتمال المشاهدة بعد.');
@@ -226,12 +312,12 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
 
   Widget _attendanceCard(String type, String title, IconData icon) {
     final rule = Map<String, dynamic>.from(_policy[type] as Map? ?? const {});
-    final enabled = rule['enabled'] == true && (rule['amountBeta Coins'] as num? ?? 0) > 0;
+    final enabled = rule['enabled'] == true && (rule['amountCoins'] as num? ?? 0) > 0;
     final claimed = _claimed[type] == true;
     return Card(child: ListTile(
       leading: Icon(icon),
       title: Text(title),
-      subtitle: Text(enabled ? 'المكافأة: ${rule['amountBeta Coins']} بيتا كوينز' : 'المكافأة غير مفعّلة حالياً'),
+      subtitle: Text(enabled ? 'المكافأة: ${rule['amountCoins']} كوين' : 'المكافأة غير مفعّلة حالياً'),
       trailing: FilledButton(
         onPressed: !enabled || claimed || _busy || _activeSession != null
             ? null : () => _claimAttendance(type),
@@ -248,7 +334,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('مشاهدة إعلان المكافأة'),
+          title: Text(widget.adType == 'featured' ? 'مشاهدة إعلان مميز' : 'مشاهدة الإعلان'),
           actions: const [Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.lock_outline))],
         ),
         body: Center(child: ConstrainedBox(
@@ -271,10 +357,24 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     _creativeUrl!, fit: BoxFit.contain,
-                    loadingBuilder: (context, child, progress) => progress == null
-                        ? child
-                        : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator())),
-                    errorBuilder: (_, __, ___) => const Text('تعذر عرض النسخة الآمنة للإعلان.'),
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null && !_creativeLoaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && !_creativeLoaded) setState(() => _creativeLoaded = true);
+                        });
+                      }
+                      return progress == null
+                          ? child
+                          : const SizedBox(height: 180, child: Center(child: CircularProgressIndicator()));
+                    },
+                    errorBuilder: (_, __, ___) {
+                      if (_creativeLoaded) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) setState(() => _creativeLoaded = false);
+                        });
+                      }
+                      return const Text('تعذر عرض النسخة الآمنة للإعلان.');
+                    },
                   ),
                 ),
               ],
@@ -290,10 +390,15 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
               Text('${(_eligibleMs / 1000).floor()} / ${(_requiredMs / 1000).ceil()} ثانية معتمدة من الخادم',
                 textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              Text('المكافأة: ${session['rewardBeta Coins'] ?? 0} بيتا كوينز', textAlign: TextAlign.center),
+              Text('المكافأة: ${session['rewardCoins'] ?? 0} كوين', textAlign: TextAlign.center),
               const SizedBox(height: 8),
-              const Text('لا يوجد زر تخطي أو مطالبة يدوية؛ يمنح الخادم المكافأة بعد التحقق من المدة.',
+              const Text('لا تمنح المعاينة أو المؤقت المحلي مكافأة؛ يعتمد الاستحقاق على تحقق الخادم فقط.',
                 textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _busy ? null : _cancelCampaign,
+                child: const Text('إلغاء المشاهدة دون مكافأة'),
+              ),
             ],
           )),
         )),
@@ -306,8 +411,17 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
     if (_activeSession != null) return _lockedAdView();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مركز المكافآت'),
-        actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
+        title: Text(widget.adType == 'featured'
+            ? 'الإعلانات التجارية المميزة'
+            : widget.adType == 'standard'
+                ? 'الإعلانات التجارية العادية'
+                : 'مركز المكافآت'),
+        actions: [
+          if (widget.adType != null)
+            IconButton(onPressed: _loading ? null : _showRewardHistory,
+                tooltip: 'أرشيف المكافآت', icon: const Icon(Icons.history)),
+          IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh)),
+        ],
       ),
       body: _loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
         onRefresh: _load,
@@ -316,6 +430,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
+          if (widget.adType == null) ...[
           Text('مكافآت الحضور', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           const Text('تُحسب الفترات بتوقيت UTC من الخادم، ولا يمكن استلام المكافأة أكثر من مرة في الفترة نفسها.'),
@@ -323,7 +438,9 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
           _attendanceCard('daily', 'الحضور اليومي', Icons.today),
           _attendanceCard('weekly', 'الحضور الأسبوعي', Icons.calendar_view_week),
           const SizedBox(height: 16),
-          Text('الإعلانات والمكافآت', style: Theme.of(context).textTheme.titleLarge),
+          ],
+          if (widget.adType == null)
+            Text('الإعلانات والمكافآت', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           if (_campaigns.isEmpty) const Card(child: Padding(
             padding: EdgeInsets.all(16), child: Text('لا توجد حملات إعلانية متاحة حالياً.'))),
@@ -336,7 +453,7 @@ class _RewardCenterScreenState extends State<RewardCenterScreen> with WidgetsBin
               const SizedBox(height: 8),
               Text(campaign['body'] as String? ?? ''),
               const SizedBox(height: 8),
-              Text('المدة: ${campaign['durationSeconds'] ?? 0} ثانية • المكافأة: ${campaign['rewardBeta Coins'] ?? 0} بيتا كوينز'),
+              Text('المدة: ${campaign['durationSeconds'] ?? 0} ثانية • المكافأة: ${campaign['rewardCoins'] ?? 0} كوين'),
               const SizedBox(height: 12),
               FilledButton.icon(
                 onPressed: _busy ? null : () => _startCampaign(campaign),
