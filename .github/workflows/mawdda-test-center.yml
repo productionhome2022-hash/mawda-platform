@@ -16,7 +16,8 @@ permissions:
 
 concurrency:
   group: mawdda-test-center-${{ github.ref_name }}
-  cancel-in-progress: false
+  # A newer commit supersedes an older queued/running full-suite attempt.
+  cancel-in-progress: true
 
 jobs:
   flutter-validation:
