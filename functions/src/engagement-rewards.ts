@@ -129,7 +129,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
   const startsAtMs = input.startsAtMs;
   const endsAtMs = input.endsAtMs;
   const maxClaimsPerMember = input.maxClaimsPerMember ??
-    (adType === "featured" ? TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER : undefined);
+    (adType === "featured" ? Number.MAX_SAFE_INTEGER : undefined);
   const rewardBudgetCoins = input.rewardBudgetCoins;
 
   if (title.length < 3 || title.length > 80 ||
@@ -159,7 +159,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
       maxClaimsPerMember < 1 ||
-      maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER ||
+      (adType === "standard" && maxClaimsPerMember > TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER) ||
       typeof rewardBudgetCoins !== "number" || !Number.isSafeInteger(rewardBudgetCoins) ||
       rewardBudgetCoins < rewardCoins || rewardBudgetCoins > MAX_AD_BUDGET_COINS) {
     throw new Error("AD_CAMPAIGN_INVALID");
@@ -178,9 +178,6 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
     rewardBudgetCoins,
   };
 }
-
-export const TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER = 10;
-export const TIMED_AD_DAILY_MAX_REWARD_COINS_PER_MEMBER = 20;
 
 export type TimedAdDailyCapDecision =
   | { eligible: true; reason: "within_daily_caps" }
