@@ -85,3 +85,28 @@ test("public projection omits malformed social-link containers", () => {
   });
   assert.deepEqual(result.socialLinks, {});
 });
+
+const { projectCoinVisibility } = require("../lib/member-profile-view");
+
+test("coin balance is visible only to the profile owner or sole Super Admin", () => {
+  assert.deepEqual(projectCoinVisibility({
+    viewerUid: "member-1", targetUid: "member-1", targetCoins: 9000,
+    hideCoinsActive: true, viewerIsSoleOwner: false,
+  }), { visible: true, hiddenByPrivacy: false, balance: 9000 });
+  assert.deepEqual(projectCoinVisibility({
+    viewerUid: "member-2", targetUid: "member-1", targetCoins: 9000,
+    hideCoinsActive: true, viewerIsSoleOwner: false,
+  }), { visible: false, hiddenByPrivacy: true });
+  assert.deepEqual(projectCoinVisibility({
+    viewerUid: "moderator-1", targetUid: "member-1", targetCoins: 9000,
+    hideCoinsActive: true, viewerIsSoleOwner: false,
+  }), { visible: false, hiddenByPrivacy: true });
+  assert.deepEqual(projectCoinVisibility({
+    viewerUid: "owner-uid", targetUid: "member-1", targetCoins: 9000,
+    hideCoinsActive: true, viewerIsSoleOwner: true,
+  }), { visible: true, hiddenByPrivacy: false, balance: 9000 });
+  assert.throws(() => projectCoinVisibility({
+    viewerUid: "member-1", targetUid: "member-1", targetCoins: -1,
+    hideCoinsActive: false, viewerIsSoleOwner: false,
+  }), /INVALID_COIN_BALANCE/);
+});
