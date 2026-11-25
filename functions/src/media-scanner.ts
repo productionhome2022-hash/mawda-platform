@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { validateStickerMediaMetadata, type StickerMediaMetadata } from "./sticker-policy";
 
 export interface ScannerSafeDerivative {
   category: "gif" | "audio" | "video" | "document";
@@ -11,7 +12,8 @@ export interface ScannerSafeDerivative {
 
 export interface ScannerVerdictPayload {
   mediaId: string;
-  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric";
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric" | "sticker";
+  stickerMetadata?: StickerMediaMetadata;
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -60,6 +62,16 @@ export function validateScannerVerdict(
     previewParts[2] === v.mediaId &&
     previewParts[3] === "preview.webp";
 
+  let stickerMetadata: StickerMediaMetadata | undefined;
+  if (v.purpose === "sticker") {
+    if (v.verdict === "clean" || v.stickerMetadata !== undefined) {
+      try { stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata); }
+      catch { return null; }
+    }
+  } else if (v.stickerMetadata !== undefined) {
+    return null;
+  }
+
   let safeDerivative: ScannerSafeDerivative | undefined;
   if (v.safeDerivative !== undefined) {
     if (!v.safeDerivative || typeof v.safeDerivative !== "object" || Array.isArray(v.safeDerivative)) return null;
@@ -75,6 +87,15 @@ export function validateScannerVerdict(
       ? d.category as keyof typeof route : null;
     if (!category) return null;
     const expected = route[category];
+    const purpose = typeof v.purpose === "string" ? v.purpose : "";
+    const purposeAllowed = category === "audio"
+      ? ["chat", "room", "biometric"].includes(purpose)
+      : category === "video"
+        ? ["chat", "room", "biometric", "advertisement"].includes(purpose)
+        : category === "document"
+          ? ["chat", "room"].includes(purpose)
+          : ["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker"].includes(purpose);
+    if (!purposeAllowed) return null;
     const expectedProcessingStatus = {
       gif: "safe_animation_derivative_ready",
       audio: "safe_audio_derivative_ready",
@@ -98,7 +119,7 @@ export function validateScannerVerdict(
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
-      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric"].includes(v.purpose) ||
+      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric", "sticker"].includes(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
@@ -119,5 +140,5 @@ export function validateScannerVerdict(
         v.safePreviewContentType !== "image/webp" || v.verdict !== "clean"
       )) ||
       (v.verdict !== "clean" && (hasAnyPreview || safeDerivative !== undefined))) return null;
-  return v as unknown as ScannerVerdictPayload;
+  return { ...v, ...(stickerMetadata ? { stickerMetadata } : {}) } as unknown as ScannerVerdictPayload;
 }
