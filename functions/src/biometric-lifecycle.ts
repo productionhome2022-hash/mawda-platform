@@ -1,5 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { creditMemberWalletInTransaction } from "./wallet-ledger";
 import { FieldValue, Timestamp, getFirestore, type DocumentSnapshot, type Transaction } from "firebase-admin/firestore";
 import { mediaBucket } from "./media";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -14,13 +13,12 @@ import { detectMediaSignature } from "./media-security";
 import { addCalendarMonthsUtc, isBiometricVerificationDue } from "./verification-calendar";
 import {
   BIOMETRIC_SPOKEN_PHRASE, BIOMETRIC_SPOKEN_PHRASE_VERSION,
-  BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_AUDIO_MAX_DURATION_MS, BIOMETRIC_VIDEO_MAX_BYTES,
+  BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_VIDEO_MAX_BYTES,
   BIOMETRIC_EVIDENCE_UPLOAD_TTL_MS, BIOMETRIC_EVIDENCE_REVIEW_TTL_MS,
   BIOMETRIC_REWARD_COINS, validateBiometricMemberIdentity,
   biometricRewardLedgerId,
 } from "./biometric-evidence";
 
-const BIOMETRIC_CONSENT_VERSION = "2026-11-20-owner-review-v1";
 const db = () => getFirestore();
 const requests = () => db().collection("biometricVerificationRequests");
 const auditHead = () => db().collection("adminAuditChainHeads").doc("ownerReview");
@@ -176,61 +174,17 @@ async function deleteEvidence(requestId: string): Promise<void> {
   }
 }
 
-export const getMyBiometricVerificationStatus = onCall(async request => {
-  const uid = requireUid(request.auth?.uid);
-  const userSnapshot = await db().collection("users").doc(uid).get();
-  if (!userSnapshot.exists) throw new HttpsError("not-found", "حساب العضو غير موجود.");
-  const user = userSnapshot.data() ?? {};
-  const requestId = typeof user.biometricVerificationLastRequestId === "string"
-    ? user.biometricVerificationLastRequestId : null;
-  let latest: Record<string, any> = {};
-  if (requestId) {
-    const requestSnapshot = await requests().doc(requestId).get();
-    if (requestSnapshot.exists && requestSnapshot.data()?.uid === uid) latest = requestSnapshot.data() ?? {};
-  }
-  const [audioAsset, videoAsset] = await Promise.all([
-    typeof latest.audioMediaId === "string" ? db().collection("mediaAssets").doc(latest.audioMediaId).get() : Promise.resolve(null),
-    typeof latest.videoMediaId === "string" ? db().collection("mediaAssets").doc(latest.videoMediaId).get() : Promise.resolve(null),
-  ]);
-  const reusableMediaId = (snapshot: DocumentSnapshot | null): string | null => {
-    if (!snapshot?.exists) return null;
-    const status = String(snapshot.data()?.status ?? "");
-    return ["rejected", "expired", "manually_deleted", "self_destructed"].includes(status) ? null : snapshot.id;
-  };
-  const verification = user.biometricVerification && typeof user.biometricVerification === "object"
-    ? user.biometricVerification as Record<string, any> : {};
-  const millis = (value: unknown): number | null => value instanceof Timestamp
-    ? value.toMillis() : null;
-  return {
-    status: verification.status === "verified" && verification.revokedAt == null
-      ? (verification.expiresAt instanceof Timestamp && verification.expiresAt.toMillis() > Date.now() ? "verified" : "expired")
-      : String(latest.status ?? "not_submitted"),
-    attemptNumber: Number.isSafeInteger(latest.attemptNumber) ? latest.attemptNumber : 0,
-    nextEligibleAtMs: millis(latest.nextEligibleAt),
-    expiresAtMs: millis(verification.expiresAt),
-    permanentlyClosed: user.biometricVerificationPermanentlyClosed === true,
-    requestId,
-    phrase: BIOMETRIC_SPOKEN_PHRASE,
-    audioMediaId: reusableMediaId(audioAsset),
-    videoMediaId: reusableMediaId(videoAsset),
-    rewardCoins: latest.decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
-  };
-});
-
 export const getBiometricVerificationPhrase = onCall(async (request) => {
   requireUid(request.auth?.uid);
   return {
     phrase: BIOMETRIC_SPOKEN_PHRASE, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
-    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: BIOMETRIC_AUDIO_MAX_DURATION_MS / 1000,
+    audioMaxBytes: BIOMETRIC_AUDIO_MAX_BYTES, audioMaxDurationSeconds: 60,
     videoMaxBytes: BIOMETRIC_VIDEO_MAX_BYTES, videoMinDurationSeconds: 3, videoMaxDurationSeconds: 5,
   };
 });
 
 export const startBiometricVerificationRequest = onCall(async (request) => {
   const uid = requireUid(request.auth?.uid);
-  if (request.data?.consentAccepted !== true || request.data?.consentVersion !== BIOMETRIC_CONSENT_VERSION) {
-    throw new HttpsError("failed-precondition", "يجب الاطلاع على إشعار الخصوصية والموافقة عليه قبل إنشاء طلب التوثيق.");
-  }
   const requestId = randomUUID();
   const nowMs = Date.now();
   const userRef = db().collection("users").doc(uid);
@@ -311,8 +265,6 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       requestId, uid, ...identity, status: "uploading", attemptNumber: attempt,
       reviewState: state, phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
       phraseHash: createHash("sha256").update(BIOMETRIC_SPOKEN_PHRASE).digest("hex"),
-      consentAccepted: true, consentVersion: BIOMETRIC_CONSENT_VERSION,
-      consentAcceptedAt: Timestamp.fromMillis(nowMs),
       audioMediaId: null, videoMediaId: null,
       createdAt: Timestamp.fromMillis(nowMs), submittedAtMs: nowMs,
       evidenceDeletionStatus: "not_due", updatedAt: FieldValue.serverTimestamp(),
@@ -333,7 +285,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
     requestId, attemptNumber, phrase: BIOMETRIC_SPOKEN_PHRASE,
     phraseVersion: BIOMETRIC_SPOKEN_PHRASE_VERSION,
     uploadPurpose: "biometric",
-    audio: { contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: BIOMETRIC_AUDIO_MAX_DURATION_MS / 1000 },
+    audio: { contentType: "audio/mp4", maxBytes: BIOMETRIC_AUDIO_MAX_BYTES, maxDurationSeconds: 60 },
     video: { contentType: "video/mp4", maxBytes: BIOMETRIC_VIDEO_MAX_BYTES, minDurationSeconds: 3, maxDurationSeconds: 5 },
     uploadInstructions: "Create each upload through createMediaUploadIntent with purpose=biometric and biometricRequestId=requestId, then finalize it and wait for scanner approval before submitting.",
   };
@@ -564,9 +516,6 @@ export const decideBiometricVerificationRequest = onCall(async request => {
   const reviewerUid = await requireOwnerForReview(request, "biometric_review_decision");
   const requestId = typeof request.data?.requestId === "string" ? request.data.requestId : "";
   const decision = request.data?.decision;
-  if (request.data?.evidenceReviewed !== true) {
-    throw new HttpsError("failed-precondition", "يجب تأكيد مراجعة الصوت والفيديو قبل تسجيل القرار.");
-  }
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(requestId) || !["accepted", "rejected"].includes(String(decision))) {
     throw new HttpsError("invalid-argument", "معرف الطلب أو قرار المراجعة غير صالح.");
   }
@@ -602,17 +551,18 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       identityMatches = false;
     }
     if ((decision === "accepted" && !identityMatches) ||
-        data.consentAccepted !== true || data.consentVersion !== BIOMETRIC_CONSENT_VERSION ||
         data.evidenceValidatedByServer !== true ||
         typeof data.audioSha256 !== "string" || typeof data.videoSha256 !== "string") {
       throw new HttpsError("failed-precondition", "لا يمكن قبول الطلب لأن بيانات الهوية أو الأدلة غير مكتملة أو تغيرت؛ يمكن للمالك رفضه.");
     }
-    const grant = playbackGrant.data() ?? {};
-    const grantExpiry = grant.expiresAt instanceof Timestamp ? grant.expiresAt.toMillis() : 0;
-    if (!playbackGrant.exists || grant.reviewerUid !== reviewerUid ||
-        grant.audioSha256 !== data.audioSha256 || grant.videoSha256 !== data.videoSha256 ||
-        grantExpiry < nowMs || grant.consumedAt) {
-      throw new HttpsError("failed-precondition", "يجب على Super Owner فتح الأدلة الآمنة ومراجعتها من جديد قبل تسجيل القرار.");
+    if (decision === "accepted") {
+      const grant = playbackGrant.data() ?? {};
+      const grantExpiry = grant.expiresAt instanceof Timestamp ? grant.expiresAt.toMillis() : 0;
+      if (!playbackGrant.exists || grant.reviewerUid !== reviewerUid ||
+          grant.audioSha256 !== data.audioSha256 || grant.videoSha256 !== data.videoSha256 ||
+          grantExpiry < nowMs || grant.consumedAt) {
+        throw new HttpsError("failed-precondition", "يجب على Super Owner فتح وتشغيل الأدلة الآمنة من جديد قبل قبول الطلب.");
+      }
     }
     let next;
     try {
@@ -620,33 +570,30 @@ export const decideBiometricVerificationRequest = onCall(async request => {
     } catch { throw new HttpsError("failed-precondition", "انتقال حالة التوثيق غير صالح أو سبق اتخاذ القرار."); }
     if (decision === "accepted") {
       if (ledger.exists) throw new HttpsError("already-exists", "مكافأة هذا الطلب مسجلة مسبقاً.");
-      try {
-        creditMemberWalletInTransaction({
-          transaction, userRef, ledgerRef, userSnapshot: member, ledgerSnapshot: ledger,
-          amount: BIOMETRIC_REWARD_COINS, type: "biometric_verification_reward",
-          reason: "accepted_biometric_verification", requestId, createdAt: acceptedAt,
-          userUpdates: {
-            biometricVerification: {
-              accountUid: memberUid, status: "verified", revokedAt: null,
-              verificationMethod: "super_owner_manual_review",
-              trustModel: "server_authoritative_owner_decision",
-              reviewerRole: "super_owner", reviewerMfaVerified: true,
-              decision: "accepted", reviewerUid, reviewerMfaAt: Timestamp.fromMillis(mfaAt),
-              reviewRequestId: requestId, acceptedAt, expiresAt,
-            },
-            biometricVerificationAcceptedAt: acceptedAt, biometricVerificationExpiresAt: expiresAt,
-            biometricVerificationPermanentlyClosed: false, updatedAt: FieldValue.serverTimestamp(),
-          },
-        });
-      } catch (error) {
-        if (error instanceof Error && error.message === "WALLET_CREDIT_BALANCE_INVALID") {
-          throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ أوقفنا منح المكافأة حتى إصلاح سجل الاقتصاد.");
-        }
-        if (error instanceof Error && error.message === "WALLET_CREDIT_AMOUNT_OUT_OF_RANGE") {
-          throw new HttpsError("out-of-range", "رصيد الكوينز تجاوز الحد الرقمي الآمن.");
-        }
-        throw error;
+      if (!Number.isSafeInteger(user.coins) || (user.coins as number) < 0) {
+        throw new HttpsError("failed-precondition", "رصيد المحفظة غير صالح؛ أوقفنا منح المكافأة حتى إصلاح سجل الاقتصاد.");
       }
+      const balance = user.coins as number;
+      const newBalance = balance + BIOMETRIC_REWARD_COINS;
+      if (!Number.isSafeInteger(newBalance)) throw new HttpsError("out-of-range", "رصيد الكوينز تجاوز الحد الرقمي الآمن.");
+      transaction.update(userRef, {
+        coins: newBalance,
+        biometricVerification: {
+          accountUid: memberUid, status: "verified", revokedAt: null,
+          verificationMethod: "super_owner_manual_review",
+          trustModel: "server_authoritative_owner_decision",
+          reviewerRole: "super_owner", reviewerMfaVerified: true,
+          decision: "accepted", reviewerUid, reviewerMfaAt: Timestamp.fromMillis(mfaAt),
+          reviewRequestId: requestId, acceptedAt, expiresAt,
+        },
+        biometricVerificationAcceptedAt: acceptedAt, biometricVerificationExpiresAt: expiresAt,
+        biometricVerificationPermanentlyClosed: false, updatedAt: FieldValue.serverTimestamp(),
+      });
+      transaction.create(ledgerRef, {
+        type: "biometric_verification_reward", direction: "credit",
+        amount: BIOMETRIC_REWARD_COINS, reason: "accepted_biometric_verification",
+        requestId, idempotencyKey: requestId, balanceBefore: balance, balanceAfter: newBalance, createdAt: acceptedAt,
+      });
       transaction.create(db().collection("verificationAuditLogs").doc("biometric_reward_" + requestId), {
         actorUid: reviewerUid, uid: memberUid, requestId,
         action: "biometric_verification_rewarded", rewardCoins: BIOMETRIC_REWARD_COINS,
@@ -670,7 +617,6 @@ export const decideBiometricVerificationRequest = onCall(async request => {
       requestId, subjectUid: memberUid, decision,
       attemptNumber: next.attemptNumber, finalRejection: next.finalRejection,
       rewardCoins: decision === "accepted" ? BIOMETRIC_REWARD_COINS : 0,
-      evidenceReviewed: true,
       nextEligibleAtMs: next.nextEligibleAtMs, outcome: "success",
     }, auditHeadSnapshot);
     return {
