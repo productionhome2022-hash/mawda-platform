@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 
 const _featuredAdRegions = <String, String>{
   'all_arab_countries': 'جميع الإعلانات العربية',
@@ -73,7 +74,6 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
         'geography': _selectedRegion,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
-      final policy = Map<String, dynamic>.from(data['rewardPolicy'] as Map? ?? const {});
       final campaigns = (data['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>()
           .map((item) => Map<String, dynamic>.from(item))
@@ -85,8 +85,8 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
         _rotationIntervalMs = ((data['rotationIntervalMs'] as num?)?.toInt() ?? 1000)
             .clamp(250, 60 * 1000).toInt();
         _showcaseIndex = 0;
-        _rewardsEnabled = policy['enabled'] == true;
-        _rewardCoins = (policy['rewardCoinsPerView'] as num?)?.toInt() ?? 0;
+        _rewardsEnabled = data['rewardEligible'] == true;
+        _rewardCoins = (data['rewardCoinsPerView'] as num?)?.toInt() ?? 0;
       });
       if (_showcaseController.hasClients) _showcaseController.jumpToPage(0);
       _startRotation();
@@ -101,9 +101,9 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
 
   Future<void> _cancelSessionQuietly(String sessionId) async {
     try {
-      await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+      await FirebaseFunctions.instance.httpsCallable('endFeaturedAdViewingSession').call({'sessionId': sessionId});
     } catch (_) {
-      // The scheduled server cleanup releases the reservation if cancellation cannot reach the server.
+      // Server-side expiry remains the fallback if the network is unavailable.
     }
   }
 
@@ -112,42 +112,31 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     setState(() { _starting = true; _error = null; });
     String? sessionId;
     try {
-      final started = await FirebaseFunctions.instance.httpsCallable('startFeaturedAdSession').call({
+      final started = await FirebaseFunctions.instance.httpsCallable('startFeaturedAdViewingSession').call({
         'campaignId': campaign['campaignId'],
         'geography': _selectedRegion,
       });
       final session = Map<String, dynamic>.from(started.data as Map);
-      sessionId = session['sessionId'] as String;
-      final creativeResponse = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdCreativeUrl').call({
-        'campaignId': campaign['campaignId'],
-        'sessionId': sessionId,
-      });
-      final creative = Map<String, dynamic>.from(creativeResponse.data as Map);
-      final url = creative['url'] as String?;
-      if (url == null || url.isEmpty) {
-        await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({'sessionId': sessionId});
+      sessionId = session['sessionId'] as String?;
+      final url = session['url'] as String?;
+      if (sessionId == null || sessionId.isEmpty || url == null || url.isEmpty) {
+        if (sessionId != null) await _cancelSessionQuietly(sessionId);
         throw StateError('لا تتوفر مادة عرض آمنة لهذه الحملة.');
       }
       if (!mounted) return;
-      await Navigator.of(context).push<bool>(MaterialPageRoute<bool>(
+      await Navigator.of(context).push<void>(MaterialPageRoute<void>(
         builder: (_) => FeaturedAdPlayerScreen(
-          campaignId: campaign['campaignId'] as String,
           sessionId: sessionId!,
-          imageUrl: url,
-          requiredVisibleMs: (session['requiredVisibleMs'] as num).toInt(),
-          rewardCoins: (session['rewardCoins'] as num).toInt(),
+          mediaUrl: url,
+          creativeType: session['creativeType']?.toString() ?? 'image',
         ),
       ));
       await _load();
     } on FirebaseFunctionsException catch (error) {
-      if (sessionId != null) {
-        await _cancelSessionQuietly(sessionId);
-      }
+      if (sessionId != null) await _cancelSessionQuietly(sessionId);
       if (mounted) setState(() => _error = error.message ?? 'تعذر بدء مشاهدة الإعلان.');
     } catch (error) {
-      if (sessionId != null) {
-        await _cancelSessionQuietly(sessionId);
-      }
+      if (sessionId != null) await _cancelSessionQuietly(sessionId);
       if (mounted) setState(() => _error = error.toString().replaceFirst('Bad state: ', ''));
     } finally {
       if (mounted) setState(() => _starting = false);
@@ -300,19 +289,15 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
 
 class FeaturedAdPlayerScreen extends StatefulWidget {
   const FeaturedAdPlayerScreen({
-    required this.campaignId,
     required this.sessionId,
-    required this.imageUrl,
-    required this.requiredVisibleMs,
-    required this.rewardCoins,
+    required this.mediaUrl,
+    required this.creativeType,
     super.key,
   });
 
-  final String campaignId;
   final String sessionId;
-  final String imageUrl;
-  final int requiredVisibleMs;
-  final int rewardCoins;
+  final String mediaUrl;
+  final String creativeType;
 
   @override
   State<FeaturedAdPlayerScreen> createState() => _FeaturedAdPlayerScreenState();
@@ -321,12 +306,10 @@ class FeaturedAdPlayerScreen extends StatefulWidget {
 class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
     with WidgetsBindingObserver {
   Timer? _heartbeatTimer;
-  int _sequence = 0;
-  int _eligibleMs = 0;
+  VideoPlayerController? _videoController;
+  int _visibleMs = 0;
   bool _foreground = true;
   bool _sending = false;
-  bool _completing = false;
-  bool _completed = false;
   bool _canExit = false;
   String? _error;
 
@@ -334,6 +317,18 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.creativeType == 'video') {
+      final controller = VideoPlayerController.networkUrl(Uri.parse(widget.mediaUrl));
+      _videoController = controller;
+      controller.initialize().then((_) {
+        if (!mounted) return;
+        controller.setLooping(true);
+        controller.play();
+        setState(() {});
+      }).catchError((Object error) {
+        if (mounted) setState(() => _error = 'تعذر تحميل فيديو الإعلان الآمن.');
+      });
+    }
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 5), (_) => _sendHeartbeat());
   }
 
@@ -341,118 +336,113 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
   void dispose() {
     _heartbeatTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
+    _videoController?.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _foreground = state == AppLifecycleState.resumed;
+    if (!_foreground) _videoController?.pause();
+    else if (_videoController?.value.isInitialized == true) _videoController?.play();
     _sendHeartbeat();
   }
 
   Future<void> _sendHeartbeat() async {
-    if (_sending || _completed || _canExit) return;
+    if (_sending || _canExit) return;
     _sending = true;
-    final nextSequence = _sequence + 1;
+    var progressPercent = 0.0;
+    final video = _videoController?.value;
+    if (video != null && video.isInitialized && video.duration.inMilliseconds > 0) {
+      progressPercent = (video.position.inMilliseconds / video.duration.inMilliseconds * 100)
+          .clamp(0.0, 100.0);
+    }
     try {
-      final response = await FirebaseFunctions.instance.httpsCallable('heartbeatFeaturedAdSession').call({
+      final response = await FirebaseFunctions.instance
+          .httpsCallable('heartbeatFeaturedAdViewingSession').call({
         'sessionId': widget.sessionId,
-        'sequence': nextSequence,
-        'foreground': _foreground,
-        'visible': true,
+        'foregroundVisible': _foreground,
+        'progressPercent': progressPercent,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
-      _sequence = nextSequence;
       if (!mounted) return;
       setState(() {
-        _eligibleMs = (data['eligibleMs'] as num?)?.toInt() ?? _eligibleMs;
-        if (data['cancelled'] == true) {
+        _visibleMs = (data['visibleMs'] as num?)?.toInt() ?? _visibleMs;
+        if (data['expired'] == true || data['revoked'] == true) {
           _canExit = true;
-          _error = 'انتهت صلاحية الحملة أو تغيرت؛ لم تُمنح مكافأة.';
+          _error = 'انتهت صلاحية الحملة أو لم تعد مؤهلة للعرض.';
         }
       });
     } on FirebaseFunctionsException catch (error) {
-      if (mounted) setState(() => _error = error.message ?? 'تعذر التحقق من جلسة المشاهدة.');
+      if (mounted) setState(() => _error = error.message ?? 'تعذر تحديث جلسة العرض.');
     } catch (_) {
-      if (mounted) setState(() => _error = 'تعذر إرسال تحقق المشاهدة؛ حاول مجدداً.');
+      if (mounted) setState(() => _error = 'تعذر تحديث جلسة العرض حالياً.');
     } finally {
       _sending = false;
     }
   }
 
-  Future<void> _complete() async {
-    if (_completing || _eligibleMs < widget.requiredVisibleMs || _canExit) return;
-    setState(() { _completing = true; _error = null; });
+  Future<void> _endAndExit() async {
     try {
-      await FirebaseFunctions.instance.httpsCallable('completeFeaturedAdSession').call({
-        'sessionId': widget.sessionId,
-      });
-      if (!mounted) return;
-      setState(() { _completed = true; _canExit = true; });
-      _heartbeatTimer?.cancel();
-      Navigator.of(context).pop(true);
-    } on FirebaseFunctionsException catch (error) {
-      if (mounted) setState(() => _error = error.message ?? 'لم تُعتمد المشاهدة بعد.');
-    } finally {
-      if (mounted) setState(() => _completing = false);
-    }
-  }
-
-  Future<void> _cancelAndExit() async {
-    try {
-      await FirebaseFunctions.instance.httpsCallable('cancelFeaturedAdSession').call({
+      await FirebaseFunctions.instance.httpsCallable('endFeaturedAdViewingSession').call({
         'sessionId': widget.sessionId,
       });
     } catch (_) {
-      // Server expiry cleanup remains the fallback if the network is unavailable.
+      // The server expires abandoned sessions; no client-side reward is issued.
     }
     if (!mounted) return;
     setState(() => _canExit = true);
-    Navigator.of(context).pop(false);
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = widget.requiredVisibleMs <= 0
-        ? 0.0
-        : (_eligibleMs / widget.requiredVisibleMs).clamp(0.0, 1.0);
+    final video = _videoController;
+    final isVideo = widget.creativeType == 'video';
     return PopScope(
       canPop: _canExit,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
-          title: const Text('مشاهدة الإعلان'),
-          actions: const [],
+          title: const Text('عرض الإعلان المميز'),
         ),
         body: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Text('ابقَ في هذه الشاشة حتى يكتمل التحقق من المشاهدة.'),
+                const Text(
+                  'هذه جلسة عرض ومعاينة. مكافآت المشاهدة غير مفعلة حتى يكتمل التحقق الخادمي المستقل من الظهور والتشغيل.',
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 14),
                 Expanded(
                   child: Center(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        widget.imageUrl,
-                        fit: BoxFit.contain,
-                        width: double.infinity,
-                        loadingBuilder: (context, child, progress) => progress == null
-                            ? child
-                            : const Center(child: CircularProgressIndicator()),
-                        errorBuilder: (context, error, stack) => const Center(
-                          child: Text('تعذر تحميل مادة الإعلان الآمنة.'),
-                        ),
-                      ),
+                      child: isVideo
+                          ? (video != null && video.value.isInitialized
+                              ? AspectRatio(
+                                  aspectRatio: video.value.aspectRatio,
+                                  child: VideoPlayer(video),
+                                )
+                              : const CircularProgressIndicator())
+                          : Image.network(
+                              widget.mediaUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              loadingBuilder: (context, child, progress) => progress == null
+                                  ? child
+                                  : const Center(child: CircularProgressIndicator()),
+                              errorBuilder: (context, error, stack) => const Center(
+                                child: Text('تعذر تحميل مادة الإعلان الآمنة.'),
+                              ),
+                            ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                LinearProgressIndicator(value: progress, minHeight: 8),
-                const SizedBox(height: 8),
-                Text('التحقق: ${(_eligibleMs / 1000).toStringAsFixed(1)} / ${(widget.requiredVisibleMs / 1000).toStringAsFixed(0)} ثانية'),
+                const SizedBox(height: 12),
+                Text('وقت الظهور المسجل للجلسة: ${(_visibleMs / 1000).toStringAsFixed(1)} ثانية'),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
@@ -460,21 +450,9 @@ class _FeaturedAdPlayerScreenState extends State<FeaturedAdPlayerScreen>
                         style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   ),
                 const SizedBox(height: 12),
-                if (_canExit)
-                  FilledButton(onPressed: () => Navigator.pop(context), child: const Text('العودة'))
-                else
-                  FilledButton.icon(
-                    onPressed: _eligibleMs >= widget.requiredVisibleMs && !_completing
-                        ? _complete : null,
-                    icon: _completing
-                        ? const SizedBox(width: 18, height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.verified_outlined),
-                    label: Text('اعتماد المشاهدة والحصول على ${widget.rewardCoins} كوين'),
-                  ),
-                TextButton(
-                  onPressed: _canExit ? null : _cancelAndExit,
-                  child: const Text('إلغاء المشاهدة دون مكافأة'),
+                FilledButton(
+                  onPressed: _canExit ? () => Navigator.pop(context) : _endAndExit,
+                  child: Text(_canExit ? 'العودة' : 'إنهاء العرض'),
                 ),
               ],
             ),
@@ -505,11 +483,14 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
 
   Future<void> _load() async {
     try {
-      final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdRewardHistory').call();
+      final response = await FirebaseFunctions.instance.httpsCallable('getMyFeaturedAdRewardHistory').call();
       final data = Map<String, dynamic>.from(response.data as Map);
-      final claims = (data['claims'] as List<dynamic>? ?? const [])
+      final claims = (data['rewards'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
+          .map((item) {
+            final reward = Map<String, dynamic>.from(item);
+            return {...reward, 'amountCoins': reward['amount'] ?? reward['amountCoins'] ?? 0};
+          })
           .toList(growable: false);
       if (mounted) setState(() { _claims = claims; _error = null; });
     } on FirebaseFunctionsException catch (error) {
