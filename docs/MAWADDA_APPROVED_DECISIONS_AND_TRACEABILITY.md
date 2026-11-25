@@ -68,6 +68,16 @@
 - PR #76 ينفذ هذا الحد في `roomCallParticipantLimit` ويضيف اختبارات تقبل 4 وترفض 5؛ دُمج في فرع التكامل فقط.
 - لا يعني هذا القرار اعتماداً مالياً أو اكتمال دورة طلب الانضمام أو الموافقة أو metering أو تسوية المحفظة.
 
+### Owner amendment — group calls in rented private rooms (2026-11-18)
+
+- Group audio/video calls are permitted only inside active rented private chat rooms. Public rooms do not support calls of either mode.
+- Group audio pricing is 1,000 BetaCoins total per connected call-minute. This is the total call price, not a per-member price, and is divided equally among the members actually connected during the billed interval.
+- Group video pricing is 2,000 BetaCoins total per connected call-minute. This is the total call price, not a per-member price, and is divided equally among the members actually connected during the billed interval.
+- A group video call is limited to four members total, including the initiator. A fifth member must be rejected server-side. Group audio has no new fixed participant cap in this amendment; its participant count follows the active rented room's approved capacity.
+- Every member, including the initiator, must independently satisfy the applicable audio/video entitlement or open-subscription eligibility before joining. Membership in the room alone is insufficient.
+- Billing must follow actual connected participation, exclude ringing/unconnected time, handle joins/leaves and reconnects without duplicate charges, disclose each participant's share before consent, and settle through server-authoritative atomic/idempotent wallet-ledger operations. No client-reported duration or participant list is authoritative.
+- This amendment does not change direct one-to-one call pricing or quota policy. Existing room-call signaling is not evidence that the above access, metering, allocation, or settlement controls are implemented; those remain implementation and test requirements.
+
 ### CALL-004 — توزيع صحيح لقيمة المكالمة الجماعية وباقي القسمة (2026-11-18)
 
 - أرصدة المحفظة وقيود دفتر BetaCoins أعداد صحيحة؛ لا تُخزن أو تُخصم كسور.
