@@ -46,8 +46,8 @@ export function getGroupCallRate(policyInput: unknown, mode: GroupCallMode): num
 
 /**
  * Splits one owner-priced call cost as evenly as integer coins permit.
- * Any remainder coins are assigned to the call initiator, as required by the
- * approved group-call settlement policy. Join time never changes a share. The sum is always exact and deterministic.
+ * Remainder coins are assigned one each in stable UID order, never based on
+ * join time or initiator status. The sum is always exact and deterministic.
  */
 export function calculateGroupCallCoinShares(
   totalAmount: number,
@@ -63,14 +63,11 @@ export function calculateGroupCallCoinShares(
       !participantUids.includes(initiatorUid)) {
     throw new Error("INVALID_GROUP_CALL_SETTLEMENT_INPUT");
   }
-  if (participantUids.length > totalAmount) {
-    throw new Error("GROUP_CALL_TOTAL_BELOW_MINIMUM_SHARE");
-  }
   const orderedUids = [...participantUids].sort((a, b) => a.localeCompare(b));
   const baseShare = Math.floor(totalAmount / orderedUids.length);
-  const initiatorRemainder = totalAmount % orderedUids.length;
-  return orderedUids.map((uid) => ({
-    uid, amount: baseShare + (uid === initiatorUid ? initiatorRemainder : 0),
+  const remainder = totalAmount % orderedUids.length;
+  return orderedUids.map((uid, index) => ({
+    uid, amount: baseShare + (index < remainder ? 1 : 0),
   }));
 }
 
