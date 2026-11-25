@@ -52,11 +52,15 @@ test("creator proposal budgets obey selected currency precision", () => {
     platformName: null,
     quoteRequested: false,
     proposedBudgetAmount: "125.000",
-    currency: "KWD",
+    currency: "JOD",
   };
-  assert.equal(validateCreatorProposalInput(written).currency, "KWD");
+  assert.equal(validateCreatorProposalInput(written).currency, "JOD");
   assert.throws(
     () => validateCreatorProposalInput({ ...written, currency: "EUR" }),
+    /invalid_proposed_budget/,
+  );
+  assert.throws(
+    () => validateCreatorProposalInput({ ...written, currency: "KWD" }),
     /invalid_proposed_budget/,
   );
   assert.throws(

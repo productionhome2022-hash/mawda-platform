@@ -4,19 +4,6 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
-const _featuredAdRegions = <String, String>{
-  'all_arab_countries': 'جميع الإعلانات العربية',
-  'syria': 'سوريا',
-  'lebanon_palestine': 'لبنان وفلسطين',
-  'iraq_jordan': 'العراق والأردن',
-  'gcc': 'دول مجلس التعاون الخليجي',
-  'egypt': 'مصر',
-  'tunisia_libya_sudan': 'تونس وليبيا والسودان',
-  'algeria_morocco': 'الجزائر والمغرب',
-  'europe_turkey': 'أوروبا وتركيا',
-  'asia_middle_east': 'آسيا والشرق الأوسط',
-};
-
 class FeaturedAdsScreen extends StatefulWidget {
   const FeaturedAdsScreen({super.key});
 
@@ -25,7 +12,6 @@ class FeaturedAdsScreen extends StatefulWidget {
 }
 
 class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
-  String _selectedRegion = 'all_arab_countries';
   final PageController _showcaseController = PageController();
   Timer? _rotationTimer;
   int _rotationIntervalMs = 1000;
@@ -70,9 +56,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     _rotationTimer?.cancel();
     setState(() { _loading = true; _error = null; });
     try {
-      final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdShowcase').call({
-        'geography': _selectedRegion,
-      });
+      final response = await FirebaseFunctions.instance.httpsCallable('getFeaturedAdShowcase').call();
       final data = Map<String, dynamic>.from(response.data as Map);
       final campaigns = (data['campaigns'] as List<dynamic>? ?? const [])
           .whereType<Map>()
@@ -114,7 +98,6 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     try {
       final started = await FirebaseFunctions.instance.httpsCallable('startFeaturedAdViewingSession').call({
         'campaignId': campaign['campaignId'],
-        'geography': _selectedRegion,
       });
       final session = Map<String, dynamic>.from(started.data as Map);
       sessionId = session['sessionId'] as String?;
@@ -148,7 +131,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('الإعلانات المميزة'),
+        title: const Text('الإعلانات التجارية المميزة'),
         actions: [
           IconButton(
             tooltip: 'مكافآت المشاهدة',
@@ -163,7 +146,6 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 720;
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
@@ -186,32 +168,12 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text('تصفح حسب النطاق الجغرافي', style: theme.textTheme.titleLarge),
+                  Text('ترتيب العرض والأولوية والتنوع', style: theme.textTheme.titleLarge),
                   const SizedBox(height: 8),
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _featuredAdRegions.length,
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: wide ? 250 : 190,
-                      mainAxisExtent: 64,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                    ),
-                    itemBuilder: (context, index) {
-                      final entry = _featuredAdRegions.entries.elementAt(index);
-                      return ChoiceChip(
-                        selected: _selectedRegion == entry.key,
-                        label: SizedBox(width: double.infinity,
-                            child: Text(entry.value, textAlign: TextAlign.center)),
-                        onSelected: _starting ? null : (_) {
-                          setState(() => _selectedRegion = entry.key);
-                          _load();
-                        },
-                      );
-                    },
-                  ),
+                  const Text('لا يوجد تصفح جغرافي في هذا القسم.'),
                   const SizedBox(height: 16),
+                  Text('عرض الإعلانات المميزة', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 8),
                   Text('الحملات المتاحة', style: theme.textTheme.titleLarge),
                   if (_error != null)
                     Padding(
@@ -226,7 +188,7 @@ class _FeaturedAdsScreenState extends State<FeaturedAdsScreen> {
                           children: [
                             Icon(Icons.campaign_outlined, size: 38),
                             SizedBox(height: 8),
-                            Text('لا توجد حملات مميزة متاحة في هذا النطاق حالياً.'),
+                            Text('لا توجد حملات مميزة متاحة حالياً.'),
                           ],
                         ),
                       ),
@@ -505,7 +467,7 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('مكافآت مشاهدة الإعلانات'),
+      title: const Text('استحقاق المشاهدة'),
       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))],
     ),
     body: _loading
@@ -516,7 +478,7 @@ class _FeaturedAdRewardsScreenState extends State<FeaturedAdRewardsScreen> {
               const Card(
                 child: Padding(
                   padding: EdgeInsets.all(18),
-                  child: Text('تُمنح الكوينز فقط بعد جلسة مشاهدة صريحة والتحقق الخادمي من الظهور والمدة والميزانية والحدود. المعاينات لا تمنح مكافآت.'),
+                  child: Text('فتح الشاشة أو معاينة الإعلان أو انتهاء المؤقت المحلي لا يمنح مكافأة. قيمة المكافأة والمدة والميزانية وحدود التكرار يحددها المالك وتتحقق منها الخدمة خادمياً. الحد الأقصى 10 مشاهدات مؤهلة لكل عضو لكل إعلان في يوم UTC. كل مكافأة معتمدة تسجل في سجل المحفظة المركزي.'),
                 ),
               ),
               if (_error != null) Text(_error!),

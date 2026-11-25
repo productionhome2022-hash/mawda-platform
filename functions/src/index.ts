@@ -63,7 +63,7 @@ import { applyContractSignature, assertContractStatusTransition, canMakeContract
 import { validateSpecializedRoleGrant, specializedRoleGrantId, applySpecializedPermissionDelta } from "./advertising-governance";
 import { defaultAttendanceRewardPolicy, validateAttendanceRewardPolicy, utcRewardPeriod, validateTimedAdCampaignInput, eligibleHeartbeatDelta, timedAdMemberCounterId, TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER, AttendanceRewardType } from "./engagement-rewards";
 import { projectPublishedStickerPack } from "./sticker-catalog";
-import { selectFeaturedAdShowcase, featuredAdTargetsGeography, type FeaturedAdCampaignCandidate } from "./featured-advertising";
+import { selectFeaturedAdShowcase, type FeaturedAdCampaignCandidate } from "./featured-advertising";
 import { validateGroupCallPricingPolicy, calculateGroupCallFinalSettlement } from "./group-call-economy";
 
 export { getMyBiometricVerificationStatus, getBiometricVerificationPhrase, startBiometricVerificationRequest, submitBiometricVerificationRequest, listOwnerBiometricVerificationRequests, getOwnerBiometricEvidencePlayback, decideBiometricVerificationRequest, cleanupDecidedBiometricEvidence } from "./biometric-lifecycle";
@@ -12469,11 +12469,6 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
       !isMemberAccountInGoodStanding(user.data())) {
     throw new HttpsError("permission-denied", "الإعلانات المميزة متاحة للأعضاء النشطين فقط.");
   }
-  const geography = request.data?.geography;
-  if (typeof geography !== "string" ||
-      !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
-    throw new HttpsError("invalid-argument", "يجب اختيار نطاق جغرافي معتمد.");
-  }
   const now = Date.now();
   const snapshot = await db.collection("featuredAdCampaigns")
     .where("status", "==", "published")
@@ -12486,8 +12481,6 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
         typeof data.ownerWithdrawn !== "boolean" ||
         typeof data.paymentConfirmed !== "boolean" ||
         typeof data.creativeApproved !== "boolean" ||
-        !Array.isArray(data.geographicTargets) ||
-        !data.geographicTargets.every((item: unknown) => typeof item === "string") ||
         !["rotation", "priority"].includes(data.featuredPlacement)) return [];
     return [{
       campaignId: doc.id,
@@ -12498,7 +12491,6 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
       creativeApproved: data.creativeApproved,
       startsAtMs: data.startsAtMs,
       endsAtMs: data.endsAtMs,
-      geographicTargets: data.geographicTargets,
       featuredPlacement: data.featuredPlacement as "rotation" | "priority",
       ...(Number.isSafeInteger(data.priorityOrder) ? { priorityOrder: data.priorityOrder } : {}),
     }];
@@ -12510,7 +12502,6 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
   const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc]));
   return {
     serverTimeMs: now,
-    geography,
     mode: selection.mode,
     rotationIntervalMs: selection.rotationIntervalMs,
     rewardEligible: false,
@@ -12990,8 +12981,7 @@ export const getMyFeaturedAdRewardHistory = onCall(async (request) => {
 export const startFeaturedAdViewingSession = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
   const campaignId = typeof request.data?.campaignId === "string" ? request.data.campaignId.trim() : "";
-  const geography = typeof request.data?.geography === "string" ? request.data.geography : "";
-  if (!campaignId || !(AD_INTAKE_GEOGRAPHIES as readonly string[]).includes(geography)) {
+  if (!campaignId) {
     throw new HttpsError("invalid-argument", "بيانات مشاهدة الإعلان غير صالحة.");
   }
   const userSnapshot = await db.collection("users").doc(uid).get();
@@ -13004,8 +12994,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   const now = Date.now();
   if (campaign.status !== "published" || campaign.ownerWithdrawn === true || campaign.ownerApproved !== true ||
       campaign.paymentConfirmed !== true || campaign.creativeApproved !== true ||
-      campaign.startsAtMs > now || campaign.endsAtMs <= now ||
-      !featuredAdTargetsGeography(campaign.geographicTargets, geography)) {
+      campaign.startsAtMs > now || campaign.endsAtMs <= now) {
     throw new HttpsError("failed-precondition", "الحملة غير مؤهلة للمشاهدة حالياً.");
   }
   let rewardPolicy: FeaturedAdRewardPolicy;
@@ -13021,7 +13010,7 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
   const sessionRef = db.collection("featuredAdViewingSessions").doc(sessionId);
   const creativeType = campaign.creativeType === "video" ? "video" : campaign.creativeType === "image" ? "image" : "text";
   const sessionData = {
-    uid, campaignId, geography, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
+    uid, campaignId, creativeType, status: "active", startedAtMs: now, lastHeartbeatAtMs: now,
     // Client heartbeat data is telemetry only. No trusted playback/visibility
     // attestation provider is connected, so settlement must remain fail-closed.
     visibleMs: 0, continuousVisibleMs: 0, progressPercent: 0, foregroundVisible: true,
@@ -13079,7 +13068,6 @@ export const startFeaturedAdViewingSession = onCall(async (request) => {
     if (!latestCampaign.exists || latest.status !== "published" || latest.ownerWithdrawn === true ||
         latest.ownerApproved !== true || latest.paymentConfirmed !== true || latest.creativeApproved !== true ||
         sessionNow < latest.startsAtMs || sessionNow >= latest.endsAtMs ||
-        !featuredAdTargetsGeography(latest.geographicTargets, geography) ||
         latest.mediaId !== campaign.mediaId) {
       throw new HttpsError("failed-precondition", "تم إيقاف الحملة أو تغيرت أثناء بدء جلسة المشاهدة.");
     }
@@ -13203,7 +13191,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
         campaign.status === "published" && campaign.ownerWithdrawn !== true &&
         campaign.ownerApproved === true && campaign.paymentConfirmed === true && campaign.creativeApproved === true &&
         now >= campaign.startsAtMs && now < campaign.endsAtMs &&
-        featuredAdTargetsGeography(campaign.geographicTargets, String(session.geography ?? "")),
+        true,
       rewardBudgetAvailable: campaignRewardConfigured &&
         featuredAdRewardBudgetAvailable(
           campaign.rewardBudgetCoins,

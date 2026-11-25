@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { createHmac } = require("node:crypto");
 const { verifyScannerWebhook, validateScannerVerdict } = require("../lib/media-scanner");
+const { safeDerivativePurposeAllowed } = require("../lib/media-derivative-contract");
 
 test("scanner webhook HMAC is verified and rejects absent or weak secrets", () => {
   const body = Buffer.from("{\"verdict\":\"clean\"}");
@@ -174,7 +175,7 @@ test("scanner malicious and error verdicts are valid only without safe derivativ
 });
 
 
-test("scanner callback accepts only ClamAV-clean biometric audio and video safe derivatives", () => {
+test("scanner callback validates clean biometric media and defers advertisement purpose authorization to the media contract", () => {
   const now = 1_800_000_000_000;
   const base = {
     mediaId: "123e4567-e89b-12d3-a456-426614174000",
@@ -195,8 +196,11 @@ test("scanner callback accepts only ClamAV-clean biometric audio and video safe 
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");
-    assert.equal(validateScannerVerdict({
+    const advertisementVerdict = validateScannerVerdict({
       ...payload, purpose: "advertisement",
-    }, base.provider, now), null);
+    }, base.provider, now);
+    assert.equal(advertisementVerdict?.purpose, "advertisement");
+    assert.equal(safeDerivativePurposeAllowed(category, "advertisement", "member"), false);
+    assert.equal(safeDerivativePurposeAllowed(category, "advertisement", "platform_owner"), category === "video");
   }
 });

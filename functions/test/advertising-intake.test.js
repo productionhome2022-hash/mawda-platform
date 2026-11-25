@@ -26,8 +26,11 @@ const validDirectAdvertiserBudget = {
 test("advertising proposal budgets enforce supported currency precision", () => {
   assert.equal(validateAdvertisingIntake(validDirectAdvertiserBudget).currency, "EUR");
   assert.equal(validateAdvertisingIntake({
+    ...validDirectAdvertiserBudget, currency: "JOD", proposedBudgetAmount: "125.000",
+  }).currency, "JOD");
+  assert.throws(() => validateAdvertisingIntake({
     ...validDirectAdvertiserBudget, currency: "KWD", proposedBudgetAmount: "125.000",
-  }).proposedBudgetAmount, "125.000");
+  }), /invalid_budget/);
   assert.throws(() => validateAdvertisingIntake({
     ...validDirectAdvertiserBudget, currency: "XXX",
   }), /invalid_budget/);

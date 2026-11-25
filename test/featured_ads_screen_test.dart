@@ -23,7 +23,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('قيمة المكافأة والمدة والميزانية وحدود التكرار'), findsOneWidget);
-    expect(find.textContaining('بحد أقصى 10 مشاهدات و20 BetaCoins لكل عضو في يوم UTC'), findsOneWidget);
+    expect(find.textContaining('الحد الأقصى 10 مشاهدات مؤهلة لكل عضو لكل إعلان في يوم UTC'), findsOneWidget);
     expect(find.textContaining('سجل المحفظة المركزي'), findsOneWidget);
   });
 }
