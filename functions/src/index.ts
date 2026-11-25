@@ -14,7 +14,7 @@ import {
   type NumberedPlatformRole,
 } from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
-import { validateCallRequest, validateCallSignal, canTransitionCall, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+import { validateCallRequest, validateCallSignal, canTransitionCall, isCallMemberBusyInSession, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -11222,12 +11222,7 @@ export const startCall = onCall(async (request) => {
       if (!lock.exists || !lockedCall?.exists) continue;
       const lockedData = lockedCall.data() ?? {};
       const memberUid = participantUids[index];
-      const memberHasLeft = Array.isArray(lockedData.leftUids) && lockedData.leftUids.includes(memberUid);
-      const memberDeclined = Array.isArray(lockedData.rejectedUids) && lockedData.rejectedUids.includes(memberUid);
-      const isStillRinging = lockedData.status === "ringing" &&
-        lockedData.expiresAt instanceof Timestamp && lockedData.expiresAt.toMillis() > now;
-      if (!memberHasLeft && !memberDeclined &&
-          (lockedData.status === "accepted" || isStillRinging)) {
+      if (isCallMemberBusyInSession(memberUid, lockedData)) {
         throw new HttpsError("resource-exhausted", "أحد المشاركين لديه مكالمة نشطة بالفعل.");
       }
     }
