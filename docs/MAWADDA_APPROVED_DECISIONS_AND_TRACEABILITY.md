@@ -11,6 +11,15 @@
 | GOV-OWNER-002 | Super Owner صاحب القرار والتدخل الشامل، بما يشمل الإنشاء والتعديل والاعتماد والرفض والإيقاف والإلغاء والتراجع والاستعادة والاسترداد والتسوية والمنح وسحب المنح والتعيين والعزل والتفويض وسحبه وطلب التقارير والتدقيق في كل المجالات الحالية والمستقبلية | توجيه المالك المباشر؛ الدستور المادة 3؛ الرؤية المادة 1 | موثق على فرع التطوير؛ التنفيذ البرمجي الشامل يحتاج تدقيقاً مستقلاً |
 | NOM-001 | توحيد Super Owner؛ الإدارة العامة Admin 1…Admin N بعدد يحدده المالك؛ إبقاء Admin Media 1–5 وأدوار الإنتاج والعقود مستقلة؛ العملة بيتاكوينز / BetaCoins | توجيه المالك؛ مصادر الحوكمة والأدوار والعقود | قاعدة تسمية موثقة؛ المسح البرمجي الشامل لم يكتمل |
 
+
+## Owner amendment — comprehensive economic phase (2026-11-18)
+
+- **ECON-004 — Currency naming:** Technical `coins` identifiers remain stable unless a separate migration is approved. The visible spelling in this record follows the newer NOM-001 decision dated 2026-11-21: **BetaCoins / بيتاكوينز**; it supersedes the older spaced spelling in this 2026-11-18 amendment.
+- **ECON-005 — Coin privacy authority:** Owner and Super Admin are the same sole sovereign identity. Only the profile owner and sole Owner/Super Admin may see a member's balance value; ordinary members, friends, non-friends and General Moderators must not receive the balance value. Hide Coins may render a lock instead.
+- **AD-002 — Featured player layout:** The responsive player/context split is 60% player and 40% contextual information. This supersedes older 75/25 wording.
+- **ECON-006 — Development commercial values:** Engineering may choose centrally configurable test/development prices, durations, quotas and billing units needed to exercise lifecycle paths. These values are not launch prices and must remain isolated from production configuration.
+
+
 ## قواعد الحالة
 
 - **معتمد — لم يبدأ:** المتطلب ثابت لكن لا يوجد تنفيذ كافٍ.
