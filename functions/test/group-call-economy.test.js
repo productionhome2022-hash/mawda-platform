@@ -98,7 +98,7 @@ test("invalid participant sets and invalid duration fail closed", () => {
   assert.throws(() => calculateGroupCallBillingSlice(policy, "video", ["owner", "b"], "owner", 1441));
 });
 
-test("audio group allocation supports the five-person owner-approved maximum", () => {
+test("audio group allocation handles five participants without asserting an admission cap", () => {
   const shares = calculateGroupCallCoinShares(1000, ["owner", "b", "c", "d", "e"], "owner");
   assert.deepEqual(shares.map((item) => item.amount), [200, 200, 200, 200, 200]);
   assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 1000);
