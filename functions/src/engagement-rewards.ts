@@ -148,7 +148,7 @@ export function validateTimedAdCampaignInput(value: unknown): TimedAdCampaignInp
       typeof durationSeconds !== "number" || !Number.isSafeInteger(durationSeconds) ||
       durationSeconds < 15 || durationSeconds > MAX_AD_DURATION_SECONDS ||
       typeof rewardCoins !== "number" || !Number.isSafeInteger(rewardCoins) ||
-      rewardCoins < 0 || rewardCoins > MAX_REWARD_COINS ||
+      rewardCoins < 1 || rewardCoins > MAX_REWARD_COINS ||
       typeof startsAtMs !== "number" || !Number.isSafeInteger(startsAtMs) || startsAtMs < 0 ||
       typeof endsAtMs !== "number" || !Number.isSafeInteger(endsAtMs) || endsAtMs <= startsAtMs ||
       typeof maxClaimsPerMember !== "number" || !Number.isSafeInteger(maxClaimsPerMember) ||
