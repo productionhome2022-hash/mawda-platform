@@ -67,6 +67,7 @@ import {
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { audienceForAge, canJoinRoom, canJoinGuestRoom, normalizeModeratorPermissions } from "./room-policy";
 import { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible, roomCallParticipantLimit } from "./room-call-policy";
+import { callMaxDurationEnd, validateCallUsagePolicy } from "./call-usage-policy";
 import { isGuestSessionActive } from "./guest-sessions";
 import { hasPlatformOwnerSession } from "./owner-access";
 import { calculateOwnerAuditHash, verifyOwnerAuditChain } from "./owner-audit-chain";
@@ -11016,7 +11017,6 @@ const CALL_QUOTA_WINDOWS = db.collection("callQuotaWindows");
 const CALL_QUOTA_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CALL_AUDIO_ATTEMPT_LIMIT = 5;
 const CALL_VIDEO_ATTEMPT_LIMIT = 3;
-const CALL_MAX_DURATION_MS = 5 * 60 * 1000;
 
 /**
  * Enforce the five-minute ceiling from the server timestamp created only
@@ -11518,8 +11518,17 @@ export const markCallConnected = onCall(async (request) => {
       memberUid !== call.callerUid && acceptedUids.includes(memberUid));
     if (hasCaller && hasAcceptedRecipient) {
       const nowMs = Date.now();
+      let usagePolicy;
+      try { usagePolicy = validateCallUsagePolicy(call.usagePolicySnapshot); }
+      catch {
+        throw new HttpsError("failed-precondition", "لقطة سياسة مدة المكالمة غير صالحة؛ تعذر تثبيت الاتصال.");
+      }
+      const maxDurationEndsAtMs = callMaxDurationEnd(
+        nowMs, usagePolicy, call.scope === "room" ? "room" : "direct", call.mode,
+      );
       const connectedAt = Timestamp.fromMillis(nowMs);
-      const maxDurationEndsAt = Timestamp.fromMillis(nowMs + CALL_MAX_DURATION_MS);
+      const maxDurationEndsAt = maxDurationEndsAtMs === null
+        ? null : Timestamp.fromMillis(maxDurationEndsAtMs);
       transaction.update(ref, {
         connectedUids,
         mediaConnectedAt,
@@ -11529,7 +11538,7 @@ export const markCallConnected = onCall(async (request) => {
       });
       return {
         callId, connected: true, connectedAtMs: nowMs,
-        maxDurationEndsAtMs: maxDurationEndsAt.toMillis(),
+        maxDurationEndsAtMs,
         idempotentReplay: false,
       };
     }
