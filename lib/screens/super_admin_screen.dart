@@ -19,6 +19,7 @@ import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
 import 'biometric_review_screen.dart';
+import 'capacity_media_management_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -1526,6 +1527,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.card_giftcard_outlined),
                     label: const Text('منح استحقاقات مجانية فردية أو جماعية'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const CapacityMediaManagementScreen(),
+                    )),
+                    icon: const Icon(Icons.storage_outlined),
+                    label: const Text('إدارة السعة وحصص الوسائط (مراقبة فقط)'),
                   ),
                 ),
                 const SizedBox(height: 8),
