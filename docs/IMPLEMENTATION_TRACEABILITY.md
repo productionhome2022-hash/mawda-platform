@@ -395,6 +395,14 @@ Source of truth: [Master Development Charter](MAWADDA_MASTER_DEVELOPMENT_CHARTER
 | OWNER-002 | Grant center UI, owner-only callable, audience snapshot, batch/idempotent grant worker, recipient history, wallet/entitlement integration | single UID, selected group, live public-room snapshot, room collective prize, partial retry, duplicate request, unauthorized moderator/member, audit and ledger | Partial: owner/MFA-only single and bulk free store-entitlement grants are implemented with 24h/7d/30d durations, additive expiry extension, per-target idempotency, immutable grant ledger/audit, partial failure reporting and an owner-console UID-based grant screen. Per-call batches are 500 targets with no overall account/lifetime grant cap. Emulator integration tests added; exact-head CI pending. Still open: free BetaCoins grants, group/room audience snapshots and collective rewards, recipient grant history, recipient notifications and full preview/confirmation of dynamic room/group recipients |
 | GOV-002 | Shared commercial configuration and new-product integration interface | CI contract test for SKU registration, no client hardcoded price/duration, owner enable/disable, expiry | Every future product must integrate before release |
 
+### Owner-approved economic naming and UI corrections — 2026-11-18
+
+- The visible commercial currency name follows the newer NOM-001 spelling **BetaCoins / بيتاكوينز** across the product. Existing technical field names such as `coins` remain unchanged until a separately justified migration is approved.
+- «الإدارة» in economic/privacy contexts means the single Owner/Super Admin identity only; General Moderators are not included.
+- Coin balance visibility is server-authorized: the profile owner and sole Owner/Super Admin may see the number; other members and moderators receive no balance field and may see a lock state when Hide Coins is active.
+- Featured-ad player/context layout is **60% player / 40% contextual information**, adaptive to the screen. Older 75/25 wording is superseded.
+- Test/development prices, durations and limits may be selected centrally for engineering validation under the owner's development authorization; they are not launch prices and must not be treated as production policy.
+
 ### Implementation invariants
 - Money and entitlement changes are server-side transactions; use idempotency keys and immutable receipts/audit records.
 - A batch grant records intended recipients and final per-recipient result; retries must not duplicate successful grants.
