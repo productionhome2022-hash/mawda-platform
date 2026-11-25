@@ -96,7 +96,11 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 10),
                     Text(
-                      'الحد الأعلى للمشاهدة المميزة: 10 مشاهدات مؤهلة لكل إعلان لكل عضو في اليوم. وقد يحدد المالك حداً أقل.',
+                      'المكافأة المعتمدة: 2 BetaCoins لكل مشاهدة مؤهلة، بحد أقصى 10 مشاهدات و20 BetaCoins لكل عضو في يوم UTC، ومكافأة واحدة للحملة نفسها خلال نافذة 24 ساعة متحركة.',
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'هذه سياسة معتمدة للتنفيذ وليست دليلاً على تفعيل المكافآت حالياً؛ لا تُمنح BetaCoins قبل اكتمال الربط الخادمي واختبارات القبول.',
                     ),
                   ],
                 ),
@@ -109,7 +113,7 @@ class FeaturedAdRewardsScreen extends StatelessWidget {
                 child: Column(
                   children: [
                     const Text(
-                      'المكافآت تسجل في سجل المحفظة المركزي، ولا تنشئ رصيداً مستقلاً.',
+                      'عند اكتمال الربط، ستُسجل المكافآت في سجل المحفظة المركزي، ولن تنشئ رصيداً مستقلاً.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
