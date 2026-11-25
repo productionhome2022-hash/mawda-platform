@@ -6,6 +6,7 @@ const {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
+  TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
 } = require("../lib/engagement-rewards");
 
 test("attendance policy defaults closed and rejects malformed or unsafe reward amounts", () => {
@@ -55,6 +56,9 @@ test("timed-ad campaign validation bounds duration, rewards, dates and budget", 
     rewardBudgetCoins: 1000,
   };
   assert.equal(validateTimedAdCampaignInput(valid).rewardCoins, 10);
+  assert.equal(TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER, 3);
+  assert.equal(validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 3 }).maxClaimsPerMember, 3);
+  assert.throws(() => validateTimedAdCampaignInput({ ...valid, maxClaimsPerMember: 4 }), /AD_CAMPAIGN_INVALID/);
   const standard = validateTimedAdCampaignInput({
     ...valid, adType: "standard", geographicTargets: ["syria"],
   });
