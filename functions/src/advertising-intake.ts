@@ -1,3 +1,5 @@
+import { isValidPositiveCurrencyAmount } from "./economy-pricing";
+
 export const AD_INTAKE_GEOGRAPHIES = [
   "all_arab_countries", "syria", "lebanon_palestine", "iraq_jordan", "gcc",
   "egypt", "tunisia_libya_sudan", "algeria_morocco", "europe_turkey",
@@ -94,14 +96,13 @@ export function validateAdvertisingIntake(value: unknown): AdvertisingIntakePayl
       throw new AdvertisingIntakeValidationError("quote_and_budget_are_mutually_exclusive");
     }
   } else {
-    if (typeof data.proposedBudgetAmount !== "string" ||
-        !/^(?:0|[1-9]\d{0,11})(?:\.\d{1,4})?$/.test(data.proposedBudgetAmount) ||
-        Number(data.proposedBudgetAmount) <= 0 || typeof data.currency !== "string" ||
-        !/^[A-Z]{3}$/.test(data.currency)) {
+    const proposedCurrency = data.currency;
+    if (typeof proposedCurrency !== "string" ||
+        !isValidPositiveCurrencyAmount(data.proposedBudgetAmount, proposedCurrency)) {
       throw new AdvertisingIntakeValidationError("invalid_budget");
     }
-    proposedBudgetAmount = data.proposedBudgetAmount;
-    currency = data.currency;
+    proposedBudgetAmount = data.proposedBudgetAmount as string;
+    currency = proposedCurrency;
   }
   const idempotencyKey = text(data.idempotencyKey, 16, 100, "invalid_idempotency_key");
   if (!/^[A-Za-z0-9_-]{16,100}$/.test(idempotencyKey)) {
