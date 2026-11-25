@@ -173,7 +173,8 @@ async function inspectStickerMedia({ sourcePath, contentType }) {
 
 
 function audioDurationLimitForPurpose(purpose) {
-  if (purpose === "room" || purpose === "chat" || purpose === "biometric") return 60;
+  if (purpose === "biometric") return 20;
+  if (purpose === "room" || purpose === "chat") return 60;
   throw new Error("AUDIO_PURPOSE_INVALID");
 }
 
