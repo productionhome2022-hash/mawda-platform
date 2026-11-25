@@ -126,7 +126,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
     'awaiting_payment_verification' => 'أبلغت المالك - بانتظار التحقق الفعلي',
-    'approved' => 'تم الاعتماد وإضافة الكوينز',
+    'approved' => 'تم الاعتماد وإضافة BetaCoins',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
     _ => 'قيد المعالجة',
@@ -134,7 +134,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('شراء الكوينز يدوياً'),
+    appBar: AppBar(title: const Text('شراء BetaCoins يدوياً'),
       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
