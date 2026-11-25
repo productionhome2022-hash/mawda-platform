@@ -11567,11 +11567,13 @@ export const sendCallSignal = onCall(async (request) => {
     ]);
     if (!snapshot.exists) throw new HttpsError("not-found", "المكالمة غير موجودة.");
     const call = snapshot.data()!;
+    const acceptedUids = Array.isArray(call.acceptedUids) ? call.acceptedUids : [];
     if (!Array.isArray(call.participantUids) || !call.participantUids.includes(uid) ||
         !call.participantUids.includes(toUid) ||
         (call.scope === "room" &&
-          ((uid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(uid))) ||
-           (toUid !== call.callerUid && (!Array.isArray(call.acceptedUids) || !call.acceptedUids.includes(toUid))))) ||
+          ((uid !== call.callerUid && !acceptedUids.includes(uid)) ||
+           (toUid !== call.callerUid && !acceptedUids.includes(toUid) &&
+            !(uid === call.callerUid && signal.kind === "offer")))) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(uid)) ||
         (Array.isArray(call.leftUids) && call.leftUids.includes(toUid)) ||
         (Array.isArray(call.rejectedUids) && call.rejectedUids.includes(uid)) ||

@@ -181,6 +181,14 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
     await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+    await assert.rejects(
+      () => sendCallSignal.run(call(firstUid, {
+        callId, toUid: secondUid,
+        signal: { kind: "ice", payload: JSON.stringify({ candidate: "candidate:2" }), sequence: 0 },
+      })),
+      (error) => error && error.code === "permission-denied",
+      "an accepted peer cannot signal to a room participant who has not accepted yet",
+    );
     await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
