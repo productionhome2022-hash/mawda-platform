@@ -17,15 +17,15 @@ Scope: unique UNMATCHED candidates 163–174 (12 commits).
 | 169 | 46e41f28e3bbb97ad0f50ab064a3f374e92d462c | Use shared tested guard for transactional daily caps | Current completeTimedAdvertisement has no decideTimedAdDailyCap call and no global daily counter | Held pending owner approval |
 | 170 | 6073c81fdc47844aa67196c215701a1e294f56b3 | Extract timed-ad daily cap decision | Current engagement-rewards.ts does not export decideTimedAdDailyCap or fixed 10/20 constants | Held pending owner approval |
 | 171 | c9fd052b1572e401bc1e747cfa3007f26cf68199 | Document call billing and Media Saver source gaps | Current economic audit preserves the distinction between WebRTC signaling/attempt quotas and missing economic metering/consent/settlement, and records Media Saver client/local-save gaps | Already documented |
-| 172 | 6eca9a36edd861b75881d5a1a04649111b39397b | Import timed-ad reward safety limits | Current index.ts imports neither raw cap constants nor the daily decision helper | Superseded / no-op |
+| 172 | 6eca9a36edd861b75881d5a1a04649111b39397b | Import timed-ad reward safety limits | Current index.ts imports only the approved per-campaign cap constant and clamps standard campaigns to 3; no global daily constants, helper or per-member daily counter are active | Superseded / no-op |
 | 173 | a1138c6985c31fde3c48a7d52d17e567d09702c7 | Document server-enforced ad reward caps | Historical audit says standard timed-ad limits were enforced. AD-001 separately approves 10 views/20 BetaCoins per UTC day only for the distinct Featured Ads reward flow and marks that integration open; it does not authorize the same cap on standard timed ads | Historical record; policy distinction required |
 | 174 | 9ee5debaf5fd718b0209558314a2b2952a3088d8 | Test timed-ad reward caps | Current engagement-rewards tests contain no fixed standard timed-ad cap tests. Do not port tests for quotas not approved for this path | Held |
 
 ## Result
 - Reviewed: 12/1,665 unique candidates (163–174).
-- Already present/documented or no-op: 5.
+- Already present/documented or no-op: 6.
 - Historical quota documentation: 2.
-- Held pending owner approval: 3 implementation/test deltas.
+- Held pending owner approval: 4 implementation/test deltas.
 - Confirmed unique code changes transferred: 0.
 - Tests executed: 0. Source and test-definition inspection only.
 - No CI success is claimed.
