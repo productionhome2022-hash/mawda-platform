@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { validateStickerMediaMetadata, type StickerMediaMetadata } from "./sticker-policy";
 
 export interface ScannerSafeDerivative {
   category: "gif" | "audio" | "video" | "document";
@@ -7,11 +8,15 @@ export interface ScannerSafeDerivative {
   sha256: string;
   contentType: "image/gif" | "audio/mpeg" | "video/mp4" | "application/pdf";
   pipelineVersion: string;
+  /** Measured by the trusted decoder/transcoder, never supplied by the client. */
+  durationMs?: number;
+  frameCount?: number;
 }
 
 export interface ScannerVerdictPayload {
   mediaId: string;
-  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "biometric";
+  purpose: "chat" | "room" | "profile_album" | "avatar_cover" | "story" | "advertisement" | "sticker" | "biometric";
+  stickerMetadata?: StickerMediaMetadata;
   provider: string;
   verdict: "clean" | "malicious" | "error";
   objectGeneration: string;
@@ -60,6 +65,21 @@ export function validateScannerVerdict(
     previewParts[2] === v.mediaId &&
     previewParts[3] === "preview.webp";
 
+  let stickerMetadata: StickerMediaMetadata | undefined;
+  if (v.purpose === "sticker") {
+    // Clean verdicts must carry measured sticker metadata. Malware verdicts
+    // must still be accepted even when parsing the untrusted payload is unsafe.
+    if (v.verdict === "clean" || v.stickerMetadata !== undefined) {
+      try {
+        stickerMetadata = validateStickerMediaMetadata(v.stickerMetadata);
+      } catch {
+        return null;
+      }
+    }
+  } else if (v.stickerMetadata !== undefined) {
+    return null;
+  }
+
   let safeDerivative: ScannerSafeDerivative | undefined;
   if (v.safeDerivative !== undefined) {
     if (!v.safeDerivative || typeof v.safeDerivative !== "object" || Array.isArray(v.safeDerivative)) return null;
@@ -90,15 +110,29 @@ export function validateScannerVerdict(
         typeof d.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(d.sha256) ||
         v.verdict !== "clean" || hasAnyPreview ||
         v.processingStatus !== expectedProcessingStatus[category]) return null;
+    const durationMs = d.durationMs;
+    const frameCount = d.frameCount;
+    if (category === "gif" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 20_000 ||
+         !Number.isSafeInteger(frameCount) || (frameCount as number) < 1 ||
+         (frameCount as number) > 50)) return null;
+    if (category === "video" &&
+        (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
+         (durationMs as number) > 90_000)) return null;
+    if (category !== "gif" && category !== "video" &&
+        (durationMs !== undefined || frameCount !== undefined)) return null;
     safeDerivative = {
       category, path: d.path as string, generation: d.generation as string,
       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
       pipelineVersion: d.pipelineVersion as string,
+      ...(typeof durationMs === "number" ? { durationMs } : {}),
+      ...(typeof frameCount === "number" ? { frameCount } : {}),
     };
   }
 
   if (typeof v.mediaId !== "string" || !/^[0-9a-f-]{36}$/i.test(v.mediaId) ||
-      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric"].includes(v.purpose) ||
+      typeof v.purpose !== "string" || !["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "sticker", "biometric"].includes(v.purpose) ||
       v.provider !== expectedProvider ||
       !["clean", "malicious", "error"].includes(String(v.verdict)) ||
       typeof v.objectGeneration !== "string" || !/^\d+$/.test(v.objectGeneration) ||
@@ -119,5 +153,5 @@ export function validateScannerVerdict(
         v.safePreviewContentType !== "image/webp" || v.verdict !== "clean"
       )) ||
       (v.verdict !== "clean" && (hasAnyPreview || safeDerivative !== undefined))) return null;
-  return v as unknown as ScannerVerdictPayload;
+  return { ...v, ...(stickerMetadata ? { stickerMetadata } : {}) } as unknown as ScannerVerdictPayload;
 }

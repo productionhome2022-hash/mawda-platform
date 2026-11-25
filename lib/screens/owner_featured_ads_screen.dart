@@ -291,7 +291,7 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
             if (isRefund || action == 'payment_received') TextField(controller: evidence,
               decoration: const InputDecoration(labelText: 'مرجع الإثبات الآمن')),
             if (isReview) DropdownButtonFormField<String>(
-              value: outcome,
+              initialValue: outcome,
               items: const [
                 DropdownMenuItem(value: 'approved', child: Text('مراجعة مقبولة')),
                 DropdownMenuItem(value: 'needs_attention', child: Text('تحتاج متابعة')),
@@ -432,7 +432,7 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
                   decoration: const InputDecoration(labelText: 'وصف الإعلان')),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _mediaId,
+                initialValue: _mediaId,
                 decoration: const InputDecoration(labelText: 'المادة المعتمدة أمنياً'),
                 items: _assets.map((asset) => DropdownMenuItem<String>(
                   value: asset['mediaId'] as String?,
@@ -441,7 +441,7 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
                 onChanged: _saving ? null : (value) => setState(() => _mediaId = value),
               ),
               DropdownButtonFormField<String>(
-                value: _region,
+                initialValue: _region,
                 decoration: const InputDecoration(labelText: 'النطاق الجغرافي'),
                 items: _regions.entries.map((entry) => DropdownMenuItem(
                   value: entry.key, child: Text(entry.value),
@@ -449,7 +449,7 @@ class _OwnerFeaturedAdsScreenState extends State<OwnerFeaturedAdsScreen> {
                 onChanged: _saving ? null : (value) => setState(() => _region = value ?? _region),
               ),
               DropdownButtonFormField<String>(
-                value: _placement,
+                initialValue: _placement,
                 decoration: const InputDecoration(labelText: 'طريقة العرض'),
                 items: const [
                   DropdownMenuItem(value: 'rotation', child: Text('تدوير عشوائي')),

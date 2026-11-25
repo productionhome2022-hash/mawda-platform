@@ -22,6 +22,17 @@ export type FeaturedAdSelection = {
   rewardEligible: false;
 };
 
+/** Shared geographic gate for showcase, session creation and reward settlement. */
+export function featuredAdTargetsGeography(
+  geographicTargets: unknown,
+  audienceGeography: string,
+): boolean {
+  return Array.isArray(geographicTargets) &&
+    typeof audienceGeography === "string" && audienceGeography.length > 0 &&
+    (geographicTargets.includes(audienceGeography) ||
+      geographicTargets.includes("all_arab_countries"));
+}
+
 function isEligible(
   campaign: FeaturedAdCampaignCandidate,
   nowMs: number,

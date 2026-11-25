@@ -100,6 +100,8 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
         sha256: "b".repeat(64),
         contentType: item.contentType,
         pipelineVersion: item.pipelineVersion,
+        ...(item.category === "gif" ? { durationMs: 10_000, frameCount: 10 } :
+          item.category === "video" ? { durationMs: 30_000 } : {}),
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);

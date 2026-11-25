@@ -12505,7 +12505,6 @@ export const getFeaturedAdShowcase = onCall(async (request) => {
   });
   const selection = selectFeaturedAdShowcase({
     campaigns: candidates,
-    audienceGeography: geography,
     nowMs: now,
   });
   const byId = new Map(snapshot.docs.map((doc) => [doc.id, doc]));
