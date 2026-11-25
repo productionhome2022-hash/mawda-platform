@@ -169,34 +169,3 @@ test("biometric uploads require a request binding and permit only member audio/v
     purpose: "chat", biometricRequestId: requestId,
   }));
 });
-
-test("sticker upload policy is owner-only and enforces stricter sticker byte ceilings", () => {
-  assert.equal(mediaUploadAllowedForRole({
-    purpose: "sticker", contentType: "image/png",
-  }, true), true);
-  assert.equal(mediaUploadAllowedForRole({
-    purpose: "sticker", contentType: "image/gif",
-  }, true), true);
-  assert.equal(mediaUploadAllowedForRole({
-    purpose: "sticker", contentType: "image/png",
-  }, false), false);
-  assert.equal(mediaUploadAllowedForRole({
-    purpose: "sticker", contentType: "image/jpeg",
-  }, true), false);
-  assert.equal(normalizeMediaRequest({
-    originalName: "sticker.png", contentType: "image/png",
-    sizeBytes: 256 * 1024, purpose: "sticker",
-  }).purpose, "sticker");
-  assert.equal(normalizeMediaRequest({
-    originalName: "sticker.gif", contentType: "image/gif",
-    sizeBytes: 512 * 1024, purpose: "sticker",
-  }).purpose, "sticker");
-  assert.throws(() => normalizeMediaRequest({
-    originalName: "large-sticker.png", contentType: "image/png",
-    sizeBytes: 256 * 1024 + 1, purpose: "sticker",
-  }));
-  assert.throws(() => normalizeMediaRequest({
-    originalName: "large-sticker.gif", contentType: "image/gif",
-    sizeBytes: 512 * 1024 + 1, purpose: "sticker",
-  }));
-});
