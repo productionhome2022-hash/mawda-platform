@@ -591,7 +591,9 @@ test("custom coin request is negotiated manually and a withdrawn request cannot 
         priceMinor: 500, currency: "EUR", active: true }],
       adPrices: [{ placementId: "test_ad", name: "Test ad", billingModel: "daily",
         priceMinor: 100, currency: "EUR", active: true }],
-      manualCoinPurchasesEnabled: true, automatedCoinCheckoutEnabled: false, version: 1,
+      manualCoinPurchasesEnabled: true,
+      paymentPolicy: { coin_purchases: { manualEnabled: true, automatedEnabled: false } },
+      automatedCoinCheckoutEnabled: false, version: 1,
       customCoinRequestBounds: { minCoins: 100, maxCoins: 50000 },
     }),
   ]);
@@ -837,6 +839,7 @@ test("every shipped premium store category charges once and grants its matching 
         itemId,
         requestId,
         expectedPriceCoins: priceCoins,
+        expectedCatalogVersion: itemId === "vip_monthly" ? 2 : publishedItems[index].version,
       }));
       assert.equal(replay.idempotentReplay, true, itemId);
       assert.equal((await memberRef.get()).data().coins, 10000 - ((index + 1) * priceCoins), itemId);
