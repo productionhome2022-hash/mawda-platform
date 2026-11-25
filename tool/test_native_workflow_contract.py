@@ -48,8 +48,15 @@ class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
         self.assertEqual(aliases["default"], "mawda-platform-nonprod-2026")
         self.assertEqual(aliases["production"], "mawda-app-2026")
         workflows = root / ".github" / "workflows"
-        self.assertFalse((workflows / "firebase-hosting-merge.yml").exists())
+        production_deploy = workflows / "firebase-hosting-merge.yml"
+        self.assertTrue(production_deploy.exists())
+        production_source = production_deploy.read_text()
+        self.assertIn("workflow_dispatch:", production_source)
+        self.assertIn("if: false && github.ref == 'refs/heads/main'", production_source)
+        self.assertIn("inputs.confirm_production_deploy == true", production_source)
         for workflow_file in workflows.glob("*.yml"):
+            if workflow_file.name == "firebase-hosting-merge.yml":
+                continue
             source = workflow_file.read_text()
             self.assertNotIn("firebase deploy", source)
             self.assertNotIn("gcloud run deploy", source)
