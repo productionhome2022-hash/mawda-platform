@@ -1220,6 +1220,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           final data = snapshot.data!;
           final name = (data['displayName'] as String?) ?? 'Mawda Member';
+          final coinBalanceVisible = data['coinBalanceVisible'] == true;
+          final coinBalance = (data['coinBalance'] as num?)?.toInt();
+          final coinBalanceHiddenByPrivacy = data['coinBalanceHiddenByPrivacy'] == true;
           final vipActive = data['vipActive'] == true;
           final activeTitle = (data['activeTitle'] as String?)?.trim() ?? '';
           final activeFeatures = (data['activeFeatures'] as List<dynamic>? ?? const [])
@@ -1380,6 +1383,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: hasColoredUsername ? const Color(0xFF8B4AC8) : null,
+                        ),
+                      ),
+                    if (coinBalanceVisible && coinBalance != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Card(
+                          child: ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.account_balance_wallet_outlined),
+                            title: const Text('رصيد BetaCoins'),
+                            trailing: Text(
+                              '$coinBalance BetaCoins',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      )
+                    else if (coinBalanceHiddenByPrivacy)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8),
+                        child: Card(
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.lock_outline),
+                            title: Text('رصيد BetaCoins مخفي وفق إعدادات الخصوصية'),
+                          ),
                         ),
                       ),
                     if (discoveryBoostActive)
