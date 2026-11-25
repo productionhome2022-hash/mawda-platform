@@ -11480,18 +11480,39 @@ export const markCallConnected = onCall(async (request) => {
         call.maxDurationEndsAt.toMillis() <= Date.now()) {
       throw new HttpsError("deadline-exceeded", "انتهت مدة المكالمة القصوى.");
     }
+
+    const priorConnectedUids = Array.isArray(call.connectedUids)
+      ? call.connectedUids.filter((value): value is string => typeof value === "string")
+      : [];
+    const alreadyConnected = priorConnectedUids.includes(uid);
+    const connectedUids = alreadyConnected
+      ? priorConnectedUids
+      : [...new Set([...priorConnectedUids, uid])];
+    const priorMediaConnectedAt = call.mediaConnectedAt && typeof call.mediaConnectedAt === "object" &&
+        !Array.isArray(call.mediaConnectedAt)
+      ? { ...(call.mediaConnectedAt as Record<string, unknown>) }
+      : {};
+    const hasPriorMediaTimestamp = priorMediaConnectedAt[uid] instanceof Timestamp;
+    const mediaConnectedAt = hasPriorMediaTimestamp
+      ? priorMediaConnectedAt
+      : { ...priorMediaConnectedAt, [uid]: Timestamp.fromMillis(Date.now()) };
+
     if (call.maxDurationEndsAt instanceof Timestamp) {
+      if (!alreadyConnected || !hasPriorMediaTimestamp) {
+        transaction.update(ref, {
+          connectedUids,
+          mediaConnectedAt,
+          lastActivityAt: FieldValue.serverTimestamp(),
+        });
+      }
       return {
         callId, connected: true,
         connectedAtMs: call.connectedAt instanceof Timestamp ? call.connectedAt.toMillis() : null,
         maxDurationEndsAtMs: call.maxDurationEndsAt.toMillis(),
-        idempotentReplay: true,
+        idempotentReplay: alreadyConnected && hasPriorMediaTimestamp,
       };
     }
-    const connectedUids = [...new Set([
-      ...(Array.isArray(call.connectedUids) ? call.connectedUids.filter((value): value is string => typeof value === "string") : []),
-      uid,
-    ])];
+
     const hasCaller = connectedUids.includes(String(call.callerUid));
     const hasAcceptedRecipient = connectedUids.some((memberUid) =>
       memberUid !== call.callerUid && acceptedUids.includes(memberUid));
@@ -11501,6 +11522,7 @@ export const markCallConnected = onCall(async (request) => {
       const maxDurationEndsAt = Timestamp.fromMillis(nowMs + CALL_MAX_DURATION_MS);
       transaction.update(ref, {
         connectedUids,
+        mediaConnectedAt,
         connectedAt,
         maxDurationEndsAt,
         lastActivityAt: FieldValue.serverTimestamp(),
@@ -11513,11 +11535,13 @@ export const markCallConnected = onCall(async (request) => {
     }
     transaction.update(ref, {
       connectedUids,
+      mediaConnectedAt,
       lastActivityAt: FieldValue.serverTimestamp(),
     });
     return { callId, connected: false, idempotentReplay: false };
   });
 });
+
 
 export const sendCallSignal = onCall(async (request) => {
   const uid = requireAuthenticatedUid(request.auth?.uid);
