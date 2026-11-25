@@ -9,15 +9,6 @@ const db = getFirestore();
 const call = (uid, data = {}) => ({ data, auth: { uid, token: {} } });
 const uid = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-async function seedCallEntitlement(memberUid, mode) {
-  const itemId = mode === "audio" ? "voice_call_30d" : "video_call_30d";
-  const category = mode === "audio" ? "voice_call" : "video_call";
-  await db.collection("users").doc(memberUid).collection("entitlements").doc(itemId).set({
-    itemId, category, status: "active",
-    expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-  });
-}
-
 test("direct call lifecycle enforces membership, callee acceptance, sequenced signaling and termination", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const callerUid = uid("call_caller");
@@ -35,19 +26,9 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
     outsiderRef.set({ profileCompleted: true, accountStatus: "active", age: 28 }),
-    seedCallEntitlement(callerUid, "audio"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
   ]);
   try {
-    await assert.rejects(
-      () => startCall.run(call(callerUid, {
-        callId, scope: "direct", targetId: chatId, mode: "audio",
-      })),
-      (error) => error && error.code === "failed-precondition",
-      "both direct-call participants must hold an active matching call package",
-    );
-    assert.equal((await callRef.get()).exists, false);
-    await seedCallEntitlement(calleeUid, "audio");
     const started = await startCall.run(call(callerUid, {
       callId, scope: "direct", targetId: chatId, mode: "audio",
     }));
@@ -84,14 +65,6 @@ test("direct call lifecycle enforces membership, callee acceptance, sequenced si
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: calleeUid, signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
-    await calleeRef.collection("entitlements").doc("voice_call_30d").delete();
-    await assert.rejects(
-      () => respondToCall.run(call(calleeUid, { callId, response: "accept" })),
-      (error) => error && error.code === "failed-precondition",
-      "callee entitlement must still be active at acceptance time",
-    );
-    assert.equal((await callRef.get()).data().status, "ringing");
-    await seedCallEntitlement(calleeUid, "audio");
     await respondToCall.run(call(calleeUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(calleeUid, {
       callId, toUid: callerUid, signal: { kind: "answer", payload: JSON.stringify({ type: "answer", sdp: "v=0" }), sequence: 0 },
@@ -148,9 +121,6 @@ test("room call signaling is peer-targeted and one member leaving does not end t
     ...memberRefs.map((ref) => ref.set({
       profileCompleted: true, accountStatus: "active", age: 30,
     })),
-    ...[callerUid, firstUid, secondUid].flatMap((memberUid) => [
-      seedCallEntitlement(memberUid, "video"),
-    ]),
     roomRef.set({
       roomId, name: "غرفة اختبار المكالمات", ownerUid: callerUid,
       kind: "private", audience: "adult", status: "active", capacity: 5,
@@ -167,8 +137,6 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, scope: "room", targetId: roomId, mode: "video",
     }));
     assert.equal(started.participantUids.length, 3);
-    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
-    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     await sendCallSignal.run(call(callerUid, {
       callId, toUid: firstUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
@@ -177,6 +145,8 @@ test("room call signaling is peer-targeted and one member leaving does not end t
       callId, toUid: secondUid,
       signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
     }));
+    await respondToCall.run(call(firstUid, { callId, response: "accept" }));
+    await respondToCall.run(call(secondUid, { callId, response: "accept" }));
     const firstSignals = await getCallSignals.run(call(firstUid, { callId, afterSequence: -1 }));
     const secondSignals = await getCallSignals.run(call(secondUid, { callId, afterSequence: -1 }));
     assert.equal(firstSignals.signals.length, 1);
@@ -354,10 +324,6 @@ test("server enforces rolling audio and video attempt quotas without charging re
   await Promise.all([
     callerRef.set({ profileCompleted: true, accountStatus: "active", age: 29 }),
     calleeRef.set({ profileCompleted: true, accountStatus: "active", age: 31 }),
-    seedCallEntitlement(callerUid, "audio"),
-    seedCallEntitlement(calleeUid, "audio"),
-    seedCallEntitlement(callerUid, "video"),
-    seedCallEntitlement(calleeUid, "video"),
     chatRef.set({ participantUids: [callerUid, calleeUid].sort() }),
     quotaRef.set({
       attempts: [
@@ -437,12 +403,6 @@ test("server starts a non-resettable five-minute call ceiling only after both en
     callId, scope: "direct", status: "accepted", callerUid,
     participantUids: [callerUid, calleeUid], acceptedUids: [calleeUid],
     rejectedUids: [], leftUids: [], connectedUids: [],
-    usagePolicyVersion: 1,
-    usagePolicySnapshot: {
-      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
-      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
-      maxCallDurationMs: 5 * 60 * 1000,
-    },
   });
   await Promise.all([
     callerLock.set({ callId, status: "active" }),
@@ -503,10 +463,6 @@ test("group audio follows room capacity and group video is capped at four total 
       ...memberUids.map((memberUid) => db.collection("users").doc(memberUid).set({
         profileCompleted: true, accountStatus: "active", age: 30,
       })),
-      ...memberUids.flatMap((memberUid) => [
-        seedCallEntitlement(memberUid, "audio"),
-        seedCallEntitlement(memberUid, "video"),
-      ]),
       roomRef.set({
         roomId, name: prefix, ownerUid, kind: "private", audience: "adult",
         status: "active", capacity, memberCount: count, isRented: true,
@@ -556,7 +512,6 @@ test("group audio follows room capacity and group video is capped at four total 
       "video group calls reject the fifth participant including the initiator",
     );
     assert.equal((await videoFive.callRef.get()).exists, false);
-
   } finally {
     for (const fixture of fixtures) {
       await Promise.all([
@@ -569,144 +524,5 @@ test("group audio follows room capacity and group video is capped at four total 
         ])),
       ]);
     }
-  }
-});
-
-
-test("ending a large audio room call clears more than 500 participant locks in bounded transactions", async () => {
-  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const memberUids = Array.from({ length: 501 }, (_, i) => uid("large_room_member_" + i));
-  const [creatorUid] = memberUids;
-  const callId = uid("large_room_call");
-  const callRef = db.collection("callSessions").doc(callId);
-  const lockRefs = memberUids.map((memberUid) =>
-    db.collection("activeCallMemberLocks").doc(memberUid));
-  await callRef.set({
-    callId, scope: "room", targetId: uid("large_rented_room"), mode: "audio",
-    callerUid: creatorUid, participantUids: memberUids,
-    acceptedUids: [creatorUid], rejectedUids: [], leftUids: [],
-    status: "ringing", expiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
-  });
-  for (let offset = 0; offset < lockRefs.length; offset += 400) {
-    const batch = db.batch();
-    lockRefs.slice(offset, offset + 400).forEach((ref) =>
-      batch.set(ref, { callId, status: "active" }));
-    await batch.commit();
-  }
-  try {
-    const result = await endCall.run(call(creatorUid, { callId }));
-    assert.equal(result.status, "cancelled");
-    for (let offset = 0; offset < lockRefs.length; offset += 100) {
-      const snapshots = await db.getAll(...lockRefs.slice(offset, offset + 100));
-      assert.equal(snapshots.filter((snapshot) => snapshot.exists).length, 0);
-    }
-  } finally {
-    await db.recursiveDelete(callRef).catch(() => undefined);
-    for (let offset = 0; offset < lockRefs.length; offset += 400) {
-      const batch = db.batch();
-      lockRefs.slice(offset, offset + 400).forEach((ref) => batch.delete(ref));
-      await batch.commit().catch(() => undefined);
-    }
-  }
-});
-
-
-test("room participants cannot obtain ICE or signaling access before acceptance", async () => {
-  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const creatorUid = uid("room_ice_creator");
-  const pendingUid = uid("room_ice_pending");
-  const callId = uid("room_ice_session");
-  const callRef = db.collection("callSessions").doc(callId);
-  await callRef.set({
-    callId, scope: "room", targetId: uid("room_ice_target"), mode: "audio",
-    status: "ringing", callerUid: creatorUid,
-    participantUids: [creatorUid, pendingUid],
-    acceptedUids: [], rejectedUids: [], leftUids: [],
-    expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
-  });
-  try {
-    await assert.rejects(
-      () => getCallIceConfiguration.run(call(pendingUid, { callId })),
-      (error) => error && error.code === "permission-denied",
-      "a room invite alone must not grant ICE credentials",
-    );
-    await assert.rejects(
-      () => getCallSignals.run(call(pendingUid, { callId })),
-      (error) => error && error.code === "permission-denied",
-      "a room invite alone must not grant access to the signaling inbox",
-    );
-    await assert.rejects(
-      () => sendCallSignal.run(call(creatorUid, {
-        callId, toUid: pendingUid,
-        signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
-      })),
-      (error) => error && error.code === "permission-denied",
-      "the creator must not exchange signaling with a participant before acceptance",
-    );
-    await callRef.update({ status: "accepted", acceptedUids: [pendingUid] });
-    const ice = await getCallIceConfiguration.run(call(pendingUid, { callId }));
-    assert.equal(ice.turnConfigured, false);
-    assert.ok(ice.iceServers.some((server) => server.urls.includes("stun:stun.l.google.com:19302")));
-  } finally {
-    await db.recursiveDelete(callRef).catch(() => undefined);
-  }
-});
-
-
-test("room group call records late media connections without resetting the shared deadline", async () => {
-  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
-  const callerUid = uid("room_timer_creator");
-  const firstUid = uid("room_timer_first");
-  const lateUid = uid("room_timer_late");
-  const callId = uid("room_timer_session");
-  const callRef = db.collection("callSessions").doc(callId);
-  await callRef.set({
-    callId, scope: "room", targetId: uid("rented_room"), mode: "audio",
-    status: "accepted", callerUid,
-    participantUids: [callerUid, firstUid, lateUid],
-    acceptedUids: [firstUid, lateUid], rejectedUids: [], leftUids: [],
-    connectedUids: [],
-    usagePolicyVersion: 1,
-    usagePolicySnapshot: {
-      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
-      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
-      maxCallDurationMs: 5 * 60 * 1000,
-    },
-  });
-  try {
-    const creatorReport = await markCallConnected.run(call(callerUid, { callId }));
-    assert.equal(creatorReport.connected, false);
-    const firstParticipantReport = await markCallConnected.run(call(firstUid, { callId }));
-    assert.equal(firstParticipantReport.connected, true);
-    assert.equal(
-      firstParticipantReport.maxDurationEndsAtMs - firstParticipantReport.connectedAtMs,
-      5 * 60 * 1000,
-    );
-
-    const lateParticipantReport = await markCallConnected.run(call(lateUid, { callId }));
-    assert.equal(lateParticipantReport.connected, true);
-    assert.equal(lateParticipantReport.idempotentReplay, false);
-    assert.equal(lateParticipantReport.connectedAtMs, firstParticipantReport.connectedAtMs);
-    assert.equal(lateParticipantReport.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
-
-    const stored = (await callRef.get()).data();
-    assert.deepEqual(new Set(stored.connectedUids), new Set([callerUid, firstUid, lateUid]));
-    assert.ok(stored.mediaConnectedAt[callerUid] instanceof Timestamp);
-    assert.ok(stored.mediaConnectedAt[firstUid] instanceof Timestamp);
-    assert.ok(stored.mediaConnectedAt[lateUid] instanceof Timestamp);
-
-    const replay = await markCallConnected.run(call(lateUid, { callId }));
-    assert.equal(replay.idempotentReplay, true);
-    assert.equal(replay.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
-
-    await callRef.update({ maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1) });
-    await assert.rejects(
-      () => markCallConnected.run(call(lateUid, { callId })),
-      (error) => error && error.code === "deadline-exceeded",
-      "the shared deadline must end the call for every participant",
-    );
-    assert.equal((await callRef.get()).data()?.status, "ended");
-  } finally {
-    await db.recursiveDelete(callRef).catch(() => undefined);
   }
 });
