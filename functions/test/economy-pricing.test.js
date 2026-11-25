@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount, currencyExponentForCode, OFFICIAL_ECONOMY_CURRENCIES, EXPERIMENTAL_DEFAULT_COIN_PACKAGES, EXPERIMENTAL_DEFAULT_AD_PRICES } = require("../lib/economy-pricing");
+const { validateCoinPackages, validateAdPrices, isValidPositiveCurrencyAmount } = require("../lib/economy-pricing");
 
 // Test-only fixtures; production package prices and advertising prices are
 // supplied exclusively by the owner through the versioned settings callable.
@@ -13,31 +13,10 @@ const adPriceFixture = {
   billingModel: "cpm", priceMinor: 200, currency: "EUR", active: true,
 };
 
-
-test("official economy currency allowlist and minor-unit precision are exact", () => {
-  assert.deepEqual(OFFICIAL_ECONOMY_CURRENCIES, [
-    "EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY",
-  ]);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "AED", "DZD", "MAD", "TRY"]) {
-    assert.equal(currencyExponentForCode(currency), 2, currency);
-  }
-  for (const currency of ["JOD", "IQD"]) {
-    assert.equal(currencyExponentForCode(currency), 3, currency);
-  }
-  assert.equal(currencyExponentForCode("CHF"), null);
-});
-
 test("proposed money amounts obey supported currency minor-unit precision", () => {
   assert.equal(isValidPositiveCurrencyAmount("125.00", "EUR"), true);
-  for (const currency of ["EUR", "USD", "EGP", "SAR", "SYP", "JOD", "IQD", "AED", "DZD", "MAD", "TRY"]) {
-    assert.equal(isValidPositiveCurrencyAmount("125.00", currency), true, currency);
-  }
-  assert.equal(isValidPositiveCurrencyAmount("125.000", "KWD"), false);
-  assert.equal(isValidPositiveCurrencyAmount("125.125", "JOD"), true);
-  assert.equal(isValidPositiveCurrencyAmount("125.125", "IQD"), true);
-  assert.equal(isValidPositiveCurrencyAmount("125.125", "AED"), false);
-  assert.equal(isValidPositiveCurrencyAmount("125.125", "DZD"), false);
-  assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), false);
+  assert.equal(isValidPositiveCurrencyAmount("125.000", "KWD"), true);
+  assert.equal(isValidPositiveCurrencyAmount("125", "JPY"), true);
   assert.equal(isValidPositiveCurrencyAmount("125.001", "EUR"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.0", "JPY"), false);
   assert.equal(isValidPositiveCurrencyAmount("125.0001", "KWD"), false);
@@ -131,27 +110,16 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
   const { validateCoinPackages, validateAdPrices } = require("../lib/economy-pricing");
   const packages = validateCoinPackages([
     { ...coinPackageFixture, packageId: "coins_usd", currency: "USD" },
-    { ...coinPackageFixture, packageId: "coins_egp", currency: "EGP" },
-    { ...coinPackageFixture, packageId: "coins_sar", currency: "SAR" },
-    { ...coinPackageFixture, packageId: "coins_syp", currency: "SYP" },
-    { ...coinPackageFixture, packageId: "coins_eur", currency: "EUR" },
-    { ...coinPackageFixture, packageId: "coins_jod", currency: "JOD" },
-    { ...coinPackageFixture, packageId: "coins_iqd", currency: "IQD" },
-    { ...coinPackageFixture, packageId: "coins_aed", currency: "AED" },
-    { ...coinPackageFixture, packageId: "coins_dzd", currency: "DZD" },
-    { ...coinPackageFixture, packageId: "coins_mad", currency: "MAD" },
-    { ...coinPackageFixture, packageId: "coins_try", currency: "TRY" },
+    { ...coinPackageFixture, packageId: "coins_chf", currency: "CHF" },
+    { ...coinPackageFixture, packageId: "coins_kwd", currency: "KWD" },
   ]);
-  assert.deepEqual(packages.map((item) => item.currency), ["USD", "EGP", "SAR", "SYP", "EUR", "JOD", "IQD", "AED", "DZD", "MAD", "TRY"]);
-  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2]);
+  assert.deepEqual(packages.map((item) => item.currency), ["USD", "CHF", "KWD"]);
+  assert.deepEqual(packages.map((item) => item.currencyExponent), [2, 2, 3]);
   const ads = validateAdPrices([
-    { ...adPriceFixture, placementId: "ad_syp", currency: "SYP" },
-    { ...adPriceFixture, placementId: "ad_mad", currency: "MAD" },
-    { ...adPriceFixture, placementId: "ad_try", currency: "TRY" },
+    { ...adPriceFixture, placementId: "ad_chf", currency: "CHF" },
   ]);
-  assert.deepEqual(ads.map((item) => item.currency), ["SYP", "MAD", "TRY"]);
-  assert.deepEqual(ads.map((item) => item.currencyExponent), [2, 2, 2]);
-  for (const currency of ["CHF", "KWD", "JPY", "eur", "US", "USDD", "1US"]) {
+  assert.equal(ads[0].currency, "CHF");
+  for (const currency of ["eur", "US", "USDD", "1US"]) {
     assert.throws(() => validateCoinPackages([
       { ...coinPackageFixture, currency },
     ]), /INVALID_COIN_PACKAGE_FIELDS/);
@@ -159,16 +127,4 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
       { ...adPriceFixture, currency },
     ]), /INVALID_AD_PRICE_FIELDS/);
   }
-});
-
-
-test("experimental coin and advertising price catalogs are complete, valid, and provisional", () => {
-  assert.equal(EXPERIMENTAL_DEFAULT_COIN_PACKAGES.length, 5);
-  assert.equal(EXPERIMENTAL_DEFAULT_AD_PRICES.length, 4);
-  assert.equal(validateCoinPackages(EXPERIMENTAL_DEFAULT_COIN_PACKAGES).length, 5);
-  assert.equal(validateAdPrices(EXPERIMENTAL_DEFAULT_AD_PRICES).length, 4);
-  assert.ok(EXPERIMENTAL_DEFAULT_COIN_PACKAGES.every((item) =>
-    item.currency === "USD" && item.active === true));
-  assert.ok(EXPERIMENTAL_DEFAULT_AD_PRICES.every((item) =>
-    item.currency === "USD" && item.active === true));
 });
