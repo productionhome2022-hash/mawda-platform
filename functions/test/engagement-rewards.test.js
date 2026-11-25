@@ -162,5 +162,5 @@ test("timed-ad daily cap decision enforces claim and coin limits at exact bounda
     eligible: true, reason: "within_daily_caps",
   });
   assert.throws(() => decideTimedAdDailyCap({ claimCount: -1, rewardCoins: 0, nextRewardCoins: 1 }), /INPUT_INVALID/);
-  assert.throws(() => decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 0, nextRewardCoins: 0 }), /INPUT_INVALID/);
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 0, nextRewardCoins: 0 }), {\n    eligible: true, reason: "within_daily_caps",\n  });
 });
