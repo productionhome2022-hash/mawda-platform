@@ -195,7 +195,7 @@ export function decideTimedAdDailyCap(input: {
   const { claimCount, rewardCoins, nextRewardCoins } = input;
   if (!Number.isSafeInteger(claimCount) || claimCount < 0 ||
       !Number.isSafeInteger(rewardCoins) || rewardCoins < 0 ||
-      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 1) {
+      !Number.isSafeInteger(nextRewardCoins) || nextRewardCoins < 0) {
     throw new Error("TIMED_AD_DAILY_CAP_INPUT_INVALID");
   }
   if (claimCount >= TIMED_AD_DAILY_MAX_CLAIMS_PER_MEMBER) {
