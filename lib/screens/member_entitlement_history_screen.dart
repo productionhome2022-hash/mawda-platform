@@ -117,48 +117,21 @@ class _MemberEntitlementHistoryScreenState
                       child: Text('لا توجد هدايا مسجلة حتى الآن.'),
                     ),
                   ..._giftEntries.map((entry) {
-                    final isCoinPackage = entry['giftKind'] == 'coin_package';
-                    final received = isCoinPackage || entry['direction'] == 'received';
+                    final received = entry['direction'] == 'received';
                     final expiresAt = entry['expiresAtMs'];
                     final counterpart = received ? entry['senderUid'] : entry['recipientUid'];
                     final duration = entry['durationDays'] == null
                         ? 'دائم' : '${entry['durationDays']} يوماً';
-                    final title = isCoinPackage
-                        ? (entry['packageName'] as String? ?? 'باقة BetaCoins')
-                        : (entry['itemName'] as String? ?? 'هدية من متجر مودة');
-                    final details = isCoinPackage
-                        ? 'استلمت باقة من: ${counterpart ?? 'غير معروف'}\n'
-                          'الكمية: ${entry['coins'] ?? 0} BetaCoins\n'
-                          'التاريخ: ${_formatTime(entry['createdAtMs'])}'
-                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\\\n' +
-                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\\\n' +
-                          'المدة: $duration\\\\n' +
-                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\\\n' +
-                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
                     return Card(
                       child: ListTile(
-                        leading: Icon(isCoinPackage
-                            ? Icons.monetization_on_outlined
-                            : (received ? Icons.card_giftcard : Icons.redeem_outlined)),
-                        title: Text(title),
-                        subtitle: Text(details),
-                        isThreeLine: !isCoinPackage,
-                      ),
-                    );
-                  })
-                  const SizedBox(height: 20),
-                  Text('المنح الإدارية المجانية', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  ..._entries.map((entry) {
-                    final expiresAt = entry['expiresAtMs'];
-                    return Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.card_giftcard_outlined),
-                        title: Text(entry['itemName'] as String? ?? 'استحقاق مودة'),
+                        leading: Icon(received ? Icons.card_giftcard : Icons.redeem_outlined),
+                        title: Text(entry['itemName'] as String? ?? 'هدية من متجر مودة'),
                         subtitle: Text(
-                          'المدة: ${_duration(entry['durationHours'])}\n'
-                          'تاريخ المنح: ${_formatTime(entry['createdAtMs'])}\n'
-                          'الانتهاء: ${expiresAt == null ? 'دائم' : _formatTime(expiresAt)}',
+                          (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n' +
+                          'المدة: $duration\\n' +
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\n' +
+                          'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}',
                         ),
                         isThreeLine: true,
                       ),
