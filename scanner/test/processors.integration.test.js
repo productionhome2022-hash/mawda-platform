@@ -55,7 +55,8 @@ function fakeStorage() {
 }
 
 async function makeFixture(type, dir) {
-  const output = path.join(dir, `source.${type}`);
+  const extension = type === "large-png" ? "png" : type === "long-gif" ? "gif" : type;
+  const output = path.join(dir, `source.${extension}`);
   if (type === "gif") {
     await execFileAsync("ffmpeg", [
       "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i",
