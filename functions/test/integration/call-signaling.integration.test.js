@@ -603,3 +603,45 @@ test("ending a large audio room call clears more than 500 participant locks in b
     }
   }
 });
+
+
+test("room participants cannot obtain ICE or signaling access before acceptance", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("room_ice_creator");
+  const pendingUid = uid("room_ice_pending");
+  const callId = uid("room_ice_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  await callRef.set({
+    callId, scope: "room", targetId: uid("room_ice_target"), mode: "audio",
+    status: "ringing", callerUid: creatorUid,
+    participantUids: [creatorUid, pendingUid],
+    acceptedUids: [], rejectedUids: [], leftUids: [],
+    expiresAt: Timestamp.fromMillis(Date.now() + 60_000),
+  });
+  try {
+    await assert.rejects(
+      () => getCallIceConfiguration.run(call(pendingUid, { callId })),
+      (error) => error && error.code === "permission-denied",
+      "a room invite alone must not grant ICE credentials",
+    );
+    await assert.rejects(
+      () => getCallSignals.run(call(pendingUid, { callId })),
+      (error) => error && error.code === "permission-denied",
+      "a room invite alone must not grant access to the signaling inbox",
+    );
+    await assert.rejects(
+      () => sendCallSignal.run(call(creatorUid, {
+        callId, toUid: pendingUid,
+        signal: { kind: "offer", payload: JSON.stringify({ type: "offer", sdp: "v=0" }), sequence: 0 },
+      })),
+      (error) => error && error.code === "permission-denied",
+      "the creator must not exchange signaling with a participant before acceptance",
+    );
+    await callRef.update({ status: "accepted", acceptedUids: [pendingUid] });
+    const ice = await getCallIceConfiguration.run(call(pendingUid, { callId }));
+    assert.equal(ice.turnConfigured, false);
+    assert.ok(ice.iceServers.some((server) => server.urls.includes("stun:stun.l.google.com:19302")));
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+  }
+});
