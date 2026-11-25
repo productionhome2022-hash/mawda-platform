@@ -132,3 +132,30 @@ test("owner pricing catalogs accept owner-selected ISO 4217 currencies", () => {
     ]), /INVALID_AD_PRICE_FIELDS/);
   }
 });
+
+
+test("official economy currencies include the complete Recovery currency set with correct minor-unit precision", () => {
+  const { OFFICIAL_ECONOMY_CURRENCIES, CURRENCY_MINOR_UNIT_EXPONENTS,
+    currencyExponentForCode, isValidPositiveCurrencyAmount } = require("../lib/economy-pricing");
+  const expected = [
+    "AED", "AUD", "BHD", "CAD", "CHF", "DZD", "EGP", "EUR", "GBP", "IQD",
+    "JOD", "JPY", "KRW", "KWD", "LBP", "LYD", "MAD", "NZD", "OMR", "QAR",
+    "SAR", "SDG", "SYP", "TND", "TRY", "USD", "VND",
+  ];
+  assert.deepEqual([...OFFICIAL_ECONOMY_CURRENCIES], expected);
+  for (const code of expected) assert.equal(currencyExponentForCode(code), CURRENCY_MINOR_UNIT_EXPONENTS[code]);
+  assert.deepEqual(
+    Object.fromEntries(["BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"].map(code => [code, currencyExponentForCode(code)])),
+    { BHD: 3, IQD: 3, JOD: 3, KWD: 3, LYD: 3, OMR: 3, TND: 3 },
+  );
+  for (const code of ["JPY", "KRW", "VND"]) {
+    assert.equal(currencyExponentForCode(code), 0);
+    assert.equal(isValidPositiveCurrencyAmount("125", code), true);
+    assert.equal(isValidPositiveCurrencyAmount("125.0", code), false);
+  }
+  for (const code of ["AUD", "CAD", "CHF", "GBP", "LBP", "NZD", "QAR", "SDG"]) {
+    assert.equal(currencyExponentForCode(code), 2);
+    assert.equal(isValidPositiveCurrencyAmount("125.00", code), true);
+    assert.equal(isValidPositiveCurrencyAmount("125.001", code), false);
+  }
+});
