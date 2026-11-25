@@ -9,16 +9,16 @@ import '../services/push_notification_service.dart';
 import 'owner_chat_participation_screen.dart';
 import 'owner_coin_purchase_screen.dart';
 import 'owner_entitlement_grants_screen.dart';
+import 'owner_sticker_packs_screen.dart';
 import 'owner_room_live_stream_screen.dart';
 import 'safety_review_screen.dart';
 import 'room_rental_pricing_screen.dart';
 import 'economy_pricing_screen.dart';
-import 'group_call_pricing_screen.dart';
 import 'owner_advertising_rewards_screen.dart';
+import 'owner_featured_ads_dashboard_screen.dart';
 import 'owner_contract_center_screen.dart';
 import 'owner_advertising_intake_screen.dart';
 import 'owner_production_applications_screen.dart';
-import 'biometric_review_screen.dart';
 import 'capacity_media_management_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
@@ -36,6 +36,8 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   Map<String, dynamic>? _member;
   bool _loadingOverview = false;
   bool _searching = false;
+  bool _reconcilingWallet = false;
+  Map<String, dynamic>? _walletReconciliation;
   bool _updatingStatus = false;
   bool _loadingOwnerConversations = false;
   bool _verifyingOwnerAuditChain = false;
@@ -47,6 +49,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   bool _registrationEnabled = false;
   bool _savingRegistrationPolicy = false;
   bool _transferEnabled = false;
+  int _transferVersion = 0;
   bool _savingTransferSettings = false;
   bool _creatingRoom = false;
   bool _loadingCatalog = false;
@@ -554,6 +557,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         _registrationEnabled = policy['enabled'] == true;
         final transfer = result['transferSettings'] as Map<String, dynamic>? ?? {};
         _transferEnabled = transfer['enabled'] == true;
+        _transferVersion = (transfer['version'] as num?)?.toInt() ?? 0;
         final commissionBps = transfer['commissionBps'];
         _commissionPercentController.text = commissionBps is num
             ? (commissionBps.toDouble() / 100).toStringAsFixed(2)
@@ -594,18 +598,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final nameController = TextEditingController(text: existing?['name'] as String? ?? '');
     final descriptionController = TextEditingController(text: existing?['description'] as String? ?? '');
     final priceController = TextEditingController(
-      text: existing?['priceCoins']?.toString() ?? '1000',
+      text: existing?['priceCoins']?.toString() ?? '',
     );
     final durationController = TextEditingController(
       text: existing?['durationDays']?.toString() ?? '',
     );
     final sortController = TextEditingController(
-      text: existing?['sortOrder']?.toString() ?? '1000',
+      text: existing?['sortOrder']?.toString() ?? '',
     );
     const categories = [
       'feature', 'avatar', 'theme', 'title', 'vip', 'analytics', 'discovery',
       'badge', 'frame', 'username_style', 'profile_layout', 'boost', 'greeting', 'privacy',
-      'media_saver',
     ];
     var category = categories.contains(existing?['category'])
         ? existing!['category'] as String
@@ -613,14 +616,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     var active = existing?['active'] != false;
     var purchaseEnabled = existing?['purchaseEnabled'] == true &&
         existing?['fulfillmentReady'] == true;
-    int? requiredMediaSaverDurationDays() {
-      const durations = <String, int>{
-        'media_saver_24h': 1,
-        'media_saver_7d': 7,
-        'media_saver_30d': 30,
-      };
-      return durations[itemIdController.text.trim()];
-    }
     bool canEnableStorePurchase() {
       const readyItems = <String, String>{
         'vip_monthly': 'vip',
@@ -635,9 +630,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         'discovery_boost_7d': 'boost',
         'profile_theme_30d': 'theme',
         'visitor_greeting_30d': 'greeting',
-        'media_saver_24h': 'media_saver',
-        'media_saver_7d': 'media_saver',
-        'media_saver_30d': 'media_saver',
       };
       return readyItems[itemIdController.text.trim()] == category;
     }
@@ -706,7 +698,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       DropdownMenuItem(value: 'vip', child: Text('عضوية VIP')),
                       DropdownMenuItem(value: 'discovery', child: Text('اكتشاف')),
                       DropdownMenuItem(value: 'privacy', child: Text('خصوصية')),
-                      DropdownMenuItem(value: 'media_saver', child: Text('Mawdda Media Saver')),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -730,12 +721,9 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   TextField(
                     controller: durationController,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'المدة بالأيام (اتركها فارغة للاستحقاق الدائم)',
-                      helperText: category == 'media_saver'
-                          ? 'Media Saver: 24 ساعة = 1، و7 أيام = 7، و30 يوماً = 30.'
-                          : null,
-                      border: const OutlineInputBorder(),
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -786,12 +774,10 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                 final price = int.tryParse(priceController.text.trim());
                 final durationText = durationController.text.trim();
                 final duration = durationText.isEmpty ? null : int.tryParse(durationText);
-                final requiredMediaSaverDuration = requiredMediaSaverDurationDays();
                 final sortOrder = int.tryParse(sortController.text.trim());
                 if (itemId.length >= 3 && name.length >= 2 &&
                     price != null && price > 0 &&
                     (durationText.isEmpty || (duration != null && duration > 0)) &&
-                    (requiredMediaSaverDuration == null || duration == requiredMediaSaverDuration) &&
                     sortOrder != null) {
                   Navigator.pop(dialogContext, {
                     'itemId': itemId,
@@ -832,6 +818,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         sortOrder: values['sortOrder'] as int,
         active: values['active'] as bool,
         purchaseEnabled: values['purchaseEnabled'] as bool,
+        expectedVersion: existing?['version'] as int? ?? 0,
       );
       await _loadCatalog();
       if (!mounted) return;
@@ -966,7 +953,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد إعدادات تحويل BetaCoins'),
+        title: const Text('تأكيد إعدادات تحويل الكوينز'),
         content: Text(
           'الحالة الجديدة: ${_transferEnabled ? 'التحويلات مفعّلة' : 'التحويلات متوقفة'}\n'
           'عمولة المنصة: ${percent.toStringAsFixed(2)}%.\n'
@@ -990,11 +977,12 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       await _service.setTransferCommission(
         commissionBps: (percent * 100).round(),
         enabled: _transferEnabled,
+        expectedVersion: _transferVersion,
       );
       await _loadOverview();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ إعدادات تحويل BetaCoins وتسجيلها في سجل التدقيق.')),
+        const SnackBar(content: Text('تم حفظ إعدادات تحويل الكوينز وتسجيلها في سجل التدقيق.')),
       );
     } on FirebaseFunctionsException catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -1015,6 +1003,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
     setState(() {
       _searching = true;
       _member = null;
+      _walletReconciliation = null;
       _ownerConversations = [];
       _ownerConversationsNextPageToken = null;
       _ownerConversationsHasMore = false;
@@ -1032,6 +1021,29 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
       if (mounted) setState(() => _error = 'تعذر البحث عن العضو.');
     } finally {
       if (mounted) setState(() => _searching = false);
+    }
+  }
+
+  Future<void> _reconcileSelectedWallet() async {
+    final uid = _member?['uid'] as String?;
+    if (uid == null || _reconcilingWallet) return;
+    setState(() => _reconcilingWallet = true);
+    try {
+      final result = await _service.reconcileMemberWallet(uid);
+      if (!mounted) return;
+      setState(() => _walletReconciliation = result);
+      final status = result['status'] as String? ?? 'incomplete';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(status == 'consistent'
+          ? 'مطابقة المحفظة سليمة.'
+          : 'نتيجة المطابقة: $status. راجع تفاصيل السجل قبل أي إجراء.'),
+      ));
+    } on FirebaseFunctionsException catch (error) {
+      if (mounted) setState(() => _error = error.message ?? 'تعذرت مطابقة المحفظة.');
+    } catch (_) {
+      if (mounted) setState(() => _error = 'تعذرت مطابقة المحفظة.');
+    } finally {
+      if (mounted) setState(() => _reconcilingWallet = false);
     }
   }
 
@@ -1358,13 +1370,6 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           icon: const Icon(Icons.logout),
         ),
         IconButton(
-          tooltip: 'مراجعة التوثيق البيومتري ومكافآته',
-          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => const BiometricReviewScreen(),
-          )),
-          icon: const Icon(Icons.fingerprint),
-        ),
-        IconButton(
           tooltip: 'مراجعة البلاغات والاستئنافات',
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const SafetyReviewScreen(),
@@ -1377,6 +1382,13 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
             builder: (_) => const OwnerRoomLiveStreamScreen(),
           )),
           icon: const Icon(Icons.live_tv_outlined),
+        ),
+        IconButton(
+          tooltip: 'إدارة السعة وحصص الوسائط',
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => const CapacityMediaManagementScreen(),
+          )),
+          icon: const Icon(Icons.storage_outlined),
         ),
         IconButton(
           tooltip: 'تحديث المؤشرات',
@@ -1418,7 +1430,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
         else if (_overview != null) ...[
           _metric('الأعضاء المسجلون', _overview!['memberCount'], Icons.people_outline),
           _metric('الغرف', _overview!['roomCount'], Icons.forum_outlined),
-          _metric('عمليات تحويل BetaCoins', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
+          _metric('عمليات تحويل الكوينز', _overview!['transferCount'], Icons.account_balance_wallet_outlined),
         ],
         const SizedBox(height: 16),
         Card(
@@ -1449,18 +1461,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       builder: (_) => const EconomyPricingScreen(),
                     )),
                     icon: const Icon(Icons.account_balance_outlined),
-                    label: const Text('إدارة أسعار BetaCoins والإعلانات'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const GroupCallPricingScreen(),
-                    )),
-                    icon: const Icon(Icons.call),
-                    label: const Text('إدارة أسعار المكالمات التجريبية (التحصيل مغلق)'),
+                    label: const Text('إدارة أسعار الكوينز والإعلانات'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1472,6 +1473,17 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                     )),
                     icon: const Icon(Icons.campaign_outlined),
                     label: const Text('إدارة الإعلانات ومكافآت الحضور'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const OwnerFeaturedAdsDashboardScreen(),
+                    )),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('إدارة الحملات المميزة والمدفوعات والتسويات'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1515,7 +1527,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                       builder: (_) => const OwnerCoinPurchaseScreen(),
                     )),
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text('طلبات شراء BetaCoins والتحقق اليدوي'),
+                    label: const Text('طلبات شراء الكوينز والتحقق اليدوي'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1534,10 +1546,10 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => const CapacityMediaManagementScreen(),
+                      builder: (_) => const OwnerStickerPacksScreen(),
                     )),
-                    icon: const Icon(Icons.storage_outlined),
-                    label: const Text('إدارة السعة وحصص الوسائط (مراقبة فقط)'),
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    label: const Text('إدارة حزم الملصقات الثابتة والمتحركة'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -1868,7 +1880,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
           ),
         ),
         const Divider(height: 32),
-        Text('التحكم المالي وتحويل BetaCoins', style: Theme.of(context).textTheme.titleMedium),
+        Text('التحكم المالي وتحويل الكوينز', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           child: Padding(
@@ -1878,7 +1890,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
               children: [
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('السماح بتحويل BetaCoins'),
+                  title: const Text('السماح بتحويل الكوينز'),
                   subtitle: const Text('إيقاف التحويلات الجديدة من الخادم فور حفظ الإعداد.'),
                   value: _transferEnabled,
                   onChanged: _savingTransferSettings ? null : (value) {
@@ -1907,7 +1919,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   ),
                 ),
                 const Text(
-                  'هذا التحكم يخص تحويلات الأعضاء فقط. شحن BetaCoins والمشتريات والاسترداد لا تُعرض كعمليات فعّالة قبل بناء وربط بواباتها الموثوقة.',
+                  'هذا التحكم يخص تحويلات الأعضاء فقط. شحن الكوينز والمشتريات والاسترداد لا تُعرض كعمليات فعّالة قبل بناء وربط بواباتها الموثوقة.',
                   style: TextStyle(fontSize: 12),
                 ),
               ],
@@ -1946,11 +1958,37 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
                   Text('حالة الحساب: ${_member!['accountStatus'] ?? 'active'}'),
                   Text('البريد موثق: ${_member!['emailVerified'] == true ? 'نعم' : 'لا'}'),
                   Text('دخول Firebase معطل: ${_member!['authDisabled'] == true ? 'نعم' : 'لا'}'),
+                  if (_walletReconciliation != null) ...[
+                    const SizedBox(height: 10),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('نتيجة مطابقة المحفظة: ${_walletReconciliation!['status']}',
+                            style: Theme.of(context).textTheme.titleSmall),
+                          Text('الرصيد الحالي: ${_walletReconciliation!['currentBalance']}'),
+                          Text('الرصيد المحسوب من آخر لقطة: ${_walletReconciliation!['computedBalance'] ?? 'غير متاح'}'),
+                          Text('قيود الدفتر المفحوصة: ${_walletReconciliation!['ledgerEntryCount']}'),
+                          Text('قيود تاريخية بلا لقطات رصيد: ${_walletReconciliation!['entriesMissingSnapshots']}'),
+                          Text('الحالات الشاذة: ${(_walletReconciliation!['anomalies'] as List<dynamic>? ?? const []).length}'),
+                          if (_walletReconciliation!['truncated'] == true)
+                            const Text('السجل يتجاوز حد الفحص الحالي؛ النتيجة غير مكتملة.'),
+                        ]),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
+                      OutlinedButton.icon(
+                        onPressed: _reconcilingWallet ? null : _reconcileSelectedWallet,
+                        icon: _reconcilingWallet
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.account_balance_outlined),
+                        label: const Text('مطابقة دفتر المحفظة'),
+                      ),
                       OutlinedButton(
                         onPressed: _updatingStatus ? null : () => _changeMemberStatus('active'),
                         child: const Text('إعادة التفعيل'),
