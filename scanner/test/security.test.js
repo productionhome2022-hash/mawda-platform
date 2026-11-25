@@ -28,6 +28,8 @@ test("scan request accepts only exact quarantine path, UUID, generation and Goog
   assert.equal(validateScanRequest({ ...valid, purpose: "story", contentType: "application/pdf" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, purpose: "profile_album", contentType: "audio/mpeg" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.deepEqual(validateScanRequest({ ...valid, contentType: "image/gif" }, "clamav-mawadda-gateway", bucket, valid.callbackUrl).contentType, "image/gif");
+  assert.equal(validateScanRequest({ ...valid, purpose: "sticker", contentType: "image/gif" }, valid.provider, bucket, valid.callbackUrl).purpose, "sticker");
+  assert.equal(validateScanRequest({ ...valid, purpose: "sticker", contentType: "audio/mpeg" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, objectPath: `processed/user/${mediaId}` }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, callbackUrl: "https://attacker.example/callback" }, valid.provider, bucket, valid.callbackUrl), null);
   assert.equal(validateScanRequest({ ...valid, objectGeneration: "latest" }, valid.provider, bucket, valid.callbackUrl), null);
