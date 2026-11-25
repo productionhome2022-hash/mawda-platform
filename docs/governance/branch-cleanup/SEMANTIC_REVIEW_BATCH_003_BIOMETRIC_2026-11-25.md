@@ -5,7 +5,7 @@ Pinned Full Platform HEAD before this report: 7ddabf806435eec2d38dedce0223ebc073
 Recovery branch inspected: codex/mawda-recovery-integration-2026-11-21
 Recovery HEAD: 49b502638718e4dbb29a9429f392b3a70c8d6d95
 Candidate source: CSV blob 296134e6de35b04304413a090469e79c3fb13388
-Scope: unique UNMATCHED candidates 25–36 (12 commits), following batches 001 and 002.
+Scope: unique UNMATCHED candidates 37–48 (12 commits), following batches 001–002 and the 25–36 supplement.
 
 ## Per-commit disposition
 
@@ -28,7 +28,7 @@ Scope: unique UNMATCHED candidates 25–36 (12 commits), following batches 001 a
 The current policy document and server-side biometric constants specify a 20-second maximum for biometric evidence audio, and the byte-level validator plus tests enforce 20,000ms accepted / 20,001ms rejected. The generic scanner processor still accepts/transcodes biometric audio up to 60 seconds. This does not permit server submission of over-limit evidence, but it allows unnecessary processing and creates a policy mismatch between scanner and authoritative server validation. Do not port the historical 60-second allowance. A separate minimal scanner-policy alignment change should be considered only after confirming the governing biometric policy source and its authority.
 
 ## Result
-- Reviewed: 12/1,665 unique candidates in this batch.
+- Reviewed: 12/1,665 unique candidates in this batch (37–48).
 - Already implemented, superseded, or present under a stricter policy: 12.
 - Confirmed unique missing changes: 0.
 - Code transferred: 0.
