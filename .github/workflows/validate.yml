@@ -50,7 +50,8 @@ on:
 concurrency:
   # Keep only the newest validation for the development branch.
   group: mawda-validation-${{ github.event_name }}-${{ github.ref_name }}
-  cancel-in-progress: false
+  # The newest commit on this validation lane supersedes stale runs.
+  cancel-in-progress: true
 
 permissions:
   contents: read
