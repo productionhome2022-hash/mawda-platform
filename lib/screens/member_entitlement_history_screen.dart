@@ -126,25 +126,26 @@ class _MemberEntitlementHistoryScreenState
                     final title = isCoinPackage
                         ? (entry['packageName'] as String? ?? 'باقة BetaCoins')
                         : (entry['itemName'] as String? ?? 'هدية من متجر مودة');
-                    final subtitle = isCoinPackage
-                        ? 'هدية بقيمة ${entry['coins'] ?? 0} BetaCoins\n'
-                          'من العضو: ${counterpart ?? 'غير معروف'}\n'
-                          'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
-                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\n' +
-                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\n' +
-                          'المدة: $duration\n' +
-                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\n' +
+                    final details = isCoinPackage
+                        ? 'استلمت باقة من: ${counterpart ?? 'غير معروف'}\n'
+                          'الكمية: ${entry['coins'] ?? 0} BetaCoins\n'
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}'
+                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\\\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\\\n' +
+                          'المدة: $duration\\\\n' +
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\\\n' +
                           'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
                     return Card(
                       child: ListTile(
-                        leading: Icon(isCoinPackage ? Icons.monetization_on_outlined :
-                            received ? Icons.card_giftcard : Icons.redeem_outlined),
+                        leading: Icon(isCoinPackage
+                            ? Icons.monetization_on_outlined
+                            : (received ? Icons.card_giftcard : Icons.redeem_outlined)),
                         title: Text(title),
-                        subtitle: Text(subtitle),
+                        subtitle: Text(details),
                         isThreeLine: !isCoinPackage,
                       ),
                     );
-                  }),
+                  })
                   const SizedBox(height: 20),
                   Text('المنح الإدارية المجانية', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
