@@ -843,7 +843,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.all(16),
-                  child: Text('اختر باقة لإهدائها إلى $name',
+                  child: Text('اختر باقة لإهدائها إلى صاحب هذا الملف',
                     style: Theme.of(sheetContext).textTheme.titleLarge),
                 ),
                 ...packages.map((item) {
@@ -872,7 +872,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('تأكيد طلب إهداء الباقة'),
           content: Text(
-            'سيُسجل طلب شراء باقة ${selected['name']} بقيمة ${price.toStringAsFixed(exponent)} ${selected['currency'] ?? 'EUR'} لصالح $name. '
+            'سيُسجل طلب شراء باقة ${selected['name']} بقيمة ${price.toStringAsFixed(exponent)} ${selected['currency'] ?? 'EUR'} لصالح صاحب هذا الملف. '
             'لن تُضاف BetaCoins إلى محفظة المستلم إلا بعد تحقق المالك من الدفع واعتماد الطلب.',
           ),
           actions: [
