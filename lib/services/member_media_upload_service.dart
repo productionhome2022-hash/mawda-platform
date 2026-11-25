@@ -686,6 +686,5 @@ class MemberMediaUploadService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  void close() => _client.close();
 
 }

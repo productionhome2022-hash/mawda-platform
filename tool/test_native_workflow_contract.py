@@ -58,6 +58,11 @@ class NativeWorkflowFirebaseConfigurationTests(unittest.TestCase):
             if workflow_file.name == "firebase-hosting-merge.yml":
                 continue
             source = workflow_file.read_text()
+            if workflow_file.name == "deploy-nonproduction-media-scanner.yml":
+                # This manually dispatched workflow is intentionally hard-disabled during
+                # consolidation; its deployment commands are unreachable while the job gate is false.
+                self.assertRegex(source, r"(?m)^\s+if:\s*false\s*$")
+                continue
             self.assertNotIn("firebase deploy", source)
             self.assertNotIn("gcloud run deploy", source)
 

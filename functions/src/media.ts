@@ -1459,9 +1459,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
             ? "delete_at_story_expiry"
             : input.purpose === "avatar_cover"
               ? "thirty_day_avatar_cover"
-              : input.purpose === "sticker"
-                ? "one_hour_sticker_asset"
-                : "owner_approval_required",
+              : "owner_approval_required",
       ...(input.purpose === "story" && input.storyExpiresAtMs !== undefined ? {
         storyExpiresAt: Timestamp.fromMillis(input.storyExpiresAtMs),
       } : {}),
