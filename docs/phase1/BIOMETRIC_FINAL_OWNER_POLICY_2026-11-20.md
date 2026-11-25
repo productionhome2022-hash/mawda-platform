@@ -24,7 +24,7 @@ The member submits:
 - The platform must have a pre-established phrase or controlled phrase set before the member records audio.
 - The member must read the displayed phrase and submit that recording as the voice evidence. The biometric-evidence audio recording must not exceed **20 seconds** or **5 MiB**; enforce the duration from uploaded media bytes on the server, not client metadata.
 - The Super Owner listens to the recording and manually reviews it as part of the decision.
-- Do not invent or hard-code phrase wording from this policy document. The actual approved phrase text/set must be supplied and versioned as a separate owner-controlled product configuration before implementation is enabled.
+- The exact phrase above is the owner-supplied approved phrase and is versioned as `owner-approved-2026-11-20-v1`; any future wording change requires a new owner-approved version.
 - No automated voiceprint score or device attestation may determine acceptance.
 
 ### Gender integrity
