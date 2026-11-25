@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:file_saver/file_saver.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -66,35 +65,47 @@ class MemberMediaUploadService {
   }
 
   Future<Map<String, dynamic>> startBiometricVerificationRequest() async {
-    final response = await _functions.httpsCallable('startBiometricVerificationRequest').call({
-      'consentAccepted': true,
-      'consentVersion': '2026-11-20-owner-review-v1',
-    });
+    final response = await _functions
+        .httpsCallable('startBiometricVerificationRequest')
+        .call();
     final data = Map<String, dynamic>.from(response.data as Map);
-    if (data['requestId'] is! String || data['phrase'] is! String || data['uploadPurpose'] != 'biometric') {
+    if (data['requestId'] is! String || data['phrase'] is! String ||
+        data['uploadPurpose'] != 'biometric') {
       throw StateError('استجابة بدء التوثيق البيومتري غير مكتملة.');
     }
     return data;
   }
 
   Future<String> _uploadBiometricEvidenceFile({
-    required XFile file, required String requestId, required bool audio,
+    required XFile file,
+    required String requestId,
+    required bool audio,
   }) async {
     if (requestId.isEmpty) throw ArgumentError.value(requestId, 'requestId');
     final contentType = _biometricContentType(file, audio: audio);
     await _validateFileLength(file, contentType);
     final bytes = await file.readAsBytes();
     final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
-      'originalName': file.name, 'contentType': contentType, 'sizeBytes': bytes.length,
-      'purpose': 'biometric', 'biometricRequestId': requestId,
+      'originalName': file.name,
+      'contentType': contentType,
+      'sizeBytes': bytes.length,
+      'purpose': 'biometric',
+      'biometricRequestId': requestId,
     });
     final intent = Map<String, dynamic>.from(intentResponse.data as Map);
     final uploadUrl = intent['uploadUrl'] as String?;
     final mediaId = intent['mediaId'] as String?;
-    final headers = Map<String, dynamic>.from(intent['requiredHeaders'] as Map? ?? const <String, dynamic>{});
-    if (uploadUrl == null || mediaId == null || headers.isEmpty) throw StateError('استجابة رفع دليل التوثيق غير مكتملة.');
-    final uploadResponse = await _client.put(Uri.parse(uploadUrl),
-      headers: headers.map((key, value) => MapEntry(key, '$value')), body: bytes);
+    final headers = Map<String, dynamic>.from(
+      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
+    );
+    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
+      throw StateError('استجابة رفع دليل التوثيق غير مكتملة.');
+    }
+    final uploadResponse = await _client.put(
+      Uri.parse(uploadUrl),
+      headers: headers.map((key, value) => MapEntry(key, '$value')),
+      body: bytes,
+    );
     if (uploadResponse.statusCode != 200) {
       throw StateError('فشل رفع دليل التوثيق إلى التخزين الآمن (HTTP ${uploadResponse.statusCode}).');
     }
@@ -103,40 +114,53 @@ class MemberMediaUploadService {
     return mediaId;
   }
 
-  Future<String> uploadBiometricAudio({required XFile file, required String requestId}) =>
-      _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: true);
+  Future<String> uploadBiometricAudio({
+    required XFile file,
+    required String requestId,
+  }) => _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: true);
 
-  Future<String> uploadBiometricVideo({required XFile file, required String requestId}) =>
-      _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: false);
+  Future<String> uploadBiometricVideo({
+    required XFile file,
+    required String requestId,
+  }) => _uploadBiometricEvidenceFile(file: file, requestId: requestId, audio: false);
 
-  Future<void> submitBiometricVerificationRequest({required String requestId}) async {
-    await _functions.httpsCallable('submitBiometricVerificationRequest').call({'requestId': requestId});
-  }
-
-
-  Future<Map<String, dynamic>> getMyBiometricVerificationStatus() async {
-    final response = await _functions.httpsCallable('getMyBiometricVerificationStatus').call();
-    return Map<String, dynamic>.from(response.data as Map);
+  Future<void> submitBiometricVerificationRequest({
+    required String requestId,
+  }) async {
+    await _functions.httpsCallable('submitBiometricVerificationRequest').call({
+      'requestId': requestId,
+    });
   }
 
   Future<List<Map<String, dynamic>>> listOwnerBiometricVerificationRequests() async {
-    final response = await _functions.httpsCallable('listOwnerBiometricVerificationRequests').call();
+    final response = await _functions
+        .httpsCallable('listOwnerBiometricVerificationRequests')
+        .call();
     final data = Map<String, dynamic>.from(response.data as Map);
     final requests = data['requests'] as List<dynamic>? ?? const [];
-    return requests.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList(growable: false);
+    return requests.whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList(growable: false);
   }
 
-  Future<Map<String, dynamic>> getOwnerBiometricEvidencePlayback({required String requestId}) async {
-    final response = await _functions.httpsCallable('getOwnerBiometricEvidencePlayback').call({'requestId': requestId});
+  Future<Map<String, dynamic>> getOwnerBiometricEvidencePlayback({
+    required String requestId,
+  }) async {
+    final response = await _functions
+        .httpsCallable('getOwnerBiometricEvidencePlayback')
+        .call({'requestId': requestId});
     return Map<String, dynamic>.from(response.data as Map);
   }
 
   Future<Map<String, dynamic>> decideBiometricVerificationRequest({
-    required String requestId, required bool accepted,
+    required String requestId,
+    required bool accepted,
   }) async {
-    final response = await _functions.httpsCallable('decideBiometricVerificationRequest').call({
-      'requestId': requestId, 'decision': accepted ? 'accepted' : 'rejected',
-      'evidenceReviewed': true,
+    final response = await _functions
+        .httpsCallable('decideBiometricVerificationRequest')
+        .call({
+      'requestId': requestId,
+      'decision': accepted ? 'accepted' : 'rejected',
     });
     return Map<String, dynamic>.from(response.data as Map);
   }
@@ -198,7 +222,6 @@ class MemberMediaUploadService {
   Future<void> waitForSafeApproval(
     String mediaId, {
     Duration timeout = const Duration(seconds: 90),
-    bool requireAnySafeDerivative = false,
   }) async {
     final deadline = DateTime.now().add(timeout);
     var pollCount = 0;
@@ -207,10 +230,7 @@ class MemberMediaUploadService {
           .httpsCallable('getMyMediaUploadStatus')
           .call({'mediaId': mediaId});
       final status = Map<String, dynamic>.from(response.data as Map);
-      final safeReady = requireAnySafeDerivative
-          ? status['safePreviewReady'] == true || status['safeDerivativeReady'] == true
-          : status['safePreviewReady'] == true;
-      if (safeReady) return;
+      if (status['safePreviewReady'] == true) return;
       if (status['status'] == 'rejected') {
         throw StateError('رفض نظام الفحص الصورة: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
       }
@@ -338,59 +358,6 @@ class MemberMediaUploadService {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  /// Downloads only the server-approved safe derivative. The callable re-checks
-  /// the member entitlement on every save and never changes server retention.
-  Future<String?> saveMediaWithMediaSaver({
-    required String mediaId,
-    required String messageId,
-    required String scope,
-    String? chatId,
-    String? roomId,
-    String? suggestedName,
-  }) async {
-    if (scope != 'direct' && scope != 'room') {
-      throw ArgumentError.value(scope, 'scope');
-    }
-    final response = await _functions.httpsCallable('getMediaSaverAttachmentUrl').call({
-      'mediaId': mediaId,
-      'messageId': messageId,
-      'scope': scope,
-      if (chatId != null) 'chatId': chatId,
-      if (roomId != null) 'roomId': roomId,
-    });
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final url = data['url'] as String?;
-    final contentType = data['contentType'] as String?;
-    if (url == null || url.isEmpty || contentType == null || contentType.isEmpty) {
-      throw StateError('MEDIA_SAVER_CAPABILITY_INVALID');
-    }
-    final extension = _extensionForContentType(contentType);
-    final safeName = (suggestedName ?? 'mawdda_media')
-        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
-    return FileSaver.instance.saveFile(
-      name: safeName.isEmpty ? 'mawdda_media' : safeName,
-      link: LinkDetails(link: url),
-      fileExtension: extension,
-      mimeType: MimeType.custom,
-      customMimeType: contentType,
-    );
-  }
-
-  String _extensionForContentType(String contentType) {
-    switch (contentType.toLowerCase()) {
-      case 'image/jpeg': return 'jpg';
-      case 'image/png': return 'png';
-      case 'image/webp': return 'webp';
-      case 'image/gif': return 'gif';
-      case 'video/mp4': return 'mp4';
-      case 'audio/mpeg': return 'mp3';
-      case 'audio/mp4': return 'm4a';
-      case 'audio/ogg': return 'ogg';
-      case 'audio/wav': return 'wav';
-      default: return 'bin';
-    }
-  }
-
   Future<String> getChatMediaAttachmentUrl({
     required String scope,
     required String mediaId,
@@ -500,170 +467,6 @@ class MemberMediaUploadService {
       throw StateError('لم يُرجع الخادم رابط الصورة الآمن.');
     }
     return url;
-  }
-
-  /// Uploads a sticker through the owner-only quarantine/scanner pipeline.
-  /// The scanner must return verified dimensions and animation metadata before
-  /// this method considers the asset ready.
-  Future<String> uploadStickerAsset({
-    required XFile file,
-    required String kind,
-  }) async {
-    if (kind != 'static' && kind != 'animated') {
-      throw ArgumentError.value(kind, 'kind');
-    }
-    final contentType = _imageContentType(file);
-    if ((kind == 'static' && !{'image/png', 'image/webp'}.contains(contentType)) ||
-        (kind == 'animated' && contentType != 'image/gif')) {
-      throw const FormatException('صيغة الملف لا تطابق نوع الملصق.');
-    }
-    final bytes = await file.readAsBytes();
-    final maximum = kind == 'animated' ? 512 * 1024 : 256 * 1024;
-    if (bytes.isEmpty || bytes.length > maximum) {
-      throw const FormatException('حجم الملصق يتجاوز الحد المسموح.');
-    }
-    final response = await _functions.httpsCallable('createMediaUploadIntent').call({
-      'originalName': file.name,
-      'contentType': contentType,
-      'sizeBytes': bytes.length,
-      'purpose': 'sticker',
-    });
-    final intent = Map<String, dynamic>.from(response.data as Map);
-    final uploadUrl = intent['uploadUrl'] as String?;
-    final mediaId = intent['mediaId'] as String?;
-    final headers = Map<String, dynamic>.from(
-      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
-    );
-    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
-      throw StateError('استجابة رفع الملصق غير مكتملة.');
-    }
-    final uploadResponse = await _client.put(
-      Uri.parse(uploadUrl),
-      headers: headers.map((key, value) => MapEntry(key, '$value')),
-      body: bytes,
-    );
-    if (uploadResponse.statusCode != 200) {
-      throw StateError('فشل رفع الملصق الآمن (HTTP ${uploadResponse.statusCode}).');
-    }
-    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
-
-    final deadline = DateTime.now().add(const Duration(minutes: 3));
-    var pollCount = 0;
-    while (DateTime.now().isBefore(deadline)) {
-      final statusResponse = await _functions.httpsCallable('getMyMediaUploadStatus')
-          .call({'mediaId': mediaId});
-      final status = Map<String, dynamic>.from(statusResponse.data as Map);
-      final expectedReady = kind == 'animated'
-          ? status['safeDerivativeReady'] == true &&
-              status['processingStatus'] == 'safe_animation_derivative_ready'
-          : status['safePreviewReady'] == true &&
-              status['processingStatus'] == 'safe_raster_derivative_ready';
-      if (expectedReady) return mediaId;
-      if (status['status'] == 'rejected') {
-        throw StateError('رفض نظام الفحص الملصق: ${status['rejectionCode'] ?? 'MEDIA_REJECTED'}');
-      }
-      if (['expired', 'manually_deleted', 'self_destructed'].contains(status['status'])) {
-        throw StateError('انتهت صلاحية رفع الملصق قبل اكتمال الفحص.');
-      }
-      final delay = mediaStatusPollDelay(pollCount++);
-      final remaining = deadline.difference(DateTime.now());
-      await Future<void>.delayed(delay < remaining ? delay : remaining);
-    }
-    throw TimeoutException('لم تكتمل معالجة الملصق الآمنة؛ بقي غير قابل للنشر.', const Duration(minutes: 3));
-  }
-
-  Future<Map<String, dynamic>> getStickerAssetMetadata(String mediaId) async {
-    final response = await _functions.httpsCallable('getMyMediaUploadStatus')
-        .call({'mediaId': mediaId});
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final metadata = data['stickerMetadata'];
-    if (data['purpose'] != 'sticker' || data['status'] != 'security_approved' ||
-        metadata is! Map) {
-      throw StateError('لم تكتمل بيانات الملصق المفحوص بعد.');
-    }
-    return Map<String, dynamic>.from(metadata);
-  }
-
-  Future<Map<String, dynamic>> saveStickerPack({
-    required String packId,
-    required String title,
-    String description = '',
-    int sortOrder = 0,
-    required String status,
-    required List<Map<String, dynamic>> stickers,
-  }) async {
-    if (status != 'draft' && status != 'published') {
-      throw ArgumentError.value(status, 'status');
-    }
-    final response = await _functions.httpsCallable('saveStickerPack').call({
-      'packId': packId,
-      'title': title,
-      'description': description,
-      'sortOrder': sortOrder,
-      'status': status,
-      'stickers': stickers,
-    });
-    return Map<String, dynamic>.from(response.data as Map);
-  }
-
-  Future<List<Map<String, dynamic>>> getStickerCatalog() async {
-    final response = await _functions.httpsCallable('getStickerCatalog').call();
-    final data = Map<String, dynamic>.from(response.data as Map);
-    return (data['packs'] as List<dynamic>? ?? const [])
-        .whereType<Map>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList(growable: false);
-  }
-
-  Future<String> getStickerAssetUrl({
-    required String packId,
-    required String stickerId,
-  }) async {
-    final response = await _functions.httpsCallable('getStickerAssetUrl').call({
-      'packId': packId,
-      'stickerId': stickerId,
-    });
-    final data = Map<String, dynamic>.from(response.data as Map);
-    final url = data['url'];
-    if (url is! String || url.isEmpty) {
-      throw StateError('لم يُرجع الخادم رابط الملصق الآمن.');
-    }
-    return url;
-  }
-
-  Future<String> uploadAdvertisementCreative({required XFile file}) async {
-    final contentType = _chatAttachmentContentType(file);
-    if (!contentType.startsWith('image/') && contentType != 'video/mp4') {
-      throw const FormatException('المادة الإعلانية يجب أن تكون صورة أو فيديو MP4.');
-    }
-    await _validateFileLength(file, contentType);
-    final bytes = await file.readAsBytes();
-    final intentResponse = await _functions.httpsCallable('createMediaUploadIntent').call({
-      'originalName': file.name,
-      'contentType': contentType,
-      'sizeBytes': bytes.length,
-      'purpose': 'advertisement',
-    });
-    final intent = Map<String, dynamic>.from(intentResponse.data as Map);
-    final uploadUrl = intent['uploadUrl'] as String?;
-    final mediaId = intent['mediaId'] as String?;
-    final headers = Map<String, dynamic>.from(
-      intent['requiredHeaders'] as Map? ?? const <String, dynamic>{},
-    );
-    if (uploadUrl == null || mediaId == null || headers.isEmpty) {
-      throw StateError('استجابة طلب رفع المادة الإعلانية غير مكتملة.');
-    }
-    final response = await _client.put(
-      Uri.parse(uploadUrl),
-      headers: headers.map((key, value) => MapEntry(key, '$value')),
-      body: bytes,
-    );
-    if (response.statusCode != 200) {
-      throw StateError('فشل رفع المادة الإعلانية إلى التخزين الآمن (HTTP ${response.statusCode}).');
-    }
-    await _functions.httpsCallable('finalizeMediaUpload').call({'mediaId': mediaId});
-    await waitForSafeApproval(mediaId, requireAnySafeDerivative: true);
-    return mediaId;
   }
 
   void close() => _client.close();
