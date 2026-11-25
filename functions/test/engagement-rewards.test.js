@@ -6,6 +6,7 @@ const {
   utcRewardPeriod,
   validateTimedAdCampaignInput,
   eligibleHeartbeatDelta,
+  decideTimedAdDailyCap,
 } = require("../lib/engagement-rewards");
 
 test("attendance policy defaults closed and rejects malformed or unsafe reward amounts", () => {
@@ -108,4 +109,23 @@ test("timed-ad counter identity rejects invalid member and campaign identifiers"
   assert.throws(() => timedAdMemberCounterId("", "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
   assert.throws(() => timedAdMemberCounterId("member", "short"), /TIMED_AD_COUNTER_ID_INVALID/);
   assert.throws(() => timedAdMemberCounterId("x".repeat(129), "campaign_123456"), /TIMED_AD_COUNTER_ID_INVALID/);
+});
+
+
+test("timed-ad daily cap decision enforces both limits at their exact boundaries", () => {
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 9, rewardCoins: 10, nextRewardCoins: 10 }), {
+    eligible: true, reason: "within_daily_caps",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 10, rewardCoins: 0, nextRewardCoins: 1 }), {
+    eligible: false, reason: "daily_claim_cap",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 15, nextRewardCoins: 6 }), {
+    eligible: false, reason: "daily_coin_cap",
+  });
+  assert.deepEqual(decideTimedAdDailyCap({ claimCount: 9, rewardCoins: 19, nextRewardCoins: 1 }), {
+    eligible: true, reason: "within_daily_caps",
+  });
+  assert.throws(() => decideTimedAdDailyCap({ claimCount: -1, rewardCoins: 0, nextRewardCoins: 1 }), /TIMED_AD_DAILY_CAP_INPUT_INVALID/);
+  assert.throws(() => decideTimedAdDailyCap({ claimCount: 0, rewardCoins: 0, nextRewardCoins: 0 }), /TIMED_AD_DAILY_CAP_INPUT_INVALID/);
+  assert.throws(() => decideTimedAdDailyCap({ claimCount: Number.MAX_SAFE_INTEGER + 1, rewardCoins: 0, nextRewardCoins: 1 }), /TIMED_AD_DAILY_CAP_INPUT_INVALID/);
 });
