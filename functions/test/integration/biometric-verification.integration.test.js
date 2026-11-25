@@ -16,6 +16,7 @@ const {
   completeBiometricVerificationCycle,
 } = require("../../lib/index");
 const { hasActiveBiometricVerification } = require("../../lib/biometric-verification");
+const { addCalendarMonthsUtc } = require("../../lib/verification-calendar");
 const db = getFirestore();
 const bucket = getStorage().bucket();
 const BIOMETRIC_CONSENT_VERSION = "2026-11-20-owner-review-v1";
@@ -194,9 +195,15 @@ test("three rejections require calendar-month waits, close permanently, and neve
         await assert.rejects(() => startBiometricVerificationRequest.run(memberRequest(uid)),
           error => error && error.code === "failed-precondition");
         const previousRef = db.collection("biometricVerificationRequests").doc(ids[ids.length - 1]);
-        const eligibleAtMs = Date.now() - 1;
+        const decidedAtMs = Date.now() - 32 * 24 * 60 * 60 * 1000;
+        const submittedAtMs = decidedAtMs - 24 * 60 * 60 * 1000;
+        const eligibleAtMs = addCalendarMonthsUtc(decidedAtMs, 1);
         await previousRef.update({
+          "reviewState.submittedAtMs": submittedAtMs,
+          "reviewState.decidedAtMs": decidedAtMs,
           "reviewState.nextEligibleAtMs": eligibleAtMs,
+          submittedAt: Timestamp.fromMillis(submittedAtMs),
+          decidedAt: Timestamp.fromMillis(decidedAtMs),
           nextEligibleAt: Timestamp.fromMillis(eligibleAtMs),
         });
       }
