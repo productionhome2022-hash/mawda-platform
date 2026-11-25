@@ -2,7 +2,7 @@ const { timingSafeEqual } = require("node:crypto");
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const GENERATION = /^\d{1,24}$/;
-const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric"]);
+const MEDIA_PURPOSES = new Set(["chat", "room", "profile_album", "avatar_cover", "story", "advertisement", "biometric", "sticker"]);
 
 function equalSecret(actual, expected) {
   if (typeof actual !== "string" || typeof expected !== "string") return false;
@@ -45,7 +45,9 @@ function validateScanRequest(value, provider, bucketName, expectedCallbackUrl) {
       ? allowedTypes.has(v.contentType)
       : v.purpose === "biometric"
         ? v.contentType.startsWith("audio/") || v.contentType === "video/mp4"
-        : isImage;
+        : v.purpose === "sticker"
+          ? ["image/gif", "image/png", "image/jpeg", "image/webp"].includes(v.contentType)
+          : isImage;
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) ||
       url.username || url.password || url.hash ||
       decodedPath !== expectedPath ||
@@ -109,7 +111,8 @@ function sanitizeScannerError(error) {
     "DERIVATIVE_SIZE_INVALID", "EXISTING_DERIVATIVE_PROVENANCE_MISMATCH",
     "DERIVATIVE_METADATA_MISMATCH", "INVALID_DERIVATIVE_PATH",
     "MEDIA_DURATION_INVALID", "AUDIO_STREAM_OR_DURATION_INVALID",
-    "VIDEO_STREAM_OR_DURATION_INVALID", "PDF_PAGE_COUNT_INVALID",
+    "VIDEO_STREAM_OR_DURATION_INVALID", "STICKER_MEDIA_TYPE_INVALID",
+    "STICKER_MEDIA_SIZE_INVALID", "STICKER_IMAGE_DIMENSIONS_INVALID", "PDF_PAGE_COUNT_INVALID",
     "PDF_RASTER_PAGE_COUNT_MISMATCH", "GIF_ANIMATION_FRAME_COUNT_CHANGED",
   ]);
   if (fixed.has(message) || /^SOURCE_DOWNLOAD_HTTP_[0-9]{3}$/.test(message) ||
