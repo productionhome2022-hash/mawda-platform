@@ -33,22 +33,6 @@ export function isEligibleStoreGiftMemberRecord(value: unknown): boolean {
   return true;
 }
 
-/** Reject disabled, missing-provider and anonymous Firebase identities for gift recipients. */
-export function isEligibleStoreGiftAuthUser(value: unknown): boolean {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
-  const user = value as Record<string, unknown>;
-  const providers = user.providerData;
-  if (user.disabled === true || !Array.isArray(providers) || providers.length === 0) return false;
-  const providerIds: string[] = [];
-  for (const provider of providers) {
-    if (provider === null || typeof provider !== "object" || Array.isArray(provider)) return false;
-    const providerId = (provider as Record<string, unknown>).providerId;
-    if (typeof providerId !== "string" || providerId.trim().length === 0) return false;
-    providerIds.push(providerId);
-  }
-  return !providerIds.every((providerId) => providerId === "anonymous");
-}
-
 function readExpiryMs(value: unknown): number | null {
   let result: unknown;
   if (value instanceof Date) result = value.getTime();
