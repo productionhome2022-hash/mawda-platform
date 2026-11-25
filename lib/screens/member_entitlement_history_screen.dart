@@ -127,12 +127,12 @@ class _MemberEntitlementHistoryScreenState
                         ? entry['packageName'] as String? ?? 'باقة BetaCoins'
                         : entry['itemName'] as String? ?? 'هدية من متجر مودة';
                     final detail = isCoinPackage
-                        ? 'هدية باقة بقيمة ${entry['coins'] ?? 0} BetaCoins\\n'
+                        ? 'هدية باقة بقيمة ${entry['coins'] ?? 0} BetaCoins\n'
                           'تاريخ الاستلام: ${_formatTime(entry['createdAtMs'])}'
-                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\\n' +
-                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\\n' +
-                          'المدة: $duration\\n' +
-                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\\n' +
+                        : (received ? 'استلمت من: ' : 'أرسلت إلى: ') + '$counterpart' + '\n' +
+                          'القيمة: ${entry['priceCoins'] ?? 0} BetaCoins\n' +
+                          'المدة: $duration\n' +
+                          'التاريخ: ${_formatTime(entry['createdAtMs'])}\n' +
                           'الانتهاء: ${expiresAt == null ? 'دائم/غير محدد' : _formatTime(expiresAt)}';
                     return Card(
                       child: ListTile(
