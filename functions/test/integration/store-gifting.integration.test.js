@@ -24,19 +24,13 @@ test("store gift debits sender and grants recipient once with immutable terms", 
   const tag = suffix();
   const senderUid = `gift_sender_${tag}`;
   const recipientUid = `gift_recipient_${tag}`;
-  const recipientUsername = `giftuser_${tag}`;
   const otherRecipientUid = `gift_other_recipient_${tag}`;
-  const otherRecipientUsername = `giftother_${tag}`;
   const itemId = "vip_monthly";
   const requestId = `gift_req_${tag}`;
   const itemRef = db.collection("storeCatalog").doc(itemId);
   const versionsRef = db.collection("storeCatalogVersions").doc(itemId).collection("versions");
   const previousItem = await itemRef.get();
   const previousVersions = await versionsRef.get();
-  const usernameRef = db.collection("usernameRegistry").doc(recipientUsername);
-  const previousUsername = await usernameRef.get();
-  const otherUsernameRef = db.collection("usernameRegistry").doc(otherRecipientUsername);
-  const previousOtherUsername = await otherUsernameRef.get();
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
@@ -50,10 +44,8 @@ test("store gift debits sender and grants recipient once with immutable terms", 
   await Promise.all([
     senderRef.set({ profileCompleted: true, accountStatus: "active", coins: 2000 }),
     recipientRef.set({
-      profileCompleted: true, accountStatus: "active", username: recipientUsername, coins: 300,
+      profileCompleted: true, accountStatus: "active", coins: 300,
     }),
-    usernameRef.set({ uid: recipientUid, username: recipientUsername }),
-    otherUsernameRef.set({ uid: otherRecipientUid, username: otherRecipientUsername }),
   ]);
   try {
     await auth.createUser({ uid: recipientUid, email: `${recipientUid}@example.test`, emailVerified: true });
@@ -68,7 +60,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     assert.equal(catalogSnapshot.data().priceCoins, 500);
     assert.equal(catalogSnapshot.data().version, saved.version);
     const giftInput = {
-      recipientUsername, itemId, requestId,
+      recipientUid, itemId, requestId,
       expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
     };
     // Race two identical requests to exercise Firestore transaction retries:
@@ -99,13 +91,13 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     assert.equal((await senderRef.get()).data().coins, 1500);
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        ...giftInput, recipientUsername: otherRecipientUsername,
+        ...giftInput, recipientUid: otherRecipientUid,
       })),
       (error) => error && error.code === "already-exists",
     );
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        recipientUsername, itemId, requestId: `missing_version_${tag}`,
+        recipientUid, itemId, requestId: `missing_version_${tag}`,
         expectedPriceCoins: 500,
       })),
       (error) => error && error.code === "invalid-argument",
@@ -120,14 +112,14 @@ test("store gift debits sender and grants recipient once with immutable terms", 
 
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        recipientUsername, itemId, requestId: `stale_version_${tag}`,
+        recipientUid, itemId, requestId: `stale_version_${tag}`,
         expectedPriceCoins: 500, expectedCatalogVersion: saved.version,
       })),
       (error) => error && error.code === "failed-precondition",
     );
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        recipientUsername, itemId: "unknown_sku",
+        recipientUid, itemId: "unknown_sku",
         requestId: `unknown_sku_${tag}`,
         expectedPriceCoins: 600, expectedCatalogVersion: updated.version,
       })),
@@ -135,7 +127,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     );
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        recipientUsername, itemId, requestId: `stale_price_${tag}`,
+        recipientUid, itemId, requestId: `stale_price_${tag}`,
         expectedPriceCoins: 500, expectedCatalogVersion: updated.version,
       })),
       (error) => error && error.code === "failed-precondition",
@@ -161,11 +153,6 @@ test("store gift debits sender and grants recipient once with immutable terms", 
         if (previousItem.exists) await itemRef.set(previousItem.data());
         await Promise.all(previousVersions.docs.map((doc) => doc.ref.set(doc.data())));
       })(),
-      (async () => {
-        await Promise.all([usernameRef.delete().catch(() => undefined), otherUsernameRef.delete().catch(() => undefined)]);
-        if (previousUsername.exists) await usernameRef.set(previousUsername.data());
-        if (previousOtherUsername.exists) await otherUsernameRef.set(previousOtherUsername.data());
-      })(),
     ]);
   }
 });
@@ -177,8 +164,6 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
   const senderUid = `gift_permanent_sender_${tag}`;
   const recipientUid = `gift_permanent_recipient_${tag}`;
   const blockedRecipientUid = `gift_suspended_recipient_${tag}`;
-  const recipientUsername = `giftperm_${tag}`;
-  const blockedUsername = `giftsuspended_${tag}`;
   const itemId = "vip_monthly";
   const requestId = `giftperm_req_${tag}`;
   const itemRef = db.collection("storeCatalog").doc(itemId);
@@ -186,8 +171,6 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
   const senderRef = db.collection("users").doc(senderUid);
   const recipientRef = db.collection("users").doc(recipientUid);
   const blockedRecipientRef = db.collection("users").doc(blockedRecipientUid);
-  const usernameRef = db.collection("usernameRegistry").doc(recipientUsername);
-  const blockedUsernameRef = db.collection("usernameRegistry").doc(blockedUsername);
   const entitlementRef = recipientRef.collection("entitlements").doc(itemId);
   const giftId = createHash("sha256").update(
     `mawdda-store-gift-v1:${senderUid}:${requestId}`,
@@ -199,12 +182,11 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
   await Promise.all([
     senderRef.set({ profileCompleted: true, accountStatus: "active", coins: 2000 }),
     recipientRef.set({
-      profileCompleted: true, accountStatus: "active", username: recipientUsername, coins: 50,
+      profileCompleted: true, accountStatus: "active", coins: 50,
     }),
     blockedRecipientRef.set({
-      profileCompleted: true, accountStatus: "suspended", username: blockedUsername, coins: 50,
+      profileCompleted: true, accountStatus: "suspended", coins: 50,
     }),
-    usernameRef.set({ uid: recipientUid, username: recipientUsername }),
     blockedUsernameRef.set({ uid: blockedRecipientUid, username: blockedUsername }),
   ]);
   try {
@@ -218,7 +200,7 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
       sortOrder: 1, active: true, purchaseEnabled: true,
     }));
     const result = await giftStoreItem.run(memberRequest(senderUid, {
-      recipientUsername, itemId, requestId,
+      recipientUid, itemId, requestId,
       expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
     }));
     assert.equal(result.idempotentReplay, false);
@@ -237,13 +219,13 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
     assert.equal(ledger.data().amount, -700);
     assert.equal(ledger.data().recipientUid, recipientUid);
     const replay = await giftStoreItem.run(memberRequest(senderUid, {
-      recipientUsername, itemId, requestId,
+      recipientUid, itemId, requestId,
       expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
     }));
     assert.equal(replay.idempotentReplay, true);
     await assert.rejects(
       () => giftStoreItem.run(memberRequest(senderUid, {
-        recipientUsername: blockedUsername, itemId,
+        recipientUid: blockedRecipientUid, itemId,
         requestId: `blocked_req_${tag}`,
         expectedPriceCoins: 700, expectedCatalogVersion: saved.version,
       })),
@@ -263,8 +245,6 @@ test("store gift preserves permanent entitlements and rejects ineligible recipie
       senderRef.delete().catch(() => undefined),
       recipientRef.delete().catch(() => undefined),
       blockedRecipientRef.delete().catch(() => undefined),
-      usernameRef.delete().catch(() => undefined),
-      blockedUsernameRef.delete().catch(() => undefined),
       itemRef.delete().catch(() => undefined),
       (async () => {
         const versions = await versionsRef.get();
