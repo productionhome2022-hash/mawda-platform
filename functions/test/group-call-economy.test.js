@@ -42,20 +42,20 @@ test("unknown runtime call modes are rejected", () => {
   assert.throws(() => getGroupCallRate(policy, "screen"), /INVALID_GROUP_CALL_MODE/);
 });
 
-test("integer allocation is balanced, deterministic and independent of initiator", () => {
+test("integer allocation is balanced, deterministic and assigns every remainder coin to the initiator", () => {
   const a = calculateGroupCallCoinShares(101, ["owner", "b", "c"], "owner");
   const b = calculateGroupCallCoinShares(101, ["c", "owner", "b"], "owner");
   assert.deepEqual(a, b);
-  assert.deepEqual(a.map((item) => item.amount), [34, 34, 33]);
+  assert.deepEqual(a.map((item) => item.amount), [33, 33, 35]);
   assert.equal(a.reduce((sum, item) => sum + item.amount, 0), 101);
-  assert.equal(a.find((item) => item.uid === "owner").amount, 33);
+  assert.equal(a.find((item) => item.uid === "owner").amount, 35);
 });
 
 test("late and early connected members receive the same share based only on final participant count", () => {
   const four = calculateGroupCallCoinShares(2000, ["owner", "early", "late", "last-second"], "owner");
   assert.deepEqual(four.map((item) => item.amount), [500, 500, 500, 500]);
   const three = calculateGroupCallCoinShares(2000, ["owner", "early", "late"], "owner");
-  assert.deepEqual(three.map((item) => item.amount), [667, 667, 666]);
+  assert.deepEqual(three.map((item) => item.amount), [666, 666, 668]);
   const two = calculateGroupCallCoinShares(2000, ["owner", "late"], "owner");
   assert.deepEqual(two.map((item) => item.amount), [1000, 1000]);
 });
@@ -70,7 +70,8 @@ test("billing slice freezes owner policy version and charges actual active parti
 
 test("integer allocation handles participant counts larger than whole-coin total deterministically", () => {
   const shares = calculateGroupCallCoinShares(1, ["owner", "b", "c", "d"], "owner");
-  assert.deepEqual(shares.map((item) => item.amount), [1, 0, 0, 0]);
+  assert.deepEqual(shares.map((item) => item.amount), [0, 0, 0, 1]);
+  assert.equal(shares.find((item) => item.uid === "owner").amount, 1);
   assert.equal(shares.reduce((sum, item) => sum + item.amount, 0), 1);
 });
 
@@ -85,7 +86,8 @@ test("maximum reservation and final settlement charge late joiners equally", () 
   );
   assert.equal(result.billableMinutes, 1);
   assert.equal(result.totalAmount, 293);
-  assert.deepEqual(result.shares.map((item) => item.amount), [74, 73, 73, 73]);
+  assert.equal(result.shares.find((item) => item.uid === "owner").amount, 74);
+  assert.deepEqual(result.shares.map((item) => item.amount), [73, 73, 73, 74]);
   assert.equal(result.shares.reduce((sum, item) => sum + item.amount, 0), 293);
 });
 
