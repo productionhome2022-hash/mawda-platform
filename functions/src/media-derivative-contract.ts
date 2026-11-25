@@ -54,7 +54,6 @@ export function safeDerivativePurposeAllowed(
   if (category === "document") {
     return (purpose === "chat" || purpose === "room") && uploaderRole === "platform_owner";
   }
-  if (purpose === "sticker") return category === "gif" && uploaderRole === "platform_owner";
   if (purpose === "advertisement") return uploaderRole === "platform_owner";
   return ["chat", "room", "profile_album", "avatar_cover", "story"].includes(purpose);
 }
