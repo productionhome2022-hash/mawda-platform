@@ -9,7 +9,6 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import { defineSecret, defineString } from "firebase-functions/params";
 import { verifyScannerWebhook, validateScannerVerdict } from "./media-scanner";
 import { expectedSafeDerivativeContract, safeDerivativePurposeAllowed } from "./media-derivative-contract";
-import { validateStickerMediaMetadata, validateStickerPackManifest } from "./sticker-policy";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { hasPlatformOwnerSession } from "./owner-access";
@@ -17,7 +16,6 @@ import { isGuestSessionActive } from "./guest-sessions";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
-import { isStoreEntitlementActive } from "./store-purchase";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
   detectMediaSignature,
@@ -424,13 +422,6 @@ export function createMediaScanVerdictHandler(
       response.status(409).send("Safe preview metadata mismatch");
       return;
     }
-    const previewSizeBytes = Number(previewMetadata.size);
-    const previewMaxBytes = asset.mediaPurpose === "sticker" ? 256 * 1024 : 2 * 1024 * 1024;
-    if (!Number.isSafeInteger(previewSizeBytes) || previewSizeBytes <= 0 ||
-        previewSizeBytes > previewMaxBytes) {
-      response.status(409).send("Safe preview size exceeds its purpose limit");
-      return;
-    }
     const previewHash = await sha256Object(previewFile);
     if (previewHash !== verdict.safePreviewSha256) {
       response.status(409).send("Safe preview hash mismatch");
@@ -441,7 +432,7 @@ export function createMediaScanVerdictHandler(
       generation: verdict.safePreviewGeneration!,
       sha256: previewHash,
       contentType: "image/webp",
-      sizeBytes: previewSizeBytes,
+      sizeBytes: Number(previewMetadata.size),
     };
   }
   let safeNonImageDerivative: {
@@ -476,8 +467,7 @@ export function createMediaScanVerdictHandler(
     const sizeBytes = Number(derivativeMetadata.size);
     if (String(derivativeMetadata.generation) !== derivative.generation ||
         derivativeMetadata.contentType !== derivative.contentType ||
-        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 ||
-        sizeBytes > (asset.mediaPurpose === "sticker" ? 512 * 1024 : expected.maxBytes) ||
+        !Number.isSafeInteger(sizeBytes) || sizeBytes <= 0 || sizeBytes > expected.maxBytes ||
         custom?.mediaId !== verdict.mediaId ||
         custom?.sourceGeneration !== verdict.objectGeneration ||
         custom?.sourceSha256 !== verdict.sha256 ||
@@ -507,7 +497,6 @@ export function createMediaScanVerdictHandler(
     transaction.update(assetRef, {
       status: nextStatus,
       scannerEngine: verdict.scanEngine,
-      ...(verdict.stickerMetadata ? { stickerMetadata: verdict.stickerMetadata } : {}),
       scannerEngineVersion: verdict.engineVersion,
       scannerSignatureDatabaseVersion: verdict.signatureDatabaseVersion,
       scannerSignatureDatabaseAgeMs: verdict.signatureDatabaseAgeMs,
@@ -1157,23 +1146,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
 });
 
 /** Issues a two-minute generation-pinned URL only to a linked conversation participant. */
-async function issueChatMediaDeliveryUrl(
-  data: Record<string, unknown>,
-  authToken: Record<string, unknown>,
-  viewerUid: string,
-  mediaSaver: boolean,
-): Promise<Record<string, unknown>> {
-  if (mediaSaver) {
-    const entitlementIds = ["media_saver_24h", "media_saver_7d", "media_saver_30d"];
-    const entitlements = await Promise.all(entitlementIds.map((itemId) =>
-      mediaDb().collection("users").doc(viewerUid).collection("entitlements").doc(itemId).get(),
-    ));
-    if (!entitlements.some((snapshot) =>
-      snapshot.exists && isStoreEntitlementActive(snapshot.data()),
-    )) {
-      throw new HttpsError("failed-precondition", "استحقاق Mawdda Media Saver غير نشط.");
-    }
-  }
+export const getChatImageAttachmentUrl = onCall(async (request) => {
+  const viewerUid = requireUid(request.auth?.uid);
+  const data = request.data ?? {};
   const scope = data.scope;
   const mediaId = typeof data.mediaId === "string" ? data.mediaId.trim() : "";
   const messageId = typeof data.messageId === "string" ? data.messageId.trim() : "";
@@ -1205,9 +1180,9 @@ async function issueChatMediaDeliveryUrl(
     conversationId = roomId;
     if (!roomId || roomId.length > 128) throw new HttpsError("invalid-argument", "معرف الغرفة غير صالح.");
     const roomRef = mediaDb().collection("rooms").doc(roomId);
-    const ownerSession = authToken.platformOwner === true &&
-      hasPlatformOwnerSession(authToken, undefined, viewerUid);
-    const viewerType = mediaUploaderTypeFromToken(authToken);
+    const ownerSession = request.auth?.token.platformOwner === true &&
+      hasPlatformOwnerSession((request.auth?.token ?? {}) as Record<string, unknown>, undefined, viewerUid);
+    const viewerType = mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>);
     const [room, member, msg, viewer] = await Promise.all([
       roomRef.get(), roomRef.collection("members").doc(viewerUid).get(),
       roomRef.collection("messages").doc(messageId).get(),
@@ -1255,7 +1230,7 @@ async function issueChatMediaDeliveryUrl(
     ]);
     const viewer = viewerSnapshot.data() ?? {};
     const peer = peerSnapshot.data() ?? {};
-    const viewerToken = authToken;
+    const viewerToken = (request.auth?.token ?? {}) as Record<string, unknown>;
     const viewerIsOwner = viewerToken.platformOwner === true &&
       hasPlatformOwnerSession(viewerToken, undefined, viewerUid);
     const peerIsOwner = asset.uploaderRole === "platform_owner" &&
@@ -1273,10 +1248,7 @@ async function issueChatMediaDeliveryUrl(
   const artifact = resolveChatMediaDeliveryArtifact(
     asset as never, asset.uploaderRole === "platform_owner",
   );
-  if (mediaSaver && !["image", "gif", "video", "audio"].includes(String(artifact?.category))) {
-    throw new HttpsError("failed-precondition", "Mawdda Media Saver لا يدعم هذا النوع من الملفات.");
-  }
-  if (mediaUploaderTypeFromToken(authToken) === "guest" &&
+  if (mediaUploaderTypeFromToken((request.auth?.token ?? {}) as Record<string, unknown>) === "guest" &&
       (scope !== "room" || artifact?.category !== "audio")) {
     throw new HttpsError("permission-denied", "لا يستطيع الزائر قراءة إلا الرسائل الصوتية في الغرف العامة.");
   }
@@ -1317,39 +1289,6 @@ async function issueChatMediaDeliveryUrl(
     objectGeneration: artifact.generation,
   });
   return { url, expiresAt, contentType: artifact.contentType, category: artifact.category };
-}
-export const getChatImageAttachmentUrl = onCall(async (request) => {
-  const viewerUid = requireUid(request.auth?.uid);
-  return issueChatMediaDeliveryUrl(
-    (request.data ?? {}) as Record<string, unknown>,
-    (request.auth?.token ?? {}) as Record<string, unknown>,
-    viewerUid,
-    false,
-  );
-});
-
-/**
- * Issues a short-lived safe-derivative URL for a local Media Saver operation.
- * Entitlement is revalidated on every request; the media retention deadline
- * remains unchanged and the same conversation/message authorization applies.
- */
-export const getMediaSaverAttachmentUrl = onCall(async (request) => {
-  const viewerUid = requireUid(request.auth?.uid);
-  const data = (request.data ?? {}) as Record<string, unknown>;
-  const result = await issueChatMediaDeliveryUrl(
-    data,
-    (request.auth?.token ?? {}) as Record<string, unknown>,
-    viewerUid,
-    true,
-  );
-  await auditMediaAccess({
-    actorUid: viewerUid,
-    mediaId: typeof data.mediaId === "string" ? data.mediaId : null,
-    action: "media_saver_save_capability_issued",
-    outcome: "success",
-    scope: data.scope ?? null,
-  });
-  return result;
 });
 
 export const createMediaUploadIntent = onCall(async (request) => {
@@ -1417,7 +1356,8 @@ export const createMediaUploadIntent = onCall(async (request) => {
     if (biometricRequestRef) {
       const biometricRequest = biometricRequestSnapshot?.data() ?? {};
       const mediaField = policy.category === "audio" ? "audioMediaId" : "videoMediaId";
-      if (!biometricRequestSnapshot?.exists || biometricRequest.uid !== uid || biometricRequest.status !== "uploading") {
+      if (!biometricRequestSnapshot?.exists || biometricRequest.uid !== uid ||
+          biometricRequest.status !== "uploading") {
         throw new HttpsError("failed-precondition", "طلب التوثيق غير مفتوح لهذا الملف.");
       }
       const previousMediaId = biometricRequest[mediaField];
@@ -1459,9 +1399,7 @@ export const createMediaUploadIntent = onCall(async (request) => {
             ? "delete_at_story_expiry"
             : input.purpose === "avatar_cover"
               ? "thirty_day_avatar_cover"
-              : input.purpose === "sticker"
-                ? "one_hour_sticker_asset"
-                : "owner_approval_required",
+              : "owner_approval_required",
       ...(input.purpose === "story" && input.storyExpiresAtMs !== undefined ? {
         storyExpiresAt: Timestamp.fromMillis(input.storyExpiresAtMs),
       } : {}),
@@ -1512,9 +1450,12 @@ export const finalizeMediaUpload = onCall(async (request) => {
     throw new HttpsError("permission-denied", "لا تملك صلاحية إكمال رفع هذا الملف.");
   }
   if (asset.mediaPurpose === "biometric") {
-    const biometricRequest = await mediaDb().collection("biometricVerificationRequests").doc(String(asset.biometricRequestId ?? "")).get();
+    const biometricRequest = await mediaDb().collection("biometricVerificationRequests")
+      .doc(String(asset.biometricRequestId ?? "")).get();
     const mediaField = asset.mediaCategory === "audio" ? "audioMediaId" : "videoMediaId";
-    if (!biometricRequest.exists || biometricRequest.data()?.uid !== uid || biometricRequest.data()?.status !== "uploading" || biometricRequest.data()?.[mediaField] !== mediaId) {
+    if (!biometricRequest.exists || biometricRequest.data()?.uid !== uid ||
+        biometricRequest.data()?.status !== "uploading" ||
+        biometricRequest.data()?.[mediaField] !== mediaId) {
       throw new HttpsError("permission-denied", "طلب التوثيق لم يعد مفتوحاً لهذا الملف.");
     }
   }
@@ -1617,9 +1558,6 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : asset.mediaPurpose === "avatar_cover" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      } : asset.mediaPurpose === "sticker" ? {
-        mediaUploadedAt: FieldValue.serverTimestamp(),
-        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -1836,7 +1774,7 @@ export const getOwnerMediaSafePreview = onCall(async (request) => {
   if (!snapshot.exists) throw new HttpsError("not-found", "الملف غير موجود.");
   const asset = snapshot.data()!;
   if (asset.mediaPurpose === "biometric") {
-    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
+    await auditMediaAccess({ actorUid, mediaId, action: "owner_media_safe_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
     throw new HttpsError("permission-denied", "أدلة التوثيق البيومتري لا تُعرض إلا عبر مسار المراجعة المخصص.");
   }
   if (asset.status !== "security_approved" ||
@@ -2208,7 +2146,8 @@ export const ownerMediaPreview = onRequest(
       const asset = assetSnapshot.data()!;
       if (asset.mediaPurpose === "biometric") {
         await auditMediaAccess({ actorUid, mediaId, action: "owner_media_preview", outcome: "denied", failureCode: "biometric-evidence-use-dedicated-review" });
-        throw new HttpsError("permission-denied", "أدلة التوثيق البيومتري لا تُعرض إلا عبر مسار المراجعة المخصص.");
+        response.status(403).set("Cache-Control", "no-store").end();
+        return;
       }
       const expectedPath = `processed/${String(asset.ownerUid)}/${mediaId}/preview.webp`;
       if (asset.status !== "security_approved" ||
@@ -2262,120 +2201,3 @@ export const ownerMediaPreview = onRequest(
 // Backward-compatible callable names; both routes enforce the same typed safe-derivative contract.
 export const sendChatMediaAttachment = sendChatImageAttachment;
 export const getChatMediaAttachmentUrl = getChatImageAttachmentUrl;
-
-export const saveStickerPack = onCall(async (request) => {
-  const actorUid = await requireSoleOwnerForMediaReview(request, "owner_sticker_pack_save_attempt");
-  const data = request.data ?? {};
-  const allowedRoot = new Set(["packId", "title", "description", "sortOrder", "status", "stickers"]);
-  if (Object.keys(data).some((key) => !allowedRoot.has(key))) {
-    throw new HttpsError("invalid-argument", "حقول حزمة الملصقات غير مدعومة.");
-  }
-  const status = data.status === "draft" ? "draft" : "";
-  if (!status) throw new HttpsError("failed-precondition", "نشر الملصقات معطل حتى اكتمال تنفيذ دورة الاحتفاظ والتنظيف والتحقق منها.");
-  if (data.sortOrder !== undefined &&
-      (!Number.isSafeInteger(data.sortOrder) || data.sortOrder < 0 || data.sortOrder > 100000)) {
-    throw new HttpsError("invalid-argument", "ترتيب الحزمة غير صالح.");
-  }
-  if (!Array.isArray(data.stickers)) {
-    throw new HttpsError("invalid-argument", "قائمة الملصقات غير صالحة.");
-  }
-  const allowedStickerFields = new Set([
-    "stickerId", "assetId", "kind", "contentType", "width", "height",
-    "sizeBytes", "durationMs", "frameCount",
-  ]);
-  for (const item of data.stickers) {
-    if (!item || typeof item !== "object" || Array.isArray(item) ||
-        Object.keys(item).some((key) => !allowedStickerFields.has(key))) {
-      throw new HttpsError("invalid-argument", "تحتوي الحزمة على حقول ملصق غير مدعومة.");
-    }
-    if (typeof (item as Record<string, unknown>).assetId !== "string" ||
-        !/^[0-9a-f-]{36}$/i.test((item as Record<string, string>).assetId)) {
-      throw new HttpsError("invalid-argument", "معرف أصل الملصق غير صالح.");
-    }
-  }
-  let manifest: ReturnType<typeof validateStickerPackManifest>;
-  try { manifest = validateStickerPackManifest(data); } catch (error) {
-    throw new HttpsError("invalid-argument", error instanceof Error ? error.message : "بيانات الحزمة غير صالحة.");
-  }
-  const assetIds: string[] = data.stickers.map((item: Record<string, unknown>) => String(item.assetId));
-  if (new Set(assetIds).size !== assetIds.length) {
-    throw new HttpsError("invalid-argument", "لا يمكن تكرار أصل الملصق داخل الحزمة.");
-  }
-  const packRef = mediaDb().collection("stickerPacks").doc(manifest.packId);
-  await mediaDb().runTransaction(async (transaction) => {
-    const [packSnapshot, ...assetSnapshots] = await Promise.all([
-      transaction.get(packRef),
-      ...assetIds.map((id: string) => transaction.get(mediaDb().collection("mediaAssets").doc(id))),
-    ]);
-    const persistedStickers = manifest.stickers.map((sticker, index) => {
-      const assetSnapshot = assetSnapshots[index];
-      const asset = assetSnapshot.data();
-      if (!assetSnapshot.exists || !asset ||
-          asset.ownerUid !== actorUid || asset.uploaderRole !== "platform_owner" ||
-          asset.mediaPurpose !== "sticker" || asset.status !== "security_approved" ||
-          asset.scannerVerdict !== "clean") {
-        throw new HttpsError("failed-precondition", "يوجد أصل ملصق لم يجتز الفحص أو لا يخص جلسة المالك.");
-      }
-      let scanned: ReturnType<typeof validateStickerMediaMetadata>;
-      try { scanned = validateStickerMediaMetadata(asset.stickerMetadata); } catch {
-        throw new HttpsError("failed-precondition", "بيانات أصل الملصق المفحوص غير صالحة.");
-      }
-      if (scanned.kind !== sticker.kind || scanned.contentType !== sticker.contentType ||
-          scanned.width !== sticker.width || scanned.height !== sticker.height ||
-          scanned.sizeBytes !== sticker.sizeBytes ||
-          (scanned.kind === "animated" &&
-            (scanned.durationMs !== sticker.durationMs || scanned.frameCount !== sticker.frameCount))) {
-        throw new HttpsError("failed-precondition", "بيانات الحزمة لا تطابق نتائج فحص أحد الأصول.");
-      }
-      const derivativeReady = scanned.kind === "animated"
-        ? asset.processingStatus === "safe_animation_derivative_ready" &&
-          asset.safeAnimationPath === `processed/${actorUid}/${assetSnapshot.id}/animation.gif`
-        : asset.processingStatus === "safe_raster_derivative_ready" &&
-          asset.safePreviewPath === `processed/${actorUid}/${assetSnapshot.id}/preview.webp`;
-      if (!derivativeReady) {
-        throw new HttpsError("failed-precondition", "النسخة الآمنة لأحد الملصقات لم تجهز.");
-      }
-      return { ...sticker, assetId: assetSnapshot.id, scanStatus: "clean" as const };
-    });
-    transaction.set(packRef, {
-      packId: manifest.packId,
-      title: manifest.title,
-      ...(manifest.description !== undefined ? { description: manifest.description } : {}),
-      sortOrder: data.sortOrder ?? 0,
-      stickers: persistedStickers,
-      status,
-      approved: false,
-      approvedByUid: null,
-      approvedAt: null,
-      updatedByUid: actorUid,
-      updatedAt: FieldValue.serverTimestamp(),
-      createdAt: packSnapshot.exists ? packSnapshot.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
-    }, { merge: true });
-    transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
-      actorUid, action: "owner_sticker_pack_saved", outcome: "success",
-      packId: manifest.packId, status, stickerCount: persistedStickers.length,
-      createdAt: FieldValue.serverTimestamp(),
-    });
-  });
-  return { packId: manifest.packId, status, stickerCount: manifest.stickers.length };
-});
-
-/**
- * Atomically sends a reference to an approved shared sticker asset.
- * Sticker bytes remain in the owner-managed media catalog and are not copied
- * into a member upload or charged against the sender's media quota.
- */
-
-
-/** Shared sticker delivery remains unavailable until owner-approved retention is defined. */
-export const getStickerAssetUrl = onCall(async (request) => {
-  requireUid(request.auth?.uid);
-  throw new HttpsError("failed-precondition", "تسليم الملصقات معطل حتى اكتمال دورة الأصل والتحقق منها.");
-});
-
-/** Member sticker sends remain unavailable until the shared-asset lifecycle is approved and verified. */
-export const sendStickerMessage = onCall(async (request) => {
-  requireUid(request.auth?.uid);
-  throw new HttpsError("failed-precondition", "إرسال الملصقات معطل حتى اكتمال دورة الأصل واختباراتها.");
-});
-
