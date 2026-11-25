@@ -9,6 +9,7 @@ export type FeaturedAdCampaignCandidate = {
   creativeApproved: boolean;
   startsAtMs: number;
   endsAtMs: number;
+  geographicTargets: string[];
   featuredPlacement: "rotation" | "priority";
   /** Owner-assigned order within approved priority placements; lower comes first. */
   priorityOrder?: number;
@@ -18,12 +19,13 @@ export type FeaturedAdSelection = {
   mode: "priority" | "rotation" | "empty";
   campaignIds: string[];
   rotationIntervalMs: number;
-  /** Caller controls whether the selected campaign is a rewarded viewing placement. */
+  /** Featured previews are never eligible for rewarded-view claims. */
   rewardEligible: false;
 };
 
 function isEligible(
   campaign: FeaturedAdCampaignCandidate,
+  audienceGeography: string,
   nowMs: number,
 ): boolean {
   return campaign.status === "published" &&
@@ -34,7 +36,11 @@ function isEligible(
     Number.isSafeInteger(campaign.startsAtMs) &&
     Number.isSafeInteger(campaign.endsAtMs) &&
     campaign.startsAtMs <= nowMs &&
-    campaign.endsAtMs > nowMs;
+    campaign.endsAtMs > nowMs &&
+    Array.isArray(campaign.geographicTargets) &&
+    (audienceGeography === "all_arab_countries" ||
+      campaign.geographicTargets.includes(audienceGeography) ||
+      campaign.geographicTargets.includes("all_arab_countries"));
 }
 
 /** Fisher-Yates shuffle with injectable RNG so the fallback can be tested deterministically. */
@@ -52,23 +58,25 @@ function randomized<T>(items: T[], random: () => number): T[] {
 }
 
 /**
- * Selects ordering for the independent featured showcase only. Preview selection
- * never creates or authorizes a rewarded session; the featured lifecycle owns that flow.
+ * Chooses the upper Watch Ads showcase only. It deliberately does not create
+ * rewarded-view sessions; reward claims must start from the geographic feed.
  */
 export function selectFeaturedAdShowcase(args: {
   campaigns: FeaturedAdCampaignCandidate[];
+  audienceGeography: string;
   nowMs: number;
   rotationIntervalMs?: number;
   random?: () => number;
 }): FeaturedAdSelection {
   const interval = args.rotationIntervalMs ?? DEFAULT_FEATURED_AD_ROTATION_INTERVAL_MS;
-  if (!Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
+  if (!args.audienceGeography ||
+      !Number.isSafeInteger(args.nowMs) || args.nowMs < 0 ||
       !Number.isSafeInteger(interval) || interval < 1) {
     throw new Error("FEATURED_AD_SELECTION_INPUT_INVALID");
   }
 
   const eligible = args.campaigns.filter((campaign) =>
-    isEligible(campaign, args.nowMs));
+    isEligible(campaign, args.audienceGeography, args.nowMs));
 
   const priority = eligible
     .filter((campaign) => campaign.featuredPlacement === "priority")
