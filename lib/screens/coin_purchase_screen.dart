@@ -63,7 +63,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
       await _load();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(
-        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف BetaCoins بعد.',
+        'سُجل طلبك. سيتواصل معك مالك المنصة لتأكيد السعر وتعليمات الدفع. لم تُضف كوينز بعد.',
       )));
     } on FirebaseFunctionsException catch (e) {
       if (mounted) setState(() => _error = e.message ?? 'تعذر تسجيل الطلب.');
@@ -126,7 +126,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
     'pending_owner_contact' => 'بانتظار تواصل المالك',
     'payment_instructions_sent' => 'أُرسلت تعليمات الدفع - بانتظار التحقق',
     'awaiting_payment_verification' => 'أبلغت المالك - بانتظار التحقق الفعلي',
-    'approved' => 'تم الاعتماد وإضافة BetaCoins',
+    'approved' => 'تم الاعتماد وإضافة الكوينز',
     'rejected' => 'مرفوض',
     'withdrawn' => 'مسحوب',
     _ => 'قيد المعالجة',
@@ -134,19 +134,19 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('شراء BetaCoins يدوياً'),
+    appBar: AppBar(title: const Text('شراء الكوينز يدوياً'),
       actions: [IconButton(onPressed: _loading ? null : _load, icon: const Icon(Icons.refresh))]),
     body: _loading ? const Center(child: CircularProgressIndicator()) : ListView(
       padding: const EdgeInsets.all(16), children: [
         const Card(child: Padding(padding: EdgeInsets.all(14), child: Text(
-          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي BetaCoins عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
+          'تُنفذ الطلبات بالتواصل المباشر مع مالك مودة. لا يتم إصدار أي كوينز عند تقديم الطلب أو إرسال التعليمات؛ يضيفها الخادم فقط بعد تحقق المالك من وصول الدفعة الخارجية.',
         ))),
         if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
         Text('الباقات المتاحة', style: Theme.of(context).textTheme.titleLarge),
         if (!_manualPurchasesEnabled) const Text('طلبات الشراء اليدوية متوقفة حالياً بقرار المالك.'),
         if (_manualPurchasesEnabled && _packages.isEmpty) const Text('لا توجد باقات منشورة حالياً.'),
         ..._packages.map((item) => Card(child: ListTile(
-          title: Text(item['name'] as String? ?? 'باقة BetaCoins'),
+          title: Text(item['name'] as String? ?? 'باقة كوينز'),
           subtitle: Text((item['coins'] ?? 0).toString() + ' BetaCoins • ' +
               _moneyValue(item, 'priceMinor').toStringAsFixed((item['currencyExponent'] as num?)?.toInt() ?? 2) +
               ' ' + (item['currency'] as String? ?? '')),
@@ -164,7 +164,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
         Row(children: [
           Expanded(child: TextField(controller: _customCoins, enabled: !_sending,
             keyboardType: TextInputType.number, decoration: const InputDecoration(
-              labelText: 'عدد BetaCoins المطلوب', border: OutlineInputBorder(),
+              labelText: 'عدد الكوينز المطلوب', border: OutlineInputBorder(),
             ))),
           const SizedBox(width: 10),
           FilledButton(onPressed: _sending ? null : _requestCustom, child: const Text('إرسال الطلب')),
@@ -179,9 +179,7 @@ class _CoinPurchaseScreenState extends State<CoinPurchaseScreen> {
               (item['packageSnapshot'] is Map ? item['packageSnapshot']['coins'] : null) ?? 'قيد التحديد';
           return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
             crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('الكمية: ' + coins.toString() + ' BetaCoins'),
-              if (item['giftRecipientUid'] is String)
-                const Text('هذا الطلب لشراء باقة كهدية؛ ستصل BetaCoins إلى العضو المستلم بعد اعتماد المالك.'),
+              Text('الكمية: ' + coins.toString() + ' كوين'),
               Text(_status(status)),
               if (item['agreedPriceMinor'] is num)
                 Text('السعر المتفق عليه: ' +
