@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   isStoreGiftReplayCompatible,
   isEligibleStoreGiftMemberRecord,
+  isEligibleStoreGiftAuthUser,
   calculateStoreGiftExpiryMs,
 } = require("../lib/store-gifting");
 
@@ -74,4 +75,19 @@ test("malformed active entitlement expiry fails closed instead of granting guess
     () => calculateStoreGiftExpiryMs({ status: "active", expiresAt: { toMillis: () => Number.NaN } }, 7, NOW),
     /INVALID_CURRENT_ENTITLEMENT_EXPIRY/,
   );
+});
+test("gift recipient Auth must be enabled and have a non-anonymous provider", () => {
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: false, providerData: [{ providerId: "google.com" }],
+  }), true);
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: true, providerData: [{ providerId: "google.com" }],
+  }), false);
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: false, providerData: [],
+  }), false);
+  assert.equal(isEligibleStoreGiftAuthUser({
+    disabled: false, providerData: [{ providerId: "anonymous" }],
+  }), false);
+  assert.equal(isEligibleStoreGiftAuthUser(null), false);
 });
