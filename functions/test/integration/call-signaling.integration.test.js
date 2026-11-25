@@ -645,3 +645,62 @@ test("room participants cannot obtain ICE or signaling access before acceptance"
     await db.recursiveDelete(callRef).catch(() => undefined);
   }
 });
+
+
+test("room group call records late media connections without resetting the shared deadline", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const callerUid = uid("room_timer_creator");
+  const firstUid = uid("room_timer_first");
+  const lateUid = uid("room_timer_late");
+  const callId = uid("room_timer_session");
+  const callRef = db.collection("callSessions").doc(callId);
+  await callRef.set({
+    callId, scope: "room", targetId: uid("rented_room"), mode: "audio",
+    status: "accepted", callerUid,
+    participantUids: [callerUid, firstUid, lateUid],
+    acceptedUids: [firstUid, lateUid], rejectedUids: [], leftUids: [],
+    connectedUids: [],
+    usagePolicyVersion: 1,
+    usagePolicySnapshot: {
+      active: true, quotaWindowMs: 24 * 60 * 60 * 1000,
+      audioCallsPerWindow: 5, videoCallsPerWindow: 3,
+      maxCallDurationMs: 5 * 60 * 1000,
+    },
+  });
+  try {
+    const creatorReport = await markCallConnected.run(call(callerUid, { callId }));
+    assert.equal(creatorReport.connected, false);
+    const firstParticipantReport = await markCallConnected.run(call(firstUid, { callId }));
+    assert.equal(firstParticipantReport.connected, true);
+    assert.equal(
+      firstParticipantReport.maxDurationEndsAtMs - firstParticipantReport.connectedAtMs,
+      5 * 60 * 1000,
+    );
+
+    const lateParticipantReport = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(lateParticipantReport.connected, true);
+    assert.equal(lateParticipantReport.idempotentReplay, false);
+    assert.equal(lateParticipantReport.connectedAtMs, firstParticipantReport.connectedAtMs);
+    assert.equal(lateParticipantReport.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    const stored = (await callRef.get()).data();
+    assert.deepEqual(new Set(stored.connectedUids), new Set([callerUid, firstUid, lateUid]));
+    assert.ok(stored.mediaConnectedAt[callerUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[firstUid] instanceof Timestamp);
+    assert.ok(stored.mediaConnectedAt[lateUid] instanceof Timestamp);
+
+    const replay = await markCallConnected.run(call(lateUid, { callId }));
+    assert.equal(replay.idempotentReplay, true);
+    assert.equal(replay.maxDurationEndsAtMs, firstParticipantReport.maxDurationEndsAtMs);
+
+    await callRef.update({ maxDurationEndsAt: Timestamp.fromMillis(Date.now() - 1) });
+    await assert.rejects(
+      () => markCallConnected.run(call(lateUid, { callId })),
+      (error) => error && error.code === "deadline-exceeded",
+      "the shared deadline must end the call for every participant",
+    );
+    assert.equal((await callRef.get()).data()?.status, "ended");
+  } finally {
+    await db.recursiveDelete(callRef).catch(() => undefined);
+  }
+});
