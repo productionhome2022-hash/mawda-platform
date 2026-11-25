@@ -7712,10 +7712,7 @@ export const processExpiredRoomRentals = onSchedule("every 15 minutes", async ()
 export const getAvailableCoinPackages = onCall(async () => {
   const snapshot = await ECONOMY_PRICING_SETTINGS.get();
   const data = snapshot.data() ?? {};
-  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
-  });
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
   if (!snapshot.exists || paymentPolicy.coin_purchases.manualEnabled !== true ||
       paymentPolicy.coin_purchases.automatedEnabled !== false ||
       data.automatedCoinCheckoutEnabled === true || !Number.isSafeInteger(data.version) ||
@@ -7808,10 +7805,7 @@ export const createCoinPurchaseRequest = onCall(async (request) => {
     const economy = settings.data() ?? {};
     let paymentPolicy;
     try {
-      paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy, {
-        manualCoinPurchasesEnabled: economy.manualCoinPurchasesEnabled,
-        manualFeaturedAdsEnabled: economy.manualFeaturedAdsEnabled,
-      });
+      paymentPolicy = projectEconomicPaymentPolicy(economy.paymentPolicy);
     } catch {
       throw new HttpsError("failed-precondition", "سياسة الدفع الاقتصادي غير صالحة؛ أوقفنا إنشاء الطلب حتى مراجعتها.");
     }
@@ -8405,10 +8399,7 @@ export const getOwnerEconomyPricing = onCall(async (request) => {
       bounds.maxCoins > 1000000000)) {
     throw new HttpsError("failed-precondition", "حدود طلبات الكمية المخصصة غير صالحة.");
   }
-  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy, {
-    manualCoinPurchasesEnabled: data.manualCoinPurchasesEnabled,
-    manualFeaturedAdsEnabled: data.manualFeaturedAdsEnabled,
-  });
+  const paymentPolicy = projectEconomicPaymentPolicy(data.paymentPolicy);
   return {
     coinPackages, adPrices, customCoinRequestBounds: bounds,
     version: data.version,
@@ -8459,10 +8450,7 @@ export const setOwnerEconomyPricing = onCall(async (request) => {
     if (!Number.isSafeInteger(nextVersion)) {
       throw new HttpsError("resource-exhausted", "تعذر إنشاء إصدار جديد لسياسة الاقتصاد.");
     }
-    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy, {
-      manualCoinPurchasesEnabled: previousData.manualCoinPurchasesEnabled,
-      manualFeaturedAdsEnabled: previousData.manualFeaturedAdsEnabled,
-    });
+    const previousPaymentPolicy = projectEconomicPaymentPolicy(previousData.paymentPolicy);
     let paymentPolicy;
     try {
       paymentPolicy = request.data?.paymentPolicy === undefined
@@ -8863,10 +8851,7 @@ export const recordFeaturedAdFinancialEvent = onCall(async (request) => {
     let paymentPolicySnapshot: Record<string, unknown> | null = null;
     if (event.action === "payment_received") {
       const settings = paymentSettings.data() ?? {};
-      const paymentPolicy = projectEconomicPaymentPolicy(settings.paymentPolicy, {
-        manualCoinPurchasesEnabled: settings.manualCoinPurchasesEnabled,
-        manualFeaturedAdsEnabled: settings.manualFeaturedAdsEnabled,
-      });
+      const paymentPolicy = projectEconomicPaymentPolicy(settings.paymentPolicy);
       if (!paymentSettings.exists || paymentPolicy.featured_ads.manualEnabled !== true ||
           paymentPolicy.featured_ads.automatedEnabled !== false ||
           !Number.isSafeInteger(settings.version) || settings.version < 1) {
