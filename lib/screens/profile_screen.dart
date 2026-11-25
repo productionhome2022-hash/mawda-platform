@@ -1399,6 +1399,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           label: Text('VIP'),
                         ),
                       ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Card(
+                        child: ListTile(
+                          leading: Icon(
+                            data['coinBalanceVisible'] == true
+                                ? Icons.monetization_on_outlined
+                                : Icons.lock_outline,
+                          ),
+                          title: const Text('رصيد BetaCoins'),
+                          subtitle: Text(
+                            data['coinBalanceVisible'] == true
+                                ? 'الرصيد الحالي: ${data['coinBalance'] ?? 0} BetaCoins'
+                                : 'لا يظهر الرصيد إلا لصاحب الملف والمالك.',
+                          ),
+                        ),
+                      ),
+                    ),
                     if (activeTitle.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
