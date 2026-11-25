@@ -141,6 +141,7 @@ import {
   eligibleHeartbeatDelta,
   timedAdMemberCounterId,
   decideTimedAdDailyCap,
+  TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER,
   AttendanceRewardType,
 } from "./engagement-rewards";
 
@@ -9281,6 +9282,10 @@ export const startTimedAdvertisement = onCall(async (request) => {
     const legacyClaims = legacyCounter.exists
       ? readSafeInteger(legacyCounter.data()?.claimCount, "legacyClaimCount") : 0;
     const claims = Math.max(currentClaims, legacyClaims);
+    const configuredCampaignClaimLimit = readSafeInteger(campaignData.maxClaimsPerMember, "maxClaimsPerMember");
+    const campaignClaimLimit = (campaignData.adType ?? "standard") === "featured"
+      ? configuredCampaignClaimLimit
+      : Math.min(configuredCampaignClaimLimit, TIMED_AD_MAX_CLAIMS_PER_CAMPAIGN_MEMBER);
     const utcDay = new Date(nowMs).toISOString().slice(0, 10);
     const dailyClaims = counterData.utcDay === utcDay
       ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
@@ -9516,7 +9521,7 @@ export const completeTimedAdvertisement = onCall(async (request) => {
       ? readSafeInteger(counterData.dailyClaimCount ?? 0, "dailyClaimCount") : 0;
     if (reserved < data.rewardCoins || spent + data.rewardCoins > budget ||
         ((campaignData.adType ?? "standard") !== "featured" &&
-         claims >= campaignData.maxClaimsPerMember) ||
+         claims >= campaignClaimLimit) ||
         ((campaignData.adType ?? "standard") === "featured" &&
          dailyClaims >= campaignData.maxDailyClaimsPerMember)) {
       throw new HttpsError("resource-exhausted", "انتهت ميزانية الحملة أو الحد المسموح للمكافآت.");
