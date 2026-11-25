@@ -89,7 +89,6 @@ test("ClamAV engine and signature database versions are parsed from the active s
   assert.equal(parseClamAvVersion("ClamAV 1.4.6/0/"), null);
 });
 
-
 test("scanner accepts biometric audio and video only under the biometric purpose", () => {
   const base = {
     mediaId, objectPath: `quarantine/user/${mediaId}`,
