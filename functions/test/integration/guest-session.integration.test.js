@@ -230,7 +230,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       status: "security_approved", processingStatus: "safe_audio_derivative_ready",
       safeAudioPath: `processed/${emailUid}/${memberAudioMediaId}/audio.mp3`,
       safeAudioGeneration: "1", safeAudioSha256: "c".repeat(64),
-      processingPipelineVersion: "ffmpeg-audio-transcode-v1",
+      processingPipelineVersion: "ffmpeg-audio-purpose-limit-v2",
     };
     await db.collection("mediaAssets").doc(memberAudioMediaId).set(memberAudioAsset);
     await sendChatMediaAttachment.run({
@@ -252,7 +252,7 @@ test("guest onboarding stores no age and grants only active all-ages public-room
       status: "security_approved", processingStatus: "safe_audio_derivative_ready",
       safeAudioPath: `processed/${uid}/${audioMediaId}/audio.mp3`,
       safeAudioGeneration: "1", safeAudioSha256: "a".repeat(64),
-      processingPipelineVersion: "ffmpeg-audio-transcode-v1",
+      processingPipelineVersion: "ffmpeg-audio-purpose-limit-v2",
     };
     await db.collection("mediaAssets").doc(audioMediaId).set(safeAudioAsset);
     const audioSend = await sendChatMediaAttachment.run(guestRequest(uid, {
