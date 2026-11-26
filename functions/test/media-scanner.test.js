@@ -102,7 +102,8 @@ test("scanner callback validates exact GIF, audio, video and flattened-PDF deriv
         contentType: item.contentType,
         pipelineVersion: item.pipelineVersion,
         ...(item.category === "gif" ? { durationMs: 10_000, frameCount: 10 } :
-          item.category === "video" ? { durationMs: 30_000 } : {}),
+          item.category === "video" ? { durationMs: 30_000 } :
+            item.category === "audio" ? { durationMs: 60_000 } : {}),
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).safeDerivative.category, item.category);
@@ -204,4 +205,27 @@ test("scanner callback validates clean biometric media and defers advertisement 
     assert.equal(safeDerivativePurposeAllowed(category, "advertisement", "member"), false);
     assert.equal(safeDerivativePurposeAllowed(category, "advertisement", "platform_owner"), category === "video");
   }
+});
+
+
+test("scanner callback enforces the 60-second audio derivative limit and rejects absent, overlong or malformed duration", () => {
+  const now = 1_800_000_000_000;
+  const base = {
+    mediaId: "123e4567-e89b-12d3-a456-426614174000",
+    purpose: "room", provider: "clamav-mawadda-gateway", verdict: "clean",
+    objectGeneration: "123456", sha256: "a".repeat(64), scannedAtMs: now,
+    scanEngine: "ClamAV", engineVersion: "1.4.6",
+    signatureDatabaseVersion: "28202", signatureDatabaseAgeMs: 60 * 60 * 1000,
+    processingStatus: "safe_audio_derivative_ready",
+  };
+  const safeDerivative = {
+    category: "audio", path: `processed/member_1/${base.mediaId}/audio.mp3`,
+    generation: "987654", sha256: "b".repeat(64), contentType: "audio/mpeg",
+    pipelineVersion: "ffmpeg-audio-purpose-limit-v2", durationMs: 60_000,
+  };
+  assert.equal(validateScannerVerdict({ ...base, safeDerivative }, base.provider, now).safeDerivative.durationMs, 60_000);
+  for (const durationMs of [60_001, 0, -1, 1.5, Number.NaN]) {
+    assert.equal(validateScannerVerdict({ ...base, safeDerivative: { ...safeDerivative, durationMs } }, base.provider, now), null);
+  }
+  assert.equal(validateScannerVerdict({ ...base, safeDerivative: (() => { const x = { ...safeDerivative }; delete x.durationMs; return x; })() }, base.provider, now), null);
 });
