@@ -558,6 +558,10 @@ export function createMediaScanVerdictHandler(
         processingPipelineVersion: safeNonImageDerivative.pipelineVersion,
       } : {}),
       ...(verdict.verdict === "malicious" ? { rejectionCode: "MALWARE_DETECTED" } : {}),
+      ...(verdict.verdict === "clean" && latest.data()?.mediaPurpose === "sticker" && safeDerivativeReady ? {
+        stickerAcceptedAt: FieldValue.serverTimestamp(),
+        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+      } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
     if (scanJob.exists) {
@@ -1615,9 +1619,6 @@ export const finalizeMediaUpload = onCall(async (request) => {
       } : asset.mediaPurpose === "avatar_cover" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      } : asset.mediaPurpose === "sticker" ? {
-        mediaUploadedAt: FieldValue.serverTimestamp(),
-        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
       } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
