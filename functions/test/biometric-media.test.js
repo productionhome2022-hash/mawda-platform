@@ -87,3 +87,14 @@ test("validates an audio-only MP4 voice recording and rejects missing or overlon
   assert.throws(() => assertBiometricAudioFileAllowed(overlong), /AUDIO_DURATION_OUT_OF_RANGE/);
   assert.throws(() => assertBiometricAudioFileAllowed(videoOnly), /AUDIO_TRACK_MISSING/);
 });
+
+
+test("enforces the owner-approved 20-second biometric audio ceiling from movie and track bytes", () => {
+  const maxAllowed = movie(20000, [track("soun", 20000)]);
+  const overLimitMovie = movie(20001, [track("soun", 20000)]);
+  const overLimitTrack = movie(20000, [track("soun", 20001)]);
+  const { assertBiometricAudioFileAllowed } = require("../lib/biometric-media");
+  assert.equal(assertBiometricAudioFileAllowed(maxAllowed), 20000);
+  assert.throws(() => assertBiometricAudioFileAllowed(overLimitMovie), /AUDIO_DURATION_OUT_OF_RANGE/);
+  assert.throws(() => assertBiometricAudioFileAllowed(overLimitTrack), /AUDIO_DURATION_OUT_OF_RANGE/);
+});
