@@ -4,6 +4,9 @@ const {
   getOwnerCapacityMediaManagement,
   setOwnerCapacityMediaManagement,
 } = require("../../lib/index");
+const { getFirestore } = require("firebase-admin/firestore");
+const db = getFirestore();
+
 const ownerUid = "capacity_media_owner_test";
 const ownerRequest = (data = {}) => ({
   data,
