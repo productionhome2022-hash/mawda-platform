@@ -71,11 +71,11 @@ export type CapacityMediaMeasurement = {
   monthUtc: string;
   monthlyUploadBytes: number | null;
   finalizedUploadCount: number | null;
-  concurrentActiveMembers: null;
-  capacityTierCount: null;
-  monthlyDownloadBytes: null;
-  retainedStorageBytes: null;
-  processingMinutes: null;
+  concurrentActiveMembers: number | null;
+  capacityTierCount: number | null;
+  monthlyDownloadBytes: number | null;
+  retainedStorageBytes: number | null;
+  processingMinutes: number | null;
 };
 
 /** Missing or malformed meter values are never projected as real zero usage. */
@@ -84,6 +84,10 @@ export function projectCapacityMediaMeasurement(input: {
   meterExists: boolean;
   monthlyUploadBytes: unknown;
   finalizedUploadCount: unknown;
+  concurrentActiveMembers?: unknown;
+  monthlyDownloadBytes?: unknown;
+  retainedStorageBytes?: unknown;
+  processingMinutes?: unknown;
 }): CapacityMediaMeasurement {
   if (!/^\d{4}-\d{2}$/.test(input.monthUtc)) {
     throw new Error("INVALID_CAPACITY_MEDIA_MEASUREMENT_MONTH");
@@ -97,10 +101,13 @@ export function projectCapacityMediaMeasurement(input: {
     monthUtc: input.monthUtc,
     monthlyUploadBytes: input.meterExists ? safeNonNegativeInteger(input.monthlyUploadBytes) : null,
     finalizedUploadCount: input.meterExists ? safeNonNegativeInteger(input.finalizedUploadCount) : null,
-    concurrentActiveMembers: null,
-    capacityTierCount: null,
-    monthlyDownloadBytes: null,
-    retainedStorageBytes: null,
-    processingMinutes: null,
+    concurrentActiveMembers: input.meterExists ? safeNonNegativeInteger(input.concurrentActiveMembers) : null,
+    // Capacity tiers are rounded up in blocks of 1,000; unknown is never reported as zero.
+    capacityTierCount: input.meterExists && safeNonNegativeInteger(input.concurrentActiveMembers) !== null
+      ? Math.ceil(safeNonNegativeInteger(input.concurrentActiveMembers)! / 1_000)
+      : null,
+    monthlyDownloadBytes: input.meterExists ? safeNonNegativeInteger(input.monthlyDownloadBytes) : null,
+    retainedStorageBytes: input.meterExists ? safeNonNegativeInteger(input.retainedStorageBytes) : null,
+    processingMinutes: input.meterExists ? safeNonNegativeInteger(input.processingMinutes) : null,
   };
 }
