@@ -32,14 +32,18 @@ test("requires an explicitly configured minimum age", () => {
   );
 });
 
-test("allows the 16-year-old social minimum and adult-only relationship goals", () => {
-  const sixteen = validateMemberProfile({ ...valid, age: 16, goals: ["friendship", "social_connection"] }, 16);
+test("allows social and dating goals from 16 while restricting marriage to adults", () => {
+  const sixteen = validateMemberProfile({ ...valid, age: 16, goals: ["friendship", "social_connection", "romantic_dating"] }, 16);
   assert.equal(sixteen.age, 16);
-  assert.deepEqual(sixteen.goals, ["friendship", "social_connection"]);
+  assert.deepEqual(sixteen.goals, ["friendship", "social_connection", "romantic_dating"]);
+
+  const seventeen = validateMemberProfile({ ...valid, age: 17, goals: ["romantic_dating"] }, 16);
+  assert.equal(seventeen.age, 17);
 
   const eighteen = validateMemberProfile({ ...valid, age: 18, goals: ["romantic_dating", "marriage"] }, 16);
   assert.equal(eighteen.age, 18);
   assert.deepEqual(eighteen.goals, ["romantic_dating", "marriage"]);
+  assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["marriage"] }, 16), /MARRIAGE_GOAL_REQUIRES_ADULT/);
 });
 
 test("validates profile fields and age policy", () => {
@@ -50,7 +54,7 @@ test("validates profile fields and age policy", () => {
   assert.deepEqual(profile.goals, ["friendship"]);
   assert.throws(() => validateMemberProfile({ ...valid, age: 15 }, 16), /AGE_POLICY_NOT_MET/);
   assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["marriage"] }, 16), /ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT/);
-  assert.throws(() => validateMemberProfile({ ...valid, age: 17, goals: ["romantic_dating"] }, 16), /ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT/);
+  assert.doesNotThrow(() => validateMemberProfile({ ...valid, age: 17, goals: ["romantic_dating"] }, 16));
   assert.throws(() => validateMemberProfile({ ...valid, bio: "x".repeat(501) }, 18));
 });
 
@@ -63,6 +67,17 @@ test("rejects unsupported gender and marital-status values", () => {
   assert.throws(
     () => validateMemberProfile({ ...valid, maritalStatus: "complicated" }, 18),
     /maritalStatus: القيمة المختارة غير مدعومة/,
+  );
+});
+
+test("requires at least one interest and one purpose", () => {
+  assert.throws(
+    () => validateMemberProfile({ ...valid, interests: [] }, 16),
+    /INTERESTS_REQUIRED/,
+  );
+  assert.throws(
+    () => validateMemberProfile({ ...valid, goals: [] }, 16),
+    /GOALS_REQUIRED/,
   );
 });
 
