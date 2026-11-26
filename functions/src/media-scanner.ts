@@ -117,11 +117,12 @@ export function validateScannerVerdict(
          (durationMs as number) > 20_000 ||
          !Number.isSafeInteger(frameCount) || (frameCount as number) < 1 ||
          (frameCount as number) > 50)) return null;
-    if (category === "video" &&
+    if ((category === "video" || category === "audio") &&
         (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
-         (durationMs as number) > 90_000)) return null;
-    if (category !== "gif" && category !== "video" &&
+         (durationMs as number) > (category === "video" ? 90_000 : 60_000))) return null;
+    if (category !== "gif" && category !== "video" && category !== "audio" &&
         (durationMs !== undefined || frameCount !== undefined)) return null;
+    if (category === "audio" && frameCount !== undefined) return null;
     safeDerivative = {
       category, path: d.path as string, generation: d.generation as string,
       sha256: d.sha256 as string, contentType: d.contentType as ScannerSafeDerivative["contentType"],
