@@ -154,7 +154,7 @@ class _CallUsagePolicyScreenState extends State<CallUsagePolicyScreen> {
     if (confirmed != true || !mounted) return;
     setState(() { _saving = true; _error = null; });
     try {
-      final response = await _functions.httpsCallable('setGroupCallPricingPolicy').call({
+      final response = await _functions.httpsCallable('setOwnerGroupCallPricingPolicy').call({
         'audioCoinsPerMinute': audio,
         'videoCoinsPerMinute': video,
         'active': _groupPricingActive,
