@@ -1223,7 +1223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           final data = snapshot.data!;
-          final name = (data['displayName'] as String?) ?? 'Mawda Member';
+          final name = (data['displayName'] as String?) ?? 'Mawdda Member';
           final vipActive = data['vipActive'] == true;
           final activeTitle = (data['activeTitle'] as String?)?.trim() ?? '';
           final activeFeatures = (data['activeFeatures'] as List<dynamic>? ?? const [])
