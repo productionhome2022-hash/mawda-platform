@@ -89,7 +89,7 @@ test("featured-ad reward completion atomically commits one claim, wallet ledger,
   }
 });
 
-test("featured-ad reward completion refuses a ledger replay whose claim receipt is missing", async () => {
+test("featured-ad reward completion rejects a ledger without a matching claim receipt or completed session", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   const tag = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const uid = `featured_reward_corrupt_member_${tag}`;
@@ -99,7 +99,7 @@ test("featured-ad reward completion refuses a ledger replay whose claim receipt 
   const ledgerRef = userRef.collection("walletLedger").doc(`featured_ad_reward_${sessionId}`);
   await Promise.all([
     userRef.set({ profileCompleted: true, accountStatus: "active", coins: 15 }),
-    sessionRef.set({ uid, campaignId: "missing_campaign", status: "rewarded", rewardClaimed: true }),
+    sessionRef.set({ uid, campaignId: "missing_campaign", status: "active", rewardClaimed: false }),
     ledgerRef.set({
       type: "featured_ad_reward", source: "featured_ad", amount: 5,
       campaignId: "missing_campaign", sessionId, policyVersion: 1,
