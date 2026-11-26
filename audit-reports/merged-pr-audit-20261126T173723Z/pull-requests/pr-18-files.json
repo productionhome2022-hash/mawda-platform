@@ -1,0 +1,14 @@
+[
+  {
+    "sha": "eb1443c18e67d1daa90cab090afc3deb476cb878",
+    "filename": ".github/workflows/firebase-hosting-merge.yml",
+    "status": "removed",
+    "additions": 0,
+    "deletions": 33,
+    "changes": 33,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/424599a34acc9ec33b4e759ba166dc6d0a9df04d/.github%2Fworkflows%2Ffirebase-hosting-merge.yml",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/424599a34acc9ec33b4e759ba166dc6d0a9df04d/.github%2Fworkflows%2Ffirebase-hosting-merge.yml",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/.github%2Fworkflows%2Ffirebase-hosting-merge.yml?ref=424599a34acc9ec33b4e759ba166dc6d0a9df04d",
+    "patch": "@@ -1,33 +0,0 @@\n-name: Build and Deploy to Firebase Hosting\n-on:\n-  push:\n-    branches:\n-      - main\n-jobs:\n-  build_and_deploy:\n-    runs-on: ubuntu-latest\n-    steps:\n-      - uses: actions/checkout@v4\n-      \n-      - name: Set up Flutter SDK\n-        uses: subosito/flutter-action@v2\n-        with:\n-          channel: 'stable'\n-          cache: true\n-          \n-      - name: Enable Flutter Web\n-        run: flutter config --enable-web\n-\n-      - name: Install Dependencies\n-        run: flutter pub get\n-\n-      - name: Build Web Release\n-        run: flutter build web --release\n-\n-      - name: Install Firebase CLI\n-        run: npm install -g firebase-tools\n-\n-      - name: Deploy to Firebase Hosting\n-        run: firebase deploy --only hosting --token \"${{ secrets.FIREBASE_TOKEN }}\"\n-        env:\n-          FIREBASE_CLI_PREVIEWS: hostingchannels"
+  }
+]

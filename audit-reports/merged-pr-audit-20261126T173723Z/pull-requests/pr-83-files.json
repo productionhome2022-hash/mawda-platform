@@ -1,0 +1,50 @@
+[
+  {
+    "sha": "4c75739351c624f0e76c18cf6e8092af3e739584",
+    "filename": "docs/LOCAL_BIOMETRIC_INTEGRATION.md",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "changes": 2,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2FLOCAL_BIOMETRIC_INTEGRATION.md",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2FLOCAL_BIOMETRIC_INTEGRATION.md",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/docs%2FLOCAL_BIOMETRIC_INTEGRATION.md?ref=0089c556a7e241454cfbfb3223fff500cc8763bb",
+    "patch": "@@ -1,6 +1,6 @@\n # تكامل المصادقة البيومترية المحلية — Android وiOS\n \n-> **تنبيه حوكمي — 2026-11-20:** هذه الوثيقة تصف تكامل `local_auth` المحلي فقط، ولا تمثل سياسة التوثيق البيومتري الحالية. المرجع المعتمد الوحيد هو مراجعة Super Owner اليدوية في `BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md` وPR #77. لا يُشترط Play Integrity أو App Attest أو إثبات مفتاح جهاز لقرار Super Owner، ولا تُعد نافذة النظام المحلية توثيقاً أو بديلاً عن سماع الصوت ومشاهدة الفيديو. تبقى الامتيازات والمكافأة مغلقة حتى اكتمال دورة المراجعة الخادمية.\n+> **تنبيه حوكمي — 2026-11-20:** هذه الوثيقة تصف تكامل `local_auth` المحلي فقط، ولا تمثل سياسة التوثيق البيومتري الحالية. المرجع المعتمد الوحيد هو `phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md` (القرار النهائي الموثق في PR #82). وثيقة PR #77 تاريخية ومتجاوزة عند أي تعارض. لا يُشترط Play Integrity أو App Attest أو إثبات مفتاح جهاز لقرار Super Owner، ولا تُعد نافذة النظام المحلية توثيقاً أو بديلاً عن سماع الصوت ومشاهدة الفيديو. تبقى الامتيازات والمكافأة مغلقة حتى اكتمال دورة المراجعة الخادمية.\n \n **الحالة:** نافذة `local_auth` المحلية ميزة منفصلة لا تثبت الهوية ولا تنشئ حالة توثيق. سياسة التوثيق الحالية تتطلب رفع عينة صوت ومقطع فيديو ومراجعتهما يدوياً بواسطة Super Owner. لا تُمنح مكافأة 1,500 BetaCoins ولا تُفتح الامتيازات حتى اكتمال المراجعة الخادمية. اختبارات الأجهزة المحلية لا تُعد قبولاً لمسار التوثيق.\n "
+  },
+  {
+    "sha": "423311f1487241a5f54750ab0f379190647c4704",
+    "filename": "docs/MAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "changes": 2,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2FMAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2FMAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/docs%2FMAWADDA_APPROVED_DECISIONS_AND_TRACEABILITY.md?ref=0089c556a7e241454cfbfb3223fff500cc8763bb",
+    "patch": "@@ -76,7 +76,7 @@\n ## تصحيح التعارضات المعروفة\n \n 1. **فوترة المكالمات:** بعض مسودات 15 نوفمبر القديمة وصفت 60 صوتاً/200 فيديو كسعر مستقل لكل دقيقة، ثم جاءت موافقة أوضح تحدد السعر الإجمالي 120/400. تم توحيد مادة المكالمات في الدستور إلى قاعدة واحدة: 120/400 إجمالي؛ 60/200 لكل طرف فقط إذا استنفد الطرفان الحصة؛ المتصل وحده يدفع 120/400 إذا كان المستقبل لا يزال يملك محاولات. لا يجوز إحياء الصياغات القديمة.\n-2. **المراجعة والمكافأة البيومترية — تصحيح 2026-11-20:** أحدث قرار مالك مثبت في PR #77 هو المرجع الوحيد: مراجعة بشرية يدوية بواسطة Super Owner فقط، مع سماع الصوت ومشاهدة الفيديو، وثلاث محاولات وفاصل شهر تقويمي بعد الرفض الأول والثاني، وإغلاق بعد الرفض الثالث، ومكافأة 1,500 BetaCoins مرة واحدة عند القبول، وتجديد بيومتري شهري مستقل عن البريد. أي اشتراط أقدم لـPlay Integrity أو App Attest أو إثبات جهاز/مفتاح تشفيري كشرط مسبق لقرار Super Owner ملغى. تبقى الامتيازات والاعتماد البيومتري مغلقة fail-closed حتى اكتمال التفويض الخادمي، دورة الوسائط الخاصة، التدقيق، المعاملة الذرية للمكافأة، منع الإعادة والتجديد والحذف واختبارها؛ لا يُستبدل القرار اليدوي بتصنيف آلي.\n+2. **المراجعة والمكافأة البيومترية — القرار النهائي 2026-11-20:** المرجع الوحيد هو `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md` الموثق في PR #82. Super Owner حصراً يراجع الأدلة البشرية بنفسه؛ يجب أن يقرأ العضو عبارة صوتية موجودة مسبقاً ويرسل تسجيلها، وأن يرسل فيديو مدته من 3 إلى 5 ثوانٍ حصراً، ويُطابق الجنس مع القيمة المسجلة أصلاً ولا يختارها في نموذج التوثيق. ثلاث محاولات إجمالاً، وبين كل رفض والمحاولة التالية شهر تقويمي كامل؛ الرفض الثالث يغلق الملف نهائياً بلا محاولة رابعة أو قفل إضافي لثلاثة أشهر. القبول يفعّل التوثيق فوراً ويمنح 1,500 BetaCoins مرة واحدة عبر دفتر الاقتصاد المركزي. التجديد البيومتري شهري مستقل عن البريد الذي يتجدد كل ثلاثة أشهر. لا Play Integrity أو App Attest أو إثبات جهاز ولا تصنيف آلي؛ القرار بشري حصراً. تبقى الميزة fail-closed حتى اكتمال التفويض الخادمي، إعداد العبارة المعتمدة، التحقق الفعلي من الوسائط الخاصة ومددها، التدقيق، المعاملة الذرية للمكافأة، منع الإعادة، التجديد والحذف والاختبارات.\n 3. **مختبر 5000:** لا تُنقل اختبارات الوحدة أو التكامل أو قواعد Firebase أو اختبارات scanner من المستودع الأساسي. ينقل المختبر فقط مولد الشخصيات وسيناريوهات التحميل واسعة النطاق وأدواتها، ويختبر كود المنصة الأصلي من commit مثبت.\n 4. **حالة الإنجاز:** لا يُستنتج قبول ميزة من وجود UI أو callable أو test واحد. يلزم تنفيذ end-to-end واختبار مناسب، ثم قبول أجهزة/تشغيل حي عندما يتطلب الأمر.\n "
+  },
+  {
+    "sha": "f861feb0460934859a936be1ee6fc49351b63677",
+    "filename": "docs/phase1/BIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md",
+    "status": "modified",
+    "additions": 1,
+    "deletions": 1,
+    "changes": 2,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2Fphase1%2FBIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2Fphase1%2FBIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/docs%2Fphase1%2FBIOMETRIC_PROOF_GATE_SCHEMA_2026-11-20.md?ref=0089c556a7e241454cfbfb3223fff500cc8763bb",
+    "patch": "@@ -2,7 +2,7 @@\n \n ## Authority and current status\n \n-The latest owner-approved policy is the Super Owner manual-review amendment recorded in PR #77 and `docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md`.\n+The authoritative policy is `docs/phase1/BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`, recorded by merged PR #82. The PR #77 manual-review amendment is historical and superseded where it differs. The final contract requires a pre-established spoken phrase, a 3–5 second video, canonical registered-gender matching, exactly three attempts with one full calendar month between rejected attempts, permanent closure on the third rejection, and immediate exactly-once 1,500 BetaCoins on acceptance.\n \n **Play Integrity, App Attest, device-key attestation and automated biometric classifiers are not prerequisites for the Super Owner's accept/reject decision.** They cannot replace the human review of the submitted voice sample and video.\n "
+  },
+  {
+    "sha": "ea1332cd6a2af530d970d73b28a8c3e9ca12ee46",
+    "filename": "docs/phase1/BIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md",
+    "status": "modified",
+    "additions": 3,
+    "deletions": 1,
+    "changes": 4,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2Fphase1%2FBIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/0089c556a7e241454cfbfb3223fff500cc8763bb/docs%2Fphase1%2FBIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/docs%2Fphase1%2FBIOMETRIC_SUPER_OWNER_MANUAL_REVIEW_POLICY_2026-11-20.md?ref=0089c556a7e241454cfbfb3223fff500cc8763bb",
+    "patch": "@@ -1,4 +1,6 @@\n-# Biometric verification — Super Owner manual-review policy amendment\n+# SUPERSEDED — Historical biometric policy amendment\n+\n+> This document records the earlier PR #77 policy only. It is retained for provenance and must not be used as the implementation source where it differs from the final owner-approved policy. The authoritative specification is [`BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md`](./BIOMETRIC_FINAL_OWNER_POLICY_2026-11-20.md), merged by PR #82. In particular, the final policy mandates a pre-established spoken phrase, 3–5 second video, canonical gender matching, and the exact three-attempt lifecycle.\n Date: 2026-11-20\n Repository: `productionhome2022-hash/mawda-platform`\n Target integration line: `codex/mawdda-phase1-unified-2026-11-19`"
+  }
+]

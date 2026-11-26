@@ -1,0 +1,14 @@
+[
+  {
+    "sha": "45dff6fa96114bf6f9371cf31030e8c86b0ca3bd",
+    "filename": "functions/test/integration/media-callables.integration.test.js",
+    "status": "modified",
+    "additions": 9,
+    "deletions": 2,
+    "changes": 11,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/87ff3963868a4431948274695c83dce255aaa350/functions%2Ftest%2Fintegration%2Fmedia-callables.integration.test.js",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/87ff3963868a4431948274695c83dce255aaa350/functions%2Ftest%2Fintegration%2Fmedia-callables.integration.test.js",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/functions%2Ftest%2Fintegration%2Fmedia-callables.integration.test.js?ref=87ff3963868a4431948274695c83dce255aaa350",
+    "patch": "@@ -1057,6 +1057,12 @@ test(\"malicious scanner callback rejects the asset, audits the verdict and delet\n \n     assert.equal(response.statusCode, 200);\n     assert.equal(response.body.status, \"rejected\");\n+\n+    // The scanner gateway may retry a callback after a timeout. The exact same\n+    // provider/media/generation/hash verdict must be acknowledged idempotently.\n+    await handler(request, response);\n+    assert.equal(response.statusCode, 200);\n+    assert.equal(response.body.idempotentReplay, true);\n     const rejected = await assetRef.get();\n     assert.equal(rejected.data().status, \"rejected\");\n     assert.equal(rejected.data().rejectionCode, \"MALWARE_DETECTED\");\n@@ -1068,10 +1074,11 @@ test(\"malicious scanner callback rejects the asset, audits the verdict and delet\n     assert.equal(job.data().verdict, \"malicious\");\n \n     const audit = await db.collection(\"mediaAccessAudit\").where(\"mediaId\", \"==\", mediaId).get();\n-    assert.ok(audit.docs.some((doc) =>\n+    const verdictAudits = audit.docs.filter((doc) =>\n       doc.data().action === \"media_security_scan_verdict\" &&\n       doc.data().outcome === \"malicious\" &&\n-      doc.data().objectGeneration === generation));\n+      doc.data().objectGeneration === generation);\n+    assert.equal(verdictAudits.length, 1, \"an idempotent callback replay must not duplicate audit events\");\n \n     const [objectExists] = await objectFile.exists();\n     assert.equal(objectExists, false, \"only the exact scanned quarantine generation should be deleted\");"
+  }
+]

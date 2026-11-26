@@ -1,0 +1,14 @@
+[
+  {
+    "sha": "e133a9cfaf60173894444a717f0e359311167abb",
+    "filename": "functions/test/media-scanner.test.js",
+    "status": "modified",
+    "additions": 53,
+    "deletions": 0,
+    "changes": 53,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/6da140cbcd359c17805477e81401bfacef7268f0/functions%2Ftest%2Fmedia-scanner.test.js",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/6da140cbcd359c17805477e81401bfacef7268f0/functions%2Ftest%2Fmedia-scanner.test.js",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/functions%2Ftest%2Fmedia-scanner.test.js?ref=6da140cbcd359c17805477e81401bfacef7268f0",
+    "patch": "@@ -117,3 +117,56 @@ test(\"scanner callback validates exact GIF, audio, video and flattened-PDF deriv\n     }, base.provider, now), null);\n   }\n });\n+\n+\n+test(\"scanner malicious and error verdicts are valid only without safe derivatives\", () => {\n+  const now = 1_800_000_000_000;\n+  const base = {\n+    mediaId: \"123e4567-e89b-12d3-a456-426614174000\",\n+    purpose: \"room\",\n+    provider: \"clamav-mawadda-gateway\",\n+    objectGeneration: \"123456\",\n+    sha256: \"a\".repeat(64),\n+    scannedAtMs: now,\n+    scanEngine: \"ClamAV\",\n+    engineVersion: \"1.4.6\",\n+    signatureDatabaseVersion: \"28202\",\n+    signatureDatabaseAgeMs: 60 * 60 * 1000,\n+  };\n+\n+  for (const verdict of [\"malicious\", \"error\"]) {\n+    const payload = { ...base, verdict };\n+    assert.equal(\n+      validateScannerVerdict(payload, base.provider, now)?.verdict,\n+      verdict,\n+      `a complete ${verdict} verdict without derivatives must be accepted for server handling`,\n+    );\n+    assert.equal(\n+      validateScannerVerdict({\n+        ...payload,\n+        safePreviewPath: `processed/member_1/${base.mediaId}/preview.webp`,\n+        safePreviewGeneration: \"987654\",\n+        safePreviewSha256: \"b\".repeat(64),\n+        safePreviewContentType: \"image/webp\",\n+      }, base.provider, now),\n+      null,\n+      `${verdict} verdict must never carry a client-deliverable preview`,\n+    );\n+    assert.equal(\n+      validateScannerVerdict({\n+        ...payload,\n+        processingStatus: \"safe_video_derivative_ready\",\n+        safeDerivative: {\n+          category: \"video\",\n+          path: `processed/member_1/${base.mediaId}/video.mp4`,\n+          generation: \"987654\",\n+          sha256: \"b\".repeat(64),\n+          contentType: \"video/mp4\",\n+          pipelineVersion: \"ffmpeg-video-transcode-v1\",\n+        },\n+      }, base.provider, now),\n+      null,\n+      `${verdict} verdict must never carry a safe derivative`,\n+    );\n+  }\n+});"
+  }
+]

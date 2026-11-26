@@ -1,0 +1,26 @@
+[
+  {
+    "sha": "173b909d3e141ee1a3fa6eaaaf6e2791b5c0d100",
+    "filename": "functions/src/featured-advertising.ts",
+    "status": "modified",
+    "additions": 2,
+    "deletions": 1,
+    "changes": 3,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/ac22ff635c41e4a36603c8864af53942e22e3fcb/functions%2Fsrc%2Ffeatured-advertising.ts",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/ac22ff635c41e4a36603c8864af53942e22e3fcb/functions%2Fsrc%2Ffeatured-advertising.ts",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/functions%2Fsrc%2Ffeatured-advertising.ts?ref=ac22ff635c41e4a36603c8864af53942e22e3fcb",
+    "patch": "@@ -38,7 +38,8 @@ function isEligible(\n     campaign.startsAtMs <= nowMs &&\n     campaign.endsAtMs > nowMs &&\n     Array.isArray(campaign.geographicTargets) &&\n-    campaign.geographicTargets.includes(audienceGeography);\n+    (campaign.geographicTargets.includes(audienceGeography) ||\n+      campaign.geographicTargets.includes(\"all_arab_countries\"));\n }\n \n /** Fisher-Yates shuffle with injectable RNG so the fallback can be tested deterministically. */"
+  },
+  {
+    "sha": "86a477a7385afa4b3689bde06d5d7d16dfb75e08",
+    "filename": "functions/test/featured-advertising.test.js",
+    "status": "modified",
+    "additions": 33,
+    "deletions": 0,
+    "changes": 33,
+    "blob_url": "https://github.com/productionhome2022-hash/mawda-platform/blob/ac22ff635c41e4a36603c8864af53942e22e3fcb/functions%2Ftest%2Ffeatured-advertising.test.js",
+    "raw_url": "https://github.com/productionhome2022-hash/mawda-platform/raw/ac22ff635c41e4a36603c8864af53942e22e3fcb/functions%2Ftest%2Ffeatured-advertising.test.js",
+    "contents_url": "https://api.github.com/repos/productionhome2022-hash/mawda-platform/contents/functions%2Ftest%2Ffeatured-advertising.test.js?ref=ac22ff635c41e4a36603c8864af53942e22e3fcb",
+    "patch": "@@ -103,3 +103,36 @@ test(\"owner can configure rotation interval and invalid inputs fail closed\", ()\n     random: () => 1,\n   }), /RANDOM_SOURCE_INVALID/);\n });\n+\n+\n+test(\"all-Arab-country campaigns match each supported country without widening country-only campaigns\", () => {\n+  const allArabCampaign = {\n+    ...base, campaignId: \"all_arab_campaign\",\n+    geographicTargets: [\"all_arab_countries\"],\n+  };\n+  const syriaOnlyCampaign = {\n+    ...base, campaignId: \"syria_only\",\n+    geographicTargets: [\"syria\"],\n+  };\n+  const syria = selectFeaturedAdShowcase({\n+    campaigns: [allArabCampaign, syriaOnlyCampaign],\n+    audienceGeography: \"syria\",\n+    nowMs: 500,\n+  });\n+  assert.deepEqual(syria.campaignIds.sort(), [\"all_arab_campaign\", \"syria_only\"]);\n+\n+  const lebanon = selectFeaturedAdShowcase({\n+    campaigns: [allArabCampaign, syriaOnlyCampaign],\n+    audienceGeography: \"lebanon\",\n+    nowMs: 500,\n+  });\n+  assert.deepEqual(lebanon.campaignIds, [\"all_arab_campaign\"]);\n+\n+  const allArabPseudoAudience = selectFeaturedAdShowcase({\n+    campaigns: [syriaOnlyCampaign],\n+    audienceGeography: \"all_arab_countries\",\n+    nowMs: 500,\n+  });\n+  assert.deepEqual(allArabPseudoAudience.campaignIds, [],\n+    \"an all-Arab campaign target must not be treated as a viewer location that matches every country-specific campaign\");\n+});"
+  }
+]
