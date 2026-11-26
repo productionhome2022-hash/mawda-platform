@@ -119,7 +119,8 @@ export function validateScannerVerdict(
          (frameCount as number) > 50)) return null;
     if ((category === "video" || category === "audio") &&
         (!Number.isSafeInteger(durationMs) || (durationMs as number) < 1 ||
-         (durationMs as number) > (category === "video" ? 90_000 : 60_000))) return null;
+         (durationMs as number) > (category === "video" ? 90_000 :
+           (v.purpose === "biometric" ? 20_000 : 60_000)))) return null;
     if (category !== "gif" && category !== "video" && category !== "audio" &&
         (durationMs !== undefined || frameCount !== undefined)) return null;
     if (category === "audio" && frameCount !== undefined) return null;
