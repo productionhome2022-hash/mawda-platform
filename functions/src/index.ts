@@ -7232,22 +7232,59 @@ export { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTex
 
 const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement");
 
+const MEMBER_ACTIVITY_HEARTBEAT_MIN_INTERVAL_MS = 45_000;
+const MEMBER_ACTIVITY_ACTIVE_WINDOW_MS = 120_000;
+
+/** Authenticated foreground heartbeat; server time is authoritative and writes are rate-limited. */
+export const recordMemberActivity = onCall(async (request) => {
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const provider = (request.auth?.token?.firebase as Record<string, unknown> | undefined)?.sign_in_provider;
+  if (provider === "anonymous") {
+    throw new HttpsError("permission-denied", "قياس النشاط متاح للأعضاء المسجلين فقط.");
+  }
+  const userRef = db.collection("users").doc(uid);
+  const now = Date.now();
+  return db.runTransaction(async (transaction) => {
+    const userSnapshot = await transaction.get(userRef);
+    const user = userSnapshot.data() ?? {};
+    if (!userSnapshot.exists || user.profileCompleted !== true ||
+        !isMemberAccountInGoodStanding(user)) {
+      throw new HttpsError("permission-denied", "الحساب غير مؤهل لتسجيل النشاط.");
+    }
+    const previous = user.lastActivityAtMs;
+    if (Number.isSafeInteger(previous) && previous > now - MEMBER_ACTIVITY_HEARTBEAT_MIN_INTERVAL_MS) {
+      return { recorded: false, lastActivityAtMs: previous };
+    }
+    transaction.update(userRef, {
+      lastActivityAtMs: now,
+      lastActivityAt: FieldValue.serverTimestamp(),
+      lastActivitySource: "authenticated_app_heartbeat",
+    });
+    return { recorded: true, lastActivityAtMs: now };
+  });
+});
+
 /** Observe-only owner capacity controls; they never enforce quotas or connect billing. */
 export const getOwnerCapacityMediaManagement = onCall(async (request) => {
   await requireOwnerForReview(request, "capacity_media_management_read");
   const currentMonthUtc = new Date().toISOString().slice(0, 7);
-  const [snapshot, capacityMeter] = await Promise.all([
+  const activeCutoffMs = Date.now() - MEMBER_ACTIVITY_ACTIVE_WINDOW_MS;
+  const [snapshot, capacityMeter, activeMemberCountSnapshot] = await Promise.all([
     CAPACITY_MEDIA_SETTINGS.get(),
     db.collection("platformCapacityMeters").doc(currentMonthUtc).get(),
+    db.collection("users").where("lastActivityAtMs", ">=", activeCutoffMs)
+      .count().get().catch(() => null),
   ]);
   const data = snapshot.data() ?? {};
   const meter = capacityMeter.data() ?? {};
+  const activeMemberCount = activeMemberCountSnapshot?.data().count;
   const measurement = projectCapacityMediaMeasurement({
     monthUtc: currentMonthUtc,
     meterExists: capacityMeter.exists,
     monthlyUploadBytes: meter.monthlyUploadBytes,
     finalizedUploadCount: meter.finalizedUploadCount,
-    concurrentActiveMembers: meter.concurrentActiveMembers,
+    concurrentActiveMembers: Number.isSafeInteger(activeMemberCount) && activeMemberCount >= 0
+      ? activeMemberCount : null,
     monthlyDownloadBytes: meter.monthlyDownloadBytes,
     retainedStorageBytes: meter.retainedStorageBytes,
     processingMinutes: meter.processingMinutes,
