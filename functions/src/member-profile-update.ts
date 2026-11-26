@@ -60,17 +60,20 @@ export function validateMemberProfileUpdate(input: Record<string, unknown>, curr
       case "bio":
         update.bio = text(input[key], key, 0, 500, true);
         break;
-      case "interests":
-        update.interests = list(input[key], key, 20, 40);
+      case "interests": {
+        const interests = list(input[key], key, 20, 40);
+        if (interests.length === 0) throw new Error("INTERESTS_REQUIRED");
+        update.interests = interests;
         break;
+      }
       case "goals": {
         const goals = list(input[key], key, 10, 40);
+        if (goals.length === 0) throw new Error("GOALS_REQUIRED");
         if (goals.some((goal) => ![
           "friendship", "social_connection", "romantic_dating", "marriage",
         ].includes(goal))) throw new Error("INVALID_GOALS");
-        if (currentAge < 18 && goals.some((goal) =>
-          ["romantic_dating", "marriage"].includes(goal))) {
-          throw new Error("ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT");
+        if (currentAge < 18 && goals.includes("marriage")) {
+          throw new Error("MARRIAGE_GOAL_REQUIRES_ADULT");
         }
         update.goals = goals;
         break;
