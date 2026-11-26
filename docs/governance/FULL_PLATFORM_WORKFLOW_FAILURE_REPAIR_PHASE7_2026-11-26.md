@@ -65,3 +65,47 @@ Blob SHA:
 2. إذا ظهر فشل جديد، تحديد أول stack trace/ assertion فاشل وإصلاح السبب لا تعطيل الاختبار.
 3. متابعة Economic phase verification.
 4. إعادة توثيق النتائج النهائية في تقرير متابعة جديد بعد ظهورها.
+
+## 8. متابعة الفشل الثاني والثالث — عقد معالج الصوت
+
+بعد إصلاح fixture البيومتري، أظهر تشغيل `45832086657` في وظيفة Backend integration فشلاً آخر في الاختبار:
+`safe audio attachment links and delivers only after its dedicated processor`.
+
+السبب الجذري: fixture في `functions/test/integration/media-callables.integration.test.js` كان يستخدم إصدار المعالج القديم `ffmpeg-audio-transcode-v1`، بينما عقد التسليم الآمن الموحد في `functions/src/chat-media-policy.ts` يشترط `ffmpeg-audio-purpose-limit-v2`. تم تحديث fixture إلى الإصدار المعتمد.
+
+Commit:
+`2cb021555c6779c2b3c369c6ef9101affa8e4502`
+
+Blob:
+`4a4d1fea11536ed56a59973c25aca343b1637ed7`
+
+ثم كشف Test Center run `45832363824` عن fixture آخر متقادم في اختبار جلسة الزائر:
+`guest onboarding stores no age and grants only active all-ages public-room text access`.
+
+كان الاختبار يهيئ أصلين صوتيين (عضو وزائر) بإصدار المعالج القديم نفسه. فشل الإرسال عند `sendChatMediaAttachment` لأن `resolveChatMediaDeliveryArtifact` يرفض أي أصل لا يطابق إصدار المعالج المحدد في عقد التسليم. لم يكن الخلل مبرراً لتخفيف التحقق الأمني؛ جرى تحديث fixture العضو وfixture الزائر معاً إلى `ffmpeg-audio-purpose-limit-v2`.
+
+Commit:
+`8702a0743f386c3bb5669057103c77cd403f3e5e`
+
+Blob:
+`68560d8880187793d4a4bcc5218e7656e820889a`
+
+## 9. إعادة تشغيل التحقق بعد إصلاح جميع fixtures المكتشفة
+
+على SHA `8702a0743f386c3bb5669057103c77cd403f3e5e` بدأت التشغيلات التالية:
+- Mawdda Test Center: run `45833698179` — قيد التنفيذ عند آخر قراءة.
+- Validate Mawda: run `45833698032` — pending عند آخر قراءة.
+- Mawdda economy regression: run `45833698087` — قيد التنفيذ عند آخر قراءة.
+- Economic phase verification: run `45833698342` — قيد التنفيذ عند آخر قراءة.
+
+على SHA السابق `2cb021555c6779c2b3c369c6ef9101affa8e4502`:
+- Economic phase verification run `45832363908` — success.
+- Mawdda economy regression run `45832363709` — success.
+- Mawdda Test Center run `45832363824` — failure بسبب fixture جلسة الزائر الموضح أعلاه.
+- Validate Mawda run `45832363874` — ظل قيد التنفيذ في آخر قراءة، ولا يعتمد كقبول نهائي.
+
+نتائج التشغيلات الأربعة على SHA `8702a074` لم تكن نهائية وقت هذا التحديث؛ يجب عدم إعلان إغلاق Workflow حتى تكتمل ويفحص كل job فاشل وسجله.
+
+## 10. حدود الإصلاح
+
+الإصلاحات في هذه الجولة اقتصرت على fixtures الاختبارية التي لم تعد تطابق عقد المعالج الصوتي المعتمد. لم يتم تخفيف عقد التسليم أو تجاوز scanner أو تعديل سياسات السماح. لا يوجد في هذه السجلات ما يثبت وجود ثغرة إنتاجية؛ المكتشف كان عدم اتساق في بيانات الاختبارات. تبقى أي إخفاقات جديدة محتاجة إلى تشخيص مستقل من سجلاتها.
