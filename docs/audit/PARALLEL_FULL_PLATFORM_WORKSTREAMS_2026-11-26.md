@@ -280,3 +280,8 @@ Commits:
 - iOS يستخدم Automatic Code Signing، لكن لا يظهر `DEVELOPMENT_TEAM` في إعدادات المشروع. لا يمكن إصدار IPA موقّع/Provisioned دون Apple Developer Team وشهادات/ملفات provisioning المعتمدة.
 
 الحالة: معرّفات الحزم سليمة؛ Android release signing fail-closed؛ توقيع Android/iOS النهائي يحتاج بيانات ملكية وتوقيع لا يجوز اختلاقها أو وضعها في Git.
+
+
+أثناء التحقق النهائي من مسار التسجيل، كشف فحص شامل لـ `index.ts` بقاء معالجة خطأ التسجيل القديمة في callable `completeMemberProfile` رغم تحديث validator. تم توحيدها مع رمز الخطأ الجديد ورسالة قصر 18 عاماً على الزواج فقط.
+
+Commit: `a273752949f0095c5ac313de46550336ec888fbd`.
