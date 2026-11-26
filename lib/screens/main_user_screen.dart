@@ -134,7 +134,7 @@ class _MainUserScreenState extends State<MainUserScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('مودة | MAWDA'),
+        title: const Text('مودة | Mawdda Platform 2026'),
         actions: [
           IconButton(
             tooltip: 'الإشعارات',
