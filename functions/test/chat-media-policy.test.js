@@ -92,7 +92,7 @@ test("each non-raster category requires its own exact sanitized derivative and p
     {
       category: "audio", contentType: "audio/wav", path: "safeAudioPath",
       generation: "safeAudioGeneration", hash: "safeAudioSha256",
-      status: "safe_audio_derivative_ready", pipeline: "ffmpeg-audio-transcode-v1",
+      status: "safe_audio_derivative_ready", pipeline: "ffmpeg-audio-purpose-limit-v2",
       suffix: "audio.mp3",
     },
     {
@@ -151,7 +151,7 @@ test("guest uploads can only resolve to safe audio derivatives in room scope", (
     safeAudioPath: "processed/guest-uid/123e4567-e89b-12d3-a456-426614174000/audio.mp3",
     safeAudioGeneration: "3",
     safeAudioSha256: "a".repeat(64),
-    processingPipelineVersion: "ffmpeg-audio-transcode-v1",
+    processingPipelineVersion: "ffmpeg-audio-purpose-limit-v2",
   };
   assert.equal(resolveChatMediaDeliveryArtifact(base, false)?.category, "audio");
   assert.equal(resolveChatMediaDeliveryArtifact({ ...base, mediaPurpose: "chat" }, false), null);
