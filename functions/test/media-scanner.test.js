@@ -194,7 +194,7 @@ test("scanner callback validates clean biometric media and defers advertisement 
       safeDerivative: {
         category, path: `processed/member_1/${base.mediaId}/${filename}`,
         generation: "987654", sha256: "b".repeat(64), contentType, pipelineVersion: pipeline,
-        ...(category === "video" ? { durationMs: 30_000 } : {}),
+        ...(category === "video" ? { durationMs: 30_000 } : { durationMs: 20_000 }),
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");
@@ -231,26 +231,4 @@ test("scanner callback enforces the 60-second audio derivative limit and rejects
 });
 
 
-test("scanner callback enforces the 60-second audio derivative limit and rejects absent, overlong or malformed duration", () => {
-  const now = 1_800_000_000_000;
-  const base = {
-    mediaId: "123e4567-e89b-12d3-a456-426614174000",
-    purpose: "room", provider: "clamav-mawdda-gateway", verdict: "clean",
-    objectGeneration: "123456", sha256: "a".repeat(64), scannedAtMs: now,
-    scanEngine: "ClamAV", engineVersion: "1.4.6",
-    signatureDatabaseVersion: "28202", signatureDatabaseAgeMs: 60 * 60 * 1000,
-    processingStatus: "safe_audio_derivative_ready",
-  };
-  const safeDerivative = {
-    category: "audio", path: `processed/member_1/${base.mediaId}/audio.mp3`,
-    generation: "987654", sha256: "b".repeat(64), contentType: "audio/mpeg",
-    pipelineVersion: "ffmpeg-audio-purpose-limit-v2", durationMs: 60_000,
-  };
-  assert.equal(validateScannerVerdict({ ...base, safeDerivative }, base.provider, now).safeDerivative.durationMs, 60_000);
-  for (const durationMs of [60_001, 0, -1, 1.5, Number.NaN]) {
-    assert.equal(validateScannerVerdict({ ...base, safeDerivative: { ...safeDerivative, durationMs } }, base.provider, now), null);
-  }
-  const missingDuration = { ...safeDerivative };
-  delete missingDuration.durationMs;
-  assert.equal(validateScannerVerdict({ ...base, safeDerivative: missingDuration }, base.provider, now), null);
-});
+
