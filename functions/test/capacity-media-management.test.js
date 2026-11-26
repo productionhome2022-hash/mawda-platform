@@ -6,9 +6,9 @@ const {
   validateCapacityMediaQuotaInput,
 } = require("../lib/capacity-media-management");
 
-test("capacity planning tier is 1,000 while the active-member measurement basis stays disconnected", () => {
+test("capacity planning tier is 1,000 and active-member basis uses authenticated app heartbeats", () => {
   assert.equal(CAPACITY_MEDIA_DEFAULTS.capacityTierSize, 1_000);
-  assert.equal(CAPACITY_MEDIA_DEFAULTS.activeMemberBasis, "not_connected");
+  assert.equal(CAPACITY_MEDIA_DEFAULTS.activeMemberBasis, "authenticated_app_heartbeat_120s");
   assert.equal(CAPACITY_MEDIA_DEFAULTS.enforcementMode, "observe_only");
   assert.equal(CAPACITY_MEDIA_DEFAULTS.coreServicesExemptFromQuota, true);
 });
@@ -53,7 +53,7 @@ test("projected policy can never enable enforcement or remove core-service prote
     processingMinutesPerMember: null,
   });
   assert.equal(policy.enforcementMode, "observe_only");
-  assert.equal(policy.activeMemberBasis, "not_connected");
+  assert.equal(policy.activeMemberBasis, "authenticated_app_heartbeat_120s");
   assert.equal(policy.coreServicesExemptFromQuota, true);
 });
 
@@ -102,4 +102,19 @@ test("capacity measurement preserves unknowns instead of fabricating zero usage"
   assert.equal(measured.monthlyDownloadBytes, null);
   assert.equal(measured.retainedStorageBytes, null);
   assert.equal(measured.processingMinutes, null);
+});
+
+test("active-member heartbeats are projected independently of monthly upload-meter existence", () => {
+  const { projectCapacityMediaMeasurement } = require("../lib/capacity-media-management");
+  const measured = projectCapacityMediaMeasurement({
+    monthUtc: "2026-11",
+    meterExists: false,
+    monthlyUploadBytes: null,
+    finalizedUploadCount: null,
+    concurrentActiveMembers: 1001,
+  });
+  assert.equal(measured.status, "partial");
+  assert.equal(measured.concurrentActiveMembers, 1001);
+  assert.equal(measured.capacityTierCount, 2);
+  assert.equal(measured.monthlyUploadBytes, null);
 });
