@@ -103,85 +103,6 @@ class _ShopScreenState extends State<ShopScreen> {
     }
   }
 
-  Future<void> _gift(Map<String, dynamic> item) async {
-    final itemId = item['itemId'] as String?;
-    final name = item['name'] as String? ?? 'عنصر مودة';
-    final price = (item['priceCoins'] as num?)?.toInt() ?? 0;
-    final catalogVersion = (item['version'] as num?)?.toInt() ?? 0;
-    if (itemId == null || itemId.isEmpty || price <= 0 ||
-        catalogVersion < 1 || _purchasingItemId != null) return;
-    final usernameController = TextEditingController();
-    final username = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('إهداء "$name"'),
-        content: TextField(
-          controller: usernameController,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(
-            labelText: 'اسم المستخدم للمستلم',
-            helperText: 'أدخل اسم المستخدم المسجل كما هو.',
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء')),
-          FilledButton(onPressed: () =>
-            Navigator.pop(dialogContext, usernameController.text.trim()),
-            child: const Text('متابعة')),
-        ],
-      ),
-    );
-    usernameController.dispose();
-    if (username == null || username.isEmpty || !mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الإهداء'),
-        content: Text('سيتم خصم $price BetaCoins من محفظتك وإضافة "$name" إلى حساب @$username.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('تأكيد الإهداء')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    setState(() => _purchasingItemId = itemId);
-    try {
-      final response = await FirebaseFunctions.instance.httpsCallable('giftStoreItem').call({
-        'recipientUsername': username,
-        'itemId': itemId,
-        'requestId': const Uuid().v4(),
-        'expectedPriceCoins': price,
-        'expectedCatalogVersion': catalogVersion,
-      });
-      final result = Map<String, dynamic>.from(response.data as Map);
-      final giftId = result['giftId'] as String?;
-      final balance = (result['newBalance'] as num?)?.toInt();
-      if (giftId == null || balance == null) throw StateError('STORE_GIFT_RECEIPT_INCOMPLETE');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-        'تم إهداء "$name" إلى @$username. رصيدك الجديد: $balance BetaCoins.',
-      )));
-      _refresh();
-    } on FirebaseFunctionsException catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message ?? 'تعذر إتمام الإهداء.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر تأكيد الإهداء؛ لم يتم اعتماد العملية.')),
-      );
-    } finally {
-      if (mounted) setState(() => _purchasingItemId = null);
-    }
-  }
-
   String _categoryLabel(String category) => switch (category) {
     'avatar' || 'frame' => 'إطارات الصور',
     'username_style' => 'أنماط الأسماء',
@@ -387,11 +308,10 @@ class _ShopScreenState extends State<ShopScreen> {
                                       )
                                     : Text(canPurchase ? 'شراء' : 'غير متاح بعد'),
                               ),
-                              OutlinedButton.icon(
-                                onPressed: canPurchase && _purchasingItemId == null
-                                    ? () => _gift(item) : null,
-                                icon: const Icon(Icons.card_giftcard_outlined),
-                                label: const Text('إهداء'),
+                              const Text(
+                                'لإهداء هذه الميزة، افتح ملف العضو المطلوب واختر «إهداء ميزة من المتجر».',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 12),
                               ),
                             ]),
                           ],
