@@ -12191,6 +12191,9 @@ export const getStickerCatalog = onCall(async (request) => {
     });
     if (stickers.length > 0) packs.push({ ...projected, stickers });
   }
+  packs.sort((left, right) =>
+    Number(left.sortOrder ?? 0) - Number(right.sortOrder ?? 0) ||
+    String(left.packId).localeCompare(String(right.packId)));
   return {
     packs,
     enabled: packs.length > 0,
