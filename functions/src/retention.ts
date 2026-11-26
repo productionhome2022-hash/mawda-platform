@@ -314,6 +314,49 @@ export async function runChatMediaRetentionSweep(
           }
         }
 
+        if (purpose === "sticker") {
+          // Expiry removes catalogue and message references before physical object deletion.
+          const packs = await db.collection("stickerPacks").limit(500).get();
+          for (const packDoc of packs.docs) {
+            const packData = packDoc.data();
+            if (!Array.isArray(packData.stickers) ||
+                !packData.stickers.some((item: unknown) =>
+                  !!item && typeof item === "object" &&
+                  (item as Record<string, unknown>).assetId === mediaId)) continue;
+            const remaining = packData.stickers.filter((item: unknown) =>
+              !item || typeof item !== "object" ||
+              (item as Record<string, unknown>).assetId !== mediaId);
+            await packDoc.ref.update({
+              stickers: remaining,
+              status: remaining.length > 0 ? packData.status : "archived",
+              approved: remaining.length > 0 && packData.approved === true,
+              version: (Number.isSafeInteger(packData.version) ? Number(packData.version) : 0) + 1,
+              stickerExpiryUpdatedAt: FieldValue.serverTimestamp(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+          }
+          while (true) {
+            const messages = await db.collectionGroup("messages")
+              .where("type", "==", "sticker")
+              .where("mediaId", "==", mediaId)
+              .limit(RETENTION_BATCH_SIZE).get();
+            if (messages.empty) break;
+            const batch = db.batch();
+            for (const message of messages.docs) {
+              batch.update(message.ref, {
+                mediaId: FieldValue.delete(),
+                stickerPackId: FieldValue.delete(),
+                stickerId: FieldValue.delete(),
+                attachmentStatus: "expired",
+                stickerExpired: true,
+                stickerExpiredAt: FieldValue.serverTimestamp(),
+              });
+            }
+            await batch.commit();
+            if (messages.size < RETENTION_BATCH_SIZE) break;
+          }
+        }
+
         const paths = new Set<string>();
         if (typeof asset.objectPath === "string") paths.add(asset.objectPath);
         if (!ownerUid || !/^[0-9a-f-]{36}$/i.test(mediaId)) {
