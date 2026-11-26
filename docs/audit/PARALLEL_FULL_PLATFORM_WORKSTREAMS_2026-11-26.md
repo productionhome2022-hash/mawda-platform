@@ -265,3 +265,18 @@ Commits:
 
 ### الواجهة الزجاجية
 تم تصحيح لوحة الألوان الأساسية إلى الأزرق السماوي والبحري في Flutter وPWA والأيقونات، لكن تأثير crystal/glass لم يُطبق بعد على جميع البطاقات والحوارات والشاشات. يجب تنفيذه كمكوّنات تصميم مشتركة في الشاشات غير الحوارية، مع إبقاء واجهات المحادثة خارج هذا التأثير وفق الدستور.
+
+
+## المسار M — حزم Android/iOS والتوقيع
+
+### ما تم التحقق منه
+- Android `applicationId` وnamespace: `com.mawdda.platform.app`.
+- iOS `PRODUCT_BUNDLE_IDENTIFIER`: `com.mawdda.platform.app`.
+- ملف Firebase Android وملف Firebase iOS يحملان Bundle/Application ID المطابق.
+- إعداد Android Release لا يستخدم مفتاح Debug؛ يقرأ `android/key.properties` وملف keystore محلياً، ويُفشل بناء Release عمداً عند غياب إعداد التوقيع بدلاً من إصدار APK غير آمن.
+
+### ما يتطلب مدخلات خارج المستودع
+- لا توجد بيانات keystore/alias/password داخل المستودع (وهذا صحيح أمنياً). لا يمكن إنشاء APK موقع نهائي دون أن يجهز المالك keystore محلياً ويحفظ الأسرار خارج Git.
+- iOS يستخدم Automatic Code Signing، لكن لا يظهر `DEVELOPMENT_TEAM` في إعدادات المشروع. لا يمكن إصدار IPA موقّع/Provisioned دون Apple Developer Team وشهادات/ملفات provisioning المعتمدة.
+
+الحالة: معرّفات الحزم سليمة؛ Android release signing fail-closed؛ توقيع Android/iOS النهائي يحتاج بيانات ملكية وتوقيع لا يجوز اختلاقها أو وضعها في Git.
