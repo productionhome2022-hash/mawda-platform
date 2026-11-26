@@ -1,8 +1,8 @@
 export const CAPACITY_MEDIA_DEFAULTS = Object.freeze({
   schemaVersion: 1,
   capacityTierSize: 1_000,
-  // No authoritative active-member/session meter is connected yet.
-  activeMemberBasis: "not_connected",
+  // Authenticated app heartbeat; a member is active while seen in the last 120 seconds.
+  activeMemberBasis: "authenticated_app_heartbeat_120s",
   enforcementMode: "observe_only",
   coreServicesExemptFromQuota: true,
   monthlyMediaQuotas: Object.freeze({
@@ -22,7 +22,7 @@ export type CapacityMediaQuotaKey =
 export type CapacityMediaPolicy = {
   schemaVersion: 1;
   capacityTierSize: 1_000;
-  activeMemberBasis: "not_connected";
+  activeMemberBasis: "authenticated_app_heartbeat_120s";
   enforcementMode: "observe_only";
   coreServicesExemptFromQuota: true;
   monthlyMediaQuotas: Record<CapacityMediaQuotaKey, number | null>;
@@ -59,7 +59,7 @@ export function projectCapacityMediaPolicy(
   return {
     schemaVersion: 1,
     capacityTierSize: 1_000,
-    activeMemberBasis: "not_connected",
+    activeMemberBasis: "authenticated_app_heartbeat_120s",
     enforcementMode: "observe_only",
     coreServicesExemptFromQuota: true,
     monthlyMediaQuotas: { ...monthlyMediaQuotas },
@@ -96,15 +96,17 @@ export function projectCapacityMediaMeasurement(input: {
     typeof value === "number" && Number.isSafeInteger(value) && value >= 0
       ? value
       : null;
+  const activeMembers = safeNonNegativeInteger(input.concurrentActiveMembers);
+  const meterStarted = input.meterExists || activeMembers !== null;
   return {
-    status: input.meterExists ? "partial" : "not_started",
+    status: meterStarted ? "partial" : "not_started",
     monthUtc: input.monthUtc,
     monthlyUploadBytes: input.meterExists ? safeNonNegativeInteger(input.monthlyUploadBytes) : null,
     finalizedUploadCount: input.meterExists ? safeNonNegativeInteger(input.finalizedUploadCount) : null,
-    concurrentActiveMembers: input.meterExists ? safeNonNegativeInteger(input.concurrentActiveMembers) : null,
+    concurrentActiveMembers: activeMembers,
     // Capacity tiers are rounded up in blocks of 1,000; unknown is never reported as zero.
-    capacityTierCount: input.meterExists && safeNonNegativeInteger(input.concurrentActiveMembers) !== null
-      ? Math.ceil(safeNonNegativeInteger(input.concurrentActiveMembers)! / 1_000)
+    capacityTierCount: activeMembers !== null
+      ? Math.ceil(activeMembers / 1_000)
       : null,
     monthlyDownloadBytes: input.meterExists ? safeNonNegativeInteger(input.monthlyDownloadBytes) : null,
     retainedStorageBytes: input.meterExists ? safeNonNegativeInteger(input.retainedStorageBytes) : null,
