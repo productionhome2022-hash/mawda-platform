@@ -198,6 +198,12 @@ test("scanner callback validates clean biometric media and defers advertisement 
       },
     };
     assert.equal(validateScannerVerdict(payload, base.provider, now).purpose, "biometric");
+    if (category === "audio") {
+      assert.equal(validateScannerVerdict({
+        ...payload,
+        safeDerivative: { ...payload.safeDerivative, durationMs: 20_001 },
+      }, base.provider, now), null);
+    }
     const advertisementVerdict = validateScannerVerdict({
       ...payload, purpose: "advertisement",
     }, base.provider, now);
