@@ -56,3 +56,50 @@ test("projected policy can never enable enforcement or remove core-service prote
   assert.equal(policy.activeMemberBasis, "not_connected");
   assert.equal(policy.coreServicesExemptFromQuota, true);
 });
+
+
+test("capacity measurement projects every available meter and rounds active members into 1,000-member tiers", () => {
+  const { projectCapacityMediaMeasurement } = require("../lib/capacity-media-management");
+  const measured = projectCapacityMediaMeasurement({
+    monthUtc: "2026-11",
+    meterExists: true,
+    monthlyUploadBytes: 10_000,
+    finalizedUploadCount: 7,
+    concurrentActiveMembers: 1_001,
+    monthlyDownloadBytes: 20_000,
+    retainedStorageBytes: 30_000,
+    processingMinutes: 45,
+  });
+  assert.deepEqual(measured, {
+    status: "partial",
+    monthUtc: "2026-11",
+    monthlyUploadBytes: 10_000,
+    finalizedUploadCount: 7,
+    concurrentActiveMembers: 1_001,
+    capacityTierCount: 2,
+    monthlyDownloadBytes: 20_000,
+    retainedStorageBytes: 30_000,
+    processingMinutes: 45,
+  });
+});
+
+test("capacity measurement preserves unknowns instead of fabricating zero usage", () => {
+  const { projectCapacityMediaMeasurement } = require("../lib/capacity-media-management");
+  const measured = projectCapacityMediaMeasurement({
+    monthUtc: "2026-11",
+    meterExists: true,
+    monthlyUploadBytes: 0,
+    finalizedUploadCount: "unknown",
+    concurrentActiveMembers: null,
+    monthlyDownloadBytes: -1,
+    retainedStorageBytes: Number.MAX_SAFE_INTEGER + 1,
+    processingMinutes: 0.5,
+  });
+  assert.equal(measured.monthlyUploadBytes, 0);
+  assert.equal(measured.finalizedUploadCount, null);
+  assert.equal(measured.concurrentActiveMembers, null);
+  assert.equal(measured.capacityTierCount, null);
+  assert.equal(measured.monthlyDownloadBytes, null);
+  assert.equal(measured.retainedStorageBytes, null);
+  assert.equal(measured.processingMinutes, null);
+});
