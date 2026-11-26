@@ -2390,6 +2390,11 @@ export const getStickerAssetUrl = onCall(async (request) => {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(packId) || !/^[A-Za-z0-9_-]{1,80}$/.test(stickerId)) {
     throw new HttpsError("invalid-argument", "معرف الحزمة أو الملصق غير صالح.");
   }
+  const viewerSnapshot = await mediaDb().collection("users").doc(viewerUid).get();
+  if (!viewerSnapshot.exists || viewerSnapshot.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(viewerSnapshot.data())) {
+    throw new HttpsError("permission-denied", "تسليم الملصقات متاح للأعضاء النشطين فقط.");
+  }
   const packSnapshot = await mediaDb().collection("stickerPacks").doc(packId).get();
   const pack = packSnapshot.exists ? projectPublishedStickerPack(packSnapshot.id, packSnapshot.data()) : null;
   const sticker = pack?.stickers.find((item) => item.stickerId === stickerId);
@@ -2455,8 +2460,10 @@ export const sendStickerMessage = onCall(async (request) => {
     const recipientRef = mediaDb().collection("users").doc(recipientUid);
     const messageRef = chatRef.collection("messages").doc(messageId);
     return mediaDb().runTransaction(async (tx) => {
-      const [sender, recipient, freshPack, freshAsset, priorMessage] = await Promise.all([
-        tx.get(senderRef), tx.get(recipientRef), tx.get(packRef), tx.get(assetRef), tx.get(messageRef),
+      const notificationRef = recipientRef.collection("notifications").doc(messageId);
+      const [sender, recipient, chat, freshPack, freshAsset, priorMessage] = await Promise.all([
+        tx.get(senderRef), tx.get(recipientRef), tx.get(chatRef),
+        tx.get(packRef), tx.get(assetRef), tx.get(messageRef),
       ]);
       const currentPack = freshPack.exists ? projectPublishedStickerPack(freshPack.id, freshPack.data()) : null;
       const currentSticker = currentPack?.stickers.find((item) => item.stickerId === input.stickerId);
@@ -2481,12 +2488,19 @@ export const sendStickerMessage = onCall(async (request) => {
         }
         throw new HttpsError("already-exists", "معرف الرسالة مستخدم.");
       }
-      tx.set(chatRef, { participantUids: [senderUid, recipientUid].sort(), createdAt: now,
-        lastMessageAt: now, lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق" }, { merge: true });
+      tx.set(chatRef, {
+        participantUids: [senderUid, recipientUid].sort(),
+        createdAt: chat.exists ? chat.data()?.createdAt ?? now : now,
+        lastMessageAt: now, lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق",
+      }, { merge: true });
       tx.create(messageRef, { messageId, chatId, senderUid, recipientUid, type: "sticker",
         mediaId: sticker.assetId, stickerPackId: input.packId, stickerId: input.stickerId,
-        attachmentStatus: "ready", createdAt: now });
-      tx.update(chatRef, { lastMessageAt: now, lastMessageSenderUid: senderUid, lastMessagePreview: "ملصق" });
+        attachmentStatus: "ready", isDeleted: false, createdAt: now });
+      tx.create(notificationRef, {
+        notificationId: messageId, type: "direct_message", senderUid, chatId, messageId,
+        title: "ملصق جديد", body: "لديك ملصق جديد في محادثة مودة.",
+        isRead: false, createdAt: now,
+      });
       tx.update(assetRef, { stickerLastSentAt: now, updatedAt: now });
       return { chatId, messageId, replayed: false };
     });
