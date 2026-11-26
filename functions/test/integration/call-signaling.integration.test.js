@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { getFirestore, Timestamp } = require("firebase-admin/firestore");
 const {
   startCall, respondToCall, markCallConnected, sendCallSignal, getCallSignals, endCall, getActiveCall, getCallIceConfiguration,
+  requestRoomCallJoin, respondToRoomCallJoinRequest, consentToRoomCallBilling,
 } = require("../../lib/index");
 
 const db = getFirestore();
@@ -571,5 +572,86 @@ test("group audio follows room capacity and group video is capped at four total 
         ])),
       ]);
     }
+  }
+});
+
+
+test("room-call join admission requires creator approval and version-bound consent from both parties", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const creatorUid = uid("room_join_creator");
+  const requesterUid = uid("room_join_requester");
+  const roomId = uid("room_join_room");
+  const callId = uid("room_join_call");
+  const rentalId = "rental_" + roomId;
+  const expiresAt = Timestamp.fromMillis(Date.now() + 60 * 60 * 1000);
+  const roomRef = db.collection("rooms").doc(roomId);
+  const rentalRef = db.collection("roomRentals").doc(rentalId);
+  const callRef = db.collection("callSessions").doc(callId);
+  const creatorRef = db.collection("users").doc(creatorUid);
+  const requesterRef = db.collection("users").doc(requesterUid);
+  const creatorLock = db.collection("activeCallMemberLocks").doc(creatorUid);
+  const requesterLock = db.collection("activeCallMemberLocks").doc(requesterUid);
+  const pricingSnapshot = {
+    active: true, policyId: "owner-policy-test-v1", version: 1,
+    audioCoinsPerMinute: 2, videoCoinsPerMinute: 3,
+  };
+  await Promise.all([
+    creatorRef.set({ profileCompleted: true, accountStatus: "active", age: 30, blockedUids: [] }),
+    requesterRef.set({ profileCompleted: true, accountStatus: "active", age: 29, blockedUids: [] }),
+    roomRef.set({
+      roomId, ownerUid: creatorUid, kind: "private", status: "active",
+      isRented: true, rentalId, capacity: 4, expiresAt,
+    }),
+    rentalRef.set({ rentalId, roomId, ownerUid: creatorUid, status: "active", expiresAt }),
+    roomRef.collection("members").doc(requesterUid).set({ uid: requesterUid, role: "member" }),
+    callRef.set({
+      callId, scope: "room", targetId: roomId, rentalId, mode: "audio",
+      callerUid: creatorUid, status: "accepted",
+      participantUids: [creatorUid], acceptedUids: [creatorUid],
+      rejectedUids: [], leftUids: [], groupCallPricingSnapshot: pricingSnapshot,
+      maxDurationEndsAt: expiresAt,
+    }),
+    creatorLock.set({ callId, status: "active" }),
+  ]);
+  try {
+    const requested = await requestRoomCallJoin.run(call(requesterUid, { callId }));
+    assert.equal(requested.requested, true);
+    assert.equal(requested.idempotentReplay, false);
+
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
+        callId, requesterUid, decision: "approve",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "approval must fail until both creator and requester consent to the snapshotted price",
+    );
+    assert.deepEqual((await callRef.get()).data().participantUids, [creatorUid]);
+
+    await consentToRoomCallBilling.run(call(creatorUid, { callId, consent: true }));
+    const requesterConsent = await consentToRoomCallBilling.run(call(requesterUid, {
+      callId, consent: true,
+    }));
+    assert.equal(requesterConsent.consented, true);
+    assert.equal(requesterConsent.policyVersion, pricingSnapshot.version);
+
+    const approved = await respondToRoomCallJoinRequest.run(call(creatorUid, {
+      callId, requesterUid, decision: "approve",
+    }));
+    assert.equal(approved.approved, true);
+    const finalCall = (await callRef.get()).data();
+    assert.ok(finalCall.participantUids.includes(requesterUid));
+    assert.ok(finalCall.acceptedUids.includes(requesterUid));
+    assert.equal((await requesterLock.get()).data().callId, callId);
+    assert.equal((await callRef.collection("joinRequests").doc(requesterUid).get()).data().status, "approved");
+  } finally {
+    await Promise.all([
+      db.recursiveDelete(callRef).catch(() => undefined),
+      db.recursiveDelete(roomRef).catch(() => undefined),
+      rentalRef.delete().catch(() => undefined),
+      db.recursiveDelete(creatorRef).catch(() => undefined),
+      db.recursiveDelete(requesterRef).catch(() => undefined),
+      creatorLock.delete().catch(() => undefined),
+      requesterLock.delete().catch(() => undefined),
+    ]);
   }
 });
