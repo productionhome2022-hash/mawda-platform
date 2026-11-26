@@ -23,14 +23,29 @@ test("rejects attempts to edit protected fields such as coins, age or username",
   }
 });
 
-test("rejects romantic and marriage goals for members under 18", () => {
+test("allows dating from 16 and restricts marriage to adults during profile edits", () => {
+  assert.deepEqual(
+    validateMemberProfileUpdate({ goals: ["romantic_dating"] }, 17),
+    { goals: ["romantic_dating"] },
+  );
   assert.throws(
-    () => validateMemberProfileUpdate({ goals: ["romantic_dating"] }, 17),
-    /ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT/,
+    () => validateMemberProfileUpdate({ goals: ["marriage"] }, 17),
+    /MARRIAGE_GOAL_REQUIRES_ADULT/,
   );
   assert.deepEqual(
     validateMemberProfileUpdate({ goals: ["friendship"] }, 17),
     { goals: ["friendship"] },
+  );
+});
+
+test("profile edits cannot clear required interests or goals", () => {
+  assert.throws(
+    () => validateMemberProfileUpdate({ interests: [] }, 25),
+    /INTERESTS_REQUIRED/,
+  );
+  assert.throws(
+    () => validateMemberProfileUpdate({ goals: [] }, 25),
+    /GOALS_REQUIRED/,
   );
 });
 
