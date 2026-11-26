@@ -13266,18 +13266,30 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       const claim = existingClaim.data() ?? {};
       const amount = ledger.amount;
       const policyVersion = ledger.policyVersion;
-      const valid = existingLedger.exists && existingClaim.exists &&
+      const balanceSnapshotValid = ledger.balanceBefore === undefined
+        ? Number.isSafeInteger(ledger.balanceAfter) && ledger.balanceAfter >= amount
+        : Number.isSafeInteger(ledger.balanceBefore) && ledger.balanceBefore >= 0 &&
+          ledger.balanceAfter === ledger.balanceBefore + amount;
+      const legacyClaimReplay = session.rewardClaimed === true && !existingClaim.exists;
+      const claimValid = legacyClaimReplay || (
+        existingClaim.exists && claim.uid === uid && claim.sessionId === sessionId &&
+        claim.campaignId === session.campaignId && claim.amountCoins === amount &&
+        claim.ledgerId === ledgerId && claim.policyVersion === policyVersion
+      );
+      const valid = existingLedger.exists &&
         ledger.type === "featured_ad_reward" && ledger.source === "featured_ad" &&
         ledger.sessionId === sessionId && ledger.campaignId === session.campaignId &&
-        Number.isSafeInteger(amount) && amount > 0 &&
-        Number.isSafeInteger(ledger.balanceBefore) && ledger.balanceBefore >= 0 &&
-        ledger.balanceAfter === ledger.balanceBefore + amount &&
-        Number.isSafeInteger(policyVersion) && policyVersion >= 1 &&
-        claim.uid === uid && claim.sessionId === sessionId &&
-        claim.campaignId === session.campaignId && claim.amountCoins === amount &&
-        claim.ledgerId === ledgerId && claim.policyVersion === policyVersion;
+        Number.isSafeInteger(amount) && amount > 0 && balanceSnapshotValid &&
+        Number.isSafeInteger(policyVersion) && policyVersion >= 1 && claimValid;
       if (!valid) {
         throw new HttpsError("data-loss", "سجل مكافأة الإعلان لا يطابق قيد المحفظة؛ أوقفنا إعادة التحصيل.");
+      }
+      if (legacyClaimReplay) {
+        transaction.create(claimRef, {
+          uid, sessionId, campaignId: session.campaignId, amountCoins: amount,
+          ledgerId, policyVersion, migratedFromLegacyLedger: true,
+          createdAt: ledger.createdAt ?? FieldValue.serverTimestamp(),
+        });
       }
       if (session.rewardClaimed !== true) {
         transaction.update(sessionRef, {
