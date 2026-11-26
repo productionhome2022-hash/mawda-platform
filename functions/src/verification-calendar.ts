@@ -25,6 +25,13 @@ export function isEmailVerificationDue(lastVerifiedAtMs: number, nowMs: number):
   return isCalendarMonthCycleDue(lastVerifiedAtMs, nowMs, 3);
 }
 
+export const BIOMETRIC_VERIFICATION_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function isBiometricVerificationDue(lastApprovedAtMs: number, nowMs: number): boolean {
-  return isCalendarMonthCycleDue(lastApprovedAtMs, nowMs, 1);
+  if (!Number.isSafeInteger(lastApprovedAtMs) || lastApprovedAtMs < 0 ||
+      !Number.isSafeInteger(nowMs) || nowMs < 0 ||
+      !Number.isSafeInteger(lastApprovedAtMs + BIOMETRIC_VERIFICATION_INTERVAL_MS)) {
+    throw new Error("INVALID_VERIFICATION_CLOCK");
+  }
+  return nowMs >= lastApprovedAtMs + BIOMETRIC_VERIFICATION_INTERVAL_MS;
 }
