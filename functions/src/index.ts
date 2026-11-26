@@ -1738,8 +1738,8 @@ export const updateMemberProfile = onCall(async (request) => {
         update = validateMemberProfileUpdate(requested, currentAge);
       } catch (error) {
         const code = error instanceof Error ? error.message : "INVALID_PROFILE_UPDATE";
-        if (code === "ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT") {
-          throw new HttpsError("failed-precondition", "التعارف العاطفي ونية الزواج متاحان للأعضاء بعمر 18 عاماً فأكثر.");
+        if (code === "MARRIAGE_GOAL_REQUIRES_ADULT") {
+          throw new HttpsError("failed-precondition", "نية الزواج متاحة للأعضاء بعمر 18 عاماً فأكثر.");
         }
         throw new HttpsError("invalid-argument", "توجد بيانات غير صالحة أو حقول لا يُسمح بتعديلها.");
       }
