@@ -12124,15 +12124,41 @@ export const getMyStoreGiftHistory = onCall(async (request) => {
 });
 
 
-/** Member catalog remains empty until sticker retention, publication and delivery lifecycle tests are complete. */
+/** Returns only published packs whose every sticker still has a live, scanner-approved source asset. */
 export const getStickerCatalog = onCall(async (request) => {
-  requireAuthenticatedUid(request.auth?.uid);
+  const uid = requireAuthenticatedUid(request.auth?.uid);
+  const member = await db.collection("users").doc(uid).get();
+  if (!member.exists || member.data()?.profileCompleted !== true ||
+      !isMemberAccountInGoodStanding(member.data())) {
+    throw new HttpsError("permission-denied", "كتالوج الملصقات متاح للأعضاء النشطين فقط.");
+  }
+  const snapshot = await db.collection("stickerPacks")
+    .where("status", "==", "published")
+    .where("approved", "==", true)
+    .orderBy("sortOrder", "asc")
+    .limit(100)
+    .get();
+  const packs = [];
+  for (const doc of snapshot.docs) {
+    const projected = projectPublishedStickerPack(doc.id, doc.data());
+    if (!projected) continue;
+    const assets = await Promise.all(projected.stickers.map((sticker) =>
+      db.collection("mediaAssets").doc(sticker.assetId).get()));
+    const now = Date.now();
+    const stickers = projected.stickers.filter((sticker, index) => {
+      const asset = assets[index].data() ?? {};
+      return assets[index].exists && asset.status === "security_approved" &&
+        asset.mediaPurpose === "sticker" && asset.scannerVerdict === "clean" &&
+        asset.retentionExpiresAt instanceof Timestamp &&
+        asset.retentionExpiresAt.toMillis() > now;
+    });
+    if (stickers.length > 0) packs.push({ ...projected, stickers });
+  }
   return {
-    packs: [],
-    enabled: false,
-    publicationEnabled: false,
-    sendEnabled: false,
-    disabledReason: "sticker_lifecycle_implementation_pending",
+    packs,
+    enabled: packs.length > 0,
+    publicationEnabled: true,
+    sendEnabled: packs.length > 0,
   };
 });
 
