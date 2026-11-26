@@ -34,14 +34,14 @@ class MawdaPlatformApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'مودة | MAWADDA',
+        title: 'مودة | Mawdda Platform 2026',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF8B234B),
+            seedColor: const Color(0xFF56B4E9),
             brightness: Brightness.dark,
           ),
-          scaffoldBackgroundColor: const Color(0xFF160D1B),
+          scaffoldBackgroundColor: const Color(0xFF071A2B),
           useMaterial3: true,
         ),
         home: const _FirebaseBootstrapScreen(),
