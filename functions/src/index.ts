@@ -11318,12 +11318,22 @@ export const startCall = onCall(async (request) => {
       attempts: [...recentAttempts, { callId: input.callId, mode: input.mode, startedAtMs: quotaNow }],
       updatedAt: FieldValue.serverTimestamp(),
     });
+    const pricingSettings = groupCallPricingSnapshot?.data() ?? {};
+    let immutableGroupCallPricingSnapshot = null;
+    try {
+      // The consent endpoint consumes the versioned policy contract, not the
+      // compact display-only test tariff. Keep it explicitly test-only.
+      immutableGroupCallPricingSnapshot = validateGroupCallEntitlementPolicy(pricingSettings.policy);
+    } catch {
+      immutableGroupCallPricingSnapshot = null;
+    }
     const testPricingSnapshot = projectGroupCallTestPricingSnapshot(
-      groupCallPricingSnapshot?.data(), input.mode,
+      pricingSettings, input.mode,
     );
     transaction.create(callRef, {
       callId: input.callId, scope: input.scope, targetId: input.targetId, mode: input.mode,
       callerUid, participantUids, acceptedUids: [], rejectedUids: [], leftUids: [],
+      groupCallPricingSnapshot: immutableGroupCallPricingSnapshot,
       testPricingSnapshot,
       usagePolicySnapshot: usagePolicy,
       usagePolicyVersion: usagePolicyRecord.version,
