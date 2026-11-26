@@ -344,9 +344,9 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Card(color: const Color(0xFF281A2D), child: Padding(
             padding: const EdgeInsets.all(24),
             child: Form(key: _formKey, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              const Icon(Icons.favorite, color: Color(0xFFE8A0B5), size: 64),
+              const Icon(Icons.favorite, color: Color(0xFF56B4E9), size: 64),
               const SizedBox(height: 12),
-              const Text('مودة | MAWDA', textAlign: TextAlign.center,
+              const Text('مودة | Mawdda', textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(_register ? 'إنشاء حساب دخول' : 'تسجيل الدخول',
