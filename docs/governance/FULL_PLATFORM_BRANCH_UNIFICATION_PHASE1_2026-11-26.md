@@ -1,0 +1,54 @@
+# تقرير تقدم توحيد الفروع — المرحلة الأولى
+- التاريخ: 2026-11-26
+- السياسة المرجعية: `docs/governance/FULL_PLATFORM_BRANCH_UNIFICATION_POLICY_2026-11-26.md`
+- المستودع: `productionhome2022-hash/mawda-platform`
+- الفرع المستهدف: `codex/mawda-full-platform-implementation`
+- SHA Full Platform قبل هذا التقرير: `203c76611a4f077e905e26cefb4fd743e210af2d`
+- نطاق هذه الدفعة: ستة فروع ذات صلة بالبيومتري والاقتصاد والإعلانات والحوكمة.
+- القيود: لم يُلمس مختبر 5000 شخصية. لم تُشغّل اختبارات. لم تُحذف أو تُعدّل أي فروع تاريخية. لم يُجرَ دمج إلى main أو أي تغيير إنتاجي.
+
+## 1. مقارنة الفروع الستة
+
+| الفرع | SHA الرأس وقت الفحص | Ahead عن Full Platform | Behind عن Full Platform | Merge base | الملفات المتغيرة في المقارنة |
+|---|---|---:|---:|---|---:|
+| biometric-server-lifecycle | `f79f146e96b9a4ae1210a1fcc37a861ebebcd294` | 73 | 987 | `e12897ad7dc5f383501d997117fb1211c67632e7` | 23 |
+| economic-phase-completion | `0914885232ff8bcfb64536c6655e7bff01b78361` | 181 | 1337 | `7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1` | 45 |
+| featured-ads-secure-lifecycle | `b15b643f14bc6c1196bf914190778e053e2ac9b1` | 199 | 1338 | `c759083e04ffd98616691c2e736207095aaf2dbc` | 58 |
+| unified-constitution-vision | `53bf236076d617f625b1b4225eb014e5c90e17fb` | 142 | 1245 | `8a1c8d0b93ed43570c523ab2d8c2598648ddac0e` | 64 |
+| governance-biometric-integration | `619eab643e2d5849b3b2c055461d53ba2be01753` | 89 | 1334 | `1a3d17ddde864a2649f7f0411b2f8b6552effd59` | 39 |
+| structural-governance-biometric-roles | `e71f3eb559e7f86edecd97fb366ad9c69b5817c5` | 79 | 1337 | `7fd1c6cd9b3810047bb0d87f1b6dd5d0dc8b4dd1` | 35 |
+
+ملاحظة: ahead/behind أرقام تاريخية فقط ولا تعني أن كل التغييرات فريدة أو مفقودة. لم تُستخدم هذه الأرقام وحدها للتصنيف.
+
+## 2. تحقق عينات محتوى مباشرة
+
+| الملف | الفرع المصدر | Blob المصدر | Blob Full Platform | نتيجة المقارنة الأولية |
+|---|---|---|---|---|
+| `functions/test/biometric-evidence.test.js` | biometric-server-lifecycle | `2b5bd2cc49b86665b5600a20976d023042c7ff03` | `2b5bd2cc49b86665b5600a20976d023042c7ff03` | تطابق حرفي؛ مرشح فئة 1 لهذا الملف |
+| `functions/src/biometric-lifecycle.ts` | biometric-server-lifecycle | `6061cde87ef6b2220c39bcecc7d4f07ee21d6856` | `a322c04897d95bfcedaa922ff888d2dafb6fdc33` | اختلاف فعلي؛ يحتاج diff دلالياً وتحديد ما إذا كان مصدر الفرع أقدم أو يحمل تغييراً فريداً |
+| `functions/src/economy-payment-policy.ts` | economic-phase-completion | `aee317788b27c4fbec47111fc94cc035498c9768` | `aee317788b27c4fbec47111fc94cc035498c9768` | تطابق حرفي؛ مرشح فئة 1 لهذا الملف |
+| `functions/src/group-call-economy.ts` | economic-phase-completion | `e50738b2a6e3b2dac345057ffb4aed6e97cde837` | `f5dcefcd6e65029dbc197baf718c82dfb04fc5fe` | اختلاف فعلي؛ يتطلب مقارنة دلالية كاملة |
+| `functions/src/sticker-policy.ts` | featured-ads-secure-lifecycle | `fc52ec3f54da5633526d59705f293ed044f1a5e1` | `658a691b7a9b233e969729eb3e8a5c30cccd2be7` | اختلاف فعلي؛ يتطلب مقارنة القيود والتحقق والاختبارات |
+| `lib/screens/capacity_media_management_screen.dart` | featured-ads-secure-lifecycle | `18c9827a9d9819c2951080d15971fe0921148725` | `ba5e6c3b1607faf71d9a6c176f6699bdc2a01a0b` | اختلاف فعلي؛ يتطلب مقارنة سلوك واجهة المالك والخادم |
+| `docs/MAWADDA_DECISION_CONTRACT_CROSSWALK_2026-11-19.md` | unified-constitution-vision | `cf872beeb6fa3b8470a9b4cc1ebfb6b5d4f68dda` | `acb618cb6d1b4d4a91e6d85125e40344b5b9b220` | اختلاف نصي؛ يتطلب تحديد الإضافات والتعارضات |
+| `functions/src/platform-role-identities.ts` | governance-biometric-integration | `fd33a73d437f2380dbbdafafa6050efc83244958` | `8d26a34734374f0d411bdf25317ef66277608338` | نسخة Full Platform المعاينة تحتوي أدواراً إضافية؛ لا يثبت ذلك وحده اكتمال السلوك أو الاختبارات |
+
+## 3. الاستنتاج المرحلي
+
+1. توجد ملفات عينات متطابقة حرفياً بين المصدر وFull Platform، وهذا يثبت استيعاب تلك الملفات فقط ولا يغلق الفرع كاملاً.
+2. توجد ملفات مختلفة في الشيفرة والواجهة والوثائق. لم يثبت بعد أن اختلافها فريد مطلوب أو أن نسخة Full Platform أحدث وظيفياً؛ لذلك لم يُنقل أي منها في هذه المرحلة.
+3. يلزم توسيع المقارنة إلى جميع ملفات الفروع الستة، بما فيها الملفات التي لا تظهر في عينة الجدول، ثم تصنيف كل تغيير على حدة وفق الفئات الخمس في السياسة.
+4. لا توجد نتائج اختبارات في هذا التقرير؛ الاختبارات غير منفذة في هذه المرحلة.
+5. لا توجد فروع مرشحة للحذف ولا يوجد تفويض بالحذف.
+
+## 4. الخطوة التالية
+
+استكمال فحص كل ملف مختلف في الفروع الستة، وفحص الاعتماديات والاختبارات ومقابلاته في Full Platform. بعدها تُعد قائمة تغييرات فريدة محددة قبل أي نقل، ويُنفذ النقل على دفعات صغيرة فقط عند ثبوت الحاجة، ثم تُشغّل اختبارات GitHub الداخلية المسموح بها وتوثق نتائجها. تبقى الفروع الـ27 الأخرى غير مفحوصة في هذه المرحلة.
+
+## 5. سجل القيود والصدق التنفيذي
+
+- لم يتم تشغيل GitHub Actions أو أي اختبار في هذه المرحلة.
+- لم يتم تعديل كود التطبيق أو قواعد الأمان أو Firebase.
+- لم يتم إنشاء فرع جديد.
+- لم يتم حذف أو تعديل أي فرع تاريخي.
+- لم يتم الوصول إلى مختبر 5000 شخصية أو تشغيله أو تغيير أي من محتوياته.
