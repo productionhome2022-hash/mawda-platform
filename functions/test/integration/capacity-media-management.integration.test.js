@@ -28,7 +28,9 @@ test("owner capacity management is observe-only, versioned and fail-closed", asy
   assert.equal(initial.enforcement.status, "observe_only");
   assert.equal(initial.enforcement.productionBillingConnected, false);
   assert.equal(initial.policy.monthlyMediaQuotas.uploadBytesPerMember, null);
-  assert.equal(initial.measurement.status, "not_started");
+  assert.equal(initial.measurement.status, "partial");
+  assert.equal(initial.measurement.concurrentActiveMembers, 0);
+  assert.equal(initial.measurement.capacityTierCount, 0);
   assert.equal(initial.measurement.monthlyUploadBytes, null);
 
   const quotas = {
@@ -74,7 +76,8 @@ test("owner capacity endpoint reads finalized upload counters and keeps unconnec
     const result = await getOwnerCapacityMediaManagement.run(ownerRequest());
     assert.equal(result.measurement.monthlyUploadBytes, 4096);
     assert.equal(result.measurement.finalizedUploadCount, 3);
-    assert.equal(result.measurement.concurrentActiveMembers, null);
+    assert.equal(result.measurement.concurrentActiveMembers, 0);
+    assert.equal(result.measurement.capacityTierCount, 0);
     assert.equal(result.measurement.monthlyDownloadBytes, null);
     assert.equal(result.measurement.retainedStorageBytes, null);
     assert.equal(result.measurement.processingMinutes, null);
