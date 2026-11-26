@@ -7283,7 +7283,8 @@ export const getOwnerCapacityMediaManagement = onCall(async (request) => {
     meterExists: capacityMeter.exists,
     monthlyUploadBytes: meter.monthlyUploadBytes,
     finalizedUploadCount: meter.finalizedUploadCount,
-    concurrentActiveMembers: Number.isSafeInteger(activeMemberCount) && activeMemberCount >= 0
+    concurrentActiveMembers: typeof activeMemberCount === "number" &&
+      Number.isSafeInteger(activeMemberCount) && activeMemberCount >= 0
       ? activeMemberCount : null,
     monthlyDownloadBytes: meter.monthlyDownloadBytes,
     retainedStorageBytes: meter.retainedStorageBytes,
