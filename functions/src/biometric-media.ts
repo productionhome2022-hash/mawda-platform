@@ -184,8 +184,9 @@ export function assertBiometricAudioFileAllowed(buffer: Buffer): number {
   const trackDurations = readMp4AudioTrackDurationsMs(buffer);
   if (trackDurations.length === 0) throw new Error("BIOMETRIC_AUDIO_TRACK_MISSING");
   const movieDurationMs = readMp4DurationMs(buffer);
-  if (movieDurationMs > 60_000 || movieDurationMs < 1 ||
-      trackDurations.some((duration) => duration < 1 || duration > 60_000)) {
+  const maxDurationMs = 20_000;
+  if (movieDurationMs > maxDurationMs || movieDurationMs < 1 ||
+      trackDurations.some((duration) => duration < 1 || duration > maxDurationMs)) {
     throw new Error("BIOMETRIC_AUDIO_DURATION_OUT_OF_RANGE");
   }
   return Math.max(...trackDurations);
