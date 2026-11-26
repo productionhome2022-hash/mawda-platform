@@ -13253,10 +13253,42 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     const sessionSnapshot = await transaction.get(sessionRef);
     if (!sessionSnapshot.exists || sessionSnapshot.data()?.uid !== uid) throw new HttpsError("permission-denied", "جلسة المشاهدة غير موجودة.");
     const session = sessionSnapshot.data()!;
-    if (session.rewardClaimed === true) return { rewarded: false, idempotentReplay: true, amountCoins: 0 };
-    if (session.status !== "active") throw new HttpsError("failed-precondition", "جلسة المشاهدة ليست نشطة.");
     const campaignRef = featuredAdCampaignRef(String(session.campaignId));
     const userRef = db.collection("users").doc(uid);
+    const ledgerId = "featured_ad_reward_" + sessionId;
+    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
+    const claimRef = db.collection("featuredAdRewardClaims").doc(sessionId);
+    const [existingLedger, existingClaim] = await Promise.all([
+      transaction.get(ledgerRef), transaction.get(claimRef),
+    ]);
+    if (session.rewardClaimed === true || existingLedger.exists || existingClaim.exists) {
+      const ledger = existingLedger.data() ?? {};
+      const claim = existingClaim.data() ?? {};
+      const amount = ledger.amount;
+      const policyVersion = ledger.policyVersion;
+      const valid = existingLedger.exists && existingClaim.exists &&
+        ledger.type === "featured_ad_reward" && ledger.source === "featured_ad" &&
+        ledger.sessionId === sessionId && ledger.campaignId === session.campaignId &&
+        Number.isSafeInteger(amount) && amount > 0 &&
+        Number.isSafeInteger(ledger.balanceBefore) && ledger.balanceBefore >= 0 &&
+        ledger.balanceAfter === ledger.balanceBefore + amount &&
+        Number.isSafeInteger(policyVersion) && policyVersion >= 1 &&
+        claim.uid === uid && claim.sessionId === sessionId &&
+        claim.campaignId === session.campaignId && claim.amountCoins === amount &&
+        claim.ledgerId === ledgerId && claim.policyVersion === policyVersion;
+      if (!valid) {
+        throw new HttpsError("data-loss", "سجل مكافأة الإعلان لا يطابق قيد المحفظة؛ أوقفنا إعادة التحصيل.");
+      }
+      if (session.rewardClaimed !== true) {
+        transaction.update(sessionRef, {
+          rewardClaimed: true, status: "rewarded", rewardCoins: amount,
+          rewardLedgerId: ledgerId, completedAtMs: now,
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+      }
+      return { rewarded: true, idempotentReplay: true, amountCoins: amount, ledgerId };
+    }
+    if (session.status !== "active") throw new HttpsError("failed-precondition", "جلسة المشاهدة ليست نشطة.");
     const dayRef = userRef.collection("featuredAdRewardDays").doc(featuredAdRewardDayKey(now));
     const campaignMemberRef = db.collection("featuredAdCampaignMembers").doc(uid + "_" + String(session.campaignId));
     const [campaignSnapshot, userSnapshot, policySnapshot, daySnapshot, campaignMemberSnapshot] = await Promise.all([
@@ -13306,23 +13338,22 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       return { rewarded: false, idempotentReplay: false, amountCoins: 0, reason: decision.reason };
     }
     const amount = decision.amountCoins;
-    const ledgerId = "featured_ad_reward_" + sessionId;
-    const ledgerRef = userRef.collection("walletLedger").doc(ledgerId);
-    const existingLedger = await transaction.get(ledgerRef);
-    if (existingLedger.exists) {
-      transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", updatedAt: FieldValue.serverTimestamp() });
-      return { rewarded: true, idempotentReplay: true, amountCoins: Number(existingLedger.data()?.amount) || amount };
-    }
     const currentCoins = Number(user.coins ?? 0);
     if (!Number.isSafeInteger(currentCoins) || currentCoins < 0 || !Number.isSafeInteger(amount) || amount <= 0 ||
         !Number.isSafeInteger(currentCoins + amount)) {
       throw new HttpsError("failed-precondition", "رصيد المحفظة أو مبلغ المكافأة خارج الحدود الآمنة.");
     }
     transaction.set(userRef, { coins: currentCoins + amount }, { merge: true });
+    const rewardPolicyVersion = policySnapshot.exists ? policySnapshot.data()?.version ?? 1 : 1;
     transaction.create(ledgerRef, {
       type: "featured_ad_reward", source: "featured_ad", amount, campaignId: session.campaignId,
-      sessionId, policyVersion: policySnapshot.exists ? policySnapshot.data()?.version ?? 1 : 1,
-      createdAt: FieldValue.serverTimestamp(), balanceAfter: currentCoins + amount,
+      sessionId, policyVersion: rewardPolicyVersion,
+      balanceBefore: currentCoins, balanceAfter: currentCoins + amount,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+    transaction.create(claimRef, {
+      uid, sessionId, campaignId: session.campaignId, amountCoins: amount,
+      ledgerId, policyVersion: rewardPolicyVersion, createdAt: FieldValue.serverTimestamp(),
     });
     transaction.set(dayRef, { rewardedViews: (Number(daily.rewardedViews) || 0) + 1, rewardCoins: (Number(daily.rewardCoins) || 0) + amount, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, rewardTimestampsMs: [...rewardTimestamps, now].slice(-1000), lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
