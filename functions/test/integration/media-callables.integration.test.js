@@ -720,7 +720,7 @@ async function createReadyChatImage({ uid, purpose = "chat", mediaId = randomUUI
 async function createReadyTypedChatMedia({ uid, category, purpose = "chat", mediaId = randomUUID(), owner = false }) {
   const specs = {
     gif: { source: "image/gif", suffix: "animation.gif", output: "image/gif", path: "safeAnimationPath", generation: "safeAnimationGeneration", hash: "safeAnimationSha256", pipeline: "gif-sanitize-preserve-animation-v1", status: "safe_animation_derivative_ready" },
-    audio: { source: "audio/wav", suffix: "audio.mp3", output: "audio/mpeg", path: "safeAudioPath", generation: "safeAudioGeneration", hash: "safeAudioSha256", pipeline: "ffmpeg-audio-transcode-v1", status: "safe_audio_derivative_ready" },
+    audio: { source: "audio/wav", suffix: "audio.mp3", output: "audio/mpeg", path: "safeAudioPath", generation: "safeAudioGeneration", hash: "safeAudioSha256", pipeline: "ffmpeg-audio-purpose-limit-v2", status: "safe_audio_derivative_ready" },
     video: { source: "video/mp4", suffix: "video.mp4", output: "video/mp4", path: "safeVideoPath", generation: "safeVideoGeneration", hash: "safeVideoSha256", pipeline: "ffmpeg-video-transcode-v1", status: "safe_video_derivative_ready" },
     document: { source: "application/pdf", suffix: "document.pdf", output: "application/pdf", path: "safeDocumentPath", generation: "safeDocumentGeneration", hash: "safeDocumentSha256", pipeline: "pdf-raster-flatten-v1", status: "safe_document_derivative_ready" },
   };
