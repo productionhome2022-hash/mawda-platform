@@ -1623,6 +1623,16 @@ export const finalizeMediaUpload = onCall(async (request) => {
       updatedAt: FieldValue.serverTimestamp(),
     });
     transaction.set(quotaRef, { ...reservation, updatedAt: FieldValue.serverTimestamp() });
+    // Aggregate finalized upload usage in the same transaction as the one-time
+    // upload-intent state transition. Retries cannot count the same asset twice.
+    const finalizedMonthUtc = new Date().toISOString().slice(0, 7);
+    const platformCapacityMeterRef = mediaDb().collection("platformCapacityMeters").doc(finalizedMonthUtc);
+    transaction.set(platformCapacityMeterRef, {
+      monthUtc: finalizedMonthUtc,
+      monthlyUploadBytes: FieldValue.increment(sizeBytes),
+      finalizedUploadCount: FieldValue.increment(1),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
     transaction.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: uid, mediaId, action: "media_upload_validation", outcome: "pending_security_scan",
       detectedContentType: detectedType, sizeBytes, storageGeneration: String(metadata.generation),
