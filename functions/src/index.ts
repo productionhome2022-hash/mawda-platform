@@ -12172,12 +12172,11 @@ export const getStickerCatalog = onCall(async (request) => {
   }
   const snapshot = await db.collection("stickerPacks")
     .where("status", "==", "published")
-    .where("approved", "==", true)
-    .orderBy("sortOrder", "asc")
     .limit(100)
     .get();
   const packs = [];
   for (const doc of snapshot.docs) {
+    if (doc.data().approved !== true) continue;
     const projected = projectPublishedStickerPack(doc.id, doc.data());
     if (!projected) continue;
     const assets = await Promise.all(projected.stickers.map((sticker) =>
