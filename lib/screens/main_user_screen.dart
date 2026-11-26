@@ -254,6 +254,19 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
       setState(() => _error = 'يرجى اختيار الجنس والحالة الاجتماعية.');
       return;
     }
+    if (_splitList(_interests.text).isEmpty) {
+      setState(() => _error = 'اختر اهتماماً واحداً على الأقل.');
+      return;
+    }
+    if (_selectedGoals.isEmpty) {
+      setState(() => _error = 'اختر هدفاً واحداً على الأقل.');
+      return;
+    }
+    final age = int.tryParse(_age.text.trim()) ?? 0;
+    if (age < 18 && _selectedGoals.contains('marriage')) {
+      setState(() => _error = 'أزل هدف الزواج؛ فهو متاح للأعضاء بعمر 18 عاماً فأكثر.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -344,7 +357,9 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 _field('العمر', _age, keyboardType: TextInputType.number,
                   validator: (value) {
                     final age = int.tryParse(value ?? '');
-                    return age == null || age < 16 || age > 120 ? 'يجب أن يكون العمر 16 عاماً على الأقل' : null;
+                    if (age == null || age < 16 || age > 120) return 'يجب أن يكون العمر 16 عاماً على الأقل';
+                    if (age < 18 && _selectedGoals.contains('marriage')) return 'أزل هدف الزواج؛ فهو متاح من 18 عاماً.';
+                    return null;
                   }),
                 _field('المهنة', _profession),
                 _field('الدولة', _country),
@@ -373,7 +388,10 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                 const SizedBox(height: 12),
                 _field('نبذة عنك (حتى 500 حرف)', _bio, maxLines: 4,
                   validator: (value) => (value?.length ?? 0) > 500 ? 'الحد الأقصى 500 حرف' : null),
-                _field('الاهتمامات (افصل بينها بفواصل)', _interests),
+                _field('الاهتمامات (افصل بينها بفواصل)', _interests,
+                  validator: (value) => _splitList(value ?? '').isEmpty
+                      ? 'اختر اهتماماً واحداً على الأقل.'
+                      : null),
                 const Align(
                   alignment: Alignment.centerRight,
                   child: Text('أهداف الانضمام', style: TextStyle(fontWeight: FontWeight.bold)),
