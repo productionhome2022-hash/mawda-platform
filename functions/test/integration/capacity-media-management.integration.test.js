@@ -55,3 +55,28 @@ test("owner capacity management is observe-only, versioned and fail-closed", asy
     (error) => error && error.code === "aborted",
   );
 });
+
+
+test("owner capacity endpoint reads finalized upload counters and keeps unconnected dimensions unknown", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const monthUtc = new Date().toISOString().slice(0, 7);
+  const meterRef = db.collection("platformCapacityMeters").doc(monthUtc);
+  await meterRef.set({
+    monthUtc,
+    monthlyUploadBytes: 4096,
+    finalizedUploadCount: 3,
+  });
+  try {
+    const result = await getOwnerCapacityMediaManagement.run(ownerRequest());
+    assert.equal(result.measurement.monthlyUploadBytes, 4096);
+    assert.equal(result.measurement.finalizedUploadCount, 3);
+    assert.equal(result.measurement.concurrentActiveMembers, null);
+    assert.equal(result.measurement.monthlyDownloadBytes, null);
+    assert.equal(result.measurement.retainedStorageBytes, null);
+    assert.equal(result.measurement.processingMinutes, null);
+    assert.equal(result.enforcement.status, "observe_only");
+    assert.equal(result.enforcement.productionBillingConnected, false);
+  } finally {
+    await meterRef.delete();
+  }
+});
