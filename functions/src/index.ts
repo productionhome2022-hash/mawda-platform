@@ -7247,6 +7247,10 @@ export const getOwnerCapacityMediaManagement = onCall(async (request) => {
     meterExists: capacityMeter.exists,
     monthlyUploadBytes: meter.monthlyUploadBytes,
     finalizedUploadCount: meter.finalizedUploadCount,
+    concurrentActiveMembers: meter.concurrentActiveMembers,
+    monthlyDownloadBytes: meter.monthlyDownloadBytes,
+    retainedStorageBytes: meter.retainedStorageBytes,
+    processingMinutes: meter.processingMinutes,
   });
   let monthlyMediaQuotas: CapacityMediaPolicy["monthlyMediaQuotas"] = {
     ...CAPACITY_MEDIA_DEFAULTS.monthlyMediaQuotas,
