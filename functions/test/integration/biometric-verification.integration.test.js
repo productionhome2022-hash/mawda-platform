@@ -79,7 +79,7 @@ async function makeBiometricAsset(uid, requestId, kind, sourceBytes, status = "s
   await db.collection("mediaAssets").doc(mediaId).set(asset);
   return { mediaId, asset };
 }
-async function attachEvidence(requestRef, uid, requestId, audioDuration = 60000, videoDuration = 4000, status = "security_approved") {
+async function attachEvidence(requestRef, uid, requestId, audioDuration = 20000, videoDuration = 4000, status = "security_approved") {
   const audio = await makeBiometricAsset(uid, requestId, "audio", mp4(audioDuration, "audio"), status);
   const video = await makeBiometricAsset(uid, requestId, "video", mp4(videoDuration, "video"), status);
   await requestRef.update({ audioMediaId: audio.mediaId, videoMediaId: video.mediaId });
@@ -129,7 +129,7 @@ test("approved phrase, ClamAV-approved safe derivatives, owner review and exactl
     assert.equal(started.audio.maxDurationSeconds, 20);
     assert.equal(started.video.minDurationSeconds, 3);
     const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
-    await attachEvidence(ref, uid, started.requestId, 60000, 4000, "pending_security_scan");
+    await attachEvidence(ref, uid, started.requestId, 20000, 4000, "pending_security_scan");
     await assert.rejects(() => submitBiometricVerificationRequest.run(memberRequest(uid, {
       requestId: started.requestId,
     })), error => error && error.code === "failed-precondition");
@@ -211,7 +211,7 @@ test("three rejections require calendar-month waits, close permanently, and neve
       ids.push(started.requestId);
       assert.equal(started.attemptNumber, attempt);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
-      await attachEvidence(ref, uid, started.requestId, 30000, 3000);
+      await attachEvidence(ref, uid, started.requestId, 20000, 3000);
       await submitBiometricVerificationRequest.run(memberRequest(uid, { requestId: started.requestId }));
       await assert.rejects(() => decideBiometricVerificationRequest.run(ownerRequest(ownerUid, {
         requestId: started.requestId, decision: "rejected",
@@ -248,7 +248,7 @@ test("rejects out-of-policy voice and video durations and keeps invalid submissi
     await assert.rejects(() => completeBiometricVerificationCycle.run(memberRequest(uid, {
       localAuthenticationSucceeded: true,
     })), error => error && error.code === "failed-precondition");
-    for (const [audioDuration, videoDuration] of [[60001, 4000], [60000, 5001]]) {
+    for (const [audioDuration, videoDuration] of [[20001, 4000], [20000, 5001]]) {
       const started = await startBiometricVerificationRequest.run(memberRequest(uid));
       ids.push(started.requestId);
       const ref = db.collection("biometricVerificationRequests").doc(started.requestId);
