@@ -26,18 +26,13 @@
 - دفتر محفظة مركزي يوفر primitive ائتمان ذري في `wallet-ledger.ts`. هذا الملف المفحوص لا يقدم primitive خصم/حجز/تحرير/استرداد خاصاً بتسوية المكالمات.
 - اختبار التكامل `call-economy-gifts.integration.test.js` يثبت إعداد سياسة أسعار تجريبية versioned مع بقاء `billingEnabled=false`، واختبار سجل هدايا المتجر. لا يختبر تسوية مكالمة أو خصم محفظة لها.
 
-### 1.2 خلل ربط لقطة التسعير
+### 1.2 فصل لقطة السعر التجريبية عن مسار الموافقة المالية
 
-في `startCall`، قرب السطر 11317، تستدعى `projectGroupCallTestPricingSnapshot` وتحفظ النتيجة في حقل `testPricingSnapshot` ضمن وثيقة المكالمة.
+في `startCall`، قرب السطر 11317، تستدعى `projectGroupCallTestPricingSnapshot` وتحفظ النتيجة في حقل `testPricingSnapshot` ضمن وثيقة المكالمة. الدالة تقبل فقط إعداداً موسوماً `test_only` و`billingEnabled:false`.
 
-لكن:
-- `consentToRoomCallBilling` يقرأ `call.groupCallPricingSnapshot`.
-- `respondToRoomCallJoinRequest` يقرأ `call.groupCallPricingSnapshot`.
-- `getActiveRoomCall` يقرأ `call.groupCallPricingSnapshot`.
+في المقابل، `consentToRoomCallBilling` و`respondToRoomCallJoinRequest` و`getActiveRoomCall` تقرأ الحقل `groupCallPricingSnapshot`. لم يظهر في مسار `startCall` المفحوص كاتب لهذا الحقل على وثيقة المكالمة. لذلك فإن مسار الموافقة المالية لا يتصل بلقطة السعر التجريبية الحالية، ويعود عند غياب اللقطة إلى `no_active_owner_price` بدلاً من إنشاء موافقة على سعر الاختبار.
 
-لم يظهر في البحث داخل `index.ts` موضع آخر يكتب `groupCallPricingSnapshot` إلى وثيقة المكالمة. وبناء على مسار الإنشاء المفحوص، لا تتطابق تسمية الحقل المكتوب مع الحقل المقروء. هذا خلل تكامل مؤكد في مسار لقطة التسعير/الموافقة، ويحتاج إصلاحاً واختباراً داخل Full Platform بعد تثبيت دلالة السعر التجريبي مقابل سياسة الفوترة الحقيقية.
-
-لا يُصلح الخلل بمجرد تبديل اسم الحقل؛ لأن `projectGroupCallTestPricingSnapshot` يصرح بأن البيئة `test_only`، و`isGroupCallBillingCollectionEnabled` يعيد `false` دائماً. يجب الحفاظ على الفصل بين معاينة السعر والموافقة على خصم حقيقي.
+هذا عدم اكتمال في مسار موافقة/فوترة مستقبلية، لكنه ليس مبرراً لنسخ `testPricingSnapshot` إلى `groupCallPricingSnapshot`؛ لأن ذلك يخلط بين معاينة تجريبية وتفويض مالي. الإجراء الآمن هو إبقاء الفصل، وإظهار حالة السعر التجريبي صراحة في واجهة الحالة مع تعطيل طلب الموافقة المالية، أو بناء snapshot فوترة مستقلة فقط بعد اعتماد سياسة التحصيل الحقيقية. لم يجر تعديل الكود في هذه المرحلة.
 
 ### 1.3 غياب تسوية المحفظة من نهاية المكالمة
 
