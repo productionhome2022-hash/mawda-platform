@@ -8,6 +8,7 @@ import 'guest_session_screen.dart';
 import 'owner_mfa_enrollment_screen.dart';
 import 'privacy_acknowledgement_screen.dart';
 import '../privacy_policy.dart';
+import '../widgets/member_activity_meter.dart';
 
 class AuthGate extends StatelessWidget {
   AuthGate({super.key});
@@ -147,7 +148,7 @@ class _PrivacyAcknowledgementGateState
             return widget.actorType == 'guest'
                 ? const GuestSessionScreen()
                 : _OwnerMfaGate(
-                    child: MainUserScreen(userId: widget.userId),
+                    child: MemberActivityMeter(child: MainUserScreen(userId: widget.userId)),
                   );
           }
           return PrivacyAcknowledgementScreen(
