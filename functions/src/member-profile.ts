@@ -59,13 +59,22 @@ export function validateMemberProfile(
   if (!["single", "married", "divorced", "widowed"].includes(maritalStatus)) {
     throw new Error("maritalStatus: القيمة المختارة غير مدعومة.");
   }
+  const interests = stringList(data.interests ?? [], "interests", 20, 40);
+  if (interests.length === 0) {
+    throw new Error("INTERESTS_REQUIRED");
+  }
   const goals = stringList(data.goals ?? [], "goals", 10, 40);
+  if (goals.length === 0) {
+    throw new Error("GOALS_REQUIRED");
+  }
   const allowedGoals = new Set(["friendship", "social_connection", "romantic_dating", "marriage"]);
   if (goals.some((goal) => !allowedGoals.has(goal))) {
     throw new Error("goals: اختر هدفاً معتمداً من القائمة.");
   }
-  if (age < 18 && goals.some((goal) => ["romantic_dating", "marriage"].includes(goal))) {
-    throw new Error("ADULT_RELATIONSHIP_GOAL_REQUIRES_ADULT");
+  // The platform constitution permits social and dating goals from 16;
+  // marriage intent is restricted to adults (18+).
+  if (age < 18 && goals.includes("marriage")) {
+    throw new Error("MARRIAGE_GOAL_REQUIRES_ADULT");
   }
   const bio = data.bio === undefined ? "" : data.bio;
   if (typeof bio !== "string" || bio.trim().length > 500) {
@@ -81,7 +90,7 @@ export function validateMemberProfile(
     gender,
     maritalStatus,
     bio: bio.trim(),
-    interests: stringList(data.interests ?? [], "interests", 20, 40),
+    interests,
     goals,
   };
 }
