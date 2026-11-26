@@ -11,7 +11,7 @@ import { calculateOwnerAuditHash } from "./owner-audit-chain";
 import { createInitialBiometricReview, decideBiometricReview, startBiometricRetry } from "./biometric-review-state";
 import { assertBiometricAudioFileAllowed, assertBiometricVideoFileAllowed } from "./biometric-media";
 import { detectMediaSignature } from "./media-security";
-import { addCalendarMonthsUtc, isBiometricVerificationDue } from "./verification-calendar";
+import { BIOMETRIC_VERIFICATION_INTERVAL_MS, isBiometricVerificationDue } from "./verification-calendar";
 import {
   BIOMETRIC_SPOKEN_PHRASE, BIOMETRIC_SPOKEN_PHRASE_VERSION,
   BIOMETRIC_AUDIO_MAX_BYTES, BIOMETRIC_AUDIO_MAX_DURATION_MS, BIOMETRIC_VIDEO_MAX_BYTES,
@@ -295,7 +295,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       } else if (previous.status === "accepted") {
         const acceptedAt = previous.acceptedAt instanceof Timestamp ? previous.acceptedAt.toMillis() : Number(previous.acceptedAtMs);
         if (!Number.isSafeInteger(acceptedAt) || !isBiometricVerificationDue(acceptedAt, nowMs)) {
-          throw new HttpsError("failed-precondition", "التجديد متاح بعد شهر تقويمي من القبول.");
+          throw new HttpsError("failed-precondition", "التجديد متاح بعد مرور 30 يوماً على القبول.");
         }
       } else {
         throw new HttpsError("failed-precondition", "حالة طلب التوثيق السابق غير صالحة.");
@@ -304,7 +304,7 @@ export const startBiometricVerificationRequest = onCall(async (request) => {
       const acceptedAt = user.biometricVerification.acceptedAt instanceof Timestamp
         ? user.biometricVerification.acceptedAt.toMillis() : null;
       if (acceptedAt === null || !isBiometricVerificationDue(acceptedAt, nowMs)) {
-        throw new HttpsError("failed-precondition", "التجديد متاح بعد شهر تقويمي من القبول.");
+        throw new HttpsError("failed-precondition", "التجديد متاح بعد مرور 30 يوماً على القبول.");
       }
     }
     const state = { ...createInitialBiometricReview({ requestId, uid, submittedAtMs: nowMs }), attemptNumber: attempt };
@@ -579,7 +579,7 @@ export const decideBiometricVerificationRequest = onCall(async request => {
   const ledgerRef = userRef.collection("walletLedger").doc(biometricRewardLedgerId(requestId));
   const playbackGrantRef = db().collection("biometricOwnerPlaybackGrants").doc(requestId + "_" + reviewerUid);
   const nowMs = Date.now(), acceptedAt = Timestamp.fromMillis(nowMs);
-  const expiresAt = Timestamp.fromMillis(addCalendarMonthsUtc(nowMs, 1));
+  const expiresAt = Timestamp.fromMillis(nowMs + BIOMETRIC_VERIFICATION_INTERVAL_MS);
   const mfaAt = Number(request.auth?.token.auth_time) * 1000;
   if (!Number.isSafeInteger(mfaAt) || mfaAt > nowMs || nowMs - mfaAt > 15 * 60 * 1000) {
     throw new HttpsError("permission-denied", "انتهت صلاحية جلسة MFA الحديثة؛ أعد توثيق جلسة المالك.");
