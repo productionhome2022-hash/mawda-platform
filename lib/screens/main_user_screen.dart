@@ -398,12 +398,12 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                       }),
                     ),
                     FilterChip(
-                      label: const Text('التعارف العاطفي (18 عاماً فأكثر)'),
+                      label: const Text('التعارف العاطفي (16 عاماً فأكثر)'),
                       selected: _selectedGoals.contains('romantic_dating'),
                       onSelected: (selected) {
                         final age = int.tryParse(_age.text.trim()) ?? 0;
-                        if (selected && age < 18) {
-                          setState(() => _error = 'التعارف العاطفي متاح للأعضاء بعمر 18 عاماً فأكثر.');
+                        if (selected && age < 16) {
+                          setState(() => _error = 'التعارف العاطفي متاح للأعضاء بعمر 16 عاماً فأكثر.');
                           return;
                         }
                         setState(() {
@@ -430,7 +430,7 @@ class _MemberProfileFormState extends State<_MemberProfileForm> {
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text('الصداقة والتواصل الاجتماعي غير الرومانسي متاحان من 16 عاماً، أما التعارف العاطفي ونية الزواج فمن 18 عاماً.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                const Text('الصداقة والتواصل الاجتماعي والتعارف العاطفي متاحة من 16 عاماً، أما نية الزواج فمن 18 عاماً.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                 const SizedBox(height: 12),
                 if (_error != null) ...[
                   const SizedBox(height: 8),
