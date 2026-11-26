@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isActiveRentedPrivateRoom } = require("../lib/room-call-policy");
+const { isActiveRentedPrivateRoom, areRoomCallParticipantsMembers, areDirectCallParticipantsEligible } = require("../lib/room-call-policy");
 
 function stamp(ms) { return { toMillis: () => ms }; }
 
@@ -47,4 +47,42 @@ test("room or rental expiry at or before server time is rejected", () => {
 test("malformed timestamps and invalid clocks fail closed", () => {
   assert.equal(isActiveRentedPrivateRoom({ ...room, expiresAt: { toMillis: () => { throw new Error("bad"); } } }, rental, 1), false);
   assert.equal(isActiveRentedPrivateRoom(room, rental, -1), false);
+});
+
+
+test("room-call membership snapshots fail closed unless every selected participant remains a member", () => {
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, { exists: true }]), true);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, { exists: false }]), false);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }]), false);
+  assert.equal(areRoomCallParticipantsMembers([]), false);
+  assert.equal(areRoomCallParticipantsMembers(null), false);
+  assert.equal(areRoomCallParticipantsMembers([{ exists: true }, null]), false);
+});
+
+test("direct-call relationship revalidation requires the exact current two-member chat", () => {
+  const caller = { age: 30, blockedUids: [] };
+  const peer = { age: 29, blockedUids: [] };
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], caller, peer), true);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "other"], caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller"], caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "caller", ["caller", "peer"], caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer", "other"], caller, peer), false);
+});
+
+test("direct-call relationship revalidation rejects cross-age-class and mutual blocks", () => {
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], { age: 17 }, { age: 18 }), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], { age: 17 }, { age: 16 }), true);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], { age: 30, blockedUids: ["peer"] }, { age: 29 }), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], { age: 30 }, { age: 29, blockedUids: ["caller"] }), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], { age: "30" }, { age: 29 }), false);
+});
+
+test("direct-call relationship revalidation fails closed on missing snapshots and malformed identity", () => {
+  const caller = { age: 30 };
+  const peer = { age: 29 };
+  assert.equal(areDirectCallParticipantsEligible("", "peer", ["", "peer"], caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", "caller,peer", caller, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], null, peer), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], caller, null), false);
+  assert.equal(areDirectCallParticipantsEligible("caller", "peer", ["caller", "peer"], [], peer), false);
 });
