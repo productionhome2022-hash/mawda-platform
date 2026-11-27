@@ -63,6 +63,9 @@ test("accepts only Mawdda-owned secure SFU/TURN configuration with secret refere
   assert.throws(() => validateMawddaMediaPlaneConfig({
     ...config, turnUrls: [config.turnUrls[0], config.turnUrls[0]],
   }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  assert.throws(() => validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: [config.turnUrls[0], "TURNS:TURN.MAWDDA.EXAMPLE:5349"],
+  }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
 });
 
 test("validates TURN ICE URLs without accepting whitespace, malformed endpoints or silent fallback", () => {
