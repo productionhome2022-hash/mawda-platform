@@ -306,7 +306,7 @@ test("owner catalog publication fails closed on a corrupt prior version", async 
       () => setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
         itemId, name: "Version fixture", description: "Corrupt version must not be overwritten.",
         category: "vip", priceCoins: 100, durationDays: 30,
-        sortOrder: 1, active: true, purchaseEnabled: false,
+        sortOrder: 1, active: true, purchaseEnabled: false, expectedVersion: 0,
       })),
       (error) => error && error.code === "failed-precondition",
     );
