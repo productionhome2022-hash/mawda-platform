@@ -128,3 +128,32 @@ Remaining featured-ad gates are unchanged: implement the independent featured ca
 - Owner-provided evidence references are audit pointers, not automatic external financial verification.
 - Representative commission and payout accounting belongs to the separate Advertising Department contract workflow; it is not silently mixed into member Coins rewards.
 - A full phase exit still requires exact-HEAD CI green, emulator proof, UI tests, review of Firestore indexes/rules, and an owner acceptance of the manual financial workflow and its legal/accounting semantics.
+
+
+## Full Platform integration follow-up — 2026-11-27
+
+Reviewed against development-branch source at `b0f7c4af1ad739295e3778925c68134a0c7977bb`.
+
+### Current integrated lifecycle
+- The featured showcase has its own server endpoints in `functions/src/index.ts`: discovery, start, heartbeat, end and completion. It remains separate from the ordinary timed-ad flow and uses the central wallet/ledger rather than a parallel economy.
+- Session creation validates campaign approval, payment, creative approval, schedule and safe media derivative metadata/generation before issuing a short-lived read URL.
+- Completion re-reads session, campaign, member, policy, daily counters and campaign-member history in one Firestore transaction. If all gates pass, it writes one wallet balance update, a session-linked ledger entry, a claim receipt and budget/counter updates atomically.
+- The product's fixed ceiling of **10 rewarded views per member per featured campaign per UTC day** is now enforced in the reward decision and settlement path. Owner-configured rolling-window limits can be lower but cannot raise this daily ceiling. Campaign timestamps retain at least the current UTC day even if the configured rolling window is shorter.
+- `functions/test/featured-ad-rewards.test.js` covers the ninth-to-tenth eligible view and rejects the next attempt with `campaign_daily_view_cap`.
+
+### Evidence boundary — rewards remain fail-closed
+- Session creation initializes `serverValidatedVisibility` and `serverValidatedPlayback` to false. Client foreground/visibility/progress heartbeats remain telemetry only.
+- No trusted playback/visibility attestation provider is connected in this source state. Therefore the completion transaction rejects reward eligibility when trusted evidence is absent; local playback or client heartbeat cannot mint coins.
+- The fixed ten-view cap does not enable rewards, invent a reward amount, create a budget, or override owner policy. Default reward policy remains disabled/zero until explicitly configured by the owner.
+
+### Validation evidence
+- Accumulated source/test head: `b0f7c4af1ad739295e3778925c68134a0c7977bb`.
+- GitHub Actions `Mawdda economy regression` run `45961078669`: **success**, including featured-ad reward policy regressions.
+- GitHub Actions `Validate Mawda` run `45961078701`: Functions compile/unit and server evidence/authorization/biometric integration jobs completed successfully; the separate Flutter job was still running at documentation time.
+- GitHub Actions `Mawdda Test Center` run `45961078680`: Flutter analysis/tests/web release build completed successfully; complete backend emulator journeys were still running at documentation time.
+
+### Remaining integration work
+- Connect a trusted playback/visibility evidence source with replay protection and immutable session evidence; do not promote client heartbeat to trusted evidence.
+- Complete the full member-facing featured/ordinary ad UI acceptance against their separate lifecycle contracts.
+- Verify concurrent session exclusion, withdrawal during playback, daily/rolling caps, budget exhaustion, exactly-once reward settlement and owner policy-version changes across the complete emulator journey.
+- No production reward, campaign billing, live Firebase mutation, deployment or paid infrastructure was enabled.
