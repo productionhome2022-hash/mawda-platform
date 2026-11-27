@@ -29,6 +29,7 @@ const base = {
   continuousVisibleMs: 0,
   rewardedViewsToday: 0,
   rewardCoinsToday: 0,
+  sameCampaignRewardedViewsToday: 0,
   sameCampaignRewardsInWindow: 0,
 };
 
@@ -89,6 +90,15 @@ test("enforces continuous visible time for static images", () => {
 test("enforces owner-configured daily rewarded-view and coin caps", () => {
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardedViewsToday: 10 }).reason, "daily_view_cap");
   assert.equal(decideFeaturedAdReward(policy, { ...base, rewardCoinsToday: 19 }).reason, "daily_coin_cap");
+});
+
+test("enforces the fixed ten-view per-campaign UTC-day ceiling", () => {
+  assert.equal(decideFeaturedAdReward(policy, {
+    ...base, sameCampaignRewardedViewsToday: 9,
+  }).eligible, true);
+  assert.equal(decideFeaturedAdReward(policy, {
+    ...base, sameCampaignRewardedViewsToday: 10,
+  }).reason, "campaign_daily_view_cap");
 });
 
 test("enforces the owner-configured per-campaign rolling window cap", () => {
