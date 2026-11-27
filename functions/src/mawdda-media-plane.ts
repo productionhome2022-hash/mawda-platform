@@ -20,8 +20,8 @@ export function validateMawddaTurnUrls(value: unknown): string[] {
     throw new Error("MAWDDA_TURN_URLS_INVALID");
   }
   const valid = urls.every((entry) => {
-    if (/[\\s\\u0000-\\u001f]/.test(entry)) return false;
-    const match = /^(turn|turns):([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?(?:\\?transport=(udp|tcp))?$/i.exec(entry);
+    if (/[\s\u0000-\u001f]/.test(entry)) return false;
+    const match = /^(turn|turns):([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?(?:\?transport=(udp|tcp))?$/i.exec(entry);
     if (!match) return false;
     const hostname = match[2];
     const labels = hostname.split(".");
