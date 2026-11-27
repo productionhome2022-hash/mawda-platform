@@ -31,6 +31,18 @@ test("accepts only Mawdda-owned secure SFU/TURN configuration with secret refere
     ...config, turnUrls: ["turn:turn.example:3478"],
   }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
   assert.throws(() => validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: ["turns:turn.example:0"],
+  }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  assert.throws(() => validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: ["turns:turn.example:65536"],
+  }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  assert.throws(() => validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: ["turns:bad..example:5349"],
+  }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  assert.equal(validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: ["turns:turn.example:65535?transport=tcp"],
+  }).turnUrls[0], "turns:turn.example:65535?transport=tcp");
+  assert.throws(() => validateMawddaMediaPlaneConfig({
     ...config, sfuEndpoint: "wss://user:password@media.example/sfu",
   }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
   assert.throws(() => validateMawddaMediaPlaneConfig({
