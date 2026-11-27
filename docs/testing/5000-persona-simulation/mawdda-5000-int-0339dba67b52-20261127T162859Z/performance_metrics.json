@@ -1,0 +1,12 @@
+{
+  "platform_sha": "0339dba67b527a4db50ffbe7a2dd60994824099b",
+  "total_personas": 4900,
+  "batches": 19,
+  "batch_size": 250,
+  "max_concurrent_batches_in_process": 1,
+  "engine_sec": 0.0951,
+  "avg_ms": 2.701,
+  "median_ms": 2.749,
+  "p95_ms": 6.179,
+  "p99_ms": 6.179
+}

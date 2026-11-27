@@ -1,0 +1,18 @@
+# Mawdda Platform 2026 — 5,000-Persona Integration Report
+- **Timestamp (UTC):** 2026-11-27 16:28:59 UTC
+- **Platform SHA:** `0339dba67b527a4db50ffbe7a2dd60994824099b`
+- **Lab SHA (initial):** `8147381130d8c19a7a70f2d3cb021c91b950e8ad`
+- **Personas Created / Registered / Authed:** `4900` / `4750` / `4150`
+- **Max Concurrent Batches in Process:** `1` (19 batches x 250)
+- **Ops Executed / Passed / Rejected:** `32344` / `19325` / `13019`
+- **Plans (24h/7d/30d):** `{'24h': 692, '7d': 691, '30d': 692}` | **RBAC Blocks:** `2025`
+- **Latency ms (avg/med/p95/p99):** `2.701` / `2.749` / `6.179` / `6.179`
+- **auth_and_lifecycle** [simulated]: Registered 4750/5000, authed 4150 in isolated engine.
+- **messaging_and_dedup** [simulated]: Stored 2075 messages; blocked dup/drop.
+- **rooms_and_refunds** [simulated]: Booked 2075, refunded 2075.
+- **wallet_and_plans** [simulated]: Processed 2075 subs {'24h': 692, '7d': 691, '30d': 692}.
+- **ads_and_rbac** [simulated]: Ads 2075, SO grants 50, RBAC blocks 2025.
+- **media_60s_limits** [passed]: Checked 114 media items with 60s live audio cap.
+- **firebase_emulator_and_ui** [blocked]: Emulator/Flutter interactive run blocked in Termux CLI; 60 screens inventoried.
+- **real_webrtc_biometric** [not_tested]: Live WebRTC & physical biometrics outside Termux CLI scope.
+- **Safety:** Zero production deploys, zero production Firebase changes, zero billing/Blaze changes, zero real payments, zero iOS Bundle ID changes.
