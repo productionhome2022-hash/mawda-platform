@@ -35,6 +35,7 @@ const {
   cleanupExpiredMediaUploadIntents,
   sendChatImageAttachment,
   getChatImageAttachmentUrl,
+  getMediaSaverAttachmentUrl,
   sendChatMediaAttachment,
   getChatMediaAttachmentUrl,
   deleteMediaAssetForMessage,
@@ -793,6 +794,67 @@ for (const item of [
     assert.ok(delivered.contentType);
   });
 }
+
+test("Media Saver is receiver-usable, rechecks entitlement per save, and does not extend retention", async () => {
+  const senderUid = `media-saver-sender-${randomUUID()}`;
+  const recipientUid = `media-saver-recipient-${randomUUID()}`;
+  const senderRef = db.collection("users").doc(senderUid);
+  const recipientRef = db.collection("users").doc(recipientUid);
+  const entitlementRef = recipientRef.collection("entitlements").doc("media_saver_24h");
+  await Promise.all([
+    senderRef.set({ profileCompleted: true, age: 30, blockedUids: [] }),
+    recipientRef.set({ profileCompleted: true, age: 28, blockedUids: [] }),
+  ]);
+  const mediaId = await createReadyChatImage({ uid: senderUid });
+  const clientMessageId = `saver_${randomUUID().replace(/-/g, "")}`;
+  const sent = await sendChatImageAttachment.run({
+    data: { scope: "direct", recipientUid, mediaId, clientMessageId },
+    auth: { uid: senderUid, token: { firebase: { sign_in_provider: "password" } } },
+  });
+  const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const beforeExpiry = (await assetRef.get()).data().retentionExpiresAt.toMillis();
+
+  try {
+    const request = {
+      data: { scope: "direct", chatId: sent.chatId, messageId, mediaId },
+      auth: { uid: recipientUid, token: { firebase: { sign_in_provider: "password" } } },
+    };
+    await assert.rejects(
+      () => getMediaSaverAttachmentUrl.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    await entitlementRef.set({ status: "active" });
+    const saved = await getMediaSaverAttachmentUrl.run(request);
+    assert.match(saved.url, /^https?:\\/\\//);
+    assert.equal(saved.category, "image");
+
+    await entitlementRef.update({ status: "revoked" });
+    await assert.rejects(
+      () => getMediaSaverAttachmentUrl.run(request),
+      (error) => error && error.code === "failed-precondition",
+    );
+
+    const afterExpiry = (await assetRef.get()).data().retentionExpiresAt.toMillis();
+    assert.equal(afterExpiry, beforeExpiry);
+  } finally {
+    const chatRef = db.collection("directChats").doc(sent.chatId);
+    const [messages, notifications] = await Promise.all([
+      chatRef.collection("messages").get(),
+      recipientRef.collection("notifications").get(),
+    ]);
+    await Promise.all([
+      ...messages.docs.map((doc) => doc.ref.delete()),
+      ...notifications.docs.filter((doc) => doc.id === messageId).map((doc) => doc.ref.delete()),
+      chatRef.delete().catch(() => undefined),
+      entitlementRef.delete().catch(() => undefined),
+      senderRef.delete().catch(() => undefined),
+      recipientRef.delete().catch(() => undefined),
+      assetRef.delete().catch(() => undefined),
+    ]);
+  }
+});
 
 test("safe image can be linked to a direct message and delivered only to its participant", async () => {
   const senderUid = `attachment-sender-${randomUUID()}`;
