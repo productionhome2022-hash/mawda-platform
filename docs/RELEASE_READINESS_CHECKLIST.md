@@ -391,3 +391,9 @@ Detailed requirements: [MAWADDA_PHASED_LAUNCH_AND_DISTRIBUTION_PLAN_2026.md](MAW
 - [ ] Obtain explicit owner approval for public deployment. Documentation, a generated artifact, or CI success alone is not publication approval.
 
 **Phase 1 exclusions:** no automated payment provider, no Play Console enrollment, no Apple Developer membership, no native iOS App Store release, and no paid cloud activation without a separate owner decision.
+
+## Owner-approved internal GitHub verification scope — 2026-11-27
+
+This amendment supersedes the 2026-11-22 internal-only scope where it said the 5,000-persona lab was not authorized. The owner has now explicitly directed that GitHub-hosted internal tests be enabled and that large-scale simulation be conducted only in `productionhome2022-hash/mawdda-5000-simulation-lab`, against an exact immutable Full Platform SHA. No 5,000-persona harness may run in the primary repository.
+
+Required GitHub-hosted checks (all applicable checks must be enabled and evidenced): Flutter format/analyze/tests and supported build validation; Cloud Functions dependency install/build/unit tests; Firestore and Storage Emulator integration/security rules; media/scanner unit and safety tests; YAML/workflow syntax and deployment-command guard; CodeQL/static analysis, dependency review and secret scanning where configured. Lab validation and 5,000-persona scenarios must use synthetic data, emulator-only services and no live Firebase/GCP/Cloudflare mutation. Never enable billing, production deployment, live destructive retention, external device tests or paid resources as part of this scope. Record each run ID, exact commit SHA, result and artifact.
