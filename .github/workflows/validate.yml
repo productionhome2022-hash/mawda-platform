@@ -24,6 +24,9 @@ on:
       - "storage.rules"
       - "firestore.indexes.json"
       - ".github/workflows/**"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
   push:
     branches:
       - codex/mawda-full-platform-implementation
@@ -45,6 +48,9 @@ on:
       - "storage.rules"
       - "firestore.indexes.json"
       - ".github/workflows/**"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 concurrency:
