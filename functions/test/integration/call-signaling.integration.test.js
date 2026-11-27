@@ -634,6 +634,17 @@ test("room-call join admission requires creator approval and version-bound conse
     assert.equal(requesterConsent.consented, true);
     assert.equal(requesterConsent.policyVersion, pricingSnapshot.version);
 
+    await assert.rejects(
+      () => respondToRoomCallJoinRequest.run(call(creatorUid, {
+        callId, requesterUid, decision: "approve",
+      })),
+      (error) => error && error.code === "failed-precondition",
+      "approval must fail when the creator or late joiner lacks an active call entitlement",
+    );
+    assert.deepEqual((await callRef.get()).data().participantUids, [creatorUid]);
+    assert.equal((await requesterLock.get()).exists, false);
+
+    await grantCallEntitlements([creatorUid, requesterUid]);
     const approved = await respondToRoomCallJoinRequest.run(call(creatorUid, {
       callId, requesterUid, decision: "approve",
     }));
