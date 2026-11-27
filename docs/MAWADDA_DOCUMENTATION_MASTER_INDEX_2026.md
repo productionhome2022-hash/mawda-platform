@@ -172,3 +172,9 @@
 ### حفظ النسخة التاريخية لخطة التوحيد
 
 - [نسخة Recovery السابقة من خطة التوحيد قبل توجيه المالك الأحدث](_archive/recovery-conflict-snapshots-2026-11-25/FULL_PLATFORM_CANONICAL_BODY_AND_BRANCH_CLEANUP_PLAN_2026-11-24.md).
+
+## Latest governance lock and owner sovereignty — 2026-11-27
+
+The binding operational reference is [FULL_PLATFORM_FINAL_CONSTITUTION_LOCK.md](governance/FULL_PLATFORM_FINAL_CONSTITUTION_LOCK.md), effective 2026-11-27 11:09:33 UTC and amended with its implementation/security/verification addendum. Super Owner is the sole canonical owner identity with complete operational authority across every platform domain. All owner powers must be implemented server-side, represented in the unified console, protected by step-up authentication where sensitive, and recorded in durable audit evidence. This authority does not permit plaintext credential disclosure or unaudited access to private content.
+
+The older historical scope statements in this index (including restrictions on owner authority or simulation execution) are superseded only to the extent they conflict with the latest explicit owner approval. The 5,000-persona lab is now explicitly commissioned for simulation and testing in its own repository only; the primary repository must not invoke the large-scale harness. All CI must remain GitHub-hosted and isolated from production/cloud mutations. The exact platform SHA and lab SHA must be recorded for every simulation run.
