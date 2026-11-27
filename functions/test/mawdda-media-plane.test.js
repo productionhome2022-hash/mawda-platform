@@ -48,6 +48,20 @@ test("accepts only Mawdda-owned secure SFU/TURN configuration with secret refere
   assert.throws(() => validateMawddaMediaPlaneConfig({
     ...config, turnCredentialSecretRef: "plain-secret-value",
   }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  for (const secretRef of [
+    "/secret-manager/mawdda-turn",
+    "secret-manager/mawdda-turn/",
+    "secret-manager//mawdda-turn",
+    "secret-manager/../mawdda-turn",
+    "secret-manager/./mawdda-turn",
+  ]) {
+    assert.throws(() => validateMawddaMediaPlaneConfig({
+      ...config, turnCredentialSecretRef: secretRef,
+    }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
+  }
+  assert.throws(() => validateMawddaMediaPlaneConfig({
+    ...config, turnUrls: [config.turnUrls[0], config.turnUrls[0]],
+  }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
 });
 
 test("does not declare readiness from configuration without live health evidence", () => {
