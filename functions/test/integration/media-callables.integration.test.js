@@ -827,7 +827,7 @@ test("Media Saver is receiver-usable, rechecks entitlement per save, and does no
 
     await entitlementRef.set({ status: "active" });
     const saved = await getMediaSaverAttachmentUrl.run(request);
-    assert.match(saved.url, /^https?:\\/\\//);
+    assert.ok(saved.url.startsWith("http://") || saved.url.startsWith("https://"));
     assert.equal(saved.category, "image");
 
     await entitlementRef.update({ status: "revoked" });
