@@ -5,6 +5,41 @@
  * for a self-managed SFU/TURN deployment. It does not pretend that signaling
  * or Firebase alone transports media, and it never provisions infrastructure.
  */
+
+/**
+ * Validate TURN URIs before returning them to clients. A malformed configured
+ * endpoint must fail closed rather than silently degrading to STUN-only ICE.
+ */
+export function validateMawddaTurnUrls(value: unknown): string[] {
+  if (typeof value !== "string" || value.length > 16_384) {
+    throw new Error("MAWDDA_TURN_URLS_INVALID");
+  }
+  if (value.trim().length === 0) return [];
+  const urls = value.split(",").map((entry) => entry.trim());
+  if (urls.length < 1 || urls.length > 8 || urls.some((entry) => entry.length === 0)) {
+    throw new Error("MAWDDA_TURN_URLS_INVALID");
+  }
+  const valid = urls.every((entry) => {
+    if (/[\\s\\u0000-\\u001f]/.test(entry)) return false;
+    const match = /^(turn|turns):([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?(?:\\?transport=(udp|tcp))?$/i.exec(entry);
+    if (!match) return false;
+    const hostname = match[2];
+    const labels = hostname.split(".");
+    if (hostname.length > 253 || labels.some((label) =>
+      label.length < 1 || label.length > 63 ||
+      !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label))) return false;
+    if (match[3] !== undefined) {
+      const port = Number(match[3]);
+      if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) return false;
+    }
+    return !(match[1].toLowerCase() === "turns" && match[4]?.toLowerCase() === "udp");
+  });
+  if (!valid || new Set(urls.map((entry) => entry.toLowerCase())).size !== urls.length) {
+    throw new Error("MAWDDA_TURN_URLS_INVALID");
+  }
+  return urls;
+}
+
 export interface MawddaMediaPlaneConfig {
   owner: "mawdda";
   deploymentId: string;
