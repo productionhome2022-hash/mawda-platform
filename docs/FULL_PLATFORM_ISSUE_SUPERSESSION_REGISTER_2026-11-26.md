@@ -124,3 +124,15 @@ Full Platform هو المرجع الوحيد للمحتوى البرمجي وا�
 هذا الملحق هو توجيه المالك المعتمد في المجالات المذكورة، ويعلو على أي صياغة تخطيطية أقدم تشترط مزود مكالمات أو شبكة إعلانات خارجية، أو تجعل حفظ المستقبل خاضعاً لإرادة المرسل. تبقى الوثائق والسجلات التاريخية محفوظة كما هي لأغراض التدقيق؛ ويجب توجيه الفهارس والوثائق التنفيذية النشطة إلى هذا الملحق دون إعادة كتابة الأدلة التاريخية. لا يجوز الانحراف عن هذه السياسة أو إنشاء استثناء إلا بقرار جديد وصريح من المالك.
 
 **الخلاصة التنفيذية:** جسم Mawdda واحد ومتكامل؛ المكالمات والإعلانات خدمات داخلية مملوكة للمنصة؛ أي مزود خارجي مستقبلاً اختياري وبقرار لاحق؛ المستقبل يملك حق الحفظ فوراً؛ والمرسل يملك خيار الحذف لديه أو لدى الجميع؛ ولا يبدأ تنظيف المستودع إلا بعد إغلاق الفجوات بأدلة قابلة للتحقق.
+
+
+---
+
+## CI failure triage — 2026-11-27 (Mawdda media-plane)
+
+- GitHub Actions runs `45956457077`, `45956457020`, and `45956457089` executed the Functions unit suite against commit `517f13e609e414d4c5d23d2b35fff4d9b0d34710` and exposed failures in the newly added media-plane tests.
+- Root cause confirmed from the exact tested source at that SHA: `isSecureMediaUrl` passed TURN URIs such as `turns:turn.mawdda.example:5349` to the WHATWG `URL` parser, which treats them as opaque URIs and does not expose a hostname. The valid Mawdda TURN configuration was therefore rejected as `invalid_config`; the missing-health assertion then failed secondarily because configuration validation short-circuited first.
+- The current development-branch source now contains a dedicated strict TURN-URI validator, rejects whitespace/control characters, and keeps the WSS endpoint validation separate. Current source blob: `a2ed6f250edea4dd2c8be241f3478d28e9a46032`; test fixture blob: `f77041f9b1c50f4a6642018058c3d5ba67ef15d2`.
+- **Status: source correction present; exact-head GitHub Actions revalidation not yet evidenced.** The earlier failed run is historical evidence against the pre-fix SHA and must not be described as a failure of the corrected source, nor may the corrected source be marked passed without a new run tied to its commit SHA.
+- No live SFU/TURN infrastructure, DNS, certificates, paid resources, production Firebase settings, or collection/billing paths were provisioned or enabled. Media transport remains operationally unproven and the call path remains open.
+- This triage did not run the 5,000-persona lab, external tests, physical-device tests, production operations, or any deployment.
