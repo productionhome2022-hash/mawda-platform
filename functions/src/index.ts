@@ -7116,6 +7116,10 @@ export const setStoreCatalogItem = onCall(async (request) => {
   } catch {
     throw new HttpsError("invalid-argument", "بيانات عنصر المتجر أو سعره أو تصنيفه غير صالحة.");
   }
+  const expectedVersion = request.data?.expectedVersion;
+  if (!Number.isSafeInteger(expectedVersion) || Number(expectedVersion) < 0) {
+    throw new HttpsError("invalid-argument", "إصدار عنصر المتجر المتوقع غير صالح.");
+  }
   const itemRef = db.collection("storeCatalog").doc(item.itemId);
   let savedVersion = 0;
   await db.runTransaction(async (transaction) => {
@@ -7128,6 +7132,9 @@ export const setStoreCatalogItem = onCall(async (request) => {
       ? 0 : rawPreviousVersion;
     if (!Number.isSafeInteger(previousVersion) || previousVersion < 0) {
       throw new HttpsError("failed-precondition", "إصدار عنصر المتجر الحالي غير صالح؛ أوقفنا التحديث لحماية سجل الأسعار.");
+    }
+    if (previousVersion !== Number(expectedVersion)) {
+      throw new HttpsError("aborted", "تغير عنصر المتجر منذ فتح لوحة الإدارة. حدّث البيانات ثم أعد المحاولة.");
     }
     if (previousVersion >= Number.MAX_SAFE_INTEGER) {
       throw new HttpsError("resource-exhausted", "بلغ عنصر المتجر الحد الآمن للإصدارات؛ أوقفنا التحديث.");
