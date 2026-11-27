@@ -13656,10 +13656,22 @@ export const respondToRoomCallJoinRequest = onCall(async (request) => {
     const userRef = db.collection("users").doc(requesterUid);
     const creatorRef = db.collection("users").doc(creatorUid);
     const lockRef = ACTIVE_CALL_MEMBER_LOCKS.doc(requesterUid);
-    const [joinRequest, room, rental, member, user, creator, lock] = await Promise.all([
+    const callEntitlementItemIds = call.mode === "audio"
+      ? ["voice_call_24h", "voice_call_7d", "voice_call_30d"]
+      : call.mode === "video"
+        ? ["video_call_24h", "video_call_7d", "video_call_30d"]
+        : [];
+    if (callEntitlementItemIds.length === 0) {
+      throw new HttpsError("failed-precondition", "نوع المكالمة غير صالح؛ تعذر التحقق من استحقاق الانضمام.");
+    }
+    const callEntitlementRefs = [creatorUid, requesterUid].flatMap((memberUid) =>
+      callEntitlementItemIds.map((itemId) =>
+        db.collection("users").doc(memberUid).collection("entitlements").doc(itemId)));
+    const [joinRequest, room, rental, member, user, creator, lock, callEntitlementSnapshots] = await Promise.all([
       transaction.get(requestRef), transaction.get(roomRef), transaction.get(rentalRef),
       transaction.get(memberRef), transaction.get(userRef), transaction.get(creatorRef),
-      transaction.get(lockRef),
+      transaction.get(lockRef), Promise.all(callEntitlementRefs.map((entitlementRef) =>
+        transaction.get(entitlementRef))),
     ]);
     if (!joinRequest.exists || joinRequest.data()?.status !== "requested") {
       if (joinRequest.exists && joinRequest.data()?.status === "approved" &&
@@ -13690,6 +13702,23 @@ export const respondToRoomCallJoinRequest = onCall(async (request) => {
         decidedAt: FieldValue.serverTimestamp(),
       });
       return { approved: false, rejected: true, idempotentReplay: false };
+    }
+    const entitlementsByUid = new Map<string, Array<{ itemId: string; data: unknown }>>();
+    for (const entitlement of callEntitlementSnapshots) {
+      const memberUid = entitlement.ref.parent.parent?.id;
+      if (!memberUid || !entitlement.exists) continue;
+      const entries = entitlementsByUid.get(memberUid) ?? [];
+      entries.push({ itemId: entitlement.id, data: entitlement.data() });
+      entitlementsByUid.set(memberUid, entries);
+    }
+    const entitlementCheck = evaluateCallParticipantEntitlements(
+      [creatorUid, requesterUid], call.mode, entitlementsByUid, Date.now(),
+    );
+    if (!entitlementCheck.allowed) {
+      throw new HttpsError(
+        "failed-precondition",
+        "يجب أن يمتلك منشئ المكالمة والعضو طالب الانضمام استحقاقاً سارياً لنوع المكالمة قبل الموافقة.",
+      );
     }
     const roomData = room.data() ?? {};
     const capacity = roomData.capacity;
