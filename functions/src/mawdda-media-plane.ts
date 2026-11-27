@@ -51,7 +51,20 @@ function isSecureMediaUrl(value: unknown, protocols: string[]): value is string 
   // TURN URIs are opaque RFC 7065 URIs, not hierarchical URLs. The WHATWG
   // URL parser treats "turns:host:port" as an opaque path and yields no host.
   if (protocols.length === 1 && protocols[0] === "turns:") {
-    return /^turns:[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:\?transport=tcp)?$/i.test(value);
+    const match = /^turns:([A-Za-z0-9.-]+)(?::([0-9]{1,5}))?(?:\\?transport=tcp)?$/i.exec(value);
+    if (!match) return false;
+    const hostname = match[1];
+    const labels = hostname.split(".");
+    if (hostname.length > 253 || labels.some((label) =>
+      label.length < 1 || label.length > 63 ||
+      !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label))) {
+      return false;
+    }
+    if (match[2] !== undefined) {
+      const port = Number(match[2]);
+      if (!Number.isSafeInteger(port) || port < 1 || port > 65535) return false;
+    }
+    return true;
   }
 
   try {
