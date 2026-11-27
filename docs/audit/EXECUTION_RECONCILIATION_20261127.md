@@ -3,10 +3,10 @@
 **Audit date (UTC):** 2026-11-27  
 **Primary repository:** `productionhome2022-hash/mawda-platform`  
 **Primary branch:** `codex/mawda-full-platform-implementation`  
-**Primary HEAD verified:** `4fdcac0a451f9b848709ea72285b7209a5d8bf7c`  
+**Primary HEAD at audit start:** `4fdcac0a451f9b848709ea72285b7209a5d8bf7c`  
 **Simulation repository:** `productionhome2022-hash/mawdda-5000-simulation-lab`  
 **Simulation branch:** `codex/mawda-full-platform-implementation`  
-**Simulation HEAD verified:** `1547d96ea95d717a67a7beb34ef418d8e992de34`
+**Simulation HEAD at audit start:** `1547d96ea95d717a67a7beb34ef418d8e992de34`
 
 ## 1. Governance and repository state
 
