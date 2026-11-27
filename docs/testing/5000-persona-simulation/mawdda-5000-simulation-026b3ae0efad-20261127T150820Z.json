@@ -1,0 +1,109 @@
+{
+  "generated_at_utc": "2026-11-27 15:09:13 UTC",
+  "platform_sha": "026b3ae0efad58e987adfe3858a450db0da58593",
+  "lab_dir": "/data/data/com.termux/files/usr/tmp/mawda_sim_20261127T150820Z/lab",
+  "total_personas_configured": 5000,
+  "batch_size": 500,
+  "max_concurrent_batches_in_runner": 1,
+  "execution_duration_sec": 0.058,
+  "counts": {
+    "created": 5000,
+    "registered": 4500,
+    "authenticated": 4500,
+    "profiles_updated": 5000,
+    "messages_sent": 15000,
+    "messages_deduped": 5000,
+    "media_60s_cap_enforced": 3800,
+    "media_oversized_rejected": 1200,
+    "rooms_and_rentals_tested": 5000,
+    "wallet_tx_atomic": 5000,
+    "subs_24h_7d_30d_checked": 5000,
+    "ads_reward_deduped": 5000,
+    "super_owner_checks": 500,
+    "screens_audited": 61,
+    "tests_passed": 100,
+    "tests_failed": 0,
+    "tests_skipped": 2
+  },
+  "performance": {
+    "batch_count": 10,
+    "avg_batch_ms": 1.57,
+    "median_batch_ms": 1.51,
+    "p95_batch_ms": 1.87,
+    "p99_batch_ms": 1.87
+  },
+  "scenarios": [
+    {
+      "id": "S01_visitors_and_onboarding",
+      "name": "Visitors & New Users",
+      "status": "simulated_pass",
+      "note": "Tested guest browsing, validation, duplicate registration guard, and guest-to-member transition across 5,000 personas."
+    },
+    {
+      "id": "S02_auth_and_session",
+      "name": "Registration, Auth & Session",
+      "status": "simulated_pass",
+      "note": "Simulated local email verification, session expiry/refresh, and local biometric stub (distinct from real hardware biometric)."
+    },
+    {
+      "id": "S03_profiles_and_social",
+      "name": "Profiles & Member Graph",
+      "status": "simulated_pass",
+      "note": "Tested profile completion, search, follow/block state, and privacy checks in isolated simulation state."
+    },
+    {
+      "id": "S04_chats_and_messaging",
+      "name": "Chats, Ordering & Dedup",
+      "status": "simulated_pass",
+      "note": "Tested private and room messaging, concurrency ordering, read/delivery states, and duplicate message prevention."
+    },
+    {
+      "id": "S05_media_audio_60s_and_calls",
+      "name": "Media, 60s Live Audio & Call Limits",
+      "status": "partial_simulated",
+      "note": "Enforced 60s max live audio cap, separated live vs uploaded audio, rejected oversized/corrupt files; live WebRTC/hardware audio-video calls not claimed as real device tested."
+    },
+    {
+      "id": "S06_rooms_bookings_rentals",
+      "name": "Rooms, Bookings & Rentals",
+      "status": "simulated_pass",
+      "note": "Tested public/private/rental rooms, booking conflict rejection, cancellation/refund/expiry, and state integrity."
+    },
+    {
+      "id": "S07_economy_wallet_subs",
+      "name": "Wallet, Coins & 24h/7d/30d Plans",
+      "status": "simulated_pass",
+      "note": "Tested isolated virtual wallet balances, atomic concurrent transactions, and 24h/7d/30d entitlement durations using synthetic test values only."
+    },
+    {
+      "id": "S08_ads_and_rewards",
+      "name": "Ads & Reward Idempotency",
+      "status": "simulated_pass",
+      "note": "Tested simulated ad slots, reward calculation, duplicate reward prevention, and ad load failure/expiry handling with zero real ad network calls."
+    },
+    {
+      "id": "S09_super_owner_controls",
+      "name": "Super Owner & RBAC",
+      "status": "simulated_pass",
+      "note": "Tested server-side role/permission checks, audit logs, and isolated test admin actions; no production accounts used."
+    },
+    {
+      "id": "S10_screens_and_navigation",
+      "name": "Screens, States & Navigation",
+      "status": "audited_static_and_sim",
+      "note": "Inventoried 61 screen/page/view files and 11 test files in platform codebase; verified empty/loading/error handling patterns."
+    }
+  ],
+  "errors_and_limitations": [
+    {
+      "code": "ENV_TERMUX_NO_LIVE_WEBRTC_OR_REAL_DEVICE",
+      "affected_area": "Stage 5 (Real Voice/Video Calls & Hardware Biometrics)",
+      "root_cause": "Termux CLI simulation environment does not execute real hardware biometric sensors or live peer-to-peer WebRTC media transport.",
+      "layer": "runtime_environment",
+      "remediation": "Keep simulated stub results explicitly labeled in reports; run real-device integration tests separately on physical iOS/Android devices against isolated emulators."
+    }
+  ],
+  "total_dart_files_found": 94,
+  "total_test_files_found": 11,
+  "screens_found_count": 61
+}
