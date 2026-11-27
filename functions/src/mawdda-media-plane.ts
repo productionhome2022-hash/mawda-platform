@@ -132,7 +132,7 @@ export function validateMawddaMediaPlaneConfig(value: unknown): MawddaMediaPlane
       input.turnCredentialSecretRef.endsWith("/") ||
       input.turnCredentialSecretRef.split("/").some((segment) =>
         segment.length === 0 || segment === "." || segment === "..") ||
-      new Set(input.turnUrls as string[]).size !== input.turnUrls.length ||
+      new Set((input.turnUrls as string[]).map((url) => url.toLowerCase())).size !== input.turnUrls.length ||
       typeof input.enabled !== "boolean") {
     throw new Error("MAWDDA_MEDIA_PLANE_CONFIG_INVALID");
   }
