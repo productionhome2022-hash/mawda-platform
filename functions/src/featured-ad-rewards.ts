@@ -34,6 +34,7 @@ export type FeaturedAdRewardDecision =
         | "completion_not_met"
         | "daily_view_cap"
         | "daily_coin_cap"
+        | "campaign_daily_view_cap"
         | "campaign_rolling_cap";
     };
 
@@ -112,6 +113,7 @@ export interface FeaturedAdRewardEvidence {
   continuousVisibleMs: number;
   rewardedViewsToday: number;
   rewardCoinsToday: number;
+  sameCampaignRewardedViewsToday: number;
   sameCampaignRewardsInWindow: number;
 }
 
@@ -126,6 +128,8 @@ export function decideFeaturedAdReward(
   if (!Number.isSafeInteger(evidence.nowMs) || evidence.nowMs < 0 ||
       !Number.isSafeInteger(evidence.rewardedViewsToday) || evidence.rewardedViewsToday < 0 ||
       !Number.isSafeInteger(evidence.rewardCoinsToday) || evidence.rewardCoinsToday < 0 ||
+      !Number.isSafeInteger(evidence.sameCampaignRewardedViewsToday) ||
+      evidence.sameCampaignRewardedViewsToday < 0 ||
       !Number.isSafeInteger(evidence.sameCampaignRewardsInWindow) || evidence.sameCampaignRewardsInWindow < 0) {
     throw new Error("FEATURED_AD_REWARD_EVIDENCE_INVALID");
   }
@@ -156,6 +160,11 @@ export function decideFeaturedAdReward(
   }
   if (evidence.rewardCoinsToday + policy.rewardCoinsPerView > policy.maxRewardCoinsPerUtcDay) {
     return { eligible: false, amountCoins: 0, reason: "daily_coin_cap" };
+  }
+  // The owner may configure a lower rolling-window cap, but cannot raise
+  // the fixed product ceiling of ten rewarded views per member/campaign/UTC day.
+  if (evidence.sameCampaignRewardedViewsToday >= 10) {
+    return { eligible: false, amountCoins: 0, reason: "campaign_daily_view_cap" };
   }
   if (evidence.sameCampaignRewardsInWindow >= policy.maxRewardsPerCampaignRolling24h) {
     return { eligible: false, amountCoins: 0, reason: "campaign_rolling_cap" };
