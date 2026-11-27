@@ -75,10 +75,3 @@ jobs:
 
       - name: Install pinned Firebase CLI
         run: npm install --global firebase-tools@14.0.0
-
-      - name: Deploy to Firebase Hosting
-        # DISABLED_BY_POLICY: Requires explicit owner approval before any Firebase/GCP/Cloudflare deployment
-        # run: firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --token "${{ secrets.FIREBASE_TOKEN }}"
-        env:
-          FIREBASE_PROJECT_ID: mawda-app-2026
-          FIREBASE_CLI_PREVIEWS: hostingchannels
