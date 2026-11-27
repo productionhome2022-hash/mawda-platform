@@ -3,6 +3,7 @@ import { validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled
 import { assertPlatformRoleCapacity, platformRoleCapacity, PLATFORM_ROLE_CAPACITY, type NumberedPlatformRole } from "./platform-role-identities";
 import { initializeApp } from "firebase-admin/app";
 import { validateCallRequest, validateCallSignal, canTransitionCall, isCallMemberBusyInSession, CALL_RING_TIMEOUT_MS, CALL_SIGNAL_MAX_AGE_MS, CALL_SIGNAL_MAX_PER_CALLER } from "./call-signaling";
+import { validateMawddaTurnUrls } from "./mawdda-media-plane";
 import { getAuth, type UserRecord } from "firebase-admin/auth";
 import { getMessaging } from "firebase-admin/messaging";
 import { getStorage } from "firebase-admin/storage";
@@ -11859,8 +11860,12 @@ export const getCallIceConfiguration = onCall(
     const iceServers: Array<Record<string, unknown>> = [
       { urls: ["stun:stun.l.google.com:19302"] },
     ];
-    const urls = mawddaTurnUrls.value().split(",").map((value) => value.trim())
-      .filter((value) => /^(turn|turns):[^\\s]+$/.test(value));
+    let urls: string[];
+    try {
+      urls = validateMawddaTurnUrls(mawddaTurnUrls.value());
+    } catch {
+      throw new HttpsError("failed-precondition", "إعدادات TURN غير صالحة؛ تعذر إعداد الاتصال.");
+    }
     if (urls.length > 0) {
       const sharedSecret = mawddaTurnSharedSecret.value();
       if (sharedSecret.length < 32) {
