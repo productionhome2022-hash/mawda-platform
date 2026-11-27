@@ -45,11 +45,20 @@ export type MawddaMediaPlaneReadiness =
 const HEALTH_MAX_AGE_MS = 30_000;
 
 function isSecureMediaUrl(value: unknown, protocols: string[]): value is string {
-  if (typeof value !== "string" || value.length > 2048) return false;
+  if (typeof value !== "string" || value.length > 2048 ||
+      value.trim() !== value || /[\\s\\u0000-\\u001f]/.test(value)) return false;
+
+  // TURN URIs are opaque RFC 7065 URIs, not hierarchical URLs. The WHATWG
+  // URL parser treats "turns:host:port" as an opaque path and yields no host.
+  if (protocols.length === 1 && protocols[0] === "turns:") {
+    return /^turns:[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:\\?transport=tcp)?$/i.test(value);
+  }
+
   try {
     const url = new URL(value);
     return protocols.includes(url.protocol) && Boolean(url.hostname) &&
-      !url.username && !url.password && !url.hash;
+      !url.username && !url.password && !url.hash &&
+      (url.protocol !== "wss:" || !url.search);
   } catch {
     return false;
   }
