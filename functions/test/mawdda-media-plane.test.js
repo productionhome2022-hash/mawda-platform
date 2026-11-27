@@ -64,6 +64,25 @@ test("accepts only Mawdda-owned secure SFU/TURN configuration with secret refere
   }), /MAWDDA_MEDIA_PLANE_CONFIG_INVALID/);
 });
 
+test("validates TURN ICE URLs without accepting whitespace, malformed endpoints or silent fallback", () => {
+  assert.deepEqual(validateMawddaTurnUrls("turn:turn.example:3478?transport=udp, turns:us-east.turn.example:5349?transport=tcp"), [
+    "turn:turn.example:3478?transport=udp",
+    "turns:us-east.turn.example:5349?transport=tcp",
+  ]);
+  assert.deepEqual(validateMawddaTurnUrls(""), []);
+  for (const value of [
+    "turn:turn.example:0",
+    "turn:turn.example:65536",
+    "turn:turn.example:3478 path",
+    "turn:bad..example:3478",
+    "turns:turn.example:5349?transport=udp",
+    "turn:turn.example:3478,",
+    "turn:turn.example:3478,turn:turn.example:3478",
+  ]) {
+    assert.throws(() => validateMawddaTurnUrls(value), /MAWDDA_TURN_URLS_INVALID/);
+  }
+});
+
 test("does not declare readiness from configuration without live health evidence", () => {
   const result = evaluateMawddaMediaPlaneReadiness({
     config, health: null, nowMs: 100_000,
