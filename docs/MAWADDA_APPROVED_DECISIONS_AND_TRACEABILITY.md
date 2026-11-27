@@ -615,3 +615,18 @@ The owner has explicitly clarified the following binding implementation requirem
 [`MAWDDA_SINGLE_SOURCE_OF_TRUTH_AND_CONSOLIDATION_POLICY_2026.md`](MAWDDA_SINGLE_SOURCE_OF_TRUTH_AND_CONSOLIDATION_POLICY_2026.md).
 
 هذا السجل يحتفظ بمعرّفي القرار لأغراض التتبع فقط؛ النص التنفيذي الكامل والمرجع الواجب تطبيقه موجود في الوثيقة الموحدة. عند أي تعديل لاحق، تُحدّث الوثيقة الموحدة أولاً ويُحدّث هذا المرجع المختصر معها، ولا تُنشأ نسخة سياسة موازية.
+## GOV-OWNER-003 — Final Super Owner sovereignty and implementation alignment (2026-11-27)
+
+| Field | Approved rule |
+|---|---|
+| Authority | Super Owner is the single canonical owner identity with complete platform-wide operational authority across all current and future domains. |
+| Actions | Create, inspect, approve, reject, modify, suspend, cancel, reverse, restore, refund, settle, grant, revoke, assign, remove, delegate, revoke delegation, audit and request reports. |
+| Delegation | Admin 1..N and specialist roles are assigned and revoked only by Super Owner; scopes are explicit, bounded, revocable and audited. |
+| Enforcement | Every sensitive action is authorized server-side against canonical owner identity; client role flags are never trusted. |
+| Private content | Owner access/intervention is purpose-bound, step-up authenticated, legally/privacy-notice compliant and immutably audited. |
+| Credential recovery | Owner may initiate secure recovery/reset; existing passwords, hashes, MFA secrets, recovery codes and tokens are never exposed in plaintext. |
+| Control console | Every owner capability must be represented by a functional console action or documented emergency backend operation. |
+| Verification | Every requirement maps to implementation, rules, tests and GitHub run/SHA evidence. |
+| Status | Governance approved; complete code-level implementation and test coverage remain to be audited and proven. |
+
+Source of authority: `docs/governance/FULL_PLATFORM_FINAL_CONSTITUTION_LOCK.md`, effective 2026-11-27 11:09:33 UTC. This record does not claim that the features are already implemented.

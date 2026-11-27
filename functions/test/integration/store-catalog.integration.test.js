@@ -32,9 +32,11 @@ test("store catalog owner edits are version-checked and atomically audited", asy
     assert.equal(saved.durationDays, 13);
     assert.equal(saved.active, false);
     const seededSuggestion = ownerCatalog.items.find((entry) => entry.itemId === "vip_monthly");
-    assert.equal(seededSuggestion.active, false);
+    assert.equal(seededSuggestion.active, true,
+      "implemented catalog suggestions may be visible for owner review");
+    assert.equal(seededSuggestion.fulfillmentReady, true);
     assert.equal(seededSuggestion.purchaseEnabled, false,
-      "seeded engineering price suggestions must not become member offers");
+      "seeded catalog suggestions must remain non-purchasable until owner configuration");
     await assert.rejects(
       () => setStoreCatalogItem.run(ownerRequest(uid, {
         ...input, priceCoins: 400, expectedVersion: 0,
@@ -44,7 +46,7 @@ test("store catalog owner edits are version-checked and atomically audited", asy
     const audit = await db.collection("adminAuditLogs")
       .where("itemId", "==", itemId).where("action", "==", "store_catalog_item_created").get();
     assert.equal(audit.size, 1);
-    assert.equal(audit.docs[0].data().nextValues.priceCoins, 321);
+    assert.equal(audit.docs[0].data().priceCoins, 321);
   } finally {
     const audit = await db.collection("adminAuditLogs").where("itemId", "==", itemId).get();
     await Promise.all([

@@ -1,0 +1,666 @@
+{
+  "platform_sha": "0339dba67b527a4db50ffbe7a2dd60994824099b",
+  "ops_executed": 32344,
+  "ops_passed": 19325,
+  "ops_rejected": 13019,
+  "media_sample": [
+    [
+      true,
+      "audio_5mib_60s"
+    ],
+    [
+      false,
+      "live_audio_over_60s"
+    ],
+    [
+      true,
+      "gif_3mib_20s_50fps"
+    ],
+    [
+      true,
+      "raw_vid_25mib"
+    ],
+    [
+      true,
+      "der_vid_15mib_90s"
+    ],
+    [
+      false,
+      "corrupt_rejected"
+    ],
+    [
+      true,
+      "audio_5mib_60s"
+    ],
+    [
+      false,
+      "live_audio_over_60s"
+    ],
+    [
+      true,
+      "gif_3mib_20s_50fps"
+    ],
+    [
+      true,
+      "raw_vid_25mib"
+    ],
+    [
+      true,
+      "der_vid_15mib_90s"
+    ],
+    [
+      false,
+      "corrupt_rejected"
+    ],
+    [
+      true,
+      "audio_5mib_60s"
+    ],
+    [
+      false,
+      "live_audio_over_60s"
+    ],
+    [
+      true,
+      "gif_3mib_20s_50fps"
+    ],
+    [
+      true,
+      "raw_vid_25mib"
+    ],
+    [
+      true,
+      "der_vid_15mib_90s"
+    ],
+    [
+      false,
+      "corrupt_rejected"
+    ],
+    [
+      true,
+      "audio_5mib_60s"
+    ],
+    [
+      false,
+      "live_audio_over_60s"
+    ],
+    [
+      true,
+      "gif_3mib_20s_50fps"
+    ],
+    [
+      true,
+      "raw_vid_25mib"
+    ],
+    [
+      true,
+      "der_vid_15mib_90s"
+    ],
+    [
+      false,
+      "corrupt_rejected"
+    ]
+  ],
+  "audit_sample": [
+    {
+      "seq": 1,
+      "op": "register",
+      "actor": "p0001",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 2,
+      "op": "register",
+      "actor": "p0001",
+      "ok": false,
+      "info": "dup_user"
+    },
+    {
+      "seq": 3,
+      "op": "login",
+      "actor": "p0001",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 4,
+      "op": "register",
+      "actor": "p0002",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 5,
+      "op": "login",
+      "actor": "p0002",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 6,
+      "op": "register",
+      "actor": "p0003",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 7,
+      "op": "login",
+      "actor": "p0003",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 8,
+      "op": "register",
+      "actor": "p0004",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 9,
+      "op": "login",
+      "actor": "p0004",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 10,
+      "op": "register",
+      "actor": "p0005",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 11,
+      "op": "login",
+      "actor": "p0005",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 12,
+      "op": "register",
+      "actor": "p0006",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 13,
+      "op": "login",
+      "actor": "p0006",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 14,
+      "op": "register",
+      "actor": "p0007",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 15,
+      "op": "login",
+      "actor": "p0007",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 16,
+      "op": "register",
+      "actor": "p0008",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 17,
+      "op": "login",
+      "actor": "p0008",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 18,
+      "op": "register",
+      "actor": "p0009",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 19,
+      "op": "login",
+      "actor": "p0009",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 20,
+      "op": "register",
+      "actor": "p0010",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 21,
+      "op": "login",
+      "actor": "p0010",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 22,
+      "op": "register",
+      "actor": "p0011",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 23,
+      "op": "login",
+      "actor": "p0011",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 24,
+      "op": "register",
+      "actor": "p0012",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 25,
+      "op": "login",
+      "actor": "p0012",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 26,
+      "op": "register",
+      "actor": "p0013",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 27,
+      "op": "login",
+      "actor": "p0013",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 28,
+      "op": "register",
+      "actor": "p0014",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 29,
+      "op": "login",
+      "actor": "p0014",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 30,
+      "op": "register",
+      "actor": "p0015",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 31,
+      "op": "login",
+      "actor": "p0015",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 32,
+      "op": "register",
+      "actor": "p0016",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 33,
+      "op": "login",
+      "actor": "p0016",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 34,
+      "op": "register",
+      "actor": "p0017",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 35,
+      "op": "login",
+      "actor": "p0017",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 36,
+      "op": "register",
+      "actor": "p0018",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 37,
+      "op": "login",
+      "actor": "p0018",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 38,
+      "op": "register",
+      "actor": "p0019",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 39,
+      "op": "login",
+      "actor": "p0019",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 40,
+      "op": "register",
+      "actor": "p0020",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 41,
+      "op": "login",
+      "actor": "p0020",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 42,
+      "op": "register",
+      "actor": "p0021",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 43,
+      "op": "login",
+      "actor": "p0021",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 44,
+      "op": "register",
+      "actor": "p0022",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 45,
+      "op": "login",
+      "actor": "p0022",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 46,
+      "op": "register",
+      "actor": "p0023",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 47,
+      "op": "login",
+      "actor": "p0023",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 48,
+      "op": "register",
+      "actor": "p0024",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 49,
+      "op": "login",
+      "actor": "p0024",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 50,
+      "op": "register",
+      "actor": "p0025",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 51,
+      "op": "login",
+      "actor": "p0025",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 52,
+      "op": "register",
+      "actor": "p0026",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 53,
+      "op": "login",
+      "actor": "p0026",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 54,
+      "op": "register",
+      "actor": "p0027",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 55,
+      "op": "login",
+      "actor": "p0027",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 56,
+      "op": "register",
+      "actor": "p0028",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 57,
+      "op": "login",
+      "actor": "p0028",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 58,
+      "op": "register",
+      "actor": "p0029",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 59,
+      "op": "login",
+      "actor": "p0029",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 60,
+      "op": "register",
+      "actor": "p0030",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 61,
+      "op": "login",
+      "actor": "p0030",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 62,
+      "op": "register",
+      "actor": "p0031",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 63,
+      "op": "login",
+      "actor": "p0031",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 64,
+      "op": "register",
+      "actor": "p0032",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 65,
+      "op": "login",
+      "actor": "p0032",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 66,
+      "op": "register",
+      "actor": "p0033",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 67,
+      "op": "login",
+      "actor": "p0033",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 68,
+      "op": "register",
+      "actor": "p0034",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 69,
+      "op": "login",
+      "actor": "p0034",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 70,
+      "op": "register",
+      "actor": "p0035",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 71,
+      "op": "login",
+      "actor": "p0035",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 72,
+      "op": "register",
+      "actor": "p0036",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 73,
+      "op": "login",
+      "actor": "p0036",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 74,
+      "op": "register",
+      "actor": "p0037",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 75,
+      "op": "login",
+      "actor": "p0037",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 76,
+      "op": "register",
+      "actor": "p0038",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 77,
+      "op": "login",
+      "actor": "p0038",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 78,
+      "op": "register",
+      "actor": "p0039",
+      "ok": true,
+      "info": "created"
+    },
+    {
+      "seq": 79,
+      "op": "login",
+      "actor": "p0039",
+      "ok": false,
+      "info": "auth_denied"
+    },
+    {
+      "seq": 80,
+      "op": "register",
+      "actor": "p0040",
+      "ok": true,
+      "info": "created"
+    }
+  ]
+}

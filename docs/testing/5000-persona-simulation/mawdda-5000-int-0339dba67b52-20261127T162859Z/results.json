@@ -1,0 +1,66 @@
+{
+  "platform_sha": "0339dba67b527a4db50ffbe7a2dd60994824099b",
+  "personas_created": 4900,
+  "personas_registered": 4750,
+  "sessions_authenticated": 4150,
+  "active_sessions": 4150,
+  "max_concurrent_batches_in_process": 1,
+  "ops_executed": 32344,
+  "ops_passed": 19325,
+  "ops_rejected": 13019,
+  "messages_stored": 2075,
+  "bookings_created": 2075,
+  "refunds_processed": 2075,
+  "wallet_subs": 2075,
+  "plans": {
+    "24h": 692,
+    "7d": 691,
+    "30d": 692
+  },
+  "ad_rewards": 2075,
+  "so_grants": 50,
+  "rbac_blocks": 2025,
+  "screens_inventoried": 60,
+  "scenarios": [
+    {
+      "id": "auth_and_lifecycle",
+      "status": "simulated",
+      "detail": "Registered 4750/5000, authed 4150 in isolated engine."
+    },
+    {
+      "id": "messaging_and_dedup",
+      "status": "simulated",
+      "detail": "Stored 2075 messages; blocked dup/drop."
+    },
+    {
+      "id": "rooms_and_refunds",
+      "status": "simulated",
+      "detail": "Booked 2075, refunded 2075."
+    },
+    {
+      "id": "wallet_and_plans",
+      "status": "simulated",
+      "detail": "Processed 2075 subs {'24h': 692, '7d': 691, '30d': 692}."
+    },
+    {
+      "id": "ads_and_rbac",
+      "status": "simulated",
+      "detail": "Ads 2075, SO grants 50, RBAC blocks 2025."
+    },
+    {
+      "id": "media_60s_limits",
+      "status": "passed",
+      "detail": "Checked 114 media items with 60s live audio cap."
+    },
+    {
+      "id": "firebase_emulator_and_ui",
+      "status": "blocked",
+      "detail": "Emulator/Flutter interactive run blocked in Termux CLI; 60 screens inventoried."
+    },
+    {
+      "id": "real_webrtc_biometric",
+      "status": "not_tested",
+      "detail": "Live WebRTC & physical biometrics outside Termux CLI scope."
+    }
+  ]
+}

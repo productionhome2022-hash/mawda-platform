@@ -1,0 +1,240 @@
+{
+  "generated_at_utc": "2026-11-27 15:18:50 UTC",
+  "platform_sha": "03ef98591f8462412a378c33fe44388af9887ad3",
+  "total_personas_target": 5000,
+  "batch_size": 250,
+  "batches_executed": 20,
+  "max_concurrent_batches_in_process": 1,
+  "engine_elapsed_sec": 0.112,
+  "metrics": {
+    "total_personas": 5000,
+    "registered_count": 5000,
+    "duplicate_reg_blocked": 20,
+    "authenticated_count": 4300,
+    "auth_failures_recorded": 700,
+    "blocks_and_unblocks_tested": 2150,
+    "messages_persisted": 4300,
+    "duplicate_messages_blocked": 2150,
+    "blocked_channel_messages_rejected": 2150,
+    "media_accepted": 80,
+    "media_rejected_by_rule": 60,
+    "rooms_booked": 2150,
+    "room_conflicts_blocked": 2150,
+    "room_refunds_verified": 2150,
+    "wallet_tx_succeeded": 2150,
+    "duplicate_wallet_tx_blocked": 2150,
+    "plan_durations_verified": {
+      "24h": 717,
+      "7d": 717,
+      "30d": 716
+    },
+    "ad_rewards_granted": 2150,
+    "duplicate_ad_rewards_blocked": 2150,
+    "super_owner_grants_verified": 125,
+    "privilege_escalations_blocked": 2025
+  },
+  "latency_ms": {
+    "avg": 3.31,
+    "median": 3.51,
+    "p95": 7.15,
+    "p99": 7.15
+  },
+  "platform_static_inventory": {
+    "screen_like_dart_files": 60,
+    "dart_test_files": 11
+  },
+  "scenarios": [
+    {
+      "id": "SCN_01_LIFECYCLE_AUTH",
+      "classification": "simulated",
+      "detail": "Executed in IsolatedSimulationStore across 5000 personas (5000 registered, 4300 authenticated, 20 duplicate registrations blocked, 700 failed auth attempts audited)."
+    },
+    {
+      "id": "SCN_02_SOCIAL_GRAPH",
+      "classification": "simulated",
+      "detail": "Verified 2150 block/unblock pairs and 2150 blocked-channel message rejections."
+    },
+    {
+      "id": "SCN_03_MESSAGING_DEDUP",
+      "classification": "simulated",
+      "detail": "Persisted 4300 messages and blocked 2150 duplicate idempotency keys in isolated store."
+    },
+    {
+      "id": "SCN_04_MEDIA_LIMITS_60S",
+      "classification": "passed",
+      "detail": "Verified media policy validator (80 accepted, 60 rejected) enforcing 60s live audio cap and approved size/duration bounds."
+    },
+    {
+      "id": "SCN_05_ROOMS_RENTALS",
+      "classification": "simulated",
+      "detail": "Verified 2150 room bookings, 2150 booking conflict rejections, and 2150 refunds in isolated store."
+    },
+    {
+      "id": "SCN_06_ECONOMY_PLANS",
+      "classification": "simulated",
+      "detail": "Verified 2150 atomic wallet transactions, 2150 duplicate tx blocks, and plan durations {'24h': 717, '7d': 717, '30d': 716}."
+    },
+    {
+      "id": "SCN_07_ADS_REWARDS",
+      "classification": "simulated",
+      "detail": "Verified 2150 simulated ad reward claims and 2150 duplicate reward blocks without real ad networks."
+    },
+    {
+      "id": "SCN_08_SUPER_OWNER_RBAC",
+      "classification": "simulated",
+      "detail": "Verified 125 Super Owner test grants and blocked 2025 unauthorized non-owner escalations."
+    },
+    {
+      "id": "SCN_09_UI_AND_EMULATOR",
+      "classification": "blocked",
+      "detail": "Inventoried 60 screen/page/view files and 11 test files statically; interactive Flutter widget/integration execution and Firebase Emulator Suite were not run inside Termux CLI."
+    },
+    {
+      "id": "SCN_10_REAL_WEBRTC_BIOMETRIC",
+      "classification": "not_tested",
+      "detail": "Live peer-to-peer WebRTC media transport and physical hardware biometric sensors cannot be verified from Termux CLI."
+    }
+  ],
+  "evidence_checks": [
+    {
+      "test_id": "TC_BATCH_01",
+      "batch_size": 250,
+      "duration_ms": 0.69,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_02",
+      "batch_size": 250,
+      "duration_ms": 0.68,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_03",
+      "batch_size": 250,
+      "duration_ms": 1.24,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_04",
+      "batch_size": 250,
+      "duration_ms": 3.23,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_05",
+      "batch_size": 250,
+      "duration_ms": 3.38,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_06",
+      "batch_size": 250,
+      "duration_ms": 3.41,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_07",
+      "batch_size": 250,
+      "duration_ms": 7.15,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_08",
+      "batch_size": 250,
+      "duration_ms": 3.63,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_09",
+      "batch_size": 250,
+      "duration_ms": 3.52,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_10",
+      "batch_size": 250,
+      "duration_ms": 3.39,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_11",
+      "batch_size": 250,
+      "duration_ms": 3.65,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_12",
+      "batch_size": 250,
+      "duration_ms": 3.5,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_13",
+      "batch_size": 250,
+      "duration_ms": 3.83,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_14",
+      "batch_size": 250,
+      "duration_ms": 3.78,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_15",
+      "batch_size": 250,
+      "duration_ms": 3.33,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_16",
+      "batch_size": 250,
+      "duration_ms": 3.59,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_17",
+      "batch_size": 250,
+      "duration_ms": 3.52,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_18",
+      "batch_size": 250,
+      "duration_ms": 3.59,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_19",
+      "batch_size": 250,
+      "duration_ms": 3.47,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    },
+    {
+      "test_id": "TC_BATCH_20",
+      "batch_size": 250,
+      "duration_ms": 3.67,
+      "status": "passed",
+      "evidence": "Verified 250 personas in IsolatedSimulationStore with state assertions"
+    }
+  ]
+}

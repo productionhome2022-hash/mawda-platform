@@ -24,6 +24,9 @@ on:
       - "storage.rules"
       - "firestore.indexes.json"
       - ".github/workflows/**"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
   push:
     branches:
       - codex/mawda-full-platform-implementation
@@ -45,6 +48,9 @@ on:
       - "storage.rules"
       - "firestore.indexes.json"
       - ".github/workflows/**"
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
   workflow_dispatch:
 
 concurrency:
@@ -215,7 +221,7 @@ jobs:
     name: Comprehensive backend emulator integration — final SHA
     needs: [functions, flutter]
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 300
     defaults:
       run:
         working-directory: functions
@@ -318,6 +324,26 @@ jobs:
       - name: Run Firestore and Storage rules emulator tests
         if: ${{ always() && steps.install_functions.outcome == 'success' }}
         run: npm run test:rules
+
+
+      - name: Seed emulator-only account fixtures
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:seed-accounts
+      - name: Run sticker entitlement lifecycle integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:sticker-lifecycle-integration
+      - name: Run BetaCoins package gifting integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:coin-package-gifts-integration
+      - name: Run featured advertising reward settlement integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:featured-ad-reward-settlement-integration
+      - name: Run call economy gifting integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:call-economy-gifts-integration
+      - name: Run store catalog validation and authorization integration tests
+        if: ${{ always() && steps.install_functions.outcome == 'success' }}
+        run: npm run test:store-catalog-integration
 
 
   scanner:
