@@ -13323,9 +13323,21 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
     const effectivePolicy = featuredAdCampaignRewardPolicy(policy, campaign.rewardCoinsPerView);
     const campaignRewardCoins = effectivePolicy.rewardCoinsPerView;
     const campaignRewardConfigured = campaignRewardCoins > 0;
-    const rewardTimestamps = Array.isArray(member.rewardTimestampsMs)
-      ? member.rewardTimestampsMs.filter((value: unknown) => Number.isSafeInteger(value) && (value as number) >= now - policy.sameCampaignWindowMs)
+    // Retain at least the current UTC day even when the owner chooses a
+    // shorter rolling window, so the immutable ten-view daily ceiling cannot
+    // be bypassed by changing the rolling-window duration.
+    const timestampRetentionMs = Math.max(policy.sameCampaignWindowMs, 24 * 60 * 60 * 1000);
+    const retainedCampaignRewardTimestamps = Array.isArray(member.rewardTimestampsMs)
+      ? member.rewardTimestampsMs.filter((value: unknown) =>
+          Number.isSafeInteger(value) && (value as number) >= now - timestampRetentionMs)
       : [];
+    const rewardTimestamps = retainedCampaignRewardTimestamps.filter((value) =>
+      value >= now - policy.sameCampaignWindowMs);
+    const utcDayStartMs = Date.UTC(
+      new Date(now).getUTCFullYear(), new Date(now).getUTCMonth(), new Date(now).getUTCDate(),
+    );
+    const sameCampaignRewardedViewsToday = retainedCampaignRewardTimestamps.filter((value) =>
+      value >= utcDayStartMs).length;
     const decision = decideFeaturedAdReward(effectivePolicy, {
       nowMs: now, campaignEligible: campaignRewardConfigured &&
         campaign.status === "published" && campaign.ownerWithdrawn !== true &&
@@ -13346,6 +13358,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       continuousVisibleMs: Number(session.serverValidatedContinuousVisibleMs) || 0,
       rewardedViewsToday: Number(daily.rewardedViews) || 0,
       rewardCoinsToday: Number(daily.rewardCoins) || 0,
+      sameCampaignRewardedViewsToday,
       sameCampaignRewardsInWindow: rewardTimestamps.length,
     });
     if (!decision.eligible) {
@@ -13371,7 +13384,7 @@ export const completeFeaturedAdViewingSession = onCall(async (request) => {
       ledgerId, policyVersion: rewardPolicyVersion, createdAt: FieldValue.serverTimestamp(),
     });
     transaction.set(dayRef, { rewardedViews: (Number(daily.rewardedViews) || 0) + 1, rewardCoins: (Number(daily.rewardCoins) || 0) + amount, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
-    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, rewardTimestampsMs: [...rewardTimestamps, now].slice(-1000), lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    transaction.set(campaignMemberRef, { rewardedViews: (Number(member.rewardedViews) || 0) + 1, rewardTimestampsMs: [...retainedCampaignRewardTimestamps, now].slice(-1000), lastRewardAtMs: now, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
     transaction.update(campaignRef, { spentRewardCoins: FieldValue.increment(amount), updatedAt: FieldValue.serverTimestamp() });
     transaction.update(sessionRef, { rewardClaimed: true, status: "rewarded", rewardCoins: amount, rewardLedgerId: ledgerId, completedAtMs: now, updatedAt: FieldValue.serverTimestamp() });
     return { rewarded: true, idempotentReplay: false, amountCoins: amount, ledgerId };
