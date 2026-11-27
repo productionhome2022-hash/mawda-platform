@@ -93,6 +93,11 @@ export function validateMawddaMediaPlaneConfig(value: unknown): MawddaMediaPlane
       typeof input.turnCredentialSecretRef !== "string" ||
       !/^[A-Za-z0-9_./-]{3,200}$/.test(input.turnCredentialSecretRef) ||
       !input.turnCredentialSecretRef.includes("/") ||
+      input.turnCredentialSecretRef.startsWith("/") ||
+      input.turnCredentialSecretRef.endsWith("/") ||
+      input.turnCredentialSecretRef.split("/").some((segment) =>
+        segment.length === 0 || segment === "." || segment === "..") ||
+      new Set(input.turnUrls as string[]).size !== input.turnUrls.length ||
       typeof input.enabled !== "boolean") {
     throw new Error("MAWDDA_MEDIA_PLANE_CONFIG_INVALID");
   }
