@@ -70,6 +70,7 @@ export function validateMawddaMediaPlaneConfig(value: unknown): MawddaMediaPlane
       !input.turnUrls.every((url) => isSecureMediaUrl(url, ["turns:"])) ||
       typeof input.turnCredentialSecretRef !== "string" ||
       !/^[A-Za-z0-9_./-]{3,200}$/.test(input.turnCredentialSecretRef) ||
+      !input.turnCredentialSecretRef.includes("/") ||
       typeof input.enabled !== "boolean") {
     throw new Error("MAWDDA_MEDIA_PLANE_CONFIG_INVALID");
   }
@@ -104,7 +105,7 @@ export function evaluateMawddaMediaPlaneReadiness(args: {
       reasons: ["invalid_config"],
     };
   }
-  const reasons: MawddaMediaPlaneReadiness extends { ready: false; reasons: (infer R)[] } ? R[] : never = [];
+  const reasons: Array<"disabled" | "invalid_config" | "missing_health" | "stale_health" | "deployment_mismatch" | "sfu_unreachable" | "turn_unreachable" | "certificate_invalid" | "capacity_unavailable"> = [];
   if (!config.enabled) reasons.push("disabled");
   const health = args.health;
   if (!health || typeof health !== "object" || Array.isArray(health)) {
