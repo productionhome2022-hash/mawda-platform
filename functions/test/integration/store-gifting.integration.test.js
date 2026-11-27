@@ -53,7 +53,7 @@ test("store gift debits sender and grants recipient once with immutable terms", 
     const saved = await setStoreCatalogItem.run(ownerRequest("gift-catalog-owner", {
       itemId, name: "عضوية VIP", description: "استحقاق تجريبي للإهداء.",
       category: "vip", priceCoins: 500, durationDays: 7,
-      sortOrder: 1, active: true, purchaseEnabled: true,
+      sortOrder: 1, active: true, purchaseEnabled: true, expectedVersion: 0,
     }));
     const catalogSnapshot = await versionsRef.doc(String(saved.version)).get();
     assert.equal(catalogSnapshot.exists, true);
