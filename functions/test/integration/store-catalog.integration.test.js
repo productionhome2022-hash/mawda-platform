@@ -46,7 +46,7 @@ test("store catalog owner edits are version-checked and atomically audited", asy
     const audit = await db.collection("adminAuditLogs")
       .where("itemId", "==", itemId).where("action", "==", "store_catalog_item_created").get();
     assert.equal(audit.size, 1);
-    assert.equal(audit.docs[0].data().nextValues.priceCoins, 321);
+    assert.equal(audit.docs[0].data().priceCoins, 321);
   } finally {
     const audit = await db.collection("adminAuditLogs").where("itemId", "==", itemId).get();
     await Promise.all([
