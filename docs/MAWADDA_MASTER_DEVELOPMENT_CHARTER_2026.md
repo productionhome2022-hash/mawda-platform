@@ -532,3 +532,13 @@ Owner-approved 2026-11-20. Mandatory for every future Mawdda development, repair
 8. Do not automatically cancel in-progress validation merely because a newer commit arrives. Reduce duplicate runs through batching and path filters; queue work when necessary.
 
 This efficiency policy never waives a required security, integration, or release gate. A passing result applies only to the tested SHA and does not authorize main merges, production deployment, paid resources, or live Firebase changes.
+## Latest owner-approved governance precedence — 2026-11-27
+
+The binding operational authority is `docs/governance/FULL_PLATFORM_FINAL_CONSTITUTION_LOCK.md` (effective 2026-11-27 11:09:33 UTC). This charter remains the detailed engineering reference only where compatible with that lock and later explicit owner approvals.
+
+- Super Owner is the single canonical owner identity with complete platform-wide operational authority as defined in the latest lock. Older wording that appears to restrict that authority must be reconciled, not treated as a veto.
+- Implement owner powers through server-authoritative authorization, recent MFA/step-up for sensitive actions, scoped delegation, durable audit records, and the unified control console. Do not expose plaintext passwords, password hashes, MFA secrets, recovery codes or tokens.
+- The sole platform development/integration branch is `codex/mawda-full-platform-implementation`; do not create parallel feature-development branches or bypass repository protection.
+- The 5,000-persona simulation and its synthetic fixtures/logs belong only in `productionhome2022-hash/mawdda-5000-simulation-lab`, pinned to the exact Full Platform SHA under test. No simulation lab workflow may deploy to Firebase, Google Cloud, Cloudflare or production.
+- Enable and execute all applicable GitHub-hosted internal CI checks using emulators and isolated test data. Do not run live cloud, billing, production, or destructive retention operations without separate explicit approval.
+- The latest owner-approved lock governs Super Owner sovereignty; existing decision IDs, technical contracts and security controls remain binding where compatible. Unresolved conflicts must be recorded and resolved, not guessed.
