@@ -222,13 +222,13 @@ test("store purchase atomically charges, records receipt and ledger, grants enti
     const firstPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
       itemId, name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+      active: true, purchaseEnabled: true, fulfillmentReady: true, expectedVersion: 0,
     }));
     assert.equal(firstPublish.version, 1);
     const secondPublish = await setStoreCatalogItem.run(ownerRequest("store-catalog-owner", {
       itemId, name: "VIP test item", description: "Emulator-only entitlement test",
       category: "vip", priceCoins: 1250, durationDays: 30, sortOrder: 1,
-      active: true, purchaseEnabled: true, fulfillmentReady: true,
+      active: true, purchaseEnabled: true, fulfillmentReady: true, expectedVersion: 1,
     }));
     assert.equal(secondPublish.version, 2);
     assert.equal((await itemRef.get()).data().version, 2);
@@ -788,6 +788,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: index + 1,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
     ));
     assert.deepEqual(publishedItems.map((item) => item.version), items.map(() => 1));
@@ -802,6 +803,7 @@ test("every shipped premium store category charges once and grants its matching 
       sortOrder: 1,
       active: true,
       purchaseEnabled: true,
+      expectedVersion: 1,
     }));
     assert.equal(vipRepublished.version, 2);
     assert.equal((await db.collection("storeCatalog").doc("vip_monthly").get()).data().version, 2);
@@ -872,6 +874,7 @@ test("every shipped premium store category charges once and grants its matching 
         sortOrder: 99,
         active: true,
         purchaseEnabled: true,
+        expectedVersion: 0,
       })),
       (error) => error && error.code === "invalid-argument",
     );
@@ -885,6 +888,7 @@ test("every shipped premium store category charges once and grants its matching 
       sortOrder: 99,
       active: true,
       purchaseEnabled: false,
+      expectedVersion: 0,
     }));
     await assert.rejects(
       () => purchaseStoreItem.run(memberRequest(uid, {
@@ -979,6 +983,7 @@ test("store catalog version refuses increment beyond the safe integer boundary",
         itemId, name: "Boundary fixture", description: "Emulator-only",
         category: "vip", priceCoins: 1, durationDays: 30,
         sortOrder: 1, active: true, purchaseEnabled: true, fulfillmentReady: true,
+        expectedVersion: Number.MAX_SAFE_INTEGER,
       })),
       (error) => error && error.code === "resource-exhausted",
     );
