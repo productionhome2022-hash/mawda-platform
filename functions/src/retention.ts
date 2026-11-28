@@ -104,15 +104,18 @@ const ACTIVE_MEDIA_STATES = [
 ];
 const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
 
-export const CHAT_MEDIA_RETENTION_PURPOSES = ["chat", "room", "profile_album", "story", "avatar_cover"] as const;
+export const CHAT_MEDIA_RETENTION_PURPOSES = ["chat", "room"] as const;
+export const INDEPENDENT_MEDIA_RETENTION_PURPOSES = ["profile_album", "story", "avatar_cover"] as const;
 export const STICKER_MEDIA_RETENTION_PURPOSES = ["sticker"] as const;
-type MediaRetentionPurpose = typeof CHAT_MEDIA_RETENTION_PURPOSES[number] | typeof STICKER_MEDIA_RETENTION_PURPOSES[number];
+type MediaRetentionPurpose =
+  | typeof CHAT_MEDIA_RETENTION_PURPOSES[number]
+  | typeof INDEPENDENT_MEDIA_RETENTION_PURPOSES[number]
+  | typeof STICKER_MEDIA_RETENTION_PURPOSES[number];
 
 export async function runChatMediaRetentionSweep(
   purposes: readonly MediaRetentionPurpose[] = CHAT_MEDIA_RETENTION_PURPOSES,
 ): Promise<{ assets: number; objects: number; failures: number }> {
   const db = getFirestore();
-  const now = Timestamp.fromMillis(Date.now());
   let assets = 0;
   let objects = 0;
   let failures = 0;
@@ -457,6 +460,10 @@ export async function runChatMediaRetentionSweep(
   }
 
   return { assets, objects, failures };
+}
+
+export async function runIndependentMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  return runChatMediaRetentionSweep(INDEPENDENT_MEDIA_RETENTION_PURPOSES);
 }
 
 /** Runs only the owner sticker asset lifecycle; never part of the general five-minute sweep. */
