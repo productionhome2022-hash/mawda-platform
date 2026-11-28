@@ -128,6 +128,9 @@ test("hourly chat-room media scope never touches independent media purposes", as
   await Promise.all(refs.map(({ purpose, mediaId, ref }) => ref.set({
     mediaId, ownerUid, uploaderType: "member", mediaPurpose: purpose,
     status: "security_approved", retentionExpiresAt: expired, createdAt: expired,
+    ...(purpose === "chat" || purpose === "room"
+      ? { linkedMessageId: "retention-message-" + purpose, mediaSentAt: expired }
+      : {}),
   })));
   try {
     const result = await runChatMediaRetentionSweep(["chat", "room"]);
