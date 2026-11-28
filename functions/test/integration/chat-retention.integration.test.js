@@ -189,6 +189,8 @@ test("seven-day profile gallery retention removes original and preview objects b
   const heldAssetRef = db.collection("mediaAssets").doc(heldMediaId);
   const storyAssetRef = db.collection("mediaAssets").doc(storyMediaId);
   const storyRef = db.collection("stories").doc(`expired-story-${suffix}`);
+  const additionalExpiredStoryRefs = Array.from({ length: 151 }, (_, index) =>
+    db.collection("stories").doc("expired-story-" + suffix + "-page-" + index));
   const original = bucket.file(objectPath);
   const preview = bucket.file(previewPath);
   const heldOriginal = bucket.file(heldObjectPath);
@@ -226,6 +228,9 @@ test("seven-day profile gallery retention removes original and preview objects b
     storyRef.set({
       ownerUid, mediaId: storyMediaId, status: "active", createdAt: old, expiresAt: old,
     }),
+    ...additionalExpiredStoryRefs.map((ref) => ref.set({
+      ownerUid, mediaId: "expired-story-media-" + ref.id, status: "active", createdAt: old, expiresAt: old,
+    })),
   ]);
 
   try {
@@ -244,6 +249,9 @@ test("seven-day profile gallery retention removes original and preview objects b
     assert.equal((await storyOriginal.exists())[0], false);
     assert.equal((await storyPreview.exists())[0], false);
     assert.equal((await storyRef.get()).exists, false);
+    const remainingExpiredStories = await Promise.all(
+      additionalExpiredStoryRefs.map(async (ref) => (await ref.get()).exists));
+    assert.equal(remainingExpiredStories.some(Boolean), false);
 
     // A signed upload or processor that was already in flight may recreate an
     // exact object after the first sweep. The tombstone reconciliation must
