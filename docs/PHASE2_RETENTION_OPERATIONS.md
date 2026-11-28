@@ -105,3 +105,14 @@ CI failure root cause and correction:
 - The source/test changes are recorded on the development branch. Exact-head emulator and CI confirmation is pending; this entry does not claim that the corrected test has passed.
 
 No 5,000-persona simulation engine was run as part of this reconciliation. No production Firebase/Storage configuration, production data, deployment, billing, or destructive production job was changed. The remaining acceptance gates include exact-head green CI, proof of immediate access denial, real non-production GCS generation/soft-delete behavior, backup/PITR/replica/cache handling, monitoring and retry/backlog recovery. Phase 2 must remain open until those gates have evidence.
+
+
+## 2026-11-28 — final bounded sticker-pack reference scan removed
+
+A follow-up source review found one remaining fixed-size read in the sticker-specific expiry path: `stickerPacks.limit(500)`. This could leave references in later packs untouched even though other retention workers had moved to cursor pagination. The scan now orders by document ID and advances through every page using the shared retention batch size. The same source change is mirrored in both repositories:
+
+- Primary repository commit: `f3244d2eecd0fa6c4465c84a18768411495e2625`.
+- Simulation-lab repository commit: `9fe9a0f11bfde99b410f4c581405a934c8ec789b`.
+- The two `functions/src/retention.ts` files have the same blob SHA after the change.
+
+**Validation remains pending:** no exact-head Functions build, emulator test or GitHub Actions run has been confirmed for these commits. This removes the identified 500-pack cap in source; it does not establish runtime success or close Phase 2. Temporary full-conversation deletion, immediate access-denial evidence, non-production GCS generation/soft-delete, backup/PITR/replica/cache behavior, and monitoring/retry/backlog recovery remain open. No production job was enabled and no simulation engine was run.
