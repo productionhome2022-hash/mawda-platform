@@ -87,14 +87,14 @@ class _FirebaseBootstrapScreenState extends State<_FirebaseBootstrapScreen> {
         'MAWDDA_FIREBASE_ENV',
         defaultValue: 'nonprod',
       );
-      if (environment == 'production' && kIsWeb) {
+      if (kIsWeb) {
         const siteKey = String.fromEnvironment(
           'MAWDDA_APP_CHECK_WEB_SITE_KEY',
           defaultValue: '',
         );
         if (siteKey.isEmpty) {
           throw StateError(
-            'MAWDDA_APP_CHECK_WEB_SITE_KEY is required for production web App Check.',
+            'MAWDDA_APP_CHECK_WEB_SITE_KEY is required for Web App Check.',
           );
         }
         await FirebaseAppCheck.instance.activate(
@@ -108,7 +108,6 @@ class _FirebaseBootstrapScreenState extends State<_FirebaseBootstrapScreen> {
           appleProvider: environment == 'production'
               ? AppleProvider.appAttestWithDeviceCheckFallback
               : AppleProvider.debug,
-          webProvider: kIsWeb ? WebDebugProvider() : null,
         );
       }
       if (!mounted) return;
