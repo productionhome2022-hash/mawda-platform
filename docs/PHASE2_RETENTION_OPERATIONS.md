@@ -116,3 +116,37 @@ A follow-up source review found one remaining fixed-size read in the sticker-spe
 - The two `functions/src/retention.ts` files have the same blob SHA after the change.
 
 **Validation remains pending:** no exact-head Functions build, emulator test or GitHub Actions run has been confirmed for these commits. This removes the identified 500-pack cap in source; it does not establish runtime success or close Phase 2. Temporary full-conversation deletion, immediate access-denial evidence, non-production GCS generation/soft-delete, backup/PITR/replica/cache behavior, and monitoring/retry/backlog recovery remain open. No production job was enabled and no simulation engine was run.
+
+
+## 2026-11-28 — execution evidence and remaining technical blockers
+
+### Confirmed source and test evidence
+
+- The chat-media delivery callable checks the server-authoritative `retentionExpiresAt` timestamp and rejects an expired asset before issuing a new URL.
+- `functions/test/integration/media-callables.integration.test.js` contains an integration assertion that moves a linked asset's expiry into the past and expects `failed-precondition` from `getChatImageAttachmentUrl`.
+- On primary repository SHA `9fc7a972c9a3b1969ad5bba2c8ea29dcbb04e879`, GitHub Actions run `46171485843` completed the Cloud Functions compile/unit-test job and the server-focused integration job successfully. The latter includes `test:media-integration`, so the immediate expired-media URL-denial test was executed in that successful job.
+- The same run's Flutter analysis, Flutter tests and non-production Web build steps completed successfully; the production-configured Web candidate step was still running at the time of this record. The full run was not yet complete.
+- The corresponding lab repository run `46171434212` was still in progress; its Functions and server-focused integration jobs had succeeded.
+
+### Remaining temporary-conversation gap — not implemented
+
+Source inspection confirms that the following are still absent from the active implementation:
+
+- No server-maintained `lastServerActivityAt` field/update was found in the direct-message send path. The current `sendDirectMessage` transaction writes `lastMessageAt`, but not the authoritative inactivity clock required for temporary mode.
+- The active code contains no full temporary-conversation deletion sweep or scheduler. `runChatTextRetentionSweep` explicitly skips temporary conversations so their messages are not deleted individually; there is no separate complete conversation deletion worker to take ownership of them.
+- `chatRetentionNotice` exists as a policy helper, but its use in a participant-facing delivery path was not found during this review.
+- A persisted `retentionMode` is read by the text worker, but the active direct-message creation path does not establish an explicit mode. The actor responsible for selecting a mode remains unspecified and has not been invented by this implementation.
+- The owner's RET-006 decision remains final: no bilateral consent or second-participant veto is required. Both participants still require notice.
+
+This gap must not be marked closed until trusted mode assignment is resolved under the owner's governance, activity timestamps are written server-side on every qualifying message, participant notices are delivered, and a retry-safe full-chat worker deletes text, notifications/previews, linked media, derivatives and associated references while respecting legal holds and idempotency.
+
+### Cloud proof is currently gated
+
+- `functions/scripts/test-retention-storage.cjs` contains a real-GCS exact-generation deletion and bucket-policy check, but requires a dedicated explicitly non-production project and bucket.
+- `.github/workflows/nonproduction-media-verification.yml` and `.github/workflows/live-nonproduction-validation.yml` currently set their jobs to `if: false`. They cannot run their live cloud checks in their present state.
+- No non-production bucket/project target or approved workload-identity configuration was supplied in this execution. No cloud resources were accessed or changed.
+- The emulator backup/restore smoke test is part of the comprehensive validation workflow, which had not yet reached its final emulator job at the time of this record. It does not establish Cloud backup/PITR, replica, CDN or cache erasure behavior.
+
+### Current disposition
+
+The expired-media access-denial path has code and successful integration evidence on the identified primary SHA. The sticker-pack fixed-page defect has been corrected and mirrored. The temporary full-conversation lifecycle and live-cloud/backup erasure proof remain open. GitHub Actions run `46171485843` (primary) and `46171434212` (lab) were still in progress at the time of this record. This addendum is evidence reconciliation, not Phase 2 closure. No retention worker was enabled, no production Firebase/Storage action occurred, and no 5,000-persona simulation was run.
