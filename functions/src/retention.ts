@@ -461,15 +461,23 @@ export async function runChatMediaRetentionSweep(
   // Expired story documents are part of the general media sweep only.
   // Purpose-scoped sweeps (notably stickers) must not mutate unrelated stories.
   if (purposes.includes("story")) {
-    const expiredStories = await db.collection("stories")
-      .where("status", "==", "active")
-      .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
-      .limit(RETENTION_BATCH_SIZE)
-      .get();
-    if (!expiredStories.empty) {
+    let storyCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    while (true) {
+      const expiredStoriesQuery = db.collection("stories")
+        .where("status", "==", "active")
+        .where("expiresAt", "<=", Timestamp.fromMillis(Date.now()))
+        .orderBy("expiresAt", "asc")
+        .limit(RETENTION_BATCH_SIZE);
+      const query = storyCursor
+        ? expiredStoriesQuery.startAfter(storyCursor)
+        : expiredStoriesQuery;
+      const expiredStories = await query.get();
+      if (expiredStories.empty) break;
+      storyCursor = expiredStories.docs[expiredStories.docs.length - 1];
       const batch = db.batch();
       for (const story of expiredStories.docs) batch.delete(story.ref);
       await batch.commit();
+      if (expiredStories.size < RETENTION_BATCH_SIZE) break;
     }
   }
 
