@@ -271,6 +271,7 @@ test("seven-day profile gallery retention removes original and preview objects b
       heldAssetRef.delete().catch(() => undefined),
       storyAssetRef.delete().catch(() => undefined),
       storyRef.delete().catch(() => undefined),
+      ...additionalExpiredStoryRefs.map((ref) => ref.delete().catch(() => undefined)),
       storyOriginal.delete({ ignoreNotFound: true }).catch(() => undefined),
       storyPreview.delete({ ignoreNotFound: true }).catch(() => undefined),
       original.delete({ ignoreNotFound: true }).catch(() => undefined),
