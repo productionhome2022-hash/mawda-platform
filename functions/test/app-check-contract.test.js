@@ -29,11 +29,12 @@ test("Flutter initializes App Check after Firebase and before opening AuthGate",
 
 test("Web App Check always requires the configured reCAPTCHA site key", () => {
   const main = read("../../lib/main.dart");
-  const productionWeb = main.slice(
-    main.indexOf("if (environment == 'production' && kIsWeb)"),
-    main.indexOf("} else {", main.indexOf("if (environment == 'production' && kIsWeb)")),
-  );
-  assert.match(productionWeb, /ReCaptchaV3Provider/);
-  assert.match(productionWeb, /MAWDDA_APP_CHECK_WEB_SITE_KEY is required/);
+  const webStart = main.indexOf("if (kIsWeb)");
+  const webEnd = main.indexOf("} else {", webStart);
+  assert.ok(webStart >= 0 && webEnd > webStart);
+  const webBlock = main.slice(webStart, webEnd);
+  assert.match(webBlock, /MAWDDA_APP_CHECK_WEB_SITE_KEY/);
+  assert.match(webBlock, /ReCaptchaV3Provider\\(siteKey\\)/);
+  assert.match(webBlock, /siteKey.isEmpty/);
   assert.doesNotMatch(main, /WebDebugProvider/);
 });
