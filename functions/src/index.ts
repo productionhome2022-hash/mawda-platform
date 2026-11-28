@@ -50,7 +50,7 @@ import { validateOwnerChatReviewRequest, validateOwnerConversationPageRequest, e
 import { PRIVACY_POLICY_HASH, PRIVACY_POLICY_VERSION, validatePrivacyAcknowledgement } from "./privacy-acknowledgement";
 import { isStoreItemPurchasable, projectStoreCatalogItem, validateStoreCatalogItemInput } from "./store-catalog";
 import { calculateStorePurchaseBalance, isStoreEntitlementActive, isStorePurchasePriceCurrent, isStorePurchaseReplayCompatible, projectStoreEntitlementFeatures } from "./store-purchase";
-import { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
+import { enforceChatMediaRetention, enforceIndependentMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative } from "./retention";
 import { deleteMediaAssetForMessage, mediaBucket } from "./media";
 import { DEFAULT_ROOM_RENTAL_PLANS, validateRoomRentalPlans, roomRentalExpiry, calculateRoomRentalBalance, type RoomRentalPlan } from "./room-rental";
 import { normalizeRoomEventInput, nextRoomEventStatus } from "./room-events";
