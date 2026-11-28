@@ -1,4 +1,4 @@
-import { FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onObjectFinalized } from "firebase-functions/v2/storage";
@@ -299,24 +299,33 @@ export async function runChatMediaRetentionSweep(
         }
         if (purpose === "sticker") {
           // Expiry removes catalogue and message references before physical object deletion.
-          const packs = await db.collection("stickerPacks").limit(500).get();
-          for (const packDoc of packs.docs) {
-            const packData = packDoc.data();
-            if (!Array.isArray(packData.stickers) ||
-                !packData.stickers.some((item: unknown) =>
-                  !!item && typeof item === "object" &&
-                  (item as Record<string, unknown>).assetId === mediaId)) continue;
-            const remaining = packData.stickers.filter((item: unknown) =>
-              !item || typeof item !== "object" ||
-              (item as Record<string, unknown>).assetId !== mediaId);
-            await packDoc.ref.update({
-              stickers: remaining,
-              status: remaining.length > 0 ? packData.status : "archived",
-              approved: remaining.length > 0 && packData.approved === true,
-              version: (Number.isSafeInteger(packData.version) ? Number(packData.version) : 0) + 1,
-              stickerExpiryUpdatedAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp(),
-            });
+          let packCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+          while (true) {
+            let packQuery = db.collection("stickerPacks")
+              .orderBy(FieldPath.documentId())
+              .limit(RETENTION_BATCH_SIZE);
+            if (packCursor) packQuery = packQuery.startAfter(packCursor);
+            const packs = await packQuery.get();
+            if (packs.empty) break;
+            packCursor = packs.docs[packs.docs.length - 1];
+            for (const packDoc of packs.docs) {
+              const packData = packDoc.data();
+              if (!Array.isArray(packData.stickers) ||
+                  !packData.stickers.some((item: unknown) =>
+                    !!item && typeof item === "object" &&
+                    (item as Record<string, unknown>).assetId === mediaId)) continue;
+              const remaining = packData.stickers.filter((item: unknown) =>
+                !item || typeof item !== "object" ||
+                (item as Record<string, unknown>).assetId !== mediaId);
+              await packDoc.ref.update({
+                stickers: remaining,
+                status: remaining.length > 0 ? packData.status : "archived",
+                approved: remaining.length > 0 && packData.approved === true,
+                version: (Number.isSafeInteger(packData.version) ? Number(packData.version) : 0) + 1,
+                stickerExpiryUpdatedAt: FieldValue.serverTimestamp(),
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+            }
           }
           while (true) {
             const messages = await db.collectionGroup("messages")
