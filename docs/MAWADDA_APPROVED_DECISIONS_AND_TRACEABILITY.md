@@ -630,3 +630,20 @@ The owner has explicitly clarified the following binding implementation requirem
 | Status | Governance approved; complete code-level implementation and test coverage remain to be audited and proven. |
 
 Source of authority: `docs/governance/FULL_PLATFORM_FINAL_CONSTITUTION_LOCK.md`, effective 2026-11-27 11:09:33 UTC. This record does not claim that the features are already implemented.
+
+
+### RET-006 — Owner clarification: no bilateral retention consent; sender deletion controls and recipient save right (28 November 2026)
+
+**Authority:** Explicit owner clarification in Mawdda Platform 2026 — HQ, 2026-11-28. This entry supersedes the bilateral-consent portion of RET-004. RET-004 remains historical only where it records the prior deferral; it is no longer an active open decision about requiring both chat participants to consent.
+
+- No bilateral consent, second-participant approval, veto or consent workflow is required for the platform retention policy or for the sender to exercise the authorized deletion controls.
+- The recipient may locally save eligible received media subject to entitlement and server-side security/access checks. The sender cannot veto the recipient's save. Local saving does not extend server retention.
+- The sender has two separate controls: **Delete for me** (hide only for the sender) and **Delete for everyone** (server-side removal/revocation of the sender's own sent message/media for both participants, subject to authorization, audit, legal holds and safe deletion). A recipient cannot delete another sender's content through the sender-only control.
+- Delete for everyone cannot erase a recipient's previously saved local copy or other independent copy outside Mawdda's server control.
+- Retention durations remain unchanged: temporary private conversation full deletion after 4 hours from last server-recorded activity; normal media 4 hours/text 7 days; important media 4 hours/text 30 days. Both parties receive the applicable notice.
+- Retention mode remains a platform policy state; no bilateral negotiation or consent gate is introduced. This entry does not create a new mode selector or change the existing mode classification.
+- **Policy status:** APPROVED / CLOSED as to bilateral consent and sender/recipient authority.
+- **Implementation status:** must be verified in code, emulator tests, rules and deletion/retention races. Approval is not evidence of full implementation.
+- **Production boundary:** no live deletion worker/schedule activation, production Firebase mutation, deployment, billing or production data deletion is authorized. Real-device and production acceptance remain deferred to experimental pilot launch.
+
+Arabic owner clarification: لا تشترط موافقة الطرفين على سياسة الاحتفاظ؛ للمستقبل حق الحفظ وفق الاستحقاق والتحقق الخادمي؛ وللمرسل خيارا الحذف لديه أو لدى الجميع؛ ولا يمحو الحذف لدى الجميع نسخة سبق أن حفظها المستقبل محلياً.
