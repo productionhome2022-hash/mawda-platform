@@ -16,7 +16,7 @@ const { getMemberProfileMediaUrl } = require("../../lib/media");
 const { listMemberProfileGallery } = require("../../lib/media");
 const db = getFirestore();
 const bucket = getStorage().bucket();
-const { runChatMediaRetentionSweep } = require("../../lib/retention");
+const { runChatMediaRetentionSweep, runIndependentMediaRetentionSweep } = require("../../lib/retention");
 
 function memberRequest(uid, data) {
   return { data, auth: { uid, token: { firebase: { sign_in_provider: "password" } } } };
@@ -100,7 +100,7 @@ test("expired current avatar falls back to Mawda default before exact media dele
   ]);
 
   try {
-    const result = await runChatMediaRetentionSweep();
+    const result = await runIndependentMediaRetentionSweep();
     assert.equal(result.failures, 0);
     const user = (await userRef.get()).data();
     assert.equal(user.avatarMediaId, undefined);
@@ -238,7 +238,7 @@ test("avatar expiry applies Mawda default during a legal hold but delays object 
   ]);
 
   try {
-    await runChatMediaRetentionSweep();
+    await runIndependentMediaRetentionSweep();
     const user = (await userRef.get()).data();
     assert.equal(user.avatarMediaId, undefined);
     assert.equal(user.avatarUsesDefault, true);
@@ -252,7 +252,7 @@ test("avatar expiry applies Mawda default during a legal hold but delays object 
       retentionPolicyStatus: "thirty_day_avatar_cover",
       resumeRetentionPolicyStatus: FieldValue.delete(),
     });
-    await runChatMediaRetentionSweep();
+    await runIndependentMediaRetentionSweep();
     assert.equal((await assetRef.get()).data().status, "self_destructed");
     assert.equal((await original.exists())[0], false);
   } finally {
