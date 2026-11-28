@@ -62,3 +62,8 @@ This clarification includes images, video, GIF/animated images, audio files and 
 **Implementation status warning:** this owner decision is documentation, not evidence that the current code already satisfies it. The existing implementation notes below must be read as a snapshot of the code reviewed at their recorded revision; bounded batch limits, current scheduler cadence, incomplete retry/exhaustion behavior, and unverified cloud backup/versioning layers remain implementation and acceptance gaps until separately inspected, changed, and tested. Do not claim hourly scheduling, exhaustive deletion, or complete cloud erasure from this document alone.
 
 No production deployment, Firebase/Storage configuration change, destructive production run, or 5,000-persona simulation is authorized by this clarification. Production actions require separate explicit owner approval. The same policy document must be kept byte-for-byte consistent in the primary repository and the 5,000-persona lab repository; the latter copy is documentation only.
+
+ 
+## Owner decision propagation — RET-006 (2026-11-28)
+
+No bilateral participant consent, second-participant approval or veto is required to apply the retention policy. Both participants must be notified of the applicable mode and rule. The decision does not assign a new mode-selector actor. Historical RET-004 consent wording is superseded; it must not appear as an open consent blocker. The remaining temporary-chat work is technical: trusted immutable mode assignment, server-recorded activity, notices, complete full-conversation deletion and retry-safe media/derivative cleanup. See the binding governing record §3 and the chat/room media policy.
