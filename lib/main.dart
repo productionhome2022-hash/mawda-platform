@@ -1,4 +1,6 @@
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart' as production_firebase;
@@ -78,6 +80,35 @@ class _FirebaseBootstrapScreenState extends State<_FirebaseBootstrapScreen> {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(
           options: _firebaseOptionsForBuild(),
+        );
+      }
+
+      const environment = String.fromEnvironment(
+        'MAWDDA_FIREBASE_ENV',
+        defaultValue: 'nonprod',
+      );
+      if (environment == 'production' && kIsWeb) {
+        const siteKey = String.fromEnvironment(
+          'MAWDDA_APP_CHECK_WEB_SITE_KEY',
+          defaultValue: '',
+        );
+        if (siteKey.isEmpty) {
+          throw StateError(
+            'MAWDDA_APP_CHECK_WEB_SITE_KEY is required for production web App Check.',
+          );
+        }
+        await FirebaseAppCheck.instance.activate(
+          webProvider: ReCaptchaV3Provider(siteKey),
+        );
+      } else {
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: environment == 'production'
+              ? AndroidProvider.playIntegrity
+              : AndroidProvider.debug,
+          appleProvider: environment == 'production'
+              ? AppleProvider.appAttestWithDeviceCheckFallback
+              : AppleProvider.debug,
+          webProvider: kIsWeb ? WebDebugProvider() : null,
         );
       }
       if (!mounted) return;
