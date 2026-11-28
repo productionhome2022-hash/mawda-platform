@@ -4,6 +4,7 @@ const {
   CHAT_MEDIA_RETENTION_MS,
   STICKER_MEDIA_RETENTION_MS,
   CHAT_MEDIA_RETENTION_PURPOSES,
+  INDEPENDENT_MEDIA_RETENTION_PURPOSES,
   STICKER_MEDIA_RETENTION_PURPOSES,
   CHAT_TEXT_RETENTION_MS,
   retentionDeadline,
@@ -21,8 +22,9 @@ test("chat media retention is exactly four hours from validated upload finalizat
   assert.equal(isRetentionDue(createdAt, CHAT_MEDIA_RETENTION_MS, deadline), true);
 });
 
-test("sticker cleanup is isolated from the five-minute chat media sweep", () => {
-  assert.deepEqual(CHAT_MEDIA_RETENTION_PURPOSES, ["chat", "room", "profile_album", "story", "avatar_cover"]);
+test("retention purpose sets are isolated by lifecycle", () => {
+  assert.deepEqual(CHAT_MEDIA_RETENTION_PURPOSES, ["chat", "room"]);
+  assert.deepEqual(INDEPENDENT_MEDIA_RETENTION_PURPOSES, ["profile_album", "story", "avatar_cover"]);
   assert.deepEqual(STICKER_MEDIA_RETENTION_PURPOSES, ["sticker"]);
 });
 
