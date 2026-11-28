@@ -409,7 +409,7 @@ This addendum records implementation work after the governance review above. It 
 
 ### 12.2 Source changes recorded on the development branch
 - `enforceChatMediaRetention` now has an hourly UTC schedule and explicitly calls only `chat` and `room`.
-- `enforceIndependentMediaRetention` is a separate scheduled export for `profile_album`, `story`, and `avatar_cover`; the sticker worker remains separately scheduled.
+- Independent retention is split into purpose-scoped exports: profile albums daily, stories hourly, and avatars/covers daily; stickers remain on their separately approved hourly worker. The schedule is a cleanup cadence, not an extension of each asset's server expiry.
 - Media asset and tombstone scans use cursor pagination rather than the former fixed 10-page ceiling. Individual failures do not stop traversal of later records; failed items remain eligible for a later retry.
 - Late-object handling uses purpose-specific expiry semantics; the four-hour chat fallback is not applied to avatar/cover or story objects.
 - The four-hour clock now starts when a validated asset is linked to a sent chat/room message. Upload finalization leaves chat/room `retentionExpiresAt` unset; message linking writes server-authoritative `mediaSentAt` and the expiry together.
