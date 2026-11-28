@@ -678,13 +678,22 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
       !isKnownDeletedMediaObjectPath(asset, objectPath, ownerUid, mediaId)) return;
 
   const manualDeletionState = ["manual_deletion_pending", "manually_deleted", "rejected"].includes(String(asset.status));
+  const purpose = String(asset.mediaPurpose);
   const expiry = asset.retentionExpiresAt instanceof Timestamp
     ? asset.retentionExpiresAt
-    : asset.mediaPurpose === "sticker" && asset.finalizedAt instanceof Timestamp
+    : purpose === "sticker" && asset.finalizedAt instanceof Timestamp
       ? Timestamp.fromMillis(asset.finalizedAt.toMillis() + STICKER_MEDIA_RETENTION_MS)
-      : asset.createdAt instanceof Timestamp
-        ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
-        : null;
+      : purpose === "chat" || purpose === "room"
+        ? asset.createdAt instanceof Timestamp
+          ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+          : null
+        : purpose === "profile_album"
+          ? asset.createdAt instanceof Timestamp
+            ? Timestamp.fromMillis(asset.createdAt.toMillis() + 7 * 24 * 60 * 60 * 1000)
+            : null
+          : purpose === "story" && asset.storyExpiresAt instanceof Timestamp
+            ? asset.storyExpiresAt
+            : null;
   if (!manualDeletionState && asset.status !== "self_destructed" &&
       (!expiry || expiry.toMillis() > Date.now())) return;
 
