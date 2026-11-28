@@ -337,3 +337,62 @@ This is a development-phase transition checkpoint, not final product acceptance,
 ---
 
 **Acceptance statement:** The exact 16-hour commit ledger and GitHub Actions inventory are reconciled; latest named workflows are complete and successful; historical failures/cancellations remain transparent; repair registry interpretation is corrected; the owner retention clarification is binding and supersedes stale bilateral-consent wording; security review has started but is not falsely certified complete; pilot-only checks are deferred; and no production boundary has been crossed.
+
+
+## 11. Post-publication verification and security review delta — 2026-11-28 07:45 UTC
+
+This section records the CI and source-review evidence obtained after the exact 16-hour cutoff in Section 2. It is appended to the same governing record so the document also carries the final validation of its own mirrored publication and the additional security observations.
+
+### 11.1 Final documentation heads and workflow state
+
+- Main platform final documentation head: `08ae371849d971d91fab39a9b9f5000892381153`.
+- Simulation lab final documentation head: `038b2e6de2308da4f954f4d27bf4aff7d5f4d9a5`.
+- Both repositories: **zero active runs and zero failed runs** on the final heads at the 07:45 UTC verification.
+- Older runs triggered by intermediate documentation commits were automatically cancelled when newer documentation commits superseded their SHA. Those cancellations are not failed test results. The final-head runs listed below completed successfully.
+
+### 11.2 Final-head CI evidence
+
+Main platform:
+- [Validate Mawda — 46121760296](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/46121760296): all 5 jobs succeeded.
+  - Cloud Functions compile/unit suite: 477 tests, 476 passed, 0 failed, 1 skipped (the external GCS signed-URL test described in 11.3).
+  - Server evidence, authorization and biometric integration: 55 tests passed, 0 failed.
+  - Flutter: 32 tests passed; Dart analysis reported `No issues found`; Web release artifact built successfully.
+  - Comprehensive backend emulator integration: 148 tests passed, 0 failed, including retention, direct-message deletion, legal holds, wallet/store transactions, call signaling, Firestore/Storage rules and backup/restore checks.
+  - Isolated ClamAV scanner: 31 tests passed, 0 failed; 10 source/security contract tests and 21 GIF/audio/video/PDF sanitization tests. ClamAV detected the harmless EICAR test signature as expected.
+- [Mawdda Test Center — 46121760340](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/46121760340): success. Across its grouped suites, 624 tests, 623 passed, 0 failed, 1 skipped for the same external GCS test. Dart analysis and Web artifact build succeeded.
+- [Economic phase verification — 46121760306](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/46121760306): success.
+- [CodeQL — 46121760535](https://github.com/productionhome2022-hash/mawda-platform/actions/runs/46121760535): both analysis jobs succeeded.
+
+Simulation lab:
+- [Mawdda Test Center — 46122099069](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/46122099069): success. Across grouped suites, 624 tests, 623 passed, 0 failed, 1 skipped for the same external GCS test. Dart analysis and Web artifact build succeeded.
+- [Economic phase verification — 46122099018](https://github.com/productionhome2022-hash/mawdda-5000-simulation-lab/actions/runs/46122099018): success.
+
+The 624-test Test Center total is an aggregate of grouped test commands; it is not added to the Validate job totals because some suites overlap. No production deployment occurred; Web outputs are CI artifacts only.
+
+### 11.3 Explicitly skipped external GCS test
+
+The one skipped test is named `real Cloud Storage signed URLs enforce HTTP upload, generation precondition, read and expiry`. The test reports: `Set MAWDA_GCS_HTTP_TEST_BUCKET in an isolated non-production GCS project.` It was not executed because no isolated non-production GCS test bucket was configured. This is **SKIPPED / NOT VERIFIED**, not passed. No external bucket or production resource was created. Under the current GitHub-Actions-only development scope, keep it deferred until an isolated non-production environment is explicitly authorized; do not substitute production credentials or production storage.
+
+### 11.4 Media Saver client-path evidence
+
+The recipient's local-save capability is present in the client as well as the backend:
+- `lib/services/member_media_upload_service.dart` calls `getMediaSaverAttachmentUrl` and saves the returned server-approved derivative through `FileSaver.instance.saveFile`.
+- Direct-chat and room-chat screens both expose the Media Saver save action.
+- The backend rechecks entitlement for every save request, applies conversation/message authorization and safe-derivative checks, issues a short-lived capability and does not extend `retentionExpiresAt`.
+- Server-side delete-for-everyone cannot reach a file already saved to the recipient's local device. This is the approved policy boundary; actual device acceptance remains deferred to the experimental pilot.
+
+### 11.5 Additional dependency hygiene finding — SEC-DEPENDENCY-001
+
+The current `functions/package-lock.json` contains development-only transitive packages `tar@6.2.1` and `glob@10.5.0`, each marked deprecated in the lockfile with upstream warnings about unsupported versions/security vulnerabilities. CI also emits the Node `punycode` deprecation warning. These observations do not by themselves prove an exploitable production-runtime vulnerability: the two named packages are marked `dev: true` in the lockfile. Nevertheless:
+- **Status:** OPEN — dependency hygiene/security review.
+- Inspect parent dependency paths and compatibility; run `npm audit` in a controlled GitHub Actions job; upgrade the responsible parent/transitive dependency and lockfile to supported patched versions; rerun Functions, emulator and scanner suites.
+- Do not blindly force an incompatible transitive override or modify production dependencies without tests.
+- No dependency upgrade or external package scan was performed in this review.
+
+### 11.6 Updated security disposition
+
+The callable App Check gap `SEC-APP-CHECK-001` remains high-priority and open: client bootstrap lacks FlutterFire App Check, and callable endpoints do not enforce App Check. Authentication/authorization guards and owner/media-specific controls are present, but do not replace App Check attestation. The safe remediation order remains client provider integration (Android/iOS/Web), non-production token validation and missing/invalid/expired-token tests, then staged callable enforcement. Do not enable blanket enforcement before clients are compatible.
+
+The security audit therefore remains **IN PROGRESS**. The green CI baseline does not close App Check, dependency hygiene, full callable semantic authorization review or the skipped external GCS integration test.
+
+**Post-publication acceptance:** final documentation heads have green latest CI, no active runs and no failed runs. Historical cancellations remain recorded. The only skipped test is explicitly identified above. No merge, deployment, production Firebase mutation, billing activation or live retention change was performed.
