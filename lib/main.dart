@@ -98,7 +98,7 @@ class _FirebaseBootstrapScreenState extends State<_FirebaseBootstrapScreen> {
           );
         }
         await FirebaseAppCheck.instance.activate(
-          webProvider: ReCaptchaV3Provider(siteKey),
+          webProvider: ReCaptchaEnterpriseProvider(siteKey),
         );
       } else {
         await FirebaseAppCheck.instance.activate(
