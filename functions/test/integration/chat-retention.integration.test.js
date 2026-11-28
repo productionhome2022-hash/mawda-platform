@@ -12,7 +12,7 @@ const app = initializeApp({
   storageBucket: `${projectId}.appspot.com`,
 });
 const db = getFirestore();
-const { runChatTextRetentionSweep, runChatMediaRetentionSweep, runStickerMediaRetentionSweep } = require("../../lib/retention");
+const { runChatTextRetentionSweep, runChatMediaRetentionSweep, runIndependentMediaRetentionSweep, runStickerMediaRetentionSweep } = require("../../lib/retention");
 
 test("mode-aware sweep deletes normal text at seven days, important text at thirty days, and preserves temporary messages pending full-chat expiry", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
@@ -208,7 +208,7 @@ test("seven-day profile gallery retention removes original and preview objects b
   ]);
 
   try {
-    const result = await runChatMediaRetentionSweep();
+    const result = await runIndependentMediaRetentionSweep();
     assert.equal(result.failures, 0);
     const deletedAsset = (await assetRef.get()).data();
     assert.equal(deletedAsset.status, "self_destructed");
@@ -232,7 +232,7 @@ test("seven-day profile gallery retention removes original and preview objects b
       preview.save(Buffer.from("late preview replay"), { resumable: false }),
     ]);
     await assetRef.update({ retentionReconcileAt: Timestamp.fromMillis(Date.now() - 1000) });
-    const reconciled = await runChatMediaRetentionSweep();
+    const reconciled = await runIndependentMediaRetentionSweep();
     assert.equal(reconciled.failures, 0);
     assert.equal((await original.exists())[0], false);
     assert.equal((await preview.exists())[0], false);
@@ -266,7 +266,7 @@ test("expired story documents are removed from the feed while active stories rem
     }),
   ]);
   try {
-    await runChatMediaRetentionSweep();
+    await runIndependentMediaRetentionSweep();
     assert.equal((await expiredRef.get()).exists, false);
     assert.equal((await activeRef.get()).exists, true);
   } finally {
