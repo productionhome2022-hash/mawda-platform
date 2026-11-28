@@ -396,3 +396,30 @@ The callable App Check gap `SEC-APP-CHECK-001` remains high-priority and open: c
 The security audit therefore remains **IN PROGRESS**. The green CI baseline does not close App Check, dependency hygiene, full callable semantic authorization review or the skipped external GCS integration test.
 
 **Post-publication acceptance:** final documentation heads have green latest CI, no active runs and no failed runs. Historical cancellations remain recorded. The only skipped test is explicitly identified above. No merge, deployment, production Firebase mutation, billing activation or live retention change was performed.
+
+
+## 12. Retention implementation delta — 2026-11-28 (not yet CI-verified)
+
+This addendum records implementation work after the governance review above. It does not rewrite the historical evidence or authorize production activity.
+
+### 12.1 Owner policy and scope
+- RET-006 remains closed: no bilateral participant consent, second-participant approval or veto is required to apply retention. The decision does not assign a new mode-selector actor.
+- The hourly destructive worker is scoped only to user-shared direct-chat and room attachments with server purposes `chat` and `room`.
+- Stickers, profile albums, stories, avatar/cover assets, account assets, text, wallets, transactions and operational/audit data remain outside the chat/room worker and retain their independent policies.
+
+### 12.2 Source changes recorded on the development branch
+- `enforceChatMediaRetention` now has an hourly UTC schedule and explicitly calls only `chat` and `room`.
+- `enforceIndependentMediaRetention` is a separate scheduled export for `profile_album`, `story`, and `avatar_cover`; the sticker worker remains separately scheduled.
+- Media asset and tombstone scans use cursor pagination rather than the former fixed 10-page ceiling. Individual failures do not stop traversal of later records; failed items remain eligible for a later retry.
+- Late-object handling uses purpose-specific expiry semantics; the four-hour chat fallback is not applied to avatar/cover or story objects.
+- The four-hour clock now starts when a validated asset is linked to a sent chat/room message. Upload finalization leaves chat/room `retentionExpiresAt` unset; message linking writes server-authoritative `mediaSentAt` and the expiry together.
+- Unsent chat/room upload intents are excluded from the sent-media retention worker and remain under upload-intent cleanup.
+- Integration tests now route profile/story/avatar/cover fixtures through the independent worker and include a regression that checks the chat/room worker does not mutate independent purposes. The media-callables test asserts the four-hour clock is not started at upload finalization and is started on message send.
+
+### 12.3 Current validation and remaining gates
+- These edits were committed to `codex/mawda-full-platform-implementation` in the main repository and mirrored into the lab repository as platform code/docs only.
+- No GitHub Actions run, Functions build, or Emulator suite result for the exact updated head has been retrieved in this session. The source changes are therefore **implemented / not yet test-verified**, not accepted as closed.
+- The available GitHub connector exposes PR-triggered workflow-run retrieval and commit status checks, but no push-run listing or workflow-dispatch action. Combined commit-status queries for the new commits returned no legacy status contexts; this is not evidence of a passing or failing Actions run.
+- The 5,000-persona simulation engine was not invoked, and no simulation-lab workflow was dispatched.
+- Temporary private-conversation full deletion remains a separate technical gap: server-recorded inactivity, immutable mode state, participant notices and complete deletion of text/media/derivatives still require code review and tests. Bilateral consent is not a blocker.
+- Real non-production GCS generation/soft-delete behavior, backup/PITR, replication/CDN copies, monitoring, alerting and physical erasure remain unverified. No production Firebase/Storage changes, deployment, live deletion, merge to `main`, or billing action occurred.
