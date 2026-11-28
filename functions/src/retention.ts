@@ -699,13 +699,23 @@ export const removeLateExpiredChatMediaDerivative = configuredBucket
   ? onObjectFinalized({ bucket: configuredBucket }, handleLateExpiredChatMediaDerivative)
   : undefined;
 
-/** Reconciles chat, gallery and story media every five minutes; disabled by default and project-allowlisted. */
+/** Deletes only user-shared direct-chat and room media; independent media purposes are excluded. */
 export const enforceChatMediaRetention = onSchedule(
+  { schedule: "every 1 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runChatMediaRetentionSweep(["chat", "room"]);
+    logger.info("Chat and room media retention sweep completed.", result);
+  },
+);
+
+/** Preserves the separately governed gallery, story, avatar and cover retention lifecycle. */
+export const enforceIndependentMediaRetention = onSchedule(
   { schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
-    const result = await runChatMediaRetentionSweep();
-    logger.info("Chat media retention sweep completed.", result);
+    const result = await runChatMediaRetentionSweep(["profile_album", "story", "avatar_cover"]);
+    logger.info("Independent media retention sweep completed.", result);
   },
 );
 
