@@ -97,3 +97,16 @@
 ## 9. قاعدة التوثيق المتزامن للمستودعين
 
 هذه الوثيقة جزء من مرجعية Mawdda التنفيذية. كل تعديل أو توضيح لاحق لسياسة احتفاظ مشتركة يجب أن ينعكس في المستودع الأساسي `productionhome2022-hash/mawda-platform` ومستودع المختبر `productionhome2022-hash/mawdda-5000-simulation-lab` على فرع التطوير نفسه، مع تطابق المحتوى وتسجيل SHA لكل نسخة. وجودها في مستودع المختبر توثيق ومرجعية فقط ولا يعني تشغيل المحاكاة أو تغييرها.
+
+ 
+## 10. RET-006 — No bilateral participant consent gate
+
+The owner's binding clarification recorded on 2026-11-28 in `docs/governance/MAWDDA_16H_PHASE_TRANSITION_GOVERNING_RECORD_2026-11-28.md`, Section 3, closes the bilateral-consent question:
+
+- No approval, consent, veto, or second-participant confirmation is required to apply the platform's retention policy.
+- The policy is applied according to the server-authoritative conversation mode and item expiry rules.
+- Both participants must receive notice of the applicable retention mode and rule.
+- This decision does not assign a new actor for selecting a mode; do not invent one.
+- Historical RET-004 wording that described bilateral consent as unresolved is superseded for current execution and must not be reopened as an outstanding consent decision.
+- This policy clarification does not authorize production deletion, schedule activation, deployment, or Firebase mutation.
+
