@@ -233,6 +233,23 @@ Inspected paths:
 - `deleteDirectMessageForMe` / `deleteDirectMessageForEveryone`: participant authorization; delete-for-everyone is restricted to the original sender's own message (or verified platform-owner path); media enters pending deletion, active legal holds block deletion, exact Storage generations and derivatives are reconciled, tombstone/audit evidence is written and retry is supported.
 - `getOwnerMediaInspectionUrl`: legacy signed-URL callable is disabled; owner preview uses authenticated verification and returns a verified derivative rather than a Storage bearer URL.
 
+
+
+### 6.2.1 Confirmed security finding — callable App Check is not enabled (SEC-APP-CHECK-001)
+
+A source-level verification of the current development branch found:
+- `pubspec.yaml` does not include `firebase_app_check`.
+- `lib/main.dart` initializes Firebase but does not activate an App Check provider.
+- No `setGlobalOptions` App Check enforcement was found in the Functions entry points.
+- All 198 callable exports are declared as `onCall(async (request) => ...)` without explicit `enforceAppCheck: true` options; their initial blocks do contain authentication/authorization guards. This is not an authentication bypass by itself, but it leaves App Check attestation unenforced for callable requests and weakens anti-abuse/device-app attestation.
+- The two owner media HTTP routes independently require a Firebase ID token, revocation-aware token verification, an App Check token and a verified owner/MFA session. The scanner callback is separately protected by its HMAC secret.
+
+**Severity:** High-priority security hardening gap (not evidence of unauthenticated access to protected callables).
+
+**Required remediation sequence:** integrate FlutterFire App Check into the client bootstrap for Android, iOS and Web using the appropriate platform providers; keep debug providers restricted to emulator/test builds; validate non-production app registrations and tokens; add callable integration tests for missing, invalid, expired and valid App Check tokens; then enable enforcement in controlled endpoint groups and only after client compatibility is proven. Do not apply a blanket enforcement switch before clients are ready, because that can break all existing callable journeys. No production App Check registration, allowlist mutation or enforcement activation was performed.
+
+Also verified: the chat/media retention scheduler uses `MAWDA_RETENTION_JOBS_ENABLED=false` by default and requires an explicit enable switch plus exact project-ID validation. This remains fail-closed; do not enable it in production under this work.
+
 ### 6.3 Security items still open
 
 1. Complete semantic authorization review of all 198 callables: resource ownership, room membership, participant state, owner/specialist role scope, validation, pagination bounds, idempotency and abuse/rate controls.
