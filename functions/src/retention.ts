@@ -213,6 +213,13 @@ export async function runChatMediaRetentionSweep(
           // Unsent upload intents are governed by upload-intent cleanup, not the sent-media four-hour clock.
           continue;
         }
+        if ((purpose === "chat" || purpose === "room") &&
+            asset.mediaSentAt instanceof Timestamp &&
+            asset.mediaSentAt.toMillis() + CHAT_MEDIA_RETENTION_MS > Date.now() &&
+            !["manual_deletion_pending", "rejected", "expired_cleanup_in_progress", "expired"].includes(String(asset.status))) {
+          // Legacy records without retentionExpiresAt must still expire from send time, not upload creation.
+          continue;
+        }
         if (shouldSuspendMediaDeletion(asset)) {
           // Legal preservation does not extend the member-facing custom-image
           // lifetime: switch the profile to the Mawda default at expiry, but
