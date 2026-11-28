@@ -102,7 +102,6 @@ const ACTIVE_MEDIA_STATES = [
   "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
   "security_approved", "rejected", "expired_cleanup_in_progress", "expired", "manual_deletion_pending",
 ];
-const MEDIA_DERIVATIVE_RECHECK_MS = 60 * 60 * 1000;
 
 export const CHAT_MEDIA_RETENTION_PURPOSES = ["chat", "room"] as const;
 export const INDEPENDENT_MEDIA_RETENTION_PURPOSES = ["profile_album", "story", "avatar_cover"] as const;
@@ -111,6 +110,12 @@ type MediaRetentionPurpose =
   | typeof CHAT_MEDIA_RETENTION_PURPOSES[number]
   | typeof INDEPENDENT_MEDIA_RETENTION_PURPOSES[number]
   | typeof STICKER_MEDIA_RETENTION_PURPOSES[number];
+
+function mediaDerivativeRecheckDelayMs(purpose: MediaRetentionPurpose): number {
+  return purpose === "profile_album" || purpose === "avatar_cover"
+    ? 24 * 60 * 60 * 1000
+    : 60 * 60 * 1000;
+}
 
 export async function runChatMediaRetentionSweep(
   purposes: readonly MediaRetentionPurpose[] = CHAT_MEDIA_RETENTION_PURPOSES,
@@ -161,7 +166,7 @@ export async function runChatMediaRetentionSweep(
           objects += await deleteAllObjectGenerations(`processed/${ownerUid}/${mediaId}/${filename}`);
         }
         await tombstoneDoc.ref.update({
-          retentionReconcileAt: Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS),
+          retentionReconcileAt: Timestamp.fromMillis(Date.now() + mediaDerivativeRecheckDelayMs(purpose)),
           updatedAt: FieldValue.serverTimestamp(),
         });
       } catch (error) {
@@ -430,7 +435,7 @@ export async function runChatMediaRetentionSweep(
           tombstone.retentionExpiresAt = asset.retentionExpiresAt ??
             (createdAt && lifetimeMs !== null ? Timestamp.fromMillis(createdAt.toMillis() + lifetimeMs) : Timestamp.fromMillis(Date.now()));
           tombstone.retentionDeletedAt = FieldValue.serverTimestamp();
-          tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + MEDIA_DERIVATIVE_RECHECK_MS);
+          tombstone.retentionReconcileAt = Timestamp.fromMillis(Date.now() + mediaDerivativeRecheckDelayMs(purpose));
           tombstone.updatedAt = FieldValue.serverTimestamp();
           await assetDoc.ref.set(tombstone, { merge: true });
           await db.collection("mediaScanJobs").doc(mediaId).delete().catch(() => undefined);
