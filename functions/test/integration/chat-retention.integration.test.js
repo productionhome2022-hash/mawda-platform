@@ -150,6 +150,27 @@ test.after(async () => {
 });
 
 
+test("legacy chat media without an expiry uses server send time rather than old upload creation time", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const mediaId = "71000000-0000-4000-8000-" + Date.now().toString().padStart(12, "0").slice(-12);
+  const ownerUid = "legacy-retention-owner";
+  const assetRef = db.collection("mediaAssets").doc(mediaId);
+  const oldUpload = Timestamp.fromMillis(Date.now() - 8 * 60 * 60 * 1000);
+  const recentSend = Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+  await assetRef.set({
+    mediaId, ownerUid, mediaPurpose: "chat", status: "security_approved",
+    createdAt: oldUpload, mediaSentAt: recentSend, retentionExpiresAt: null,
+    linkedMessageId: "a".repeat(64), linkedConversationId: "legacy-chat",
+  });
+  try {
+    const result = await runChatMediaRetentionSweep(["chat", "room"]);
+    assert.equal(result.failures, 0);
+    assert.equal((await assetRef.get()).data().status, "security_approved");
+  } finally {
+    await assetRef.delete().catch(() => undefined);
+  }
+});
+
 test("seven-day profile gallery retention removes original and preview objects but honors a legal hold", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
