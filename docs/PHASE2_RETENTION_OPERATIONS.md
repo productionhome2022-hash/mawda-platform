@@ -12,7 +12,7 @@ Status: mode-aware code and emulator coverage exist on the development branch; *
 
 ## Current development implementation and limitations
 
-- Chat media assets with purpose `chat` or `room` receive a four-hour retention deadline after server validation/finalization of the uploaded object (not when an unused upload intent is created). The sweep targets exact original object paths/generations and deterministic sanitized WebP derivative paths, then leaves a content-free tombstone.
+- Chat media assets with purpose `chat` or `room` receive a four-hour retention deadline when the validated asset is linked to a sent direct-chat/room message (`mediaSentAt`), not when upload finalization or an unused upload intent is created. The sweep targets exact original object paths/generations and deterministic sanitized WebP derivative paths, then leaves a content-free tombstone.
 - Tombstones remain as non-content metadata. A separate five-minute reconciliation clock checks deterministic derivative paths for late scanner output without allowing tombstones to occupy the active-expiry query.
 - The chat text worker reads the persisted direct-chat `retentionMode`: legacy/missing mode resolves to normal (7 days), important mode uses 30 days, and temporary mode is excluded from the per-message 7/30-day worker. Room text follows the normal seven-day path.
 - **Temporary full-conversation inactivity deletion is not complete/activated.** Remaining technical gates are trusted immutable mode assignment, server-recorded activity updates, participant notices, and complete deletion of text/media/derivatives. Bilateral participant consent is not a gate and must not be reintroduced. The text worker deliberately does not individually purge temporary-chat messages.
@@ -56,7 +56,7 @@ The owner-approved scope for the hourly chat/room media cleanup worker is now ex
 
 - `docs/policies/CHAT_ROOM_USER_SHARED_MEDIA_RETENTION_POLICY_2026-11-28.md`
 
-This clarification includes images, video, GIF/animated images, audio files and voice recordings, PDF, Word documents, and other user-shared conversation/room attachments when server-classified for those purposes. The four-hour deadline is measured from server-validated send/finalization. Access must be denied at expiry; the cleanup worker runs hourly UTC, exhausts all due pages/batches, deletes exact originals/derivatives/generations under platform control, and retries failures while keeping the item inaccessible.
+This clarification includes images, video, GIF/animated images, audio files and voice recordings, PDF, Word documents, and other user-shared conversation/room attachments when server-classified for those purposes. The four-hour deadline is measured from the server-authoritative message-send/link timestamp (`mediaSentAt`), not upload finalization. Access must be denied at expiry; the cleanup worker runs hourly UTC, exhausts all due pages/batches, deletes exact originals/derivatives/generations under platform control, and retries failures while keeping the item inaccessible.
 
 **Strict exclusions:** stickers, profile albums, avatars, covers, stories, account/profile assets, message text, wallets, transactions, audit records, operational/system data, and every other separately governed or unknown purpose remain outside this worker. Their independent policies and retention schedules are unchanged. File extension or shared bucket location is never sufficient to include an object.
 
@@ -72,7 +72,7 @@ No bilateral participant consent, second-participant approval or veto is require
 
 ## Current development implementation delta — pending CI acceptance
 
-- Main-branch source change: chat/room media cleanup is explicitly scheduled every hour UTC and calls only `chat` and `room`.
+- Main-branch source change: chat/room media cleanup is explicitly scheduled every hour UTC and calls only `chat` and `room`. Upload finalization leaves chat/room `retentionExpiresAt` unset; the server sets `mediaSentAt` and the four-hour expiry atomically when the attachment is linked to a sent message.
 - Independent gallery/story/avatar/cover cleanup is on a separate five-minute schedule and retains its own purpose-specific deadlines. Sticker cleanup remains on its independent one-hour schedule.
 - The media asset and tombstone sweeps now use cursors to continue beyond the former fixed 10-page ceiling; individual failures do not stop traversal of later candidates and remain eligible for the next retry cycle.
 - The late-object finalization guard now applies four-hour fallback only to `chat`/`room`, seven-day fallback only to `profile_album`, one-hour fallback to stickers, and the explicit story expiry to stories. It does not infer a four-hour deadline for avatar/cover assets.
