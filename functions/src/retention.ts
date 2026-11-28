@@ -102,7 +102,7 @@ const ACTIVE_MEDIA_STATES = [
   "upload_authorized", "pending_security_scan", "scanner_clean_pending_processing",
   "security_approved", "rejected", "expired_cleanup_in_progress", "expired", "manual_deletion_pending",
 ];
-const MEDIA_DERIVATIVE_RECHECK_MS = 5 * 60 * 1000;
+const MEDIA_DERIVATIVE_RECHECK_MS = 60 * 60 * 1000;
 
 export const CHAT_MEDIA_RETENTION_PURPOSES = ["chat", "room"] as const;
 export const INDEPENDENT_MEDIA_RETENTION_PURPOSES = ["profile_album", "story", "avatar_cover"] as const;
