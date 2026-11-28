@@ -19,6 +19,7 @@ import { isGuestSessionActive } from "./guest-sessions";
 import { isMemberAccountInGoodStanding } from "./member-access";
 import { createDirectChatId } from "./direct-chat-id";
 import { resolveChatMediaDeliveryArtifact } from "./chat-media-policy";
+import { CHAT_MEDIA_RETENTION_MS } from "./chat-retention-policy";
 import { isStoreEntitlementActive } from "./store-purchase";
 import { reserveMediaQuota, releaseMediaQuota } from "./media-quota";
 import {
@@ -1042,6 +1043,7 @@ export const sendChatImageAttachment = onCall(async (request) => {
 
   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
   const now = FieldValue.serverTimestamp();
+  const mediaSentExpiry = Timestamp.fromMillis(Date.now() + CHAT_MEDIA_RETENTION_MS);
   if (scope === "direct") {
     const recipientUid = typeof data.recipientUid === "string" ? data.recipientUid.trim() : "";
     if (!recipientUid || recipientUid.length > 128 || recipientUid === senderUid) {
@@ -1074,7 +1076,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
         throw new HttpsError("permission-denied", "سياسة الخصوصية أو العمر لا تسمح بإرسال المرفق.");
       }
       if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
-          freshAsset.data()?.linkedMessageId) {
+          freshAsset.data()?.linkedMessageId ||
+          (freshAsset.data()?.retentionExpiresAt instanceof Timestamp &&
+            freshAsset.data()!.retentionExpiresAt.toMillis() <= Date.now())) {
         if (message.exists && message.data()?.mediaId === mediaId && message.data()?.senderUid === senderUid) {
           return { chatId, messageId, replayed: true };
         }
@@ -1100,6 +1104,8 @@ export const sendChatImageAttachment = onCall(async (request) => {
       tx.update(assetRef, {
         linkedMessageId: messageId, linkedConversationId: chatId,
         linkedScope: "direct", linkedRecipientUid: recipientUid,
+        mediaSentAt: now, retentionExpiresAt: mediaSentExpiry,
+        retentionPolicyStatus: "four_hour_self_destruct",
         deliveryState: "ready", linkedAt: now, updatedAt: now,
       });
       tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
@@ -1136,7 +1142,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
       throw new HttpsError("permission-denied", "لا يمكنك إرسال مرفقات أثناء فترة الكتم.");
     }
     if (!freshAsset.exists || freshAsset.data()?.status !== "security_approved" ||
-        freshAsset.data()?.linkedMessageId) {
+        freshAsset.data()?.linkedMessageId ||
+        (freshAsset.data()?.retentionExpiresAt instanceof Timestamp &&
+          freshAsset.data()!.retentionExpiresAt.toMillis() <= Date.now())) {
       if (message.exists && message.data()?.mediaId === mediaId && message.data()?.senderUid === senderUid) {
         return { roomId, messageId, replayed: true };
       }
@@ -1152,7 +1160,9 @@ export const sendChatImageAttachment = onCall(async (request) => {
     });
     tx.update(assetRef, {
       linkedMessageId: messageId, linkedConversationId: roomId,
-      linkedScope: "room", deliveryState: "ready", linkedAt: now, updatedAt: now,
+      linkedScope: "room", mediaSentAt: now, retentionExpiresAt: mediaSentExpiry,
+      retentionPolicyStatus: "four_hour_self_destruct",
+      deliveryState: "ready", linkedAt: now, updatedAt: now,
     });
     tx.create(mediaDb().collection("mediaAccessAudit").doc(), {
       actorUid: senderUid, mediaId, action: "chat_media_message_linked",
@@ -1610,8 +1620,9 @@ export const finalizeMediaUpload = onCall(async (request) => {
       storageGeneration: String(metadata.generation),
       finalizedAt: FieldValue.serverTimestamp(),
       ...(asset.mediaPurpose === "chat" || asset.mediaPurpose === "room" ? {
+        // The four-hour clock starts when the asset is linked to a sent message.
         mediaUploadedAt: FieldValue.serverTimestamp(),
-        retentionExpiresAt: Timestamp.fromMillis(Date.now() + 4 * 60 * 60 * 1000),
+        retentionExpiresAt: null,
       } : asset.mediaPurpose === "profile_album" ? {
         mediaUploadedAt: FieldValue.serverTimestamp(),
         retentionExpiresAt: Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000),
