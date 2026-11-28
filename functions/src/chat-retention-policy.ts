@@ -1,3 +1,4 @@
+export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
 export const TEMPORARY_CHAT_INACTIVITY_MS = 4 * 60 * 60 * 1000;
 export const NORMAL_CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 export const IMPORTANT_CHAT_TEXT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
