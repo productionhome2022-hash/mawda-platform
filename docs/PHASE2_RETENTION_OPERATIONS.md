@@ -80,3 +80,28 @@ No bilateral participant consent, second-participant approval or veto is require
 - Integration tests were redirected to the independent-purpose sweep where they test profile/story lifecycle; chat-room tests use the chat-only sweep. A new regression asserts that chat/room processing leaves profile albums, stories, avatars/covers and stickers untouched.
 - The stale bilateral-consent condition was removed from the chat-text worker comment. RET-006 is a closed owner-policy question; temporary-chat full-conversation deletion remains a separate technical gap.
 - **Validation:** no exact-head build, emulator test or GitHub Actions result has yet been recorded for these commits. Treat all code changes above as implemented but not yet test-verified.
+
+## 2026-11-28 — purpose-specific scheduler and CI failure reconciliation
+
+The current source branch keeps retention expiry and cleanup cadence separate. The scheduled reconciliation functions are purpose-scoped as follows:
+
+- `chat` / `room`: four-hour expiry from server-confirmed message linking; cleanup worker hourly UTC.
+- `profile_album`: seven-day expiry; cleanup worker daily.
+- `story`: the story's explicit server expiry remains authoritative; cleanup worker hourly.
+- `avatar_cover`: thirty-day expiry and default-profile fallback; cleanup worker daily.
+- `sticker`: separate owner-approved sixty-minute lifecycle; cleanup worker hourly.
+
+These intervals are cleanup/reconciliation cadences, not extensions of the retention lifetime. Every read/delivery path must deny access at the server-authoritative expiry without waiting for a scheduled sweep. The five-minute signed-upload capability and unrelated five-minute maintenance jobs are not media-retention schedules. All workers remain disabled by default and production activation is not authorized here.
+
+Pagination hardening on the current development branch:
+- Chat/room asset expiry and tombstone reconciliation use cursor-based traversal without a fixed page-count ceiling.
+- The text-retention and operational media-audit sweeps no longer stop after a fixed ten-page ceiling.
+- The duplicate bounded sticker-message-reference pass was removed; the remaining sticker reference cleanup exhausts its query pages.
+- Individual object failures remain recorded for retry; they do not authorize restoring member access or skipping later candidates.
+
+CI failure root cause and correction:
+- The 2026-11-28 Test Center and comprehensive emulator runs failed in `media-legal-hold.integration.test.js`, test “active legal hold protects every typed derivative; release deletes them and late replay is reconciled”, at the assertion expecting the objects to be absent after hold release.
+- The fixture classified the asset as `chat` but omitted `linkedMessageId`. The production guard correctly excludes unlinked/unsent upload intents from the four-hour sent-message retention sweep. The fixture now includes a synthetic linked-message identifier in both repositories. The guard was not weakened.
+- The source/test changes are recorded on the development branch. Exact-head emulator and CI confirmation is pending; this entry does not claim that the corrected test has passed.
+
+No 5,000-persona simulation engine was run as part of this reconciliation. No production Firebase/Storage configuration, production data, deployment, billing, or destructive production job was changed. The remaining acceptance gates include exact-head green CI, proof of immediate access denial, real non-production GCS generation/soft-delete behavior, backup/PITR/replica/cache handling, monitoring and retry/backlog recovery. Phase 2 must remain open until those gates have evidence.
