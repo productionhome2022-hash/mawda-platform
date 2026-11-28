@@ -418,6 +418,8 @@ test("signed upload intent binds exact byte range and create-only precondition; 
   assert.equal(finalized.status, "pending_security_scan");
   const asset = await assetRef.get();
   assert.ok(asset.data().storageGeneration);
+  assert.equal(asset.data().retentionExpiresAt, null,
+    "the four-hour media clock must not start before the message is sent");
 });
 
 test("legacy owner inspection URL is disabled; the authenticated streaming endpoint rejects missing credentials", async () => {
