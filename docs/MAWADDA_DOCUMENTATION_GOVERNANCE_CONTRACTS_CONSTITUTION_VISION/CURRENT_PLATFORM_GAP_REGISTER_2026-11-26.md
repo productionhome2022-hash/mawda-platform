@@ -131,3 +131,15 @@ This owner-approved addendum is the controlling direction for the listed domains
 6. Existing third-party integrations that are not part of the approved Firebase/Google Cloud/Cloudflare ecosystem must be reviewed for necessity and removed from active product paths only after their call sites, data dependencies, migration impact, and tests are understood. Do not delete historical documentation, archived evidence, or dormant code solely by string match.
 7. Every new or modified capability must document its Firebase/Google Cloud/Cloudflare responsibility, network protocol, data/security boundary, cost implications, and non-production validation. Where a capability cannot be implemented safely within this ecosystem, record the exact technical limitation; do not silently substitute another provider.
 8. This infrastructure boundary does not authorize production changes, paid services, Blaze activation, external service subscriptions, or deployment. Those remain subject to separate explicit owner approval.
+
+
+## Owner clarification superseding the former retention-consent gap — 2026-11-28
+
+The previous statement that retention-mode selection and bilateral participant consent remained an unresolved owner decision is superseded by the explicit owner clarification recorded in `MAWDDA_16H_PHASE_TRANSITION_GOVERNING_RECORD_2026-11-28.md` and `RET-006`.
+
+- No bilateral consent, second-participant approval or veto is required for the platform retention policy or the sender's authorized delete-for-everyone action.
+- Recipient local saving remains permitted subject to entitlement and server-side security checks; the sender cannot veto it. Local saving does not extend server retention.
+- Sender controls remain separate: delete for me, or delete for everyone for the sender's own sent message/media. A previously saved recipient-local copy is outside server deletion control.
+- Existing retention durations remain unchanged: temporary private conversation 4 hours after last server-recorded activity; normal media 4 hours/text 7 days; important media 4 hours/text 30 days. Both participants receive notice.
+- Policy/consent decision: CLOSED. Technical implementation and race/security tests remain in development. No production deletion schedule or live policy is activated by this clarification.
+- Real-device media acceptance and production validation are deferred to experimental pilot launch, not current code-completion blockers.
