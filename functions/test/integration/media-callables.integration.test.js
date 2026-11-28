@@ -813,7 +813,13 @@ test("Media Saver is receiver-usable, rechecks entitlement per save, and does no
   });
   const messageId = createHash("sha256").update(senderUid + ":" + clientMessageId).digest("hex");
   const assetRef = db.collection("mediaAssets").doc(mediaId);
-  const beforeExpiry = (await assetRef.get()).data().retentionExpiresAt.toMillis();
+  const sentAsset = (await assetRef.get()).data();
+  assert.ok(sentAsset.mediaSentAt instanceof Timestamp);
+  assert.ok(sentAsset.retentionExpiresAt instanceof Timestamp);
+  assert.equal(sentAsset.retentionPolicyStatus, "four_hour_self_destruct");
+  const beforeExpiry = sentAsset.retentionExpiresAt.toMillis();
+  assert.ok(beforeExpiry >= Date.now() + 4 * 60 * 60 * 1000 - 5000);
+  assert.ok(beforeExpiry <= Date.now() + 4 * 60 * 60 * 1000 + 5000);
 
   try {
     const request = {
