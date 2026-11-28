@@ -41,7 +41,11 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
       - name: Build release web artifact
-        run: flutter build web --release
+        env:
+          MAWDA_APP_CHECK_WEB_SITE_KEY: ${{ vars.MAWDA_NONPROD_APP_CHECK_WEB_SITE_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAWDDA_APP_CHECK_WEB_SITE_KEY="$MAWDA_APP_CHECK_WEB_SITE_KEY"
       - name: Upload validated Web build
         uses: actions/upload-artifact@v7.0.2
         with:
