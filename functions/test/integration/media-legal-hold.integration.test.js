@@ -1,9 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { Timestamp, getFirestore } = require("firebase-admin/firestore");
-const { getStorage } = require("firebase-admin/storage");
 const { placeMediaLegalHold, releaseMediaLegalHold, listActiveMediaLegalHolds, reviewMediaLegalHold } = require("../../lib/index");
 const { runChatMediaRetentionSweep } = require("../../lib/retention");
+const { mediaBucket } = require("../../lib/media");
 const { randomUUID } = require("node:crypto");
 
 const db = getFirestore();
@@ -111,7 +111,7 @@ test("owner legal hold suspends exact chat-media expiry and release restores the
 test("active legal hold protects every typed derivative; release deletes them and late replay is reconciled", async () => {
   assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
   assert.ok(process.env.FIREBASE_STORAGE_EMULATOR_HOST, "Storage emulator is required");
-  const bucket = getStorage().bucket("demo-mawda-legal-hold.appspot.com");
+  const bucket = mediaBucket();
   const suffix = Date.now().toString();
   const ownerUid = "legal-hold-storage-owner-" + suffix;
   const mediaId = randomUUID();
