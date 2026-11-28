@@ -170,6 +170,7 @@ export async function runChatMediaRetentionSweep(
           mediaId, purpose, errorName: error instanceof Error ? error.name : "unknown",
         });
       }
+      }
     }
 
     let dueCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
