@@ -125,11 +125,12 @@ test("hourly chat-room media scope never touches independent media purposes", as
     purpose, mediaId, ref: db.collection("mediaAssets").doc(mediaId),
   }));
   const expired = Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+  const sentBeyondRetention = Timestamp.fromMillis(Date.now() - 5 * 60 * 60 * 1000);
   await Promise.all(refs.map(({ purpose, mediaId, ref }) => ref.set({
     mediaId, ownerUid, uploaderType: "member", mediaPurpose: purpose,
     status: "security_approved", retentionExpiresAt: expired, createdAt: expired,
     ...(purpose === "chat" || purpose === "room"
-      ? { linkedMessageId: "retention-message-" + purpose, mediaSentAt: expired }
+      ? { linkedMessageId: "retention-message-" + purpose, mediaSentAt: sentBeyondRetention }
       : {}),
   })));
   try {
