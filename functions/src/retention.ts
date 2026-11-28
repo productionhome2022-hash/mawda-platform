@@ -5,9 +5,9 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { defineString } from "firebase-functions/params";
 import { isExplicitNonProductionTarget } from "./nonproduction-target";
 import { logger } from "firebase-functions";
-import { resolveChatRetentionMode, isChatTextDeletionDue, chatTextRetentionMs, type ChatRetentionMode } from "./chat-retention-policy";
+import { CHAT_MEDIA_RETENTION_MS, resolveChatRetentionMode, isChatTextDeletionDue, chatTextRetentionMs, type ChatRetentionMode } from "./chat-retention-policy";
+export { CHAT_MEDIA_RETENTION_MS } from "./chat-retention-policy";
 
-export const CHAT_MEDIA_RETENTION_MS = 4 * 60 * 60 * 1000;
 export const STICKER_MEDIA_RETENTION_MS = 60 * 60 * 1000;
 export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const RETENTION_BATCH_SIZE = 150;
