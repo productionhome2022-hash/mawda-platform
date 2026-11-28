@@ -5,6 +5,7 @@ import { onObjectFinalized } from "firebase-functions/v2/storage";
 import { defineString } from "firebase-functions/params";
 import { isExplicitNonProductionTarget } from "./nonproduction-target";
 import { logger } from "firebase-functions";
+import { mediaBucket } from "./media";
 import { CHAT_MEDIA_RETENTION_MS, resolveChatRetentionMode, isChatTextDeletionDue, chatTextRetentionMs, type ChatRetentionMode } from "./chat-retention-policy";
 export { CHAT_MEDIA_RETENTION_MS } from "./chat-retention-policy";
 
@@ -81,8 +82,7 @@ async function deleteAllObjectGenerations(objectPath: string): Promise<number> {
   if (!objectPath || objectPath.startsWith("/") || objectPath.split("/").includes("..")) {
     throw new Error("UNSAFE_MEDIA_OBJECT_PATH");
   }
-  const configuredBucket = configuredMediaBucketName();
-  const bucket = configuredBucket ? getStorage().bucket(configuredBucket) : getStorage().bucket();
+  const bucket = mediaBucket();
   const [listed] = await bucket.getFiles({ prefix: objectPath, versions: true, autoPaginate: true });
   const exactVersions = listed.filter((file) => file.name === objectPath);
   let deleted = 0;
