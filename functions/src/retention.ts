@@ -207,6 +207,12 @@ export async function runChatMediaRetentionSweep(
         // The original retention deadline is preserved and resumes on release/expiry.
         const ownerUid = typeof asset.ownerUid === "string" ? asset.ownerUid : "";
         const mediaId = assetDoc.id;
+        if ((purpose === "chat" || purpose === "room") &&
+            typeof asset.linkedMessageId !== "string" &&
+            !["manual_deletion_pending", "rejected", "expired_cleanup_in_progress", "expired"].includes(String(asset.status))) {
+          // Unsent upload intents are governed by upload-intent cleanup, not the sent-media four-hour clock.
+          continue;
+        }
         if (shouldSuspendMediaDeletion(asset)) {
           // Legal preservation does not extend the member-facing custom-image
           // lifetime: switch the profile to the Mawda default at expiry, but
@@ -684,9 +690,13 @@ async function handleLateExpiredChatMediaDerivative(event: Parameters<typeof onO
     : purpose === "sticker" && asset.finalizedAt instanceof Timestamp
       ? Timestamp.fromMillis(asset.finalizedAt.toMillis() + STICKER_MEDIA_RETENTION_MS)
       : purpose === "chat" || purpose === "room"
-        ? asset.createdAt instanceof Timestamp
-          ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
-          : null
+        ? typeof asset.linkedMessageId !== "string"
+          ? null
+          : asset.mediaSentAt instanceof Timestamp
+            ? Timestamp.fromMillis(asset.mediaSentAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+            : asset.createdAt instanceof Timestamp
+              ? Timestamp.fromMillis(asset.createdAt.toMillis() + CHAT_MEDIA_RETENTION_MS)
+              : null
         : purpose === "profile_album"
           ? asset.createdAt instanceof Timestamp
             ? Timestamp.fromMillis(asset.createdAt.toMillis() + 7 * 24 * 60 * 60 * 1000)
