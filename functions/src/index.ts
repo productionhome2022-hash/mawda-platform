@@ -7236,7 +7236,7 @@ export {
   getTimedAdCreativeUrl,
 } from "./media";
 
-export { enforceChatMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
+export { enforceChatMediaRetention, enforceIndependentMediaRetention, enforceStickerMediaRetention, enforceChatTextRetention, enforceMediaOperationalAuditRetention, removeLateExpiredChatMediaDerivative };
 
 
 const CAPACITY_MEDIA_SETTINGS = db.doc("platformSettings/capacityMediaManagement");
