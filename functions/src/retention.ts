@@ -12,7 +12,6 @@ export { CHAT_MEDIA_RETENTION_MS } from "./chat-retention-policy";
 export const STICKER_MEDIA_RETENTION_MS = 60 * 60 * 1000;
 export const CHAT_TEXT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const RETENTION_BATCH_SIZE = 150;
-const RETENTION_PAGES_PER_RUN = 10;
 const retentionJobsEnabled = defineString("MAWDA_RETENTION_JOBS_ENABLED", { default: "false" });
 const retentionProductionProjectId = defineString("MAWDA_RETENTION_PRODUCTION_PROJECT_ID", { default: "" });
 
@@ -299,54 +298,6 @@ export async function runChatMediaRetentionSweep(
           if (!prepared) continue;
         }
         if (purpose === "sticker") {
-          // Expiry removes every catalogue/message reference before bytes are swept.
-          // Message text and unrelated fields are preserved; only sticker pointers are tombstoned.
-          const packs = await db.collection("stickerPacks").limit(500).get();
-          for (const packDoc of packs.docs) {
-            const packData = packDoc.data();
-            if (!Array.isArray(packData.stickers) ||
-                !packData.stickers.some((item: unknown) =>
-                  !!item && typeof item === "object" &&
-                  (item as Record<string, unknown>).assetId === mediaId)) continue;
-            const remaining = packData.stickers.filter((item: unknown) =>
-              !item || typeof item !== "object" ||
-              (item as Record<string, unknown>).assetId !== mediaId);
-            await packDoc.ref.update({
-              stickers: remaining,
-              status: remaining.length > 0 ? packData.status : "archived",
-              approved: remaining.length > 0 && packData.approved === true,
-              version: (Number.isSafeInteger(packData.version) ? Number(packData.version) : 0) + 1,
-              stickerExpiryUpdatedAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp(),
-            });
-          }
-          let messageCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
-          for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
-            let query = db.collectionGroup("messages").where("mediaId", "==", mediaId)
-              .limit(RETENTION_BATCH_SIZE);
-            if (messageCursor) query = query.startAfter(messageCursor);
-            const messages = await query.get();
-            if (messages.empty) break;
-            messageCursor = messages.docs[messages.docs.length - 1];
-            const batch = db.batch();
-            for (const message of messages.docs) {
-              const data = message.data();
-              if (data.type !== "sticker") continue;
-              batch.update(message.ref, {
-                mediaId: FieldValue.delete(),
-                stickerPackId: FieldValue.delete(),
-                stickerId: FieldValue.delete(),
-                attachmentStatus: "expired",
-                stickerExpired: true,
-                stickerExpiredAt: FieldValue.serverTimestamp(),
-              });
-            }
-            await batch.commit();
-            if (messages.size < RETENTION_BATCH_SIZE) break;
-          }
-        }
-
-        if (purpose === "sticker") {
           // Expiry removes catalogue and message references before physical object deletion.
           const packs = await db.collection("stickerPacks").limit(500).get();
           for (const packDoc of packs.docs) {
@@ -520,7 +471,7 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
   let failures = 0;
   let cursor: any = null;
 
-  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+  while (true) {
     let query = db.collectionGroup("messages")
       .where("createdAt", "<=", scanCutoff)
       .orderBy("createdAt", "asc")
@@ -643,7 +594,7 @@ async function deleteExpiredMediaOperationalAudit(): Promise<number> {
   const db = getFirestore();
   const cutoff = Timestamp.fromMillis(Date.now() - 90 * 24 * 60 * 60 * 1000);
   let deleted = 0;
-  for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+  while (true) {
     const snapshot = await db.collection("mediaAccessAudit")
       .where("createdAt", "<=", cutoff)
       .orderBy("createdAt", "asc")
