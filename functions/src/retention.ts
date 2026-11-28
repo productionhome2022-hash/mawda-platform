@@ -753,7 +753,7 @@ export const enforceStickerMediaRetention = onSchedule(
   },
 );
 
-/** Applies normal seven-day and important thirty-day text retention; temporary chats are excluded pending the separate consent-gated full-conversation sweep. */
+/** Applies normal seven-day and important thirty-day text retention; temporary chats await their separate full-conversation technical lifecycle. Bilateral participant consent is not required. */
 export const enforceChatTextRetention = onSchedule(
   { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
