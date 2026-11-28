@@ -1,3 +1,4 @@
+import "./app-check-global";
 import { isStoreGiftReplayCompatible, isEligibleStoreGiftMemberRecord, isEligibleStoreGiftAuthUser, calculateStoreGiftExpiryMs } from "./store-gifting";
 import { validateGroupCallEntitlementPolicy, isGroupCallBillingCollectionEnabled, projectStoreGiftHistoryEntry, projectGroupCallTestPricingSnapshot, evaluateCallParticipantEntitlements } from "./call-entitlements";
 import { assertPlatformRoleCapacity, platformRoleCapacity, PLATFORM_ROLE_CAPACITY, type NumberedPlatformRole } from "./platform-role-identities";
