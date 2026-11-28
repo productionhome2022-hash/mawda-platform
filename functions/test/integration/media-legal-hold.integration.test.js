@@ -129,6 +129,7 @@ test("active legal hold protects every typed derivative; release deletes them an
       file.save(Buffer.from("legal hold fixture " + file.name), { resumable: false })));
     await assetRef.set({
       mediaId, ownerUid, uploaderType: "member", mediaPurpose: "chat",
+      linkedMessageId: "legal-hold-message-" + suffix,
       objectPath: originalPath,
       safePreviewPath: derivativePaths[0],
       safeAnimationPath: derivativePaths[1],
