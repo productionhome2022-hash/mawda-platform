@@ -108,6 +108,43 @@ test("mode-aware sweep deletes normal text at seven days, important text at thir
   }
 });
 
+
+test("hourly chat-room media scope never touches independent media purposes", async () => {
+  assert.ok(process.env.FIRESTORE_EMULATOR_HOST, "Firestore emulator is required");
+  const suffix = Date.now().toString();
+  const ownerUid = "retention-scope-owner-" + suffix;
+  const ids = {
+    chat: "10000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+    room: "20000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+    profile_album: "30000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+    story: "40000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+    avatar_cover: "50000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+    sticker: "60000000-0000-4000-8000-" + suffix.padStart(12, "0").slice(-12),
+  };
+  const refs = Object.entries(ids).map(([purpose, mediaId]) => ({
+    purpose, mediaId, ref: db.collection("mediaAssets").doc(mediaId),
+  }));
+  const expired = Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+  await Promise.all(refs.map(({ purpose, mediaId, ref }) => ref.set({
+    mediaId, ownerUid, uploaderType: "member", mediaPurpose: purpose,
+    status: "security_approved", retentionExpiresAt: expired, createdAt: expired,
+  })));
+  try {
+    const result = await runChatMediaRetentionSweep(["chat", "room"]);
+    assert.equal(result.failures, 0);
+    for (const entry of refs) {
+      const snapshot = await entry.ref.get();
+      if (entry.purpose === "chat" || entry.purpose === "room") {
+        assert.equal(snapshot.data().status, "self_destructed", entry.purpose);
+      } else {
+        assert.equal(snapshot.data().status, "security_approved", entry.purpose);
+      }
+    }
+  } finally {
+    await Promise.all(refs.map(({ ref }) => ref.delete().catch(() => undefined)));
+  }
+});
+
 test.after(async () => {
   await deleteApp(app);
 });
