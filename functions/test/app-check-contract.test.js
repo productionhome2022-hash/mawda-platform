@@ -27,12 +27,13 @@ test("Flutter initializes App Check after Firebase and before opening AuthGate",
   assert.match(main, /WebDebugProvider\(\)/);
 });
 
-test("production web App Check cannot silently fall back to a debug provider", () => {
+test("Web App Check always requires the configured reCAPTCHA site key", () => {
   const main = read("../../lib/main.dart");
   const productionWeb = main.slice(
     main.indexOf("if (environment == 'production' && kIsWeb)"),
     main.indexOf("} else {", main.indexOf("if (environment == 'production' && kIsWeb)")),
   );
   assert.match(productionWeb, /ReCaptchaV3Provider/);
-  assert.doesNotMatch(productionWeb, /WebDebugProvider/);
+  assert.match(productionWeb, /MAWDDA_APP_CHECK_WEB_SITE_KEY is required/);
+  assert.doesNotMatch(main, /WebDebugProvider/);
 });
