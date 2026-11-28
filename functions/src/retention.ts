@@ -480,6 +480,18 @@ export async function runIndependentMediaRetentionSweep(): Promise<{ assets: num
   return runChatMediaRetentionSweep(INDEPENDENT_MEDIA_RETENTION_PURPOSES);
 }
 
+export async function runProfileAlbumRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  return runChatMediaRetentionSweep(["profile_album"]);
+}
+
+export async function runStoryMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  return runChatMediaRetentionSweep(["story"]);
+}
+
+export async function runAvatarCoverRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
+  return runChatMediaRetentionSweep(["avatar_cover"]);
+}
+
 /** Runs only the owner sticker asset lifecycle; never part of the general five-minute sweep. */
 export async function runStickerMediaRetentionSweep(): Promise<{ assets: number; objects: number; failures: number }> {
   return runChatMediaRetentionSweep(STICKER_MEDIA_RETENTION_PURPOSES);
@@ -751,13 +763,33 @@ export const enforceChatMediaRetention = onSchedule(
   },
 );
 
-/** Preserves the separately governed gallery, story, avatar and cover retention lifecycle. */
-export const enforceIndependentMediaRetention = onSchedule(
-  { schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+/** Daily reconciliation for the seven-day profile gallery lifecycle. */
+export const enforceProfileAlbumRetention = onSchedule(
+  { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     if (!jobsMayRun()) return;
-    const result = await runChatMediaRetentionSweep(["profile_album", "story", "avatar_cover"]);
-    logger.info("Independent media retention sweep completed.", result);
+    const result = await runProfileAlbumRetentionSweep();
+    logger.info("Profile album retention sweep completed.", result);
+  },
+);
+
+/** Hourly reconciliation for stories; the story's server expiry remains authoritative. */
+export const enforceStoryMediaRetention = onSchedule(
+  { schedule: "every 1 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runStoryMediaRetentionSweep();
+    logger.info("Story media retention sweep completed.", result);
+  },
+);
+
+/** Daily reconciliation for the thirty-day avatar/cover lifecycle and default fallback. */
+export const enforceAvatarCoverRetention = onSchedule(
+  { schedule: "every 24 hours", timeZone: "UTC", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    if (!jobsMayRun()) return;
+    const result = await runAvatarCoverRetentionSweep();
+    logger.info("Avatar and cover retention sweep completed.", result);
   },
 );
 
