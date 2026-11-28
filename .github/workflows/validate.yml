@@ -160,7 +160,11 @@ jobs:
         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' }}
         env:
           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_NONPROD_FCM_VAPID_KEY }}
-        run: flutter build web --release --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+          MAWDA_APP_CHECK_WEB_SITE_KEY: ${{ vars.MAWDA_NONPROD_APP_CHECK_WEB_SITE_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY" \
+            --dart-define=MAWDDA_APP_CHECK_WEB_SITE_KEY="$MAWDA_APP_CHECK_WEB_SITE_KEY"
       - name: Upload validated web build artifact
         if: ${{ always() && steps.build_web.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
@@ -175,7 +179,12 @@ jobs:
         if: ${{ always() && steps.install_flutter_dependencies.outcome == 'success' && steps.build_web.outcome == 'success' }}
         env:
           MAWDA_FCM_VAPID_KEY: ${{ vars.MAWDA_PRODUCTION_FCM_VAPID_KEY }}
-        run: flutter build web --release --dart-define=MAWDDA_FIREBASE_ENV=production --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY"
+          MAWDA_APP_CHECK_WEB_SITE_KEY: ${{ vars.MAWDA_PRODUCTION_APP_CHECK_WEB_SITE_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAWDDA_FIREBASE_ENV=production \
+            --dart-define=MAWDA_FCM_VAPID_KEY="$MAWDA_FCM_VAPID_KEY" \
+            --dart-define=MAWDDA_APP_CHECK_WEB_SITE_KEY="$MAWDA_APP_CHECK_WEB_SITE_KEY"
       - name: Upload production-configured web release candidate
         if: ${{ always() && steps.build_production_web.outcome == 'success' }}
         uses: actions/upload-artifact@v7.0.2
