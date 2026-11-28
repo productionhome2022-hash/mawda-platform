@@ -58,7 +58,7 @@ Not established by these CI results and must remain open as verification gates:
 1. Live production Firebase behavior or production capacity. No production access or changes are authorized by this addendum.
 2. Real-device acceptance, live audio/video media transport, and full real-world media upload/playback paths.
 3. A comprehensive security sign-off for every application surface and Firestore rule. Successful named CI checks are not equivalent to a platform-wide security certification.
-4. Retention-policy decision still requiring owner approval: who selects the retention mode and whether both conversation participants must consent. No live deletion/retention automation may be enabled until that decision is made and approved.
+4. Retention owner-policy clarification: the bilateral-consent question is CLOSED by the 2026-11-28 owner decision (RET-006). No bilateral consent, second-participant approval or veto is required. Recipient local save and sender delete-for-me/delete-for-everyone rights are defined in the governing record. Existing durations remain unchanged. Technical implementation/race tests remain in development; live production deletion schedules remain disabled.
 5. Any broad claim such as “all platform gaps closed” or “150/151 repairs completed” remains unsupported unless backed by a separate, deduplicated evidence register and acceptance tests.
 
 ## 5. Execution boundaries
@@ -74,3 +74,6 @@ This addendum is documentation-only and is intended for the development branch. 
 ## 6. Acceptance
 
 The historical CSV is structurally valid. The new normalized registry provides an auditable mapping from each historical ID to its consolidated workstream and disposition. The original archive remains preserved, and the latest CI evidence above was rechecked directly from GitHub Actions.
+
+
+Superseding reference: `docs/governance/MAWDDA_16H_PHASE_TRANSITION_GOVERNING_RECORD_2026-11-28.md` is the consolidated controlling record for the exact 16-hour review window and supersedes inconsistent prior status wording. Real-device and production acceptance are deferred to the experimental pilot launch.
