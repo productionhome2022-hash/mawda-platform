@@ -143,3 +143,13 @@ The previous statement that retention-mode selection and bilateral participant c
 - Existing retention durations remain unchanged: temporary private conversation 4 hours after last server-recorded activity; normal media 4 hours/text 7 days; important media 4 hours/text 30 days. Both participants receive notice.
 - Policy/consent decision: CLOSED. Technical implementation and race/security tests remain in development. No production deletion schedule or live policy is activated by this clarification.
 - Real-device media acceptance and production validation are deferred to experimental pilot launch, not current code-completion blockers.
+
+
+## SEC-APP-CHECK-001 — Callable App Check enforcement (2026-11-28)
+
+- **Status:** OPEN — high-priority security hardening; discovered by direct source inspection.
+- **Evidence:** `pubspec.yaml` has no `firebase_app_check`; `lib/main.dart` does not activate an App Check provider; no global `setGlobalOptions` enforcement was found; 198 callable exports use `onCall(async request)` without explicit `enforceAppCheck: true`. All sampled callable entry blocks do contain auth/authorization guards, so this finding is not itself proof of unauthenticated data access.
+- **Partial control:** owner media HTTP routes verify Firebase ID token revocation, App Check token and owner/MFA session; scanner callback uses an HMAC secret.
+- **Risk:** callable endpoints lack App Check attestation, weakening abuse resistance and app/device attestation even where Firebase Auth and server-side authorization are enforced.
+- **Acceptance:** add FlutterFire App Check to Android/iOS/Web bootstrap; register and verify non-production apps; test valid/missing/invalid/expired tokens; keep debug providers test-only; stage `enforceAppCheck` only after client readiness and integration tests. No blanket enforcement before compatibility proof.
+- **Boundary:** no production app registration, allowlist change, enforcement activation or deployment is authorized here.
