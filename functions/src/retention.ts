@@ -133,14 +133,19 @@ export async function runChatMediaRetentionSweep(
     // Revisit content-free tombstones on a separate clock. This catches a
     // derivative written by a scanner that was already running at expiry,
     // without allowing tombstones to occupy the active-expiry query forever.
-    const tombstones = await db.collection("mediaAssets")
-      .where("mediaPurpose", "==", purpose)
-      .where("status", "in", ["self_destructed", "manually_deleted"])
-      .where("retentionReconcileAt", "<=", now)
-      .orderBy("retentionReconcileAt", "asc")
-      .limit(RETENTION_BATCH_SIZE)
-      .get();
-    for (const tombstoneDoc of tombstones.docs) {
+    let tombstoneCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    while (true) {
+      let tombstoneQuery = db.collection("mediaAssets")
+        .where("mediaPurpose", "==", purpose)
+        .where("status", "in", ["self_destructed", "manually_deleted"])
+        .where("retentionReconcileAt", "<=", Timestamp.fromMillis(Date.now()))
+        .orderBy("retentionReconcileAt", "asc")
+        .limit(RETENTION_BATCH_SIZE);
+      if (tombstoneCursor) tombstoneQuery = tombstoneQuery.startAfter(tombstoneCursor);
+      const tombstones = await tombstoneQuery.get();
+      if (tombstones.empty) break;
+      tombstoneCursor = tombstones.docs[tombstones.docs.length - 1];
+      for (const tombstoneDoc of tombstones.docs) {
       const ownerUid = tombstoneDoc.data().ownerUid;
       const mediaId = tombstoneDoc.id;
       if (typeof ownerUid !== "string" || !/^[0-9a-f-]{36}$/i.test(mediaId)) continue;
@@ -164,30 +169,35 @@ export async function runChatMediaRetentionSweep(
       }
     }
 
-    for (let page = 0; page < RETENTION_PAGES_PER_RUN; page += 1) {
+    let dueCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    let legacyCursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    while (true) {
       const dueAt = Timestamp.fromMillis(Date.now());
-      const due = await db.collection("mediaAssets")
+      let dueQuery = db.collection("mediaAssets")
         .where("mediaPurpose", "==", purpose)
         .where("status", "in", ACTIVE_MEDIA_STATES)
         .where("retentionExpiresAt", "<=", dueAt)
         .orderBy("retentionExpiresAt", "asc")
-        .limit(RETENTION_BATCH_SIZE)
-        .get();
-      const legacyDocs = lifetimeMs === null || cutoff === null
-        ? []
-        : (await db.collection("mediaAssets")
-          .where("mediaPurpose", "==", purpose)
-          .where("status", "in", ACTIVE_MEDIA_STATES)
-          .where("retentionExpiresAt", "==", null)
-          .where("createdAt", "<=", cutoff)
-          .orderBy("createdAt", "asc")
-          .limit(RETENTION_BATCH_SIZE)
-          .get()).docs;
+        .limit(RETENTION_BATCH_SIZE);
+      if (dueCursor) dueQuery = dueQuery.startAfter(dueCursor);
+      const due = await dueQuery.get();
+      if (!due.empty) dueCursor = due.docs[due.docs.length - 1];
+
+      let legacyQuery = db.collection("mediaAssets")
+        .where("mediaPurpose", "==", purpose)
+        .where("status", "in", ACTIVE_MEDIA_STATES)
+        .where("retentionExpiresAt", "==", null)
+        .where("createdAt", "<=", cutoff ?? Timestamp.fromMillis(0))
+        .orderBy("createdAt", "asc")
+        .limit(RETENTION_BATCH_SIZE);
+      if (legacyCursor) legacyQuery = legacyQuery.startAfter(legacyCursor);
+      const legacy = lifetimeMs === null || cutoff === null ? null : await legacyQuery.get();
+      if (legacy && !legacy.empty) legacyCursor = legacy.docs[legacy.docs.length - 1];
+      const legacyDocs = legacy?.docs ?? [];
       const candidates = new Map<string, (typeof due.docs)[number]>();
       for (const doc of [...due.docs, ...legacyDocs]) candidates.set(doc.id, doc);
       if (candidates.size === 0) break;
 
-      let succeededThisPage = 0;
       for (const assetDoc of candidates.values()) {
         const asset = assetDoc.data();
         // A documented owner legal hold suspends deletion only for this exact asset.
@@ -415,7 +425,6 @@ export async function runChatMediaRetentionSweep(
             expiresAt: Timestamp.fromMillis(Date.now() + 90 * 24 * 60 * 60 * 1000),
           });
           assets += 1;
-          succeededThisPage += 1;
         } catch (error) {
           failures += 1;
           await db.collection("mediaAccessAudit").add({
@@ -430,7 +439,6 @@ export async function runChatMediaRetentionSweep(
           });
         }
       }
-      if (succeededThisPage === 0) break;
     }
   }
   // Expired story documents are part of the general media sweep only.
@@ -519,8 +527,8 @@ export async function runChatTextRetentionSweep(): Promise<{ messages: number; f
       }
 
       // Temporary private conversations require a separate full-conversation
-      // inactivity sweep and a confirmed participant-consent rule. Never
-      // delete individual messages under that mode in this seven/thirty-day job.
+      // inactivity sweep. No bilateral participant consent gate applies to
+      // the retention policy; never delete individual messages in this 7/30-day job.
       if (mode === "temporary") continue;
       const lifetimeMs = chatTextRetentionMs(mode);
       if (lifetimeMs === null ||
